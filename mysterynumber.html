@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mystery Number Game</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700;800&family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+    padding: 32px 16px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .container { max-width: 640px; margin: 0 auto; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 28px; }
+  .header h1 { font-family: 'Fredoka', sans-serif; font-size: 32px; font-weight: 700; color: #f8fafc; }
+  .header p { color: #94a3b8; font-size: 15px; margin-top: 8px; }
+
+  /* Clue Cards */
+  .clues { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+  .clue-card {
+    padding: 14px 20px; border-radius: 12px;
+    font-size: 16px; display: flex; align-items: center; gap: 12px;
+    transition: all 0.4s ease;
+  }
+  .clue-card.hidden { background: #f8fafc; border: 2px solid #e2e8f0; color: #64748b; font-weight: 500; }
+  .clue-card.active { background: linear-gradient(135deg, #fbbf24, #f59e0b); border: 2px solid #d97706; color: #78350f; font-weight: 700; box-shadow: 0 4px 16px rgba(251,191,36,0.35); }
+  .clue-card.revealed { background: #f0fdf4; border: 2px solid #86efac; color: #166534; font-weight: 500; }
+  .clue-badge {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0;
+  }
+  .clue-card.hidden .clue-badge { background: #cbd5e1; }
+  .clue-card.active .clue-badge { background: #78350f; }
+  .clue-card.revealed .clue-badge { background: #22c55e; }
+
+  /* Buttons */
+  .btn-row { text-align: center; margin-bottom: 24px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    padding: 14px 36px; border-radius: 14px; border: none;
+    font-family: 'DM Sans', sans-serif; font-weight: 800; font-size: 17px;
+    cursor: pointer; transition: all 0.3s ease; letter-spacing: 0.5px;
+  }
+  .btn-clue { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #78350f; box-shadow: 0 6px 24px rgba(251,191,36,0.4); }
+  .btn-clue:disabled { background: #475569; color: #94a3b8; box-shadow: none; cursor: not-allowed; }
+  .btn-answer { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; box-shadow: 0 6px 24px rgba(34,197,94,0.4); animation: pulse 2s infinite; }
+  .btn-new { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; box-shadow: 0 6px 24px rgba(139,92,246,0.4); }
+  .btn-skip {
+    padding: 14px 20px; border-radius: 14px; border: 2px solid #475569;
+    background: transparent; color: #94a3b8;
+    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 15px;
+    cursor: pointer; transition: all 0.3s ease;
+  }
+
+  /* Stats */
+  .stats {
+    display: flex; justify-content: center; align-items: center;
+    gap: 16px; margin-bottom: 20px; font-size: 14px; font-weight: 600; flex-wrap: wrap;
+  }
+  .stats span { color: #64748b; }
+  .stats .val-clue { color: #fbbf24; }
+  .stats .val-remain { color: #22c55e; }
+  .btn-toggle {
+    padding: 7px 16px; border-radius: 10px; font-family: 'DM Sans', sans-serif;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+    transition: all 0.3s ease; display: flex; align-items: center; gap: 7px;
+  }
+  .btn-toggle.on { border: 2px solid #3b82f6; background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .btn-toggle.off { border: 2px solid #475569; background: transparent; color: #64748b; }
+
+  /* Number Grid */
+  .grid-wrap {
+    background: rgba(255,255,255,0.04); border-radius: 20px;
+    padding: 20px; border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.4s ease;
+  }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, 52px);
+    gap: 8px; justify-content: center;
+  }
+  .tile {
+    width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;
+    border-radius: 10px; font-family: 'DM Mono', monospace;
+    font-weight: 700; font-size: 18px; position: relative;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .tile.normal { background: #fff; color: #1e293b; border: 2px solid #e2e8f0; transform: scale(1); opacity: 1; }
+  .tile.eliminated {
+    background: rgba(0,0,0,0.08); color: rgba(0,0,0,0.18);
+    border: 2px solid rgba(0,0,0,0.06); transform: scale(0.92); opacity: 0.45;
+  }
+  .tile.surviving {
+    background: #22c55e; color: #fff; border: 2px solid #16a34a;
+    transform: scale(1.12); box-shadow: 0 4px 20px rgba(34,197,94,0.4);
+  }
+  .tile .x-mark {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    color: rgba(220,38,38,0.35); font-size: 32px; font-weight: 900; line-height: 1; pointer-events: none;
+  }
+
+  /* Answer */
+  .answer-box {
+    margin-top: 28px; text-align: center; padding: 28px 20px; border-radius: 20px;
+    background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(16,185,129,0.1));
+    border: 2px solid rgba(34,197,94,0.3); animation: fadeIn 0.6s ease;
+  }
+  .answer-label { font-size: 16px; font-weight: 700; color: #86efac; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .answer-number { font-family: 'Fredoka', sans-serif; font-size: 64px; font-weight: 700; color: #22c55e; text-shadow: 0 0 40px rgba(34,197,94,0.5); }
+  .answer-checks { color: #94a3b8; font-size: 14px; margin-top: 8px; line-height: 1.8; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes pulse { 0%, 100% { box-shadow: 0 6px 24px rgba(34,197,94,0.4); } 50% { box-shadow: 0 6px 32px rgba(34,197,94,0.7); } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>🔍 Mystery Number</h1>
+    <p>Reveal clues one at a time. Eliminate numbers that don't fit!</p>
+  </div>
+
+  <div class="clues" id="clues"></div>
+  <div class="btn-row" id="btn-row"></div>
+  <div class="stats" id="stats"></div>
+  <div id="grid-container"></div>
+  <div id="answer-container"></div>
+</div>
+
+<script>
+const ALL_NUMBERS = Array.from({ length: 50 }, (_, i) => i + 1);
+
+let puzzle, revealedCount, eliminated, animating, showAnswer, showGrid;
+
+function generatePuzzle() {
+  const target = Math.floor(Math.random() * 50) + 1;
+  const clues = [];
+
+  const lowerBound = Math.max(0, target - Math.floor(Math.random() * 12) - 3);
+  clues.push({ text: `It is greater than ${lowerBound}.`, filter: n => n > lowerBound });
+
+  const upperBound = Math.min(51, target + Math.floor(Math.random() * 12) + 3);
+  clues.push({ text: `It is less than ${upperBound}.`, filter: n => n < upperBound });
+
+  const isOdd = target % 2 !== 0;
+  clues.push({
+    text: isOdd ? "It is an odd number." : "It is an even number.",
+    filter: isOdd ? n => n % 2 !== 0 : n => n % 2 === 0
+  });
+
+  const candidates = [];
+  for (const d of [2, 3, 4, 5, 6, 7, 8, 9]) {
+    if (target % d === 0) candidates.push({ text: `It is a multiple of ${d}.`, filter: n => n % d === 0 });
+  }
+  for (let a = 2; a <= 9; a++) {
+    for (let b = a; b <= 9; b++) {
+      if (a * b === target) candidates.push({ text: `It is the product of ${a} and ${b}.`, filter: n => n === a * b });
+    }
+  }
+  const sq = Math.sqrt(target);
+  if (sq === Math.floor(sq)) {
+    candidates.push({ text: "It is a perfect square.", filter: n => { const s = Math.sqrt(n); return s === Math.floor(s); } });
+  }
+  const digitSum = String(target).split("").reduce((s, d) => s + Number(d), 0);
+  candidates.push({ text: `Its digits add up to ${digitSum}.`, filter: n => String(n).split("").reduce((s, d) => s + Number(d), 0) === digitSum });
+  candidates.push({ text: `Its ones digit is ${target % 10}.`, filter: n => n % 10 === target % 10 });
+  candidates.push({ text: `Its tens digit is ${Math.floor(target / 10)}.`, filter: n => Math.floor(n / 10) === Math.floor(target / 10) });
+
+  let remaining = ALL_NUMBERS.filter(n => clues.every(c => c.filter(n)));
+  while (remaining.length > 1 && candidates.length > 0) {
+    let bestIdx = -1, bestCount = Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      const after = remaining.filter(n => candidates[i].filter(n));
+      if (after.includes(target) && after.length < bestCount && after.length >= 1) {
+        bestCount = after.length;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx === -1) break;
+    const chosen = candidates.splice(bestIdx, 1)[0];
+    clues.push(chosen);
+    remaining = remaining.filter(n => chosen.filter(n));
+  }
+
+  return { target, clues };
+}
+
+function init() {
+  puzzle = generatePuzzle();
+  revealedCount = 0;
+  eliminated = new Set();
+  animating = false;
+  showAnswer = false;
+  showGrid = true;
+  render();
+}
+
+function revealClue() {
+  if (revealedCount >= puzzle.clues.length || animating) return;
+  animating = true;
+  render();
+  const clue = puzzle.clues[revealedCount];
+  ALL_NUMBERS.forEach(n => { if (!clue.filter(n)) eliminated.add(n); });
+  setTimeout(() => {
+    revealedCount++;
+    animating = false;
+    render();
+  }, 300);
+}
+
+function revealAnswer() {
+  showAnswer = true;
+  render();
+}
+
+function toggleGrid() {
+  showGrid = !showGrid;
+  render();
+}
+
+function render() {
+  const isFinished = revealedCount === puzzle.clues.length;
+  const remaining = ALL_NUMBERS.filter(n => !eliminated.has(n)).length;
+
+  // Clues
+  const cluesEl = document.getElementById('clues');
+  cluesEl.innerHTML = puzzle.clues.map((clue, i) => {
+    const isActive = i === revealedCount - 1;
+    const isRevealed = i < revealedCount;
+    const cls = isActive ? 'active' : isRevealed ? 'revealed' : 'hidden';
+    const badgeText = isRevealed && !isActive ? '✓' : (i + 1);
+    const text = isRevealed || isActive ? clue.text : '???';
+    return `<div class="clue-card ${cls}"><span class="clue-badge">${badgeText}</span>${text}</div>`;
+  }).join('');
+
+  // Buttons
+  const btnRow = document.getElementById('btn-row');
+  let btnHTML = '';
+  if (!isFinished) {
+    const label = revealedCount === 0 ? '🎯 Reveal First Clue' : `🔎 Reveal Clue ${revealedCount + 1}`;
+    btnHTML += `<button class="btn btn-clue" onclick="revealClue()" ${animating ? 'disabled' : ''}>${label}</button>`;
+    if (revealedCount > 0) {
+      btnHTML += `<button class="btn-skip" onclick="init()">↻ Skip</button>`;
+    }
+  } else if (!showAnswer) {
+    btnHTML += `<button class="btn btn-answer" onclick="revealAnswer()">🎉 Reveal Answer</button>`;
+  } else {
+    btnHTML += `<button class="btn btn-new" onclick="init()">🎲 New Puzzle</button>`;
+  }
+  btnRow.innerHTML = btnHTML;
+
+  // Stats
+  const statsEl = document.getElementById('stats');
+  const toggleCls = showGrid ? 'on' : 'off';
+  const toggleLabel = showGrid ? 'Hide Numbers' : 'Show Numbers';
+  statsEl.innerHTML = `
+    <span>Clues: <span class="val-clue">${revealedCount}/${puzzle.clues.length}</span></span>
+    <span>Remaining: <span class="val-remain">${remaining}</span></span>
+    <button class="btn-toggle ${toggleCls}" onclick="toggleGrid()"><span style="font-size:15px">🔢</span>${toggleLabel}</button>
+  `;
+
+  // Grid
+  const gridContainer = document.getElementById('grid-container');
+  if (showGrid) {
+    let tilesHTML = '';
+    ALL_NUMBERS.forEach(n => {
+      const isElim = eliminated.has(n);
+      const isSurv = isFinished && showAnswer && !isElim;
+      const cls = isSurv ? 'surviving' : isElim ? 'eliminated' : 'normal';
+      const xMark = isElim ? '<span class="x-mark">✕</span>' : '';
+      tilesHTML += `<div class="tile ${cls}">${n}${xMark}</div>`;
+    });
+    gridContainer.innerHTML = `<div class="grid-wrap"><div class="grid">${tilesHTML}</div></div>`;
+  } else {
+    gridContainer.innerHTML = '';
+  }
+
+  // Answer
+  const answerContainer = document.getElementById('answer-container');
+  if (showAnswer) {
+    const checks = puzzle.clues.map(c => `<div>${c.text} ✓</div>`).join('');
+    answerContainer.innerHTML = `
+      <div class="answer-box">
+        <div class="answer-label">🎉 Mystery Number</div>
+        <div class="answer-number">${puzzle.target}</div>
+        <div class="answer-checks">${checks}</div>
+      </div>
+    `;
+  } else {
+    answerContainer.innerHTML = '';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

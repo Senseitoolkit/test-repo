@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ Math Blitz</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #fdfcfb 0%, #e2d1c3 100%);
+    font-family: 'DM Sans', sans-serif;
+    padding: 20px 16px 40px;
+    color: #1a1a2e;
+  }
+
+  /* Remove number input spinners */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes pop {
+    0% { transform: scale(0.8); opacity: 0; }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .header { text-align: center; margin-bottom: 20px; }
+  .header h1 {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+  }
+  .header p { color: #888; font-size: 14px; margin-top: 4px; }
+
+  .score-bar {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .score-correct { color: #34a853; }
+  .score-wrong { color: #e74c3c; }
+  .score-pct { color: #888; }
+
+  .settings-toggle {
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .settings-toggle button {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .settings-panel {
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px 20px 16px;
+    max-width: 520px;
+    margin: 0 auto 24px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.06);
+  }
+  .settings-panel.hidden { display: none; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #aaa;
+    margin-bottom: 10px;
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 99px;
+    border: 2px solid #d0d0d8;
+    background: #f5f5f7;
+    color: #555;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+  .chip.active {
+    border-color: #1a1a2e;
+    background: #1a1a2e;
+    color: #fff;
+  }
+  .chip-icon { font-size: 16px; }
+
+  .diff-buttons { display: flex; gap: 8px; }
+  .diff-btn {
+    padding: 7px 20px;
+    border-radius: 99px;
+    border: 2px solid #e0e0e5;
+    background: transparent;
+    color: #777;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .diff-btn.active-easy { border-color: #34a853; background: #34a853; color: #fff; }
+  .diff-btn.active-medium { border-color: #f5a623; background: #f5a623; color: #fff; }
+  .diff-btn.active-hard { border-color: #e74c3c; background: #e74c3c; color: #fff; }
+
+  .card {
+    max-width: 520px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 24px;
+    padding: 36px 24px 28px;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.08);
+    text-align: center;
+    animation: slideIn 0.35s ease;
+  }
+
+  .card-category {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #bbb;
+    margin-bottom: 20px;
+  }
+
+  .problem-display {
+    font-family: 'Space Mono', monospace;
+    font-size: 40px;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 28px;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .input-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .answer-input {
+    width: 120px;
+    font-size: 28px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    text-align: center;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 3px solid #e0e0e5;
+    outline: none;
+    background: #fafafa;
+    color: #1a1a2e;
+    transition: border 0.2s, background 0.2s;
+  }
+  .answer-input.correct { border-color: #34a853; background: #f0faf3; }
+  .answer-input.wrong { border-color: #e74c3c; background: #fef2f2; animation: shake 0.4s ease; }
+
+  .check-btn {
+    padding: 12px 24px;
+    border-radius: 16px;
+    border: none;
+    background: #1a1a2e;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .check-btn:active { transform: scale(0.95); }
+
+  .feedback { animation: pop 0.3s ease; margin-bottom: 16px; }
+  .feedback-correct { font-size: 22px; font-weight: 700; color: #34a853; }
+  .feedback-wrong { font-size: 22px; font-weight: 700; color: #e74c3c; margin-bottom: 6px; }
+  .answer-reveal {
+    font-size: 18px;
+    color: #555;
+    font-family: 'Space Mono', monospace;
+  }
+  .answer-reveal strong { color: #1a1a2e; }
+
+  .action-buttons { display: flex; justify-content: center; gap: 10px; }
+
+  .next-btn {
+    padding: 12px 32px;
+    border-radius: 99px;
+    border: none;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: transform 0.15s;
+    box-shadow: 0 4px 14px rgba(102,126,234,0.35);
+  }
+  .next-btn:active { transform: scale(0.95); }
+
+  .show-answer-btn {
+    padding: 8px 18px;
+    border-radius: 99px;
+    border: 2px solid #ddd;
+    background: transparent;
+    color: #999;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+  }
+
+  .empty-msg {
+    text-align: center;
+    padding: 40px;
+    color: #aaa;
+    font-size: 16px;
+  }
+
+  .reset-score {
+    text-align: center;
+    margin-top: 20px;
+  }
+  .reset-score button {
+    background: none;
+    border: none;
+    color: #bbb;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ Math Blitz</h1>
+  <p>Sharpen your arithmetic skills</p>
+</div>
+
+<div id="scoreBar" class="score-bar hidden">
+  <span class="score-correct">✓ <span id="correctCount">0</span></span>
+  <span class="score-wrong">✗ <span id="wrongCount">0</span></span>
+  <span class="score-pct"><span id="pctDisplay">0</span>%</span>
+</div>
+
+<div class="settings-toggle">
+  <button id="settingsToggle">▾ Settings</button>
+</div>
+
+<div id="settingsPanel" class="settings-panel">
+  <div>
+    <div class="section-label">Practice Topics</div>
+    <div class="chips" id="topicChips"></div>
+  </div>
+  <div>
+    <div class="section-label">Difficulty</div>
+    <div class="diff-buttons" id="diffButtons"></div>
+  </div>
+</div>
+
+<div id="emptyMsg" class="empty-msg hidden">Toggle at least one topic above to start!</div>
+
+<div id="problemCard" class="card hidden">
+  <div class="card-category" id="cardCategory"></div>
+  <div class="problem-display" id="problemDisplay"></div>
+  <div class="input-row">
+    <input type="number" class="answer-input" id="answerInput" placeholder="?">
+    <button class="check-btn" id="checkBtn">Check</button>
+  </div>
+  <div id="feedbackArea" class="hidden"></div>
+  <div class="action-buttons" id="actionButtons"></div>
+</div>
+
+<div class="reset-score" id="resetArea" style="display:none">
+  <button id="resetBtn">Reset score</button>
+</div>
+
+<script>
+const CATEGORIES = {
+  numberBonds:        { label: "Number Bonds to 20",       icon: "🔗",  active: true },
+  timesTables:        { label: "Times Tables (to 12)",     icon: "✖️",  active: true },
+  missingAddends:     { label: "Missing Addends",          icon: "➕",  active: false },
+  missingSubtrahends: { label: "Missing Subtrahends",      icon: "➖",  active: false },
+  addition3Digit:     { label: "Addition (up to 3 digits)",icon: "🧮",  active: false },
+  subtraction3Digit:  { label: "Subtraction (up to 3 digits)", icon: "📉", active: false },
+};
+
+let difficulty = "easy";
+let currentProblem = null;
+let feedback = null; // null | 'correct' | 'wrong'
+let score = { correct: 0, total: 0 };
+let settingsOpen = true;
+
+const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+function generateProblem(cat) {
+  const d = difficulty;
+  switch (cat) {
+    case "numberBonds": {
+      const a = rand(0, 20), b = 20 - a;
+      return Math.random() > 0.5
+        ? { display: `${a} + ? = 20`, answer: b }
+        : { display: `? + ${b} = 20`, answer: a };
+    }
+    case "timesTables": {
+      const mx = d === "easy" ? 5 : d === "medium" ? 9 : 12;
+      const a = rand(1, mx), b = rand(1, 12), v = rand(0, 2);
+      if (v === 0) return { display: `${a} × ${b} = ?`, answer: a * b };
+      if (v === 1) return { display: `? × ${b} = ${a * b}`, answer: a };
+      return { display: `${a} × ? = ${a * b}`, answer: b };
+    }
+    case "missingAddends": {
+      const mx = d === "easy" ? 20 : d === "medium" ? 50 : 100;
+      const total = rand(2, mx), a = rand(0, total), b = total - a;
+      return rand(0, 1) === 0
+        ? { display: `? + ${b} = ${total}`, answer: a }
+        : { display: `${a} + ? = ${total}`, answer: b };
+    }
+    case "missingSubtrahends": {
+      const mx = d === "easy" ? 20 : d === "medium" ? 50 : 100;
+      const total = rand(2, mx), sub = rand(0, total), res = total - sub;
+      return rand(0, 1) === 0
+        ? { display: `${total} − ? = ${res}`, answer: sub }
+        : { display: `? − ${sub} = ${res}`, answer: total };
+    }
+    case "addition3Digit": {
+      const maxV = d === "easy" ? 99 : d === "medium" ? 499 : 999;
+      const minV = d === "easy" ? 10 : 100;
+      const a = rand(minV, maxV), b = rand(minV, maxV);
+      return { display: `${a} + ${b} = ?`, answer: a + b };
+    }
+    case "subtraction3Digit": {
+      const maxV = d === "easy" ? 99 : d === "medium" ? 499 : 999;
+      const minV = d === "easy" ? 10 : 100;
+      let a = rand(minV, maxV), b = rand(minV, maxV);
+      if (b > a) [a, b] = [b, a];
+      return { display: `${a} − ${b} = ?`, answer: a - b };
+    }
+  }
+}
+
+function getActiveCategories() {
+  return Object.entries(CATEGORIES).filter(([, v]) => v.active).map(([k]) => k);
+}
+
+// --- Render functions ---
+
+function renderChips() {
+  const container = document.getElementById("topicChips");
+  container.innerHTML = "";
+  Object.entries(CATEGORIES).forEach(([key, { label, icon, active }]) => {
+    const btn = document.createElement("button");
+    btn.className = "chip" + (active ? " active" : "");
+    btn.innerHTML = `<span class="chip-icon">${icon}</span>${label}`;
+    btn.addEventListener("click", () => {
+      CATEGORIES[key].active = !CATEGORIES[key].active;
+      renderChips();
+      checkEmpty();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function renderDiffButtons() {
+  const container = document.getElementById("diffButtons");
+  container.innerHTML = "";
+  ["easy", "medium", "hard"].forEach((d) => {
+    const btn = document.createElement("button");
+    btn.className = "diff-btn" + (difficulty === d ? ` active-${d}` : "");
+    btn.textContent = d;
+    btn.addEventListener("click", () => {
+      difficulty = d;
+      renderDiffButtons();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function updateScore() {
+  const bar = document.getElementById("scoreBar");
+  const resetArea = document.getElementById("resetArea");
+  if (score.total > 0) {
+    bar.classList.remove("hidden");
+    resetArea.style.display = "";
+    document.getElementById("correctCount").textContent = score.correct;
+    document.getElementById("wrongCount").textContent = score.total - score.correct;
+    document.getElementById("pctDisplay").textContent = Math.round((score.correct / score.total) * 100);
+  } else {
+    bar.classList.add("hidden");
+    resetArea.style.display = "none";
+  }
+}
+
+function checkEmpty() {
+  const active = getActiveCategories();
+  const card = document.getElementById("problemCard");
+  const msg = document.getElementById("emptyMsg");
+  if (active.length === 0) {
+    card.classList.add("hidden");
+    msg.classList.remove("hidden");
+  } else {
+    msg.classList.add("hidden");
+    if (!currentProblem) nextProblem();
+  }
+}
+
+function nextProblem() {
+  const cats = getActiveCategories();
+  if (cats.length === 0) return;
+  const cat = cats[rand(0, cats.length - 1)];
+  const prob = generateProblem(cat);
+  currentProblem = { ...prob, category: cat };
+  feedback = null;
+  renderProblem();
+}
+
+function renderProblem() {
+  const card = document.getElementById("problemCard");
+  card.classList.remove("hidden");
+  // Re-trigger animation
+  card.style.animation = "none";
+  card.offsetHeight; // force reflow
+  card.style.animation = "slideIn 0.35s ease";
+
+  const cat = CATEGORIES[currentProblem.category];
+  document.getElementById("cardCategory").textContent = `${cat.icon} ${cat.label}`;
+  document.getElementById("problemDisplay").textContent = currentProblem.display;
+
+  const input = document.getElementById("answerInput");
+  input.value = "";
+  input.className = "answer-input";
+  input.disabled = false;
+  setTimeout(() => input.focus(), 50);
+
+  document.getElementById("checkBtn").classList.remove("hidden");
+  document.getElementById("feedbackArea").classList.add("hidden");
+  document.getElementById("feedbackArea").innerHTML = "";
+  renderActionButtons();
+}
+
+function renderActionButtons() {
+  const container = document.getElementById("actionButtons");
+  container.innerHTML = "";
+  if (feedback) {
+    const btn = document.createElement("button");
+    btn.className = "next-btn";
+    btn.textContent = "Next →";
+    btn.addEventListener("click", nextProblem);
+    container.appendChild(btn);
+  } else {
+    const btn = document.createElement("button");
+    btn.className = "show-answer-btn";
+    btn.textContent = "Show Answer";
+    btn.addEventListener("click", () => {
+      feedback = "wrong";
+      score.total++;
+      updateScore();
+      showFeedback(false, true);
+    });
+    container.appendChild(btn);
+  }
+}
+
+function showFeedback(isCorrect, showAns) {
+  const area = document.getElementById("feedbackArea");
+  area.classList.remove("hidden");
+  area.className = "feedback";
+
+  const input = document.getElementById("answerInput");
+  input.disabled = true;
+  document.getElementById("checkBtn").classList.add("hidden");
+
+  if (isCorrect) {
+    input.className = "answer-input correct";
+    area.innerHTML = `<div class="feedback-correct">✓ Correct!</div>`;
+  } else {
+    input.className = "answer-input wrong";
+    area.innerHTML = `
+      <div class="feedback-wrong">✗ Not quite</div>
+      ${showAns ? `<div class="answer-reveal">Answer: <strong>${currentProblem.answer}</strong></div>` : ""}
+    `;
+  }
+  renderActionButtons();
+}
+
+function handleCheck() {
+  const input = document.getElementById("answerInput");
+  const val = input.value.trim();
+  if (!currentProblem || val === "") return;
+  const isCorrect = parseInt(val, 10) === currentProblem.answer;
+  feedback = isCorrect ? "correct" : "wrong";
+  score.correct += isCorrect ? 1 : 0;
+  score.total++;
+  updateScore();
+  showFeedback(isCorrect, !isCorrect);
+}
+
+// --- Event listeners ---
+
+document.getElementById("checkBtn").addEventListener("click", handleCheck);
+
+document.getElementById("answerInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    if (feedback) nextProblem();
+    else handleCheck();
+  }
+});
+
+document.getElementById("settingsToggle").addEventListener("click", () => {
+  settingsOpen = !settingsOpen;
+  const panel = document.getElementById("settingsPanel");
+  const btn = document.getElementById("settingsToggle");
+  if (settingsOpen) {
+    panel.classList.remove("hidden");
+    btn.textContent = "▾ Settings";
+  } else {
+    panel.classList.add("hidden");
+    btn.textContent = "▸ Settings";
+  }
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  score = { correct: 0, total: 0 };
+  updateScore();
+});
+
+// --- Init ---
+renderChips();
+renderDiffButtons();
+updateScore();
+checkEmpty();
+if (getActiveCategories().length > 0) nextProblem();
+</script>
+</body>
+</html>
