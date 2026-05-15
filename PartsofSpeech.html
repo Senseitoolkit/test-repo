@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Parts of Speech - 7 Word Checker</title>
+<style>
+  body { font-family: Arial; padding: 20px; background: #f7f7f7; }
+  h1 { margin-bottom: 20px; }
+  .row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 20px;
+  }
+  .wordBox {
+    width: 200px;
+    padding: 10px;
+    background: #fff;
+    border: 2px solid #333;
+    border-radius: 8px;
+    font-size: 20px;
+    text-align: center;
+  }
+  .dropZone {
+    width: 200px;
+    height: 50px;
+    border: 3px dashed #555;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eee;
+    font-size: 18px;
+  }
+  .label-bank {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 25px;
+  }
+  .label {
+    padding: 10px 15px;
+    background: #fff;
+    border: 2px solid #333;
+    border-radius: 8px;
+    cursor: grab;
+    font-size: 18px;
+  }
+  #result {
+    margin-top: 20px;
+    font-size: 22px;
+    font-weight: bold;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>Parts of Speech - 7 Word Checker</h1>
+
+<div id="wordArea"></div>
+
+<h3>Drag the correct part of speech to each word:</h3>
+
+<div id="labelBank" class="label-bank"></div>
+
+<button onclick="checkAll()">Check Answers</button>
+<button onclick="newSet()">New Set</button>
+
+<div id="result"></div>
+
+<script>
+// WORD LISTS
+const words = {
+  verb: ["Run","Think","Create","Build","Write","Speak","Learn","Teach","Travel","Sleep","Grow","Buy","Repair","Observe","Decide"],
+  adverb: ["Quickly","Slowly","Carefully","Loudly","Quietly","Rarely","Often","Yesterday","Outside","Almost","Completely","Suddenly","Easily","Honestly","Regularly"],
+  pronoun: ["I","You","He","She","It","We","They","Me","Him","Her","Us","Them","Mine","Yours","Ours"],
+  noun: ["Teacher","Mountain","Computer","River","Family","Book","City","Apple","Student","Garden","Idea","Music","Vehicle","Language","Freedom"],
+  adjective: ["Strong","Intelligent","Small","Ancient","Bright","Honest","Difficult","Comfortable","Expensive","Creative","Reliable","Friendly","Cold","Fast","Patient"],
+  conjunction: ["And","But","Or","Because","Although","Since","Unless","While","So","Yet","Before","After","Whether","Nor","Whereas"],
+  preposition: ["In","On","At","Under","Between","Through","Across","Behind","Near","During","Without","Above","Around","Inside","Against"]
+};
+
+const categories = ["verb","adverb","pronoun","noun","adjective","conjunction","preposition"];
+
+let currentSet = [];
+
+function shuffle(arr) {
+  return arr.sort(() => Math.random() - 0.5);
+}
+
+function newSet() {
+  document.getElementById("result").textContent = "";
+
+  // Pick one random word from each category
+  currentSet = categories.map(type => {
+    const list = words[type];
+    const word = list[Math.floor(Math.random() * list.length)];
+    return { word, type };
+  });
+
+  // Build rows
+  const area = document.getElementById("wordArea");
+  area.innerHTML = "";
+
+  currentSet.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "row";
+
+    const wordBox = document.createElement("div");
+    wordBox.className = "wordBox";
+    wordBox.textContent = item.word;
+
+    const drop = document.createElement("div");
+    drop.className = "dropZone";
+    drop.dataset.index = index;
+    drop.ondrop = dropLabel;
+    drop.ondragover = allowDrop;
+    drop.textContent = "Drop here";
+
+    row.appendChild(wordBox);
+    row.appendChild(drop);
+    area.appendChild(row);
+  });
+
+  // Build label bank
+  const bank = document.getElementById("labelBank");
+  bank.innerHTML = "";
+
+  shuffle([...categories]).forEach(cat => {
+    const div = document.createElement("div");
+    div.className = "label";
+    div.textContent = cat.toUpperCase();
+    div.dataset.type = cat;
+    div.draggable = true;
+    div.ondragstart = drag;
+    bank.appendChild(div);
+  });
+}
+
+function allowDrop(ev) {
+  ev.preventDefault();
+}
+
+function drag(ev) {
+  ev.dataTransfer.setData("text", ev.target.dataset.type);
+}
+
+function dropLabel(ev) {
+  ev.preventDefault();
+  const type = ev.dataTransfer.getData("text");
+  ev.target.textContent = type.toUpperCase();
+  ev.target.dataset.answer = type;
+}
+
+function checkAll() {
+  let correct = 0;
+
+  document.querySelectorAll(".dropZone").forEach((zone, i) => {
+    const chosen = zone.dataset.answer;
+    const correctType = currentSet[i].type;
+
+    if (chosen === correctType) {
+      zone.style.borderColor = "green";
+      correct++;
+    } else {
+      zone.style.borderColor = "red";
+    }
+  });
+
+  const result = document.getElementById("result");
+  result.textContent = `You got ${correct} out of 7 correct.`;
+  result.style.color = correct === 7 ? "green" : "red";
+}
+
+// Load first set
+newSet();
+</script>
+
+</body>
+</html>
