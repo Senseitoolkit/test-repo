@@ -1,679 +1,699 @@
-import { useState, useMemo, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-
-/* ─── Utilities ─── */
-const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
-
-/* ─── Question Generators ─── */
-function placeValueQuestion() {
-  const a = rand(100, 999);
-  let b = rand(100, 999);
-  while (b === a) b = rand(100, 999);
-  const correct = Math.max(a, b);
-  const swapped = parseInt(String(correct).split("").reverse().join(""));
-  return {
-    type: "Place Value",
-    emoji: "🔢",
-    question: "Which number is larger?",
-    visual: `${a}  vs  ${b}`,
-    options: shuffle([String(correct), String(Math.min(a, b)), String(swapped), "They are equal"]),
-    answer: String(correct),
-    explanation: "Compare hundreds first, then tens, then ones — left to right.",
-  };
-}
-
-function additionQuestion() {
-  const a = rand(20, 99);
-  const b = rand(10, 99);
-  const correct = a + b;
-  return {
-    type: "Addition",
-    emoji: "➕",
-    question: `${a} + ${b} = ?`,
-    options: shuffle([correct, correct - 10, correct + 10, correct - 1].map(String)),
-    answer: String(correct),
-    explanation: "Add the ones first, then the tens. Regroup if needed.",
-  };
-}
-
-function multiplicationArrayQuestion() {
-  const rows = rand(2, 5);
-  const cols = rand(2, 5);
-  const correct = rows * cols;
-  return {
-    type: "Multiplication",
-    emoji: "✖️",
-    question: `How many dots are in a ${rows} × ${cols} array?`,
-    visual: { type: "dots", rows, cols },
-    options: shuffle([correct, rows + cols, correct + rows, correct - cols].map(String)),
-    answer: String(correct),
-    explanation: `${rows} rows × ${cols} columns = ${correct} dots.`,
-  };
-}
-
-function divisionQuestion() {
-  const divisor = rand(2, 9);
-  const quotient = rand(2, 9);
-  const dividend = divisor * quotient;
-  return {
-    type: "Division",
-    emoji: "➗",
-    question: `${dividend} ÷ ${divisor} = ?`,
-    options: shuffle([quotient, divisor, dividend, quotient + 1].map(String)),
-    answer: String(quotient),
-    explanation: "Division splits into equal groups. How many groups fit?",
-  };
-}
-
-function wordProblemQuestion() {
-  const start = rand(10, 40);
-  const add = rand(5, 20);
-  const subtract = rand(3, Math.min(15, start + add - 1));
-  const correct = start + add - subtract;
-  return {
-    type: "Word Problem",
-    emoji: "📖",
-    question: `Ben had ${start} stickers. He got ${add} more, then gave away ${subtract}. How many now?`,
-    options: shuffle([correct, start + add, start - subtract, start + add + subtract].map(String)),
-    answer: String(correct),
-    explanation: "Work step by step: start → add → subtract.",
-  };
-}
-
-function fractionQuestion() {
-  const pairs = [["1/2", "1/4"], ["1/3", "1/6"], ["3/4", "2/4"], ["1/2", "1/3"]];
-  const [big, small] = pairs[rand(0, pairs.length - 1)];
-  return {
-    type: "Fractions",
-    emoji: "🍕",
-    question: "Which fraction is larger?",
-    visual: `${big}  vs  ${small}`,
-    options: shuffle([big, small, "They are equal", "Cannot tell"]),
-    answer: big,
-    explanation: "Same-sized whole: smaller denominator = bigger piece.",
-  };
-}
-
-function timeQuestion() {
-  const hour = rand(1, 11);
-  const minOpts = [0, 15, 30, 45];
-  const mins = minOpts[rand(0, 3)];
-  const labels = { 0: "o'clock", 15: "quarter past", 30: "half past", 45: "quarter to" };
-  const displayHour = mins === 45 ? hour + 1 : hour;
-  const correct = `${labels[mins]} ${displayHour}`;
-  return {
-    type: "Telling Time",
-    emoji: "🕐",
-    question: "What time is shown?",
-    visual: `${hour}:${String(mins).padStart(2, "0")}`,
-    options: shuffle([correct, `quarter past ${hour}`, `half past ${hour}`, `o'clock ${hour}`]),
-    answer: correct,
-    explanation: "Learn the clock phrases: o'clock, quarter past, half past, quarter to.",
-  };
-}
-
-function missingNumberQuestion() {
-  const a = rand(10, 50);
-  const answer = rand(5, 30);
-  const b = a + answer;
-  return {
-    type: "Missing Number",
-    emoji: "❓",
-    question: `□ + ${a} = ${b}`,
-    options: shuffle([answer, a, b, b + a].map(String)),
-    answer: String(answer),
-    explanation: `${b} − ${a} = ${answer}. Work backwards to find the missing number.`,
-  };
-}
-
-function estimationQuestion() {
-  const capacity = rand(20, 80);
-  const correct = rand(1, capacity);
-  return {
-    type: "Estimation",
-    emoji: "🚌",
-    question: `A bus holds ${capacity} people. Which number makes sense as a count of passengers?`,
-    options: shuffle([correct, capacity + 100, capacity * 10, 999].map(String)),
-    answer: String(correct),
-    explanation: "Estimates should be realistic — less than or equal to the total capacity.",
-  };
-}
-
-function errorAnalysisQuestion() {
-  const a = rand(30, 70);
-  const b = rand(10, 20);
-  return {
-    type: "Spot the Error",
-    emoji: "🔍",
-    question: `Mia solved ${a} − ${b} = ${a + b}. What went wrong?`,
-    options: shuffle([
-      "She added instead of subtracting",
-      "She forgot to borrow",
-      "She mixed up the digits",
-      "Her answer is correct",
-    ]),
-    answer: "She added instead of subtracting",
-    explanation: "Always check: does the operation match the problem?",
-  };
-}
-
-const generators = [
-  placeValueQuestion,
-  additionQuestion,
-  multiplicationArrayQuestion,
-  divisionQuestion,
-  wordProblemQuestion,
-  fractionQuestion,
-  timeQuestion,
-  missingNumberQuestion,
-  estimationQuestion,
-  errorAnalysisQuestion,
-];
-
-function generateQuestion() {
-  return generators[rand(0, generators.length - 1)]();
-}
-
-/* ─── Dot Array Visual ─── */
-function DotArray({ rows, cols }) {
-  return (
-    <div className="flex flex-col items-center gap-2">
-      {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex gap-2">
-          {Array.from({ length: cols }).map((_, c) => (
-            <div
-              key={c}
-              className="dot"
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                background: "var(--accent)",
-                boxShadow: "0 2px 6px rgba(255,107,53,0.4)",
-              }}
-            />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ─── Progress Ring ─── */
-function ProgressRing({ score, total }) {
-  const pct = total === 0 ? 0 : score / total;
-  const r = 30;
-  const circ = 2 * Math.PI * r;
-  const dash = pct * circ;
-  return (
-    <svg width="80" height="80" viewBox="0 0 80 80">
-      <circle cx="40" cy="40" r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="6" />
-      <circle
-        cx="40"
-        cy="40"
-        r={r}
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth="6"
-        strokeDasharray={`${dash} ${circ}`}
-        strokeLinecap="round"
-        transform="rotate(-90 40 40)"
-        style={{ transition: "stroke-dasharray 0.5s ease" }}
-      />
-      <text x="40" y="44" textAnchor="middle" fill="white" fontSize="13" fontWeight="700" fontFamily="var(--font-body)">
-        {score}/{total}
-      </text>
-    </svg>
-  );
-}
-
-/* ─── Badge ─── */
-function TypeBadge({ emoji, type }) {
-  return (
-    <span
-      style={{
-        background: "rgba(255,255,255,0.12)",
-        border: "1px solid rgba(255,255,255,0.2)",
-        color: "white",
-        borderRadius: 999,
-        padding: "4px 14px",
-        fontSize: 13,
-        fontWeight: 600,
-        letterSpacing: "0.05em",
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-      }}
-    >
-      {emoji} {type}
-    </span>
-  );
-}
-
-/* ─── Main App ─── */
-export default function MathReviewApp() {
-  const [score, setScore] = useState(0);
-  const [total, setTotal] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [streak, setStreak] = useState(0);
-  const [key, setKey] = useState(0);
-
-  const question = useMemo(() => generateQuestion(), [key]);
-
-  function submitAnswer(option) {
-    if (showAnswer) return;
-    setSelected(option);
-    setShowAnswer(true);
-    if (option === question.answer) {
-      setScore((s) => s + 1);
-      setStreak((s) => s + 1);
-    } else {
-      setStreak(0);
-    }
-    setTotal((t) => t + 1);
-  }
-
-  function nextQuestion() {
-    setSelected(null);
-    setShowAnswer(false);
-    setKey((k) => k + 1);
-  }
-
-  const pct = total === 0 ? 0 : Math.round((score / total) * 100);
-
-  return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap');
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maths★Lab - Math Review</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
         :root {
-          --bg: #0f1724;
-          --surface: #1a2540;
-          --surface2: #1f2d4a;
-          --accent: #ff6b35;
-          --accent2: #ffd166;
-          --green: #06d6a0;
-          --red: #ef476f;
-          --text: #e8edf5;
-          --muted: #7a8aaa;
-          --font-display: 'Fredoka One', cursive;
-          --font-body: 'Nunito', sans-serif;
+            --bg: #0f1724;
+            --surface: #1a2540;
+            --surface2: #1f2d4a;
+            --accent: #ff6b35;
+            --accent2: #ffd166;
+            --green: #06d6a0;
+            --red: #ef476f;
+            --text: #e8edf5;
+            --muted: #7a8aaa;
+            --font-display: 'Fredoka One', cursive;
+            --font-body: 'Nunito', sans-serif;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .math-app {
-          min-height: 100vh;
-          background: var(--bg);
-          background-image:
-            radial-gradient(ellipse at 20% 10%, rgba(255,107,53,0.08) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 90%, rgba(255,209,102,0.06) 0%, transparent 50%);
-          font-family: var(--font-body);
-          color: var(--text);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 24px 16px 48px;
+        body {
+            min-height: 100vh;
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 20% 10%, rgba(255,107,53,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 90%, rgba(255,209,102,0.06) 0%, transparent 50%);
+            font-family: var(--font-body);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 16px 48px;
         }
 
         .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          max-width: 540px;
-          margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 540px;
+            margin-bottom: 28px;
         }
 
         .title {
-          font-family: var(--font-display);
-          font-size: 2rem;
-          color: white;
-          line-height: 1;
+            font-family: var(--font-display);
+            font-size: 2rem;
+            color: white;
+            line-height: 1;
         }
 
         .title span { color: var(--accent); }
 
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .streak {
-          background: rgba(255,209,102,0.15);
-          border: 1.5px solid rgba(255,209,102,0.4);
-          border-radius: 999px;
-          padding: 6px 14px;
-          font-size: 14px;
-          font-weight: 700;
-          color: var(--accent2);
-          display: flex;
-          align-items: center;
-          gap: 5px;
+            background: rgba(255,209,102,0.15);
+            border: 1.5px solid rgba(255,209,102,0.4);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent2);
+            display: none;
+            align-items: center;
+            gap: 5px;
+            animation: popIn 0.3s ease;
+        }
+
+        .streak.visible { display: flex; }
+
+        @keyframes popIn {
+            from { transform: scale(0.7); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
         .card {
-          width: 100%;
-          max-width: 540px;
-          background: var(--surface);
-          border-radius: 24px;
-          border: 1px solid rgba(255,255,255,0.07);
-          padding: 28px 24px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            width: 100%;
+            max-width: 540px;
+            background: var(--surface);
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.07);
+            padding: 28px 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .card-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .type-badge {
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 999px;
+            padding: 4px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .question-text {
-          font-size: 1.35rem;
-          font-weight: 800;
-          line-height: 1.4;
-          color: white;
-          margin-top: 10px;
-          max-width: 360px;
+            font-size: 1.35rem;
+            font-weight: 800;
+            line-height: 1.4;
+            color: white;
+            margin-top: 10px;
+            max-width: 360px;
         }
 
         .visual-box {
-          background: var(--surface2);
-          border-radius: 16px;
-          padding: 20px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          font-size: 2rem;
-          font-family: var(--font-display);
-          color: var(--accent2);
-          margin-bottom: 20px;
-          min-height: 80px;
-          border: 1px solid rgba(255,255,255,0.05);
+            background: var(--surface2);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-family: var(--font-display);
+            color: var(--accent2);
+            margin-bottom: 20px;
+            min-height: 80px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .dot-grid {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 2px 6px rgba(255,107,53,0.4);
         }
 
         .options {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 16px;
         }
 
         .option-btn {
-          width: 100%;
-          padding: 14px 18px;
-          border-radius: 14px;
-          border: 2px solid rgba(255,255,255,0.1);
-          background: var(--surface2);
-          color: var(--text);
-          font-family: var(--font-body);
-          font-size: 1.05rem;
-          font-weight: 700;
-          cursor: pointer;
-          text-align: left;
-          transition: all 0.18s ease;
-          display: flex;
-          align-items: center;
-          gap: 10px;
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: 14px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: var(--surface2);
+            color: var(--text);
+            font-family: var(--font-body);
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.18s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        .option-btn:not(:disabled):hover {
-          border-color: var(--accent);
-          background: rgba(255,107,53,0.08);
-          transform: translateX(4px);
+        .option-btn:not(.disabled):hover {
+            border-color: var(--accent);
+            background: rgba(255,107,53,0.08);
+            transform: translateX(4px);
         }
 
-        .option-btn:disabled { cursor: default; }
+        .option-btn:not(.disabled):active {
+            transform: scale(0.98);
+        }
+
+        .option-btn.disabled { cursor: default; }
 
         .option-btn.correct {
-          border-color: var(--green);
-          background: rgba(6,214,160,0.12);
-          color: var(--green);
+            border-color: var(--green);
+            background: rgba(6,214,160,0.12);
+            color: var(--green);
         }
 
         .option-btn.wrong {
-          border-color: var(--red);
-          background: rgba(239,71,111,0.1);
-          color: var(--red);
-          text-decoration: line-through;
-          opacity: 0.7;
+            border-color: var(--red);
+            background: rgba(239,71,111,0.1);
+            color: var(--red);
+            text-decoration: line-through;
+            opacity: 0.7;
         }
 
         .option-letter {
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          background: rgba(255,255,255,0.08);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 0.8rem;
-          font-weight: 900;
-          flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        .option-result {
+            margin-left: auto;
+            font-weight: 900;
         }
 
         .feedback-box {
-          background: var(--surface2);
-          border-radius: 16px;
-          padding: 18px;
-          border: 1px solid rgba(255,255,255,0.07);
-          margin-top: 4px;
+            background: var(--surface2);
+            border-radius: 16px;
+            padding: 18px;
+            border: 1px solid rgba(255,255,255,0.07);
+            margin-top: 4px;
+            animation: slideIn 0.25s ease;
+            display: none;
         }
 
+        .feedback-box.visible { display: block; }
+
         .feedback-title {
-          font-size: 1.3rem;
-          font-weight: 900;
-          margin-bottom: 6px;
+            font-size: 1.3rem;
+            font-weight: 900;
+            margin-bottom: 6px;
         }
 
         .feedback-title.correct { color: var(--green); }
         .feedback-title.wrong { color: var(--red); }
 
+        .feedback-answer {
+            color: var(--accent2);
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+
         .feedback-explanation {
-          color: var(--muted);
-          font-size: 0.95rem;
-          line-height: 1.5;
-          margin-bottom: 14px;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 14px;
         }
 
         .next-btn {
-          background: var(--accent);
-          color: white;
-          border: none;
-          border-radius: 12px;
-          padding: 12px 24px;
-          font-family: var(--font-body);
-          font-size: 1rem;
-          font-weight: 800;
-          cursor: pointer;
-          transition: all 0.18s;
-          letter-spacing: 0.03em;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-family: var(--font-body);
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.18s;
+            letter-spacing: 0.03em;
         }
 
         .next-btn:hover {
-          background: #ff8255;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(255,107,53,0.4);
+            background: #ff8255;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(255,107,53,0.4);
         }
 
         .progress-bar-wrap {
-          width: 100%;
-          max-width: 540px;
-          height: 4px;
-          background: rgba(255,255,255,0.08);
-          border-radius: 999px;
-          margin-top: 20px;
-          overflow: hidden;
+            width: 100%;
+            max-width: 540px;
+            height: 4px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 999px;
+            margin-top: 20px;
+            overflow: hidden;
         }
 
         .progress-bar-fill {
-          height: 100%;
-          background: linear-gradient(90deg, var(--accent), var(--accent2));
-          border-radius: 999px;
-          transition: width 0.5s ease;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 999px;
+            transition: width 0.5s ease;
+            width: 0%;
         }
 
         .stats-row {
-          width: 100%;
-          max-width: 540px;
-          display: flex;
-          gap: 10px;
-          margin-top: 16px;
+            width: 100%;
+            max-width: 540px;
+            display: none;
+            gap: 10px;
+            margin-top: 16px;
         }
 
+        .stats-row.visible { display: flex; }
+
         .stat-chip {
-          flex: 1;
-          background: var(--surface);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 14px;
-          padding: 12px;
-          text-align: center;
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            padding: 12px;
+            text-align: center;
         }
 
         .stat-num {
-          font-family: var(--font-display);
-          font-size: 1.8rem;
-          color: white;
-          line-height: 1;
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            color: white;
+            line-height: 1;
         }
 
         .stat-label {
-          font-size: 0.75rem;
-          color: var(--muted);
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          margin-top: 4px;
+            font-size: 0.75rem;
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-top: 4px;
         }
-      `}</style>
 
-      <div className="math-app">
-        {/* Header */}
-        <div className="header">
-          <h1 className="title">Maths<span>★</span>Lab</h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {streak >= 2 && (
-              <motion.div
-                className="streak"
-                initial={{ scale: 0.7, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-              >
-                🔥 {streak} streak
-              </motion.div>
-            )}
-            <ProgressRing score={score} total={total} />
-          </div>
+        /* Progress Ring */
+        .ring-text {
+            fill: white;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--font-body);
+        }
+
+        @media (max-width: 500px) {
+            .title { font-size: 1.5rem; }
+            .question-text { font-size: 1.15rem; }
+            .visual-box { font-size: 1.5rem; }
+            .stat-num { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1 class="title">Maths<span>★</span>Lab</h1>
+        <div class="header-right">
+            <div class="streak" id="streak">🔥 <span id="streakCount">0</span> streak</div>
+            <svg width="80" height="80" viewBox="0 0 80 80" id="progressRing">
+                <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="6" />
+                <circle cx="40" cy="40" r="30" fill="none" stroke="var(--accent)" stroke-width="6"
+                    stroke-dasharray="0 188.5" stroke-linecap="round" transform="rotate(-90 40 40)"
+                    id="ringProgress" style="transition: stroke-dasharray 0.5s ease" />
+                <text x="40" y="44" text-anchor="middle" class="ring-text" id="ringText">0/0</text>
+            </svg>
         </div>
+    </div>
 
-        {/* Question Card */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={key}
-            className="card"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          >
-            <div className="card-top">
-              <div>
-                <TypeBadge emoji={question.emoji} type={question.type} />
-                <p className="question-text">{question.question}</p>
-              </div>
+    <!-- Card -->
+    <div class="card" id="card">
+        <div class="card-top">
+            <div>
+                <span class="type-badge" id="typeBadge"></span>
+                <p class="question-text" id="questionText"></p>
             </div>
-
-            {/* Visual */}
-            {question.visual && (
-              <div className="visual-box">
-                {typeof question.visual === "object" && question.visual.type === "dots" ? (
-                  <DotArray rows={question.visual.rows} cols={question.visual.cols} />
-                ) : (
-                  <span>{question.visual}</span>
-                )}
-              </div>
-            )}
-
-            {/* Options */}
-            <div className="options">
-              {question.options.map((option, i) => {
-                const letters = ["A", "B", "C", "D"];
-                const isCorrect = option === question.answer;
-                const isSelected = option === selected;
-                let cls = "option-btn";
-                if (showAnswer && isCorrect) cls += " correct";
-                else if (showAnswer && isSelected && !isCorrect) cls += " wrong";
-                return (
-                  <motion.button
-                    key={i}
-                    className={cls}
-                    disabled={showAnswer}
-                    onClick={() => submitAnswer(option)}
-                    whileTap={!showAnswer ? { scale: 0.98 } : {}}
-                  >
-                    <span className="option-letter">{letters[i]}</span>
-                    {option}
-                    {showAnswer && isCorrect && <span style={{ marginLeft: "auto" }}>✓</span>}
-                    {showAnswer && isSelected && !isCorrect && <span style={{ marginLeft: "auto" }}>✗</span>}
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            {/* Feedback */}
-            <AnimatePresence>
-              {showAnswer && (
-                <motion.div
-                  className="feedback-box"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <p className={`feedback-title ${selected === question.answer ? "correct" : "wrong"}`}>
-                    {selected === question.answer ? "🎉 Correct!" : "💡 Not quite — keep going!"}
-                  </p>
-                  <p style={{ color: "var(--accent2)", fontSize: "0.9rem", marginBottom: 6, fontWeight: 700 }}>
-                    Answer: {question.answer}
-                  </p>
-                  <p className="feedback-explanation">{question.explanation}</p>
-                  <button className="next-btn" onClick={nextQuestion}>
-                    Next Question →
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Progress bar */}
-        <div className="progress-bar-wrap">
-          <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
         </div>
+        <div class="visual-box" id="visualBox" style="display:none;"></div>
+        <div class="options" id="options"></div>
+        <div class="feedback-box" id="feedback">
+            <p class="feedback-title" id="feedbackTitle"></p>
+            <p class="feedback-answer" id="feedbackAnswer"></p>
+            <p class="feedback-explanation" id="feedbackExplanation"></p>
+            <button class="next-btn" onclick="nextQuestion()">Next Question →</button>
+        </div>
+    </div>
 
-        {/* Stats */}
-        {total > 0 && (
-          <motion.div
-            className="stats-row"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <div className="stat-chip">
-              <div className="stat-num">{total}</div>
-              <div className="stat-label">Attempted</div>
-            </div>
-            <div className="stat-chip">
-              <div className="stat-num" style={{ color: "var(--green)" }}>{score}</div>
-              <div className="stat-label">Correct</div>
-            </div>
-            <div className="stat-chip">
-              <div className="stat-num" style={{ color: "var(--accent2)" }}>{pct}%</div>
-              <div className="stat-label">Accuracy</div>
-            </div>
-            <div className="stat-chip">
-              <div className="stat-num" style={{ color: "var(--accent)" }}>{streak}</div>
-              <div className="stat-label">Streak</div>
-            </div>
-          </motion.div>
-        )}
-      </div>
-    </>
-  );
-}
+    <!-- Progress Bar -->
+    <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+        <div class="stat-chip">
+            <div class="stat-num" id="statTotal">0</div>
+            <div class="stat-label">Attempted</div>
+        </div>
+        <div class="stat-chip">
+            <div class="stat-num" style="color:var(--green)" id="statCorrect">0</div>
+            <div class="stat-label">Correct</div>
+        </div>
+        <div class="stat-chip">
+            <div class="stat-num" style="color:var(--accent2)" id="statPct">0%</div>
+            <div class="stat-label">Accuracy</div>
+        </div>
+        <div class="stat-chip">
+            <div class="stat-num" style="color:var(--accent)" id="statStreak">0</div>
+            <div class="stat-label">Streak</div>
+        </div>
+    </div>
+
+    <script>
+        /* ─── State ─── */
+        let score = 0, total = 0, streak = 0, currentQuestion = null, answered = false;
+
+        /* ─── Utilities ─── */
+        const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+        const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
+
+        /* ─── Question Generators ─── */
+        function placeValueQuestion() {
+            const a = rand(100, 999);
+            let b = rand(100, 999);
+            while (b === a) b = rand(100, 999);
+            const correct = Math.max(a, b);
+            const swapped = parseInt(String(correct).split("").reverse().join(""));
+            return {
+                type: "Place Value", emoji: "🔢",
+                question: "Which number is larger?",
+                visual: a + "  vs  " + b,
+                options: shuffle([String(correct), String(Math.min(a, b)), String(swapped), "They are equal"]),
+                answer: String(correct),
+                explanation: "Compare hundreds first, then tens, then ones — left to right.",
+            };
+        }
+
+        function additionQuestion() {
+            const a = rand(20, 99), b = rand(10, 99), correct = a + b;
+            return {
+                type: "Addition", emoji: "➕",
+                question: a + " + " + b + " = ?",
+                options: shuffle([correct, correct - 10, correct + 10, correct - 1].map(String)),
+                answer: String(correct),
+                explanation: "Add the ones first, then the tens. Regroup if needed.",
+            };
+        }
+
+        function multiplicationArrayQuestion() {
+            const rows = rand(2, 5), cols = rand(2, 5), correct = rows * cols;
+            return {
+                type: "Multiplication", emoji: "✖️",
+                question: "How many dots are in a " + rows + " × " + cols + " array?",
+                visual: { type: "dots", rows: rows, cols: cols },
+                options: shuffle([correct, rows + cols, correct + rows, correct - cols].map(String)),
+                answer: String(correct),
+                explanation: rows + " rows × " + cols + " columns = " + correct + " dots.",
+            };
+        }
+
+        function divisionQuestion() {
+            const divisor = rand(2, 9), quotient = rand(2, 9), dividend = divisor * quotient;
+            return {
+                type: "Division", emoji: "➗",
+                question: dividend + " ÷ " + divisor + " = ?",
+                options: shuffle([quotient, divisor, dividend, quotient + 1].map(String)),
+                answer: String(quotient),
+                explanation: "Division splits into equal groups. How many groups fit?",
+            };
+        }
+
+        function wordProblemQuestion() {
+            const start = rand(10, 40), add = rand(5, 20);
+            const subtract = rand(3, Math.min(15, start + add - 1));
+            const correct = start + add - subtract;
+            return {
+                type: "Word Problem", emoji: "📖",
+                question: "Ben had " + start + " stickers. He got " + add + " more, then gave away " + subtract + ". How many now?",
+                options: shuffle([correct, start + add, start - subtract, start + add + subtract].map(String)),
+                answer: String(correct),
+                explanation: "Work step by step: start → add → subtract.",
+            };
+        }
+
+        function fractionQuestion() {
+            const pairs = [["1/2", "1/4"], ["1/3", "1/6"], ["3/4", "2/4"], ["1/2", "1/3"]];
+            const [big, small] = pairs[rand(0, pairs.length - 1)];
+            return {
+                type: "Fractions", emoji: "🍕",
+                question: "Which fraction is larger?",
+                visual: big + "  vs  " + small,
+                options: shuffle([big, small, "They are equal", "Cannot tell"]),
+                answer: big,
+                explanation: "Same-sized whole: smaller denominator = bigger piece.",
+            };
+        }
+
+        function timeQuestion() {
+            const hour = rand(1, 11);
+            const minOpts = [0, 15, 30, 45];
+            const mins = minOpts[rand(0, 3)];
+            const labels = { 0: "o'clock", 15: "quarter past", 30: "half past", 45: "quarter to" };
+            const displayHour = mins === 45 ? hour + 1 : hour;
+            const correct = labels[mins] + " " + displayHour;
+            return {
+                type: "Telling Time", emoji: "🕐",
+                question: "What time is shown?",
+                visual: hour + ":" + String(mins).padStart(2, "0"),
+                options: shuffle([correct, "quarter past " + hour, "half past " + hour, "o'clock " + hour]),
+                answer: correct,
+                explanation: "Learn the clock phrases: o'clock, quarter past, half past, quarter to.",
+            };
+        }
+
+        function missingNumberQuestion() {
+            const a = rand(10, 50), answer = rand(5, 30), b = a + answer;
+            return {
+                type: "Missing Number", emoji: "❓",
+                question: "□ + " + a + " = " + b,
+                options: shuffle([answer, a, b, b + a].map(String)),
+                answer: String(answer),
+                explanation: b + " − " + a + " = " + answer + ". Work backwards to find the missing number.",
+            };
+        }
+
+        function estimationQuestion() {
+            const capacity = rand(20, 80), correct = rand(1, capacity);
+            return {
+                type: "Estimation", emoji: "🚌",
+                question: "A bus holds " + capacity + " people. Which number makes sense as a count of passengers?",
+                options: shuffle([correct, capacity + 100, capacity * 10, 999].map(String)),
+                answer: String(correct),
+                explanation: "Estimates should be realistic — less than or equal to the total capacity.",
+            };
+        }
+
+        function errorAnalysisQuestion() {
+            const a = rand(30, 70), b = rand(10, 20);
+            return {
+                type: "Spot the Error", emoji: "🔍",
+                question: "Mia solved " + a + " − " + b + " = " + (a + b) + ". What went wrong?",
+                options: shuffle([
+                    "She added instead of subtracting",
+                    "She forgot to borrow",
+                    "She mixed up the digits",
+                    "Her answer is correct",
+                ]),
+                answer: "She added instead of subtracting",
+                explanation: "Always check: does the operation match the problem?",
+            };
+        }
+
+        const generators = [
+            placeValueQuestion, additionQuestion, multiplicationArrayQuestion,
+            divisionQuestion, wordProblemQuestion, fractionQuestion,
+            timeQuestion, missingNumberQuestion, estimationQuestion, errorAnalysisQuestion,
+        ];
+
+        /* ─── Rendering ─── */
+        function renderQuestion() {
+            currentQuestion = generators[rand(0, generators.length - 1)]();
+            answered = false;
+
+            // Badge
+            document.getElementById("typeBadge").textContent = currentQuestion.emoji + " " + currentQuestion.type;
+
+            // Question
+            document.getElementById("questionText").textContent = currentQuestion.question;
+
+            // Visual
+            const visualBox = document.getElementById("visualBox");
+            if (currentQuestion.visual) {
+                visualBox.style.display = "flex";
+                if (typeof currentQuestion.visual === "object" && currentQuestion.visual.type === "dots") {
+                    let html = '<div class="dot-grid">';
+                    for (let r = 0; r < currentQuestion.visual.rows; r++) {
+                        html += '<div class="dot-row">';
+                        for (let c = 0; c < currentQuestion.visual.cols; c++) {
+                            html += '<div class="dot"></div>';
+                        }
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                    visualBox.innerHTML = html;
+                } else {
+                    visualBox.innerHTML = '<span>' + currentQuestion.visual + '</span>';
+                }
+            } else {
+                visualBox.style.display = "none";
+            }
+
+            // Options
+            const letters = ["A", "B", "C", "D"];
+            const optionsEl = document.getElementById("options");
+            optionsEl.innerHTML = "";
+            currentQuestion.options.forEach(function(option, i) {
+                const btn = document.createElement("button");
+                btn.className = "option-btn";
+                btn.innerHTML = '<span class="option-letter">' + letters[i] + '</span>' +
+                    '<span class="option-text">' + option + '</span>';
+                btn.addEventListener("click", function() { submitAnswer(option, btn); });
+                optionsEl.appendChild(btn);
+            });
+
+            // Hide feedback
+            document.getElementById("feedback").classList.remove("visible");
+
+            // Animate card
+            const card = document.getElementById("card");
+            card.style.animation = "none";
+            card.offsetHeight; // trigger reflow
+            card.style.animation = "slideIn 0.3s ease";
+        }
+
+        function submitAnswer(option, btnEl) {
+            if (answered) return;
+            answered = true;
+
+            const isCorrect = option === currentQuestion.answer;
+
+            if (isCorrect) {
+                score++;
+                streak++;
+            } else {
+                streak = 0;
+            }
+            total++;
+
+            // Style all buttons
+            const buttons = document.querySelectorAll(".option-btn");
+            buttons.forEach(function(btn) {
+                btn.classList.add("disabled");
+                const text = btn.querySelector(".option-text").textContent;
+                if (text === currentQuestion.answer) {
+                    btn.classList.add("correct");
+                    btn.innerHTML += '<span class="option-result">✓</span>';
+                } else if (btn === btnEl && !isCorrect) {
+                    btn.classList.add("wrong");
+                    btn.innerHTML += '<span class="option-result">✗</span>';
+                }
+            });
+
+            // Show feedback
+            const fb = document.getElementById("feedback");
+            const title = document.getElementById("feedbackTitle");
+            title.textContent = isCorrect ? "🎉 Correct!" : "💡 Not quite — keep going!";
+            title.className = "feedback-title " + (isCorrect ? "correct" : "wrong");
+            document.getElementById("feedbackAnswer").textContent = "Answer: " + currentQuestion.answer;
+            document.getElementById("feedbackExplanation").textContent = currentQuestion.explanation;
+            fb.classList.add("visible");
+
+            updateUI();
+        }
+
+        function nextQuestion() {
+            renderQuestion();
+        }
+
+        function updateUI() {
+            const pct = total === 0 ? 0 : Math.round((score / total) * 100);
+            const circ = 2 * Math.PI * 30;
+
+            // Ring
+            document.getElementById("ringProgress").setAttribute("stroke-dasharray", ((score / Math.max(total, 1)) * circ) + " " + circ);
+            document.getElementById("ringText").textContent = score + "/" + total;
+
+            // Streak
+            const streakEl = document.getElementById("streak");
+            if (streak >= 2) {
+                streakEl.classList.add("visible");
+                document.getElementById("streakCount").textContent = streak;
+            } else {
+                streakEl.classList.remove("visible");
+            }
+
+            // Progress bar
+            document.getElementById("progressBar").style.width = pct + "%";
+
+            // Stats
+            if (total > 0) {
+                document.getElementById("statsRow").classList.add("visible");
+                document.getElementById("statTotal").textContent = total;
+                document.getElementById("statCorrect").textContent = score;
+                document.getElementById("statPct").textContent = pct + "%";
+                document.getElementById("statStreak").textContent = streak;
+            }
+        }
+
+        /* ─── Start ─── */
+        renderQuestion();
+    </script>
+</body>
+</html>
