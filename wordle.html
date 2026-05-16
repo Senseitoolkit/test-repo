@@ -2,275 +2,797 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Spelling Wordle</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: system-ui, sans-serif; text-align: center; background:#f5f5f5; }
-    h1 { margin-top: 20px; }
-    #grid { display: grid; gap: 4px; justify-content: center; margin: 20px auto; }
-    .tile {
-      width: 40px; height: 40px;
-      border: 2px solid #ccc;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 600; text-transform: uppercase;
-      background: #fff;
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface2: #0f3460;
+      --correct: #2ecc71;
+      --present: #f39c12;
+      --absent: #4a4e69;
+      --text: #e8e8e8;
+      --text-dim: #8892a8;
+      --accent: #e94560;
+      --tile-border: #2a2a4a;
+      --tile-bg: #22224a;
+      --key-bg: #2a2a5a;
+      --key-hover: #3a3a6a;
     }
-    .correct { background:#6aaa64; color:#fff; border-color:#6aaa64; }
-    .present { background:#c9b458; color:#fff; border-color:#c9b458; }
-    .absent  { background:#787c7e; color:#fff; border-color:#787c7e; }
-    #controls { margin-top: 10px; }
-    input[type="text"] {
-      padding: 6px 8px; font-size: 16px; width: 200px; text-transform: lowercase;
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
     }
-    button { padding: 6px 10px; font-size: 14px; margin: 4px; }
-    #message { margin-top: 10px; min-height: 1.2em; }
-    #lengthButtons { margin-top: 15px; }
-    .lenBtn {
-      padding: 6px 10px;
-      margin: 3px;
-      border: 1px solid #333;
-      background: #fff;
+
+    /* Subtle animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(233,69,96,0.06) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, rgba(46,204,113,0.05) 0%, transparent 50%);
+      animation: bgDrift 20s ease-in-out infinite alternate;
+      z-index: -1;
+    }
+    @keyframes bgDrift {
+      0% { transform: translate(0,0) rotate(0deg); }
+      100% { transform: translate(-3%,2%) rotate(3deg); }
+    }
+
+    header {
+      padding: 20px 20px 0;
+      text-align: center;
+      width: 100%;
+      max-width: 540px;
+    }
+    header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      letter-spacing: 0.02em;
+      background: linear-gradient(135deg, #e94560, #f39c12);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 12px;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+    .stats-bar .stat-val {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text);
+      display: block;
+    }
+
+    /* Length selector */
+    .length-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      padding: 14px 20px;
+      max-width: 540px;
+    }
+    .len-btn {
+      padding: 6px 14px;
+      border: 1.5px solid var(--tile-border);
+      background: var(--surface);
+      color: var(--text-dim);
+      border-radius: 20px;
       cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: all 0.2s;
     }
-    .lenBtn.active {
-      background: #333;
+    .len-btn:hover { border-color: var(--accent); color: var(--text); }
+    .len-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(233,69,96,0.3);
+    }
+
+    /* Grid */
+    #grid {
+      display: grid;
+      gap: 5px;
+      justify-content: center;
+      padding: 6px 20px;
+      min-height: 60px;
+    }
+    .tile {
+      width: 46px; height: 46px;
+      border: 2px solid var(--tile-border);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 1.15rem;
+      text-transform: uppercase;
+      background: var(--tile-bg);
+      color: var(--text);
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .tile.pop {
+      animation: popIn 0.12s ease;
+    }
+    @keyframes popIn {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    .tile.filled { border-color: var(--text-dim); }
+    .tile.reveal {
+      animation: flipReveal 0.45s ease forwards;
+    }
+    @keyframes flipReveal {
+      0% { transform: scaleY(1); }
+      50% { transform: scaleY(0); }
+      100% { transform: scaleY(1); }
+    }
+    .tile.correct { background: var(--correct); border-color: var(--correct); color: #fff; }
+    .tile.present { background: var(--present); border-color: var(--present); color: #fff; }
+    .tile.absent  { background: var(--absent);  border-color: var(--absent);  color: #bbb; }
+
+    /* Win animation */
+    .tile.win-bounce {
+      animation: winBounce 0.5s ease;
+    }
+    @keyframes winBounce {
+      0%,100% { transform: translateY(0); }
+      40% { transform: translateY(-16px); }
+      60% { transform: translateY(-6px); }
+    }
+
+    /* Message */
+    #message {
+      min-height: 28px;
+      padding: 4px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+      transition: opacity 0.3s;
+    }
+    #message.success { color: var(--correct); }
+    #message.fail { color: var(--accent); }
+
+    /* On-screen keyboard */
+    .keyboard {
+      width: 100%;
+      max-width: 520px;
+      padding: 0 6px;
+      margin-top: 4px;
+    }
+    .kb-row {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .key {
+      height: 44px;
+      min-width: 30px;
+      padding: 0 8px;
+      border: none;
+      border-radius: 5px;
+      background: var(--key-bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 0.15s, transform 0.1s;
+      flex: 1;
+      max-width: 42px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .key:hover { background: var(--key-hover); }
+    .key:active { transform: scale(0.93); }
+    .key.wide { max-width: 64px; font-size: 0.72rem; letter-spacing: 0.03em; }
+    .key.correct { background: var(--correct); color: #fff; }
+    .key.present { background: var(--present); color: #fff; }
+    .key.absent  { background: #2a2a3a; color: #555; }
+
+    /* Word bank toggle */
+    .bank-toggle {
+      margin-top: 16px;
+      width: 100%;
+      max-width: 540px;
+      padding: 0 20px;
+    }
+    .bank-toggle summary {
+      cursor: pointer;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    .bank-toggle summary::before {
+      content: '▸';
+      transition: transform 0.2s;
+      display: inline-block;
+    }
+    .bank-toggle[open] summary::before {
+      transform: rotate(90deg);
+    }
+    .word-bank-grid {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px;
+      background: var(--surface);
+      border-radius: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .word-bank-grid::-webkit-scrollbar { width: 4px; }
+    .word-bank-grid::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+    .wb-word {
+      padding: 3px 10px;
+      background: var(--tile-bg);
+      border-radius: 14px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-dim);
+      border: 1px solid var(--tile-border);
+    }
+    .wb-word.used-correct {
+      background: rgba(46,204,113,0.15);
+      border-color: var(--correct);
+      color: var(--correct);
+    }
+    .wb-word.used-wrong {
+      background: rgba(233,69,96,0.1);
+      border-color: var(--accent);
+      color: var(--accent);
+      text-decoration: line-through;
+    }
+
+    /* Buttons */
+    .action-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 8px;
+      padding: 0 20px;
+    }
+    .action-btn {
+      padding: 8px 18px;
+      border: 1.5px solid var(--tile-border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .action-btn:hover { border-color: var(--accent); background: var(--surface2); }
+    .action-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
       color: #fff;
     }
-    #wordBank {
-      margin-top: 20px;
-      padding: 10px;
-      background: #fff;
-      border-radius: 8px;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
-      font-size: 14px;
-      line-height: 1.6;
+    .action-btn.primary:hover { background: #d63a54; }
+
+    /* Responsive */
+    @media (max-width: 420px) {
+      .tile { width: 38px; height: 38px; font-size: 1rem; }
+      .key { height: 40px; font-size: 0.78rem; }
+      header h1 { font-size: 1.6rem; }
+    }
+
+    /* Shake animation for invalid guess */
+    .shake-row {
+      animation: shake 0.4s ease;
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      opacity: 0.5;
     }
   </style>
 </head>
 <body>
 
-<h1>Spelling Wordle</h1>
-<p><small>Select a word length, then guess the word.</small></p>
+<header>
+  <h1>Spelling Wordle</h1>
+  <p>Pick a word length · Guess the hidden word · Your guess must be from the Word Bank below</p>
+  <div class="stats-bar">
+    <div><span class="stat-val" id="statPlayed">0</span> played</div>
+    <div><span class="stat-val" id="statWon">0</span> won</div>
+    <div><span class="stat-val" id="statStreak">0</span> streak</div>
+  </div>
+</header>
 
-<div id="lengthButtons"></div>
+<div class="length-selector" id="lengthButtons"></div>
 
 <div id="grid"></div>
-
-<div id="controls">
-  <input id="guessInput" type="text" autocomplete="off" />
-  <button id="guessBtn">Guess</button>
-  <button id="newBtn">New Word</button>
-</div>
-
 <div id="message"></div>
 
-<h3>Word Bank</h3>
-<div id="wordBank">(select a length to see words)</div>
+<div class="action-row">
+  <button class="action-btn primary" id="newBtn">New Word</button>
+  <button class="action-btn" id="hintBtn">💡 Hint</button>
+</div>
+
+<div class="keyboard" id="keyboard"></div>
+
+<details class="bank-toggle" id="bankToggle">
+  <summary>Word Bank</summary>
+  <div class="word-bank-grid" id="wordBank"></div>
+</details>
+
+<footer>Type or tap · Green = correct · Yellow = wrong spot · Grey = not in word</footer>
 
 <script>
-  // All words from your spelling lists (lowercase)
-  const WORDS = [
-    "black","egg","sink","frog","lump","name","seen","high","stone","cute",
-    "character","narrative","fable","moral","dialogue",
-    "shrug","throw","shrunk","throne","shred","thrash","shrimp","thread","shrapnel","through",
-    "script","voice","illustration","perspective","storytelling",
-    "secret","submit","carrot","target","pocket","quite","quiet","planet","rabbit","jacket",
-    "diet","summit","poet","maggot","budget",
-    "boy","soil","avoid","toy","enjoy","annoy","coin","foyer","choice","destroy","voyage",
-    "poison","employ","anoint",
-    "itch","catch","bench","match","switch","watch","sketch","witch","patch","different",
-    "hatchet","kitchen","launch","stretch","blotchy",
-    "steer","chair","repair","cheer","stair","peer","dairy","pair","fairy","jeer",
-    "staircase","volunteer","despair","eerie","pioneer",
-    "skills","wishes","birds","mixes","packets","tomatoes","punches","buses","few","houses",
-    "pianos","coaches","crosses","superheroes",
-    "could","hour","talk","walk","half","honest","should","climb","would","bomb",
-    "integrity","inspiration","empathy","influence","responsibility",
-    "selling","asking","eating","moving","dreaming","smiling","carrying","painting",
-    "trying","whining","equality","diversity","courage","resilience",
-    "sigh","light","right","fight","night","flight","alright","knight","mighty",
-    "firelight","eyesight","fortnight","midnight","copyright",
-    "winning","hopping","rotting","grabbing","shutting","swimming","beginning",
-    "splitting","dropping","clapping","programming","permitting","wrapping",
-    "regretting","scrapping",
-    "grey","they","eight","obey","weight","eighty","eighteen","weighed","survey",
-    "neighbor","lightweight","feint","weightlifter","freight",
-    "apple","angle","local","final","equal","people","bottle","angel","table","travel",
-    "example","marvel","struggle","channel","trouble",
-    "liked","asked","kicked","washed","hoped","pleased","cared","cooked","poured",
-    "helped","remembered","praised","frightened","order",
-    "by","buy","for","four","plain","not","knot","heal","he'll",
-    "electricity","circuit","purpose","design","invention",
-    "sign","sword","wrong","write","know","knock","wreck","knife","knowledge","written",
-    "function","current","conductor","insulator","creativity",
-    "teacher","editor","worker","driver","darker","builder","collector","painter",
-    "supporter","climber","commander","manager","elevator","attacker","educator",
-    "why","photo","what","phone","when","graph","which","ghost","where","wheat",
-    "whisper","phase","wheel","photograph","physical",
-    "tried","copies","worried","cried","flies","studied","bullies","marries","replied",
-    "empties","satisfied","supplies","identified","occupies","purified",
-    "laugh","enough","caught","bought","cough","thought","rough","daughter","naughty",
-    "throughout","thorough","distraught","draught",
-    "gym","rice","orange","pencil","circle","large","danger","city","huge","since",
-    "garbage","sentence","general","emergency","cylinder",
-    "wrote","slept","began","broke","told","thrown","knew","learnt","found","heard",
-    "forgave","built","understood","withdrew","forbade",
-    "diary","summary","memory","library","factory","delivery","grocery","glossary",
-    "necessary","vocabulary","navigation","culture","global","heritage",
-    "painful","helpful","careless","skillful","endless","thankful","powerful",
-    "forgetful","successful","homeless","landmark","geography","location",
-    "compass","symbol",
-    "listen","often","guard","build","castle","fasten","guest","autumn","guess",
-    "wrestle","column","whistle","disguise","hustle",
-    "homework","afternoon","rainbow","airport","baseball","footprint","eyesight",
-    "grandmother","toothbrush","shoelace","somewhere","supermarket","everyone",
-    "lifeguard","skateboard",
-    "school","sphere","square","squat","squad","sphinx","squeeze","squirrel","scheme",
-    "squeaky","scholar","atmosphere","hemisphere","squeamish","spherical",
-    "easy","funny","scary","spicy","sleepy","cloudy","smoky","healthy","tricky",
-    "stormy","sustainability","agriculture","resources","ecosystem","material",
-    "don’t","can’t","i’m","it’s","i’ll","should’ve","they’re","o’clock","they’ll",
-    "doesn’t","recycling","alternative","development","natural","biodegradable",
-    "children","bread","women","mice","lives","leaves","wolves","music","chefs",
-    "trousers","beliefs","equipment","furniture","shelves","knives",
-    "slowly","happily","perfectly","exactly","properly","extremely","quickly",
-    "busily","surely","angrily","definitely","regularly","certainly","immediately",
-    "successfully",
-    "year","fear","gear","clear","dear","earth","learn","swear","heart","search",
-    "heard","beard","appear","nearby",
-    "disagree","dislike","uncover","unable","unfair","unhealthy","unhappy",
-    "disappear","misbehave","unpleasant","dishonest","disapprove","unnecessary",
-    "unfamiliar","misunderstanding",
-    "once","does","minute","clothes","friends","really","darkness",
-    "greatness","forgiveness","beautiful","island","because","surprise","loneliness"
-  ].map(w => w.toLowerCase());
+const WORDS = [
+  "black","egg","sink","frog","lump","name","seen","high","stone","cute",
+  "character","narrative","fable","moral","dialogue",
+  "shrug","throw","shrunk","throne","shred","thrash","shrimp","thread","shrapnel","through",
+  "script","voice","illustration","perspective","storytelling",
+  "secret","submit","carrot","target","pocket","quite","quiet","planet","rabbit","jacket",
+  "diet","summit","poet","maggot","budget",
+  "boy","soil","avoid","toy","enjoy","annoy","coin","foyer","choice","destroy","voyage",
+  "poison","employ","anoint",
+  "itch","catch","bench","match","switch","watch","sketch","witch","patch","different",
+  "hatchet","kitchen","launch","stretch","blotchy",
+  "steer","chair","repair","cheer","stair","peer","dairy","pair","fairy","jeer",
+  "staircase","volunteer","despair","eerie","pioneer",
+  "skills","wishes","birds","mixes","packets","tomatoes","punches","buses","few","houses",
+  "pianos","coaches","crosses","superheroes",
+  "could","hour","talk","walk","half","honest","should","climb","would","bomb",
+  "integrity","inspiration","empathy","influence","responsibility",
+  "selling","asking","eating","moving","dreaming","smiling","carrying","painting",
+  "trying","whining","equality","diversity","courage","resilience",
+  "sigh","light","right","fight","night","flight","alright","knight","mighty",
+  "firelight","eyesight","fortnight","midnight","copyright",
+  "winning","hopping","rotting","grabbing","shutting","swimming","beginning",
+  "splitting","dropping","clapping","programming","permitting","wrapping",
+  "regretting","scrapping",
+  "grey","they","eight","obey","weight","eighty","eighteen","weighed","survey",
+  "neighbor","lightweight","feint","weightlifter","freight",
+  "apple","angle","local","final","equal","people","bottle","angel","table","travel",
+  "example","marvel","struggle","channel","trouble",
+  "liked","asked","kicked","washed","hoped","pleased","cared","cooked","poured",
+  "helped","remembered","praised","frightened","order",
+  "by","buy","for","four","plain","not","knot","heal","he'll",
+  "electricity","circuit","purpose","design","invention",
+  "sign","sword","wrong","write","know","knock","wreck","knife","knowledge","written",
+  "function","current","conductor","insulator","creativity",
+  "teacher","editor","worker","driver","darker","builder","collector","painter",
+  "supporter","climber","commander","manager","elevator","attacker","educator",
+  "why","photo","what","phone","when","graph","which","ghost","where","wheat",
+  "whisper","phase","wheel","photograph","physical",
+  "tried","copies","worried","cried","flies","studied","bullies","marries","replied",
+  "empties","satisfied","supplies","identified","occupies","purified",
+  "laugh","enough","caught","bought","cough","thought","rough","daughter","naughty",
+  "throughout","thorough","distraught","draught",
+  "gym","rice","orange","pencil","circle","large","danger","city","huge","since",
+  "garbage","sentence","general","emergency","cylinder",
+  "wrote","slept","began","broke","told","thrown","knew","learnt","found","heard",
+  "forgave","built","understood","withdrew","forbade",
+  "diary","summary","memory","library","factory","delivery","grocery","glossary",
+  "necessary","vocabulary","navigation","culture","global","heritage",
+  "painful","helpful","careless","skillful","endless","thankful","powerful",
+  "forgetful","successful","homeless","landmark","geography","location",
+  "compass","symbol",
+  "listen","often","guard","build","castle","fasten","guest","autumn","guess",
+  "wrestle","column","whistle","disguise","hustle",
+  "homework","afternoon","rainbow","airport","baseball","footprint","eyesight",
+  "grandmother","toothbrush","shoelace","somewhere","supermarket","everyone",
+  "lifeguard","skateboard",
+  "school","sphere","square","squat","squad","sphinx","squeeze","squirrel","scheme",
+  "squeaky","scholar","atmosphere","hemisphere","squeamish","spherical",
+  "easy","funny","scary","spicy","sleepy","cloudy","smoky","healthy","tricky",
+  "stormy","sustainability","agriculture","resources","ecosystem","material",
+  "don't","can't","i'm","it's","i'll","should've","they're","o'clock","they'll",
+  "doesn't","recycling","alternative","development","natural","biodegradable",
+  "selling","asking","eating","moving","dreaming","smiling","carrying","painting",
+  "trying","whining","equality","diversity","courage","resilience",
+  "children","bread","women","mice","lives","leaves","wolves","music","chefs",
+  "trousers","beliefs","equipment","furniture","shelves","knives",
+  "slowly","happily","perfectly","exactly","properly","extremely","quickly",
+  "busily","surely","angrily","definitely","regularly","certainly","immediately",
+  "successfully",
+  "year","fear","gear","clear","dear","earth","learn","swear","heart","search",
+  "heard","beard","appear","nearby",
+  "disagree","dislike","uncover","unable","unfair","unhealthy","unhappy",
+  "disappear","misbehave","unpleasant","dishonest","disapprove","unnecessary",
+  "unfamiliar","misunderstanding",
+  "once","does","minute","clothes","friends","really","darkness",
+  "greatness","forgiveness","beautiful","island","because","surprise","loneliness"
+].map(w => w.toLowerCase());
 
-  // Group words by length
-  const groups = {};
-  WORDS.forEach(w => {
-    const len = w.length;
-    if (!groups[len]) groups[len] = [];
-    groups[len].push(w);
-  });
+// Dedupe
+const WORD_SET = [...new Set(WORDS)];
 
-  let currentLength = null;
-  let answer = "";
-  let maxRows = 6;
-  let currentRow = 0;
-  let gameOver = false;
+// Group by length
+const groups = {};
+WORD_SET.forEach(w => {
+  const len = w.length;
+  if (!groups[len]) groups[len] = [];
+  groups[len].push(w);
+});
 
-  const grid = document.getElementById("grid");
-  const guessInput = document.getElementById("guessInput");
-  const guessBtn = document.getElementById("guessBtn");
-  const newBtn = document.getElementById("newBtn");
-  const message = document.getElementById("message");
-  const lengthButtons = document.getElementById("lengthButtons");
-  const wordBank = document.getElementById("wordBank");
+// State
+let currentLength = null;
+let answer = "";
+let maxRows = 6;
+let currentRow = 0;
+let currentCol = 0;
+let gameOver = false;
+let hintUsed = false;
+let guessedWords = []; // track guessed words for word bank highlighting
+const keyStates = {}; // letter -> best state
 
-  // Create toggle buttons for each available word length
-  Object.keys(groups).sort((a,b)=>a-b).forEach(len => {
+// Stats (session)
+let stats = { played: 0, won: 0, streak: 0 };
+
+const grid = document.getElementById("grid");
+const message = document.getElementById("message");
+const lengthButtons = document.getElementById("lengthButtons");
+const wordBank = document.getElementById("wordBank");
+const keyboard = document.getElementById("keyboard");
+const newBtn = document.getElementById("newBtn");
+const hintBtn = document.getElementById("hintBtn");
+
+// Build length buttons
+Object.keys(groups).sort((a,b) => a - b).forEach(len => {
+  const btn = document.createElement("button");
+  btn.textContent = len;
+  btn.className = "len-btn";
+  btn.onclick = () => selectLength(Number(len), btn);
+  lengthButtons.appendChild(btn);
+});
+
+// Build keyboard
+const KB_ROWS = [
+  ['q','w','e','r','t','y','u','i','o','p'],
+  ['a','s','d','f','g','h','j','k','l'],
+  ['enter','z','x','c','v','b','n','m','⌫']
+];
+
+KB_ROWS.forEach(row => {
+  const rowDiv = document.createElement("div");
+  rowDiv.className = "kb-row";
+  row.forEach(k => {
     const btn = document.createElement("button");
-    btn.textContent = len + " letters";
-    btn.className = "lenBtn";
-    btn.onclick = () => selectLength(len, btn);
-    lengthButtons.appendChild(btn);
+    btn.className = "key" + (k.length > 1 ? " wide" : "");
+    btn.textContent = k;
+    btn.dataset.key = k;
+    btn.addEventListener("click", () => handleKeyPress(k));
+    rowDiv.appendChild(btn);
   });
+  keyboard.appendChild(rowDiv);
+});
 
-  function selectLength(len, btn) {
-    currentLength = Number(len);
-    document.querySelectorAll(".lenBtn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    updateWordBank();
-    pickNewWord();
+function selectLength(len, btn) {
+  currentLength = len;
+  document.querySelectorAll(".len-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  updateWordBank();
+  pickNewWord();
+}
+
+function updateWordBank() {
+  if (!currentLength) return;
+  wordBank.innerHTML = "";
+  groups[currentLength].forEach(w => {
+    const span = document.createElement("span");
+    span.className = "wb-word";
+    span.textContent = w;
+    span.dataset.word = w;
+    wordBank.appendChild(span);
+  });
+}
+
+function highlightWordBank(word, won) {
+  const el = wordBank.querySelector(`[data-word="${word}"]`);
+  if (el) {
+    el.classList.add(won ? "used-correct" : "used-wrong");
+  }
+}
+
+function pickNewWord() {
+  if (!currentLength) return;
+  const list = groups[currentLength];
+  answer = list[Math.floor(Math.random() * list.length)];
+  currentRow = 0;
+  currentCol = 0;
+  gameOver = false;
+  hintUsed = false;
+  guessedWords = [];
+  message.textContent = "";
+  message.className = "";
+  Object.keys(keyStates).forEach(k => delete keyStates[k]);
+  resetKeyboardColors();
+  buildEmptyGrid();
+  updateWordBank(); // reset highlights
+}
+
+function buildEmptyGrid() {
+  grid.innerHTML = "";
+  const cols = answer.length;
+  grid.style.gridTemplateColumns = `repeat(${cols}, 46px)`;
+  for (let r = 0; r < maxRows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const tile = document.createElement("div");
+      tile.className = "tile";
+      tile.dataset.row = r;
+      tile.dataset.col = c;
+      grid.appendChild(tile);
+    }
+  }
+}
+
+function getTile(row, col) {
+  return grid.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+}
+
+function getRowTiles(row) {
+  return [...grid.querySelectorAll(`[data-row="${row}"]`)];
+}
+
+function setMessage(text, type = "") {
+  message.textContent = text;
+  message.className = type;
+}
+
+function handleKeyPress(key) {
+  if (gameOver || !currentLength) return;
+
+  if (key === "enter") {
+    submitGuess();
+  } else if (key === "⌫" || key === "backspace") {
+    if (currentCol > 0) {
+      currentCol--;
+      const tile = getTile(currentRow, currentCol);
+      tile.textContent = "";
+      tile.classList.remove("filled");
+    }
+  } else if (key.length === 1 && /^[a-z]$/i.test(key)) {
+    if (currentCol < answer.length) {
+      const tile = getTile(currentRow, currentCol);
+      tile.textContent = key.toUpperCase();
+      tile.classList.add("filled", "pop");
+      setTimeout(() => tile.classList.remove("pop"), 120);
+      currentCol++;
+    }
+  }
+}
+
+function submitGuess() {
+  if (currentCol < answer.length) {
+    shakeRow(currentRow);
+    setMessage(`Need ${answer.length} letters`, "fail");
+    return;
   }
 
-  function updateWordBank() {
-    if (!currentLength) return;
-    const list = groups[currentLength];
-    wordBank.innerHTML = list.join(", ");
+  const tiles = getRowTiles(currentRow);
+  const guess = tiles.map(t => t.textContent.toLowerCase()).join("");
+
+  if (!groups[currentLength].includes(guess)) {
+    shakeRow(currentRow);
+    setMessage("Not in word list", "fail");
+    return;
   }
 
-  function pickNewWord() {
-    if (!currentLength) return;
-    const list = groups[currentLength];
-    answer = list[Math.floor(Math.random() * list.length)];
-    currentRow = 0;
-    gameOver = false;
-    message.textContent = "";
-    buildEmptyGrid();
-    guessInput.value = "";
-    guessInput.placeholder = `Type a ${answer.length}-letter word`;
-  }
+  guessedWords.push(guess);
 
-  function buildEmptyGrid() {
-    grid.innerHTML = "";
-    grid.style.gridTemplateColumns = `repeat(${answer.length}, 40px)`;
-    for (let r = 0; r < maxRows; r++) {
-      for (let c = 0; c < answer.length; c++) {
-        const tile = document.createElement("div");
-        tile.className = "tile";
-        tile.dataset.row = r;
-        tile.dataset.col = c;
-        grid.appendChild(tile);
+  // Compute colors with proper duplicate handling
+  const colors = Array(answer.length).fill("absent");
+  const answerArr = answer.split("");
+  const guessArr = guess.split("");
+  const used = Array(answer.length).fill(false);
+
+  // First pass: correct
+  for (let i = 0; i < guessArr.length; i++) {
+    if (guessArr[i] === answerArr[i]) {
+      colors[i] = "correct";
+      used[i] = true;
+    }
+  }
+  // Second pass: present
+  for (let i = 0; i < guessArr.length; i++) {
+    if (colors[i] === "correct") continue;
+    for (let j = 0; j < answerArr.length; j++) {
+      if (!used[j] && guessArr[i] === answerArr[j]) {
+        colors[i] = "present";
+        used[j] = true;
+        break;
       }
     }
   }
 
-  function setMessage(text, color = "#333") {
-    message.textContent = text;
-    message.style.color = color;
-  }
-
-  function handleGuess() {
-    if (gameOver || !currentLength) return;
-    let guess = guessInput.value.trim().toLowerCase();
-
-    if (guess.length !== answer.length) {
-      setMessage(`This word has ${answer.length} letters.`);
-      return;
-    }
-    if (!groups[currentLength].includes(guess)) {
-      setMessage("That word is not in this list.");
-      return;
-    }
-
-    for (let i = 0; i < answer.length; i++) {
-      const tile = [...grid.children].find(
-        t => Number(t.dataset.row) === currentRow && Number(t.dataset.col) === i
-      );
-      tile.textContent = guess[i].toUpperCase();
-      tile.classList.remove("correct","present","absent");
-
-      if (guess[i] === answer[i]) tile.classList.add("correct");
-      else if (answer.includes(guess[i])) tile.classList.add("present");
-      else tile.classList.add("absent");
-    }
-
-    if (guess === answer) {
-      setMessage(`Nice! The word was "${answer.toUpperCase()}".`, "#2e7d32");
-      gameOver = true;
-      return;
-    }
-
-    currentRow++;
-    if (currentRow >= maxRows) {
-      setMessage(`Out of guesses! The word was "${answer.toUpperCase()}".`, "#b71c1c");
-      gameOver = true;
-    } else {
-      setMessage(`${maxRows - currentRow} guesses left.`);
-    }
-
-    guessInput.value = "";
-    guessInput.focus();
-  }
-
-  guessBtn.addEventListener("click", handleGuess);
-  newBtn.addEventListener("click", pickNewWord);
-  guessInput.addEventListener("keydown", e => {
-    if (e.key === "Enter") handleGuess();
+  // Animate reveals
+  tiles.forEach((tile, i) => {
+    setTimeout(() => {
+      tile.classList.add("reveal");
+      setTimeout(() => {
+        tile.classList.add(colors[i]);
+        // Update keyboard
+        updateKeyState(guessArr[i], colors[i]);
+      }, 220);
+    }, i * 100);
   });
-</script>
 
+  const revealTime = tiles.length * 100 + 400;
+
+  setTimeout(() => {
+    if (guess === answer) {
+      stats.played++;
+      stats.won++;
+      stats.streak++;
+      updateStatsUI();
+      const msgs = ["Brilliant! ✨", "Amazing! 🎉", "Well done! 🏆", "Perfect! 💫", "Nailed it! 🔥"];
+      setMessage(msgs[Math.min(currentRow, msgs.length - 1)], "success");
+      gameOver = true;
+      highlightWordBank(answer, true);
+      // Win bounce
+      tiles.forEach((tile, i) => {
+        setTimeout(() => tile.classList.add("win-bounce"), i * 80);
+      });
+    } else {
+      currentRow++;
+      currentCol = 0;
+      if (currentRow >= maxRows) {
+        stats.played++;
+        stats.streak = 0;
+        updateStatsUI();
+        setMessage(`The word was ${answer.toUpperCase()}`, "fail");
+        gameOver = true;
+        highlightWordBank(answer, false);
+      } else {
+        setMessage(`${maxRows - currentRow} guesses left`);
+      }
+    }
+  }, revealTime);
+}
+
+function shakeRow(row) {
+  const tiles = getRowTiles(row);
+  const wrapper = document.createElement("div");
+  wrapper.style.display = "contents";
+  wrapper.className = "shake-row";
+  // We can't easily wrap grid children, so shake each tile
+  tiles.forEach(t => {
+    t.style.animation = "shake 0.4s ease";
+    setTimeout(() => t.style.animation = "", 400);
+  });
+}
+
+function updateKeyState(letter, state) {
+  const priority = { correct: 3, present: 2, absent: 1 };
+  const current = keyStates[letter];
+  if (!current || priority[state] > priority[current]) {
+    keyStates[letter] = state;
+  }
+  applyKeyColor(letter);
+}
+
+function applyKeyColor(letter) {
+  const btn = keyboard.querySelector(`[data-key="${letter}"]`);
+  if (btn) {
+    btn.classList.remove("correct", "present", "absent");
+    if (keyStates[letter]) btn.classList.add(keyStates[letter]);
+  }
+}
+
+function resetKeyboardColors() {
+  keyboard.querySelectorAll(".key").forEach(k => {
+    k.classList.remove("correct", "present", "absent");
+  });
+}
+
+function updateStatsUI() {
+  document.getElementById("statPlayed").textContent = stats.played;
+  document.getElementById("statWon").textContent = stats.won;
+  document.getElementById("statStreak").textContent = stats.streak;
+}
+
+// Hint: reveal one correct letter
+hintBtn.addEventListener("click", () => {
+  if (gameOver || !currentLength || hintUsed) return;
+  hintUsed = true;
+  // Find an unrevealed position
+  const unrevealedIndices = [];
+  for (let i = 0; i < answer.length; i++) {
+    const tile = getTile(currentRow, i);
+    if (!tile.textContent) unrevealedIndices.push(i);
+  }
+  if (unrevealedIndices.length === 0) return;
+  const idx = unrevealedIndices[Math.floor(Math.random() * unrevealedIndices.length)];
+
+  // Clear current input and place hint
+  for (let c = 0; c < answer.length; c++) {
+    const tile = getTile(currentRow, c);
+    tile.textContent = "";
+    tile.classList.remove("filled");
+  }
+  const hintTile = getTile(currentRow, idx);
+  hintTile.textContent = answer[idx].toUpperCase();
+  hintTile.classList.add("filled");
+  hintTile.style.borderColor = "var(--present)";
+  currentCol = 0; // user re-types around the hint
+
+  // Actually, simpler: just show a toast
+  hintTile.style.borderColor = "";
+  for (let c = 0; c < answer.length; c++) {
+    const tile = getTile(currentRow, c);
+    tile.textContent = "";
+    tile.classList.remove("filled");
+  }
+  currentCol = 0;
+  setMessage(`Hint: position ${idx + 1} is "${answer[idx].toUpperCase()}"`, "");
+  hintBtn.style.opacity = "0.4";
+  hintBtn.style.pointerEvents = "none";
+});
+
+newBtn.addEventListener("click", () => {
+  pickNewWord();
+  hintBtn.style.opacity = "1";
+  hintBtn.style.pointerEvents = "auto";
+});
+
+// Physical keyboard
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === "Enter") handleKeyPress("enter");
+  else if (e.key === "Backspace") handleKeyPress("⌫");
+  else if (/^[a-zA-Z]$/.test(e.key)) handleKeyPress(e.key.toLowerCase());
+});
+
+// Auto-select 5-letter words if available
+window.addEventListener("DOMContentLoaded", () => {
+  const preferred = [5, 6, 4, 7];
+  for (const len of preferred) {
+    if (groups[len]) {
+      const btn = [...document.querySelectorAll(".len-btn")].find(b => b.textContent == len);
+      if (btn) { selectLength(len, btn); break; }
+    }
+  }
+});
+</script>
 </body>
 </html>
