@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dolch Hangman</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fef6e4;
+      --surface: #ffffff;
+      --primary: #f582ae;
+      --primary-dark: #e0608e;
+      --accent: #8bd3dd;
+      --accent-dark: #6bbfc9;
+      --warning: #f3d250;
+      --danger: #e85d75;
+      --success: #4ecdc4;
+      --text: #2d334a;
+      --text-muted: #8b8fa3;
+      --border: #e8e0d4;
+      --shadow: 0 4px 24px rgba(45,51,74,0.08);
+      --shadow-lg: 0 12px 40px rgba(45,51,74,0.12);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-pill: 999px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Fredoka', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Floating background shapes */
+    body::before, body::after {
+      content: '';
+      position: fixed;
+      border-radius: 50%;
+      z-index: 0;
+      opacity: 0.15;
+      pointer-events: none;
+    }
+    body::before {
+      width: 500px; height: 500px;
+      background: var(--primary);
+      top: -120px; right: -100px;
+      animation: floatBlob 20s ease-in-out infinite;
+    }
+    body::after {
+      width: 400px; height: 400px;
+      background: var(--accent);
+      bottom: -80px; left: -60px;
+      animation: floatBlob 25s ease-in-out infinite reverse;
+    }
+    @keyframes floatBlob {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -20px) scale(1.05); }
+      66% { transform: translate(-20px, 15px) scale(0.95); }
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--accent-dark));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .header p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+      font-weight: 400;
+    }
+
+    /* Score strip */
+    .score-strip {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .score-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .score-item .num {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .score-item.wins .num { color: var(--success); }
+    .score-item.losses .num { color: var(--danger); }
+    .score-item.streak .num { color: var(--warning); }
+
+    /* Tabs / Level Selector */
+    .level-bar {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .level-btn {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .level-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .level-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(245,130,174,0.3);
+    }
+
+    /* Mode toggle */
+    .mode-row {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .mode-btn {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 16px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+    .mode-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(139,211,221,0.3);
+    }
+
+    /* Main card */
+    .game-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    /* Timer */
+    .timer-wrapper { margin-bottom: 18px; }
+    .timer-track {
+      width: 100%;
+      height: 10px;
+      border-radius: var(--radius-pill);
+      background: #ede7db;
+      overflow: hidden;
+    }
+    .timer-fill {
+      height: 100%;
+      border-radius: var(--radius-pill);
+      background: var(--success);
+      transition: width 0.1s linear, background 0.3s;
+      width: 100%;
+    }
+    .timer-fill.warn { background: var(--warning); }
+    .timer-fill.danger { background: var(--danger); }
+    .timer-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+    .timer-meta span {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* Board layout */
+    .board {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .board-left { flex: 1 1 300px; }
+    .board-right { flex: 0 0 auto; display: flex; justify-content: center; }
+
+    /* Level & info */
+    .info-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .info-badge .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: inline-block;
+    }
+
+    /* Word display */
+    .word-display {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0 16px;
+      min-height: 56px;
+      align-items: center;
+    }
+    .letter-slot {
+      width: 44px;
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      border-bottom: 3px solid var(--border);
+      color: var(--text);
+      transition: all 0.25s;
+    }
+    .letter-slot.revealed {
+      border-color: var(--success);
+      animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .letter-slot.hint {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .letter-slot.wrong-reveal {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Lives */
+    .lives-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .heart {
+      font-size: 22px;
+      transition: all 0.3s;
+      display: inline-block;
+    }
+    .heart.lost {
+      opacity: 0.2;
+      transform: scale(0.8);
+      filter: grayscale(1);
+    }
+    .heart.breaking {
+      animation: heartBreak 0.4s ease-out;
+    }
+    @keyframes heartBreak {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.3); }
+      100% { transform: scale(0.8); opacity: 0.2; }
+    }
+
+    /* Misses */
+    .misses-row {
+      font-size: 13px;
+      color: var(--text-muted);
+      min-height: 20px;
+    }
+    .miss-letter {
+      display: inline-block;
+      font-family: 'Space Mono', monospace;
+      font-weight: 700;
+      color: var(--danger);
+      background: rgba(232,93,117,0.08);
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin: 0 2px;
+      font-size: 12px;
+    }
+
+    /* Status message */
+    .status-msg {
+      margin-top: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      min-height: 28px;
+      transition: opacity 0.3s;
+    }
+    .status-msg.win { color: var(--success); }
+    .status-msg.lose { color: var(--danger); }
+    .status-msg.hint { color: var(--primary); }
+
+    /* SVG Hangman */
+    .hangman-svg {
+      width: 160px;
+      height: 200px;
+    }
+    .hangman-svg line, .hangman-svg circle {
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .hm-structure { stroke: #c9bfad; stroke-width: 3; fill: none; }
+    .hm-part {
+      stroke: var(--text);
+      stroke-width: 3;
+      fill: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .hm-part.show {
+      opacity: 1;
+      animation: drawIn 0.3s ease-out;
+    }
+    .hm-head.show { fill: none; }
+    .hm-face {
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 10px;
+    }
+    .hm-face.show { opacity: 1; }
+    @keyframes drawIn {
+      from { stroke-dasharray: 100; stroke-dashoffset: 100; }
+      to { stroke-dasharray: 100; stroke-dashoffset: 0; }
+    }
+
+    /* Keyboard */
+    .keyboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+      gap: 6px;
+      margin-top: 16px;
+    }
+    @media (min-width: 600px) {
+      .keyboard { grid-template-columns: repeat(13, 1fr); }
+    }
+    .key {
+      font-family: 'Space Mono', monospace;
+      font-size: 15px;
+      font-weight: 700;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      border: 2px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+      color: var(--text);
+    }
+    .key:hover:not(.used) {
+      border-color: var(--primary);
+      background: rgba(245,130,174,0.06);
+      transform: translateY(-1px);
+    }
+    .key:active:not(.used) { transform: scale(0.95); }
+    .key.hit {
+      background: var(--success);
+      border-color: var(--success);
+      color: #fff;
+      cursor: default;
+    }
+    .key.miss {
+      background: #f0ece6;
+      border-color: transparent;
+      color: #c4bbab;
+      cursor: default;
+    }
+
+    /* Action bar */
+    .action-bar {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+    .action-btn {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 22px;
+      border: none;
+      border-radius: var(--radius-pill);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-btn:active { transform: scale(0.96); }
+    .action-btn.new-word {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 3px 12px rgba(245,130,174,0.3);
+    }
+    .action-btn.new-word:hover { background: var(--primary-dark); }
+    .action-btn.secondary {
+      background: #f0ece6;
+      color: var(--text);
+    }
+    .action-btn.secondary:hover { background: #e6e0d6; }
+
+    /* Confetti canvas */
+    #confetti-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .game-card { padding: 16px; }
+      .board { gap: 14px; }
+      .letter-slot { width: 36px; height: 44px; font-size: 22px; }
+      .hangman-svg { width: 120px; height: 150px; }
+      .score-strip { gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+<canvas id="confetti-canvas"></canvas>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>Dolch Hangman</h1>
+    <p>Learn sight words the fun way — guess before time runs out!</p>
+  </div>
+
+  <!-- Score -->
+  <div class="score-strip">
+    <div class="score-item wins">🏆 <span class="num" id="score-wins">0</span> <span>wins</span></div>
+    <div class="score-item losses">💔 <span class="num" id="score-losses">0</span> <span>losses</span></div>
+    <div class="score-item streak">🔥 <span class="num" id="score-streak">0</span> <span>streak</span></div>
+  </div>
+
+  <!-- Levels -->
+  <div class="level-bar" id="level-bar"></div>
+
+  <!-- Mode -->
+  <div class="mode-row">
+    <button class="mode-btn active" id="btn-normal">☀️ Normal</button>
+    <button class="mode-btn" id="btn-speed">⚡ Speed</button>
+  </div>
+
+  <!-- Game Card -->
+  <div class="game-card">
+    <!-- Timer -->
+    <div class="timer-wrapper">
+      <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
+      <div class="timer-meta">
+        <span id="timer-mode-label">Normal · 10s per guess</span>
+        <span id="timer-text">10.0s</span>
+      </div>
+    </div>
+
+    <!-- Board -->
+    <div class="board">
+      <div class="board-left">
+        <div class="info-badge"><span class="dot"></span> <span id="level-label">Pre-Primer</span> · <span id="word-length-label">4 letters</span></div>
+        <div class="word-display" id="word-display"></div>
+        <div class="lives-row" id="lives-display"></div>
+        <div class="misses-row" id="misses-display"></div>
+        <div class="status-msg" id="status"></div>
+      </div>
+      <div class="board-right">
+        <svg class="hangman-svg" viewBox="0 0 160 200" id="hangman-svg">
+          <!-- Structure -->
+          <line class="hm-structure" x1="20" y1="190" x2="140" y2="190"/>
+          <line class="hm-structure" x1="40" y1="190" x2="40" y2="20"/>
+          <line class="hm-structure" x1="40" y1="20" x2="100" y2="20"/>
+          <line class="hm-structure" x1="100" y1="20" x2="100" y2="40"/>
+          <line class="hm-structure" x1="40" y1="50" x2="65" y2="20"/>
+          <!-- Parts (hidden by default) -->
+          <circle class="hm-part hm-head" id="hm-head" cx="100" cy="55" r="15"/>
+          <line class="hm-part" id="hm-body" x1="100" y1="70" x2="100" y2="120"/>
+          <line class="hm-part" id="hm-larm" x1="100" y1="82" x2="72" y2="100"/>
+          <line class="hm-part" id="hm-rarm" x1="100" y1="82" x2="128" y2="100"/>
+          <line class="hm-part" id="hm-lleg" x1="100" y1="120" x2="75" y2="155"/>
+          <line class="hm-part" id="hm-rleg" x1="100" y1="120" x2="125" y2="155"/>
+          <line class="hm-part" id="hm-lfoot" x1="75" y1="155" x2="62" y2="152"/>
+          <line class="hm-part" id="hm-rfoot" x1="125" y1="155" x2="138" y2="152"/>
+          <!-- Face (shown on death) -->
+          <text class="hm-face" id="hm-face" x="100" y="60" text-anchor="middle" font-size="12">✕ ✕</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Keyboard -->
+    <div class="keyboard" id="keyboard"></div>
+
+    <!-- Actions -->
+    <div class="action-bar">
+      <button class="action-btn new-word" id="btn-new">New Word</button>
+      <button class="action-btn secondary" id="btn-hint">💡 Hint</button>
+      <button class="action-btn secondary" id="btn-reveal">👁 Reveal</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── DOLCH WORD LISTS ───
+const DOLCH = {
+  preprimer: ["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","i","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","two","up","we","where","yellow","you"],
+  primer: ["all","am","are","at","ate","be","black","brown","but","came","did","do","eat","four","get","good","have","he","into","like","must","new","no","now","on","our","out","please","pretty","ran","ride","saw","say","she","so","soon","that","there","they","this","too","under","want","was","well","went","what","white","who","will","with","yes"],
+  first: ["after","again","an","any","as","ask","by","could","every","fly","from","give","going","had","has","her","him","his","how","just","know","let","live","may","of","old","once","open","over","put","round","some","stop","take","thank","them","then","think","walk","were","when"],
+  second: ["always","around","because","been","before","best","both","buy","call","cold","does","don't","fast","first","five","found","gave","goes","green","its","made","many","off","or","pull","read","right","sing","sit","sleep","tell","their","these","those","upon","us","use","very","wash","which","why","wish","work","would","write","your"],
+  third: ["about","better","bring","carry","clean","cut","done","draw","drink","eight","fall","far","full","got","grow","hold","hot","hurt","if","keep","kind","laugh","light","long","much","myself","never","only","own","pick","seven","shall","show","six","small","start","ten","today","together","try","warm"],
+  nouns: ["apple","baby","back","ball","bear","bed","bell","bird","birthday","boat","box","boy","bread","brother","cake","car","cat","chair","chicken","children","christmas","coat","corn","cow","day","dog","doll","door","duck","egg","eye","farm","farmer","father","feet","fire","fish","floor","flower","game","garden","girl","goodbye","grass","ground","hand","head","hill","home","horse","house","kitty","leg","letter","man","men","milk","money","morning","mother","name","nest","night","paper","party","picture","pig","rabbit","rain","ring","robin","santa","school","seed","sheep","shoe","sister","snow","song","squirrel","stick","street","sun","table","thing","time","top","toy","tree","watch","water","way","wind","window","wood"]
+};
+
+const LEVEL_NAMES = {
+  preprimer: "Pre-Primer",
+  primer: "Primer",
+  first: "1st Grade",
+  second: "2nd Grade",
+  third: "3rd Grade",
+  nouns: "Nouns"
+};
+
+// ─── STATE ───
+let state = {
+  level: "preprimer",
+  mode: "normal",
+  word: "",
+  revealed: [],
+  misses: [],
+  lives: 8,
+  maxLives: 8,
+  gameOver: false,
+  wins: 0,
+  losses: 0,
+  streak: 0,
+  bestStreak: 0,
+  hintsUsed: 0,
+  usedWords: new Set()
+};
+
+let timerDuration = 10;
+let timerRemaining = 0;
+let timerId = null;
+
+// ─── DOM ───
+const $ = id => document.getElementById(id);
+const levelBar = $("level-bar");
+const levelLabel = $("level-label");
+const wordLengthLabel = $("word-length-label");
+const wordDisplay = $("word-display");
+const livesDisplay = $("lives-display");
+const missesDisplay = $("misses-display");
+const statusEl = $("status");
+const timerFillEl = $("timer-fill");
+const timerTextEl = $("timer-text");
+const timerModeLabel = $("timer-mode-label");
+const keyboardEl = $("keyboard");
+const hangmanSvg = $("hangman-svg");
+const btnNormal = $("btn-normal");
+const btnSpeed = $("btn-speed");
+const btnNew = $("btn-new");
+const btnHint = $("btn-hint");
+const btnReveal = $("btn-reveal");
+const confettiCanvas = $("confetti-canvas");
+
+// ─── CONFETTI ───
+const confCtx = confettiCanvas.getContext("2d");
+let confettiPieces = [];
+let confettiAnimId = null;
+
+function resizeConfetti() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeConfetti);
+resizeConfetti();
+
+function launchConfetti() {
+  confettiPieces = [];
+  const colors = ["#f582ae","#8bd3dd","#f3d250","#4ecdc4","#ff6b6b","#c084fc","#fbbf24"];
+  for (let i = 0; i < 120; i++) {
+    confettiPieces.push({
+      x: Math.random() * confettiCanvas.width,
+      y: -20 - Math.random() * 200,
+      w: 6 + Math.random() * 6,
+      h: 4 + Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vy: 2 + Math.random() * 3,
+      vx: (Math.random() - 0.5) * 3,
+      rot: Math.random() * 360,
+      rv: (Math.random() - 0.5) * 10,
+      opacity: 1
+    });
+  }
+  if (!confettiAnimId) animConfetti();
+}
+
+function animConfetti() {
+  confCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  let alive = false;
+  for (const p of confettiPieces) {
+    p.y += p.vy;
+    p.x += p.vx;
+    p.rot += p.rv;
+    p.vy += 0.05;
+    if (p.y > confettiCanvas.height + 40) { p.opacity -= 0.05; }
+    if (p.opacity <= 0) continue;
+    alive = true;
+    confCtx.save();
+    confCtx.translate(p.x, p.y);
+    confCtx.rotate(p.rot * Math.PI / 180);
+    confCtx.globalAlpha = Math.max(0, p.opacity);
+    confCtx.fillStyle = p.color;
+    confCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    confCtx.restore();
+  }
+  if (alive) {
+    confettiAnimId = requestAnimationFrame(animConfetti);
+  } else {
+    confettiAnimId = null;
+    confCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+  }
+}
+
+// ─── HANGMAN SVG PARTS ───
+const HM_PARTS = ["hm-head","hm-body","hm-larm","hm-rarm","hm-lleg","hm-rleg","hm-lfoot","hm-rfoot"];
+
+function updateHangman() {
+  const missed = state.maxLives - state.lives;
+  HM_PARTS.forEach((id, i) => {
+    const el = $(id);
+    if (i < missed) el.classList.add("show");
+    else el.classList.remove("show");
+  });
+  const face = $("hm-face");
+  if (state.lives <= 0) face.classList.add("show");
+  else face.classList.remove("show");
+}
+
+function resetHangman() {
+  HM_PARTS.forEach(id => $(id).classList.remove("show"));
+  $("hm-face").classList.remove("show");
+}
+
+// ─── TIMER ───
+function resetTimer() {
+  clearInterval(timerId);
+  timerRemaining = timerDuration;
+  updateTimerUI();
+  if (state.gameOver) return;
+  timerId = setInterval(() => {
+    timerRemaining -= 0.1;
+    if (timerRemaining <= 0) {
+      timerRemaining = 0;
+      clearInterval(timerId);
+      if (!state.gameOver) {
+        state.lives--;
+        updateLives();
+        updateHangman();
+        checkEnd();
+        if (!state.gameOver) resetTimer();
+      }
+    }
+    updateTimerUI();
+  }, 100);
+}
+
+function updateTimerUI() {
+  const pct = timerDuration > 0 ? Math.max(0, timerRemaining / timerDuration) : 0;
+  timerFillEl.style.width = (pct * 100) + "%";
+  timerFillEl.classList.remove("warn", "danger");
+  if (pct < 0.25) timerFillEl.classList.add("danger");
+  else if (pct < 0.5) timerFillEl.classList.add("warn");
+  timerTextEl.textContent = timerRemaining.toFixed(1) + "s";
+}
+
+// ─── BUILD UI ───
+function buildLevelBar() {
+  levelBar.innerHTML = "";
+  for (const key of Object.keys(LEVEL_NAMES)) {
+    const btn = document.createElement("button");
+    btn.className = "level-btn" + (key === state.level ? " active" : "");
+    btn.textContent = LEVEL_NAMES[key];
+    btn.addEventListener("click", () => setLevel(key));
+    levelBar.appendChild(btn);
+  }
+}
+
+function buildKeyboard() {
+  keyboardEl.innerHTML = "";
+  for (const ch of "abcdefghijklmnopqrstuvwxyz") {
+    const btn = document.createElement("div");
+    btn.className = "key";
+    btn.textContent = ch.toUpperCase();
+    btn.dataset.letter = ch;
+    btn.addEventListener("click", () => handleGuess(ch));
+    keyboardEl.appendChild(btn);
+  }
+}
+
+// ─── DISPLAY UPDATES ───
+function updateWordDisplay() {
+  const chars = state.word.split("");
+  wordDisplay.innerHTML = "";
+  chars.forEach((ch, i) => {
+    const slot = document.createElement("div");
+    slot.className = "letter-slot";
+    if (ch === "'") {
+      slot.textContent = "'";
+      slot.classList.add("revealed");
+    } else if (state.revealed[i]) {
+      slot.textContent = ch.toUpperCase();
+      slot.classList.add("revealed");
+    }
+    wordDisplay.appendChild(slot);
+  });
+  wordLengthLabel.textContent = chars.length + " letters";
+}
+
+function updateLives() {
+  livesDisplay.innerHTML = "";
+  for (let i = 0; i < state.maxLives; i++) {
+    const heart = document.createElement("span");
+    heart.className = "heart" + (i >= state.lives ? " lost" : "");
+    heart.textContent = "❤️";
+    livesDisplay.appendChild(heart);
+  }
+}
+
+function updateMisses() {
+  if (state.misses.length === 0) {
+    missesDisplay.innerHTML = '<span style="color:var(--text-muted);font-size:12px;">No wrong guesses yet</span>';
+  } else {
+    missesDisplay.innerHTML = state.misses.map(l => `<span class="miss-letter">${l.toUpperCase()}</span>`).join(" ");
+  }
+}
+
+function updateScores() {
+  $("score-wins").textContent = state.wins;
+  $("score-losses").textContent = state.losses;
+  $("score-streak").textContent = state.streak;
+}
+
+// ─── GAME LOGIC ───
+function pickWord() {
+  const list = DOLCH[state.level];
+  // Avoid repeats until list exhausted
+  const available = list.filter(w => !state.usedWords.has(w));
+  const pool = available.length > 0 ? available : list;
+  if (available.length === 0) state.usedWords.clear();
+  const word = pool[Math.floor(Math.random() * pool.length)];
+  state.usedWords.add(word);
+  return word.toLowerCase();
+}
+
+function newWord() {
+  state.word = pickWord();
+  state.revealed = new Array(state.word.length).fill(false);
+  state.misses = [];
+  state.lives = state.maxLives;
+  state.gameOver = false;
+  state.hintsUsed = 0;
+  statusEl.textContent = "";
+  statusEl.className = "status-msg";
+
+  // Reveal apostrophes only
+  for (let i = 0; i < state.word.length; i++) {
+    if (state.word[i] === "'") state.revealed[i] = true;
+  }
+
+  // Reset keyboard
+  document.querySelectorAll(".key").forEach(k => { k.className = "key"; });
+
+  resetHangman();
+  updateWordDisplay();
+  updateMisses();
+  updateLives();
+  resetTimer();
+}
+
+function setLevel(key) {
+  state.level = key;
+  state.usedWords.clear();
+  levelLabel.textContent = LEVEL_NAMES[key];
+  document.querySelectorAll(".level-btn").forEach((btn, i) => {
+    btn.classList.toggle("active", Object.keys(LEVEL_NAMES)[i] === key);
+  });
+  newWord();
+}
+
+function setMode(m) {
+  state.mode = m;
+  btnNormal.classList.toggle("active", m === "normal");
+  btnSpeed.classList.toggle("active", m === "speed");
+  timerDuration = m === "speed" ? 5 : 10;
+  timerModeLabel.textContent = m === "speed" ? "Speed · 5s per guess" : "Normal · 10s per guess";
+  resetTimer();
+}
+
+function handleGuess(letter) {
+  if (state.gameOver) return;
+  letter = letter.toLowerCase();
+  if (!/^[a-z]$/.test(letter)) return;
+
+  // Already used?
+  const alreadyHit = state.revealed.some((v, i) => v && state.word[i] === letter);
+  if (alreadyHit || state.misses.includes(letter)) return;
+
+  const keyBtn = document.querySelector(`.key[data-letter="${letter}"]`);
+
+  if (state.word.includes(letter)) {
+    state.word.split("").forEach((ch, idx) => { if (ch === letter) state.revealed[idx] = true; });
+    if (keyBtn) keyBtn.classList.add("hit");
+  } else {
+    state.misses.push(letter);
+    state.lives--;
+    if (keyBtn) keyBtn.classList.add("miss");
+    updateMisses();
+    updateLives();
+    updateHangman();
+  }
+
+  updateWordDisplay();
+  checkEnd();
+  if (!state.gameOver) resetTimer();
+}
+
+function checkEnd() {
+  if (state.revealed.every(v => v)) {
+    state.gameOver = true;
+    clearInterval(timerId);
+    state.wins++;
+    state.streak++;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    updateScores();
+    statusEl.textContent = "You got it! 🎉";
+    statusEl.className = "status-msg win";
+    // Animate all slots green
+    document.querySelectorAll(".letter-slot").forEach(s => s.classList.add("revealed"));
+    launchConfetti();
+    return;
+  }
+  if (state.lives <= 0) {
+    state.gameOver = true;
+    clearInterval(timerId);
+    state.losses++;
+    state.streak = 0;
+    updateScores();
+    // Reveal remaining letters in red
+    state.word.split("").forEach((ch, i) => { state.revealed[i] = true; });
+    updateWordDisplay();
+    document.querySelectorAll(".letter-slot:not(.revealed)").forEach(s => s.classList.add("wrong-reveal"));
+    document.querySelectorAll(".letter-slot").forEach(s => { if (!s.classList.contains("wrong-reveal")) { /* already revealed */ } });
+    statusEl.innerHTML = `The word was <strong>${state.word.toUpperCase()}</strong>`;
+    statusEl.className = "status-msg lose";
+    updateHangman();
+  }
+}
+
+function giveHint() {
+  if (state.gameOver || !state.word) return;
+  // Find first unrevealed letter
+  const idx = state.revealed.findIndex(v => !v);
+  if (idx === -1) return;
+  state.revealed[idx] = true;
+  state.hintsUsed++;
+  updateWordDisplay();
+  // Mark that letter's keyboard key
+  const letter = state.word[idx];
+  const keyBtn = document.querySelector(`.key[data-letter="${letter}"]`);
+  if (keyBtn && !keyBtn.classList.contains("hit")) keyBtn.classList.add("hit");
+  const slots = wordDisplay.children;
+  if (slots[idx]) { slots[idx].classList.add("hint"); }
+  statusEl.textContent = "💡 Hint used!";
+  statusEl.className = "status-msg hint";
+  checkEnd();
+  if (!state.gameOver) resetTimer();
+}
+
+function revealWord() {
+  if (!state.word) return;
+  state.revealed = new Array(state.word.length).fill(true);
+  state.gameOver = true;
+  clearInterval(timerId);
+  updateWordDisplay();
+  statusEl.innerHTML = `Revealed: <strong>${state.word.toUpperCase()}</strong>`;
+  statusEl.className = "status-msg";
+}
+
+// ─── EVENTS ───
+btnNormal.addEventListener("click", () => { setMode("normal"); newWord(); });
+btnSpeed.addEventListener("click", () => { setMode("speed"); newWord(); });
+btnNew.addEventListener("click", newWord);
+btnHint.addEventListener("click", giveHint);
+btnReveal.addEventListener("click", revealWord);
+
+document.addEventListener("keydown", e => {
+  if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+    handleGuess(e.key);
+  } else if (e.key === "Enter") {
+    newWord();
+  }
+});
+
+// ─── INIT ───
+buildLevelBar();
+buildKeyboard();
+setMode("normal");
+setLevel("preprimer");
+</script>
+</body>
+</html>
