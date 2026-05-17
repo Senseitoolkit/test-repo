@@ -57,6 +57,33 @@
   .score-correct { color: #34a853; }
   .score-wrong { color: #e74c3c; }
   .score-pct { color: #888; }
+  .score-streak { color: #667eea; }
+  .score-streak.streak-correct { color: #34a853; }
+  .score-streak.streak-wrong { color: #e74c3c; }
+
+  @keyframes streakPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  .streak-pop { animation: streakPop 0.3s ease; }
+
+  .streak-area {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .streak-area .score-streak {
+    display: inline-block;
+    font-size: 20px;
+    font-weight: 700;
+    font-family: 'Space Mono', monospace;
+    padding: 6px 20px;
+    border-radius: 99px;
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .streak-area .score-streak.streak-correct { color: #34a853; }
+  .streak-area .score-streak.streak-wrong { color: #e74c3c; }
 
   .settings-toggle {
     text-align: center;
@@ -263,6 +290,53 @@
     font-family: 'DM Sans', sans-serif;
   }
 
+  /* Timer speed buttons */
+  .timer-buttons { display: flex; gap: 8px; }
+  .timer-btn {
+    padding: 7px 16px;
+    border-radius: 99px;
+    border: 2px solid #e0e0e5;
+    background: transparent;
+    color: #777;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+  }
+  .timer-btn .timer-btn-icon { margin-right: 4px; }
+  .timer-btn.active-fast { border-color: #e74c3c; background: #e74c3c; color: #fff; }
+  .timer-btn.active-normal { border-color: #f5a623; background: #f5a623; color: #fff; }
+  .timer-btn.active-slow { border-color: #34a853; background: #34a853; color: #fff; }
+
+  /* Timer bar on card */
+  .timer-bar-wrapper {
+    width: 100%;
+    height: 6px;
+    background: #eee;
+    border-radius: 99px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .timer-bar-wrapper.hidden { display: none; }
+  .timer-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.1s linear;
+  }
+  .timer-bar-fill.urgent { background: linear-gradient(90deg, #e74c3c, #ff6b6b); }
+  .timer-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: #999;
+    margin-bottom: 8px;
+  }
+  .timer-text.hidden { display: none; }
+  .timer-text.urgent { color: #e74c3c; }
+
   .hidden { display: none; }
 </style>
 </head>
@@ -279,25 +353,18 @@
   <span class="score-pct"><span id="pctDisplay">0</span>%</span>
 </div>
 
-<div class="settings-toggle">
-  <button id="settingsToggle">▾ Settings</button>
-</div>
-
-<div id="settingsPanel" class="settings-panel">
-  <div>
-    <div class="section-label">Practice Topics</div>
-    <div class="chips" id="topicChips"></div>
-  </div>
-  <div>
-    <div class="section-label">Difficulty</div>
-    <div class="diff-buttons" id="diffButtons"></div>
-  </div>
+<div id="streakArea" class="streak-area hidden">
+  <span class="score-streak" id="streakDisplay"></span>
 </div>
 
 <div id="emptyMsg" class="empty-msg hidden">Toggle at least one topic above to start!</div>
 
 <div id="problemCard" class="card hidden">
   <div class="card-category" id="cardCategory"></div>
+  <div class="timer-text hidden" id="timerText">5.0s</div>
+  <div class="timer-bar-wrapper hidden" id="timerBarWrapper">
+    <div class="timer-bar-fill" id="timerBarFill" style="width:100%"></div>
+  </div>
   <div class="problem-display" id="problemDisplay"></div>
   <div class="input-row">
     <input type="number" class="answer-input" id="answerInput" placeholder="?">
@@ -305,6 +372,25 @@
   </div>
   <div id="feedbackArea" class="hidden"></div>
   <div class="action-buttons" id="actionButtons"></div>
+</div>
+
+<div class="settings-toggle">
+  <button id="settingsToggle">▾ Settings</button>
+</div>
+
+<div id="settingsPanel" class="settings-panel">
+  <div>
+    <div class="section-label">Timer</div>
+    <div class="timer-buttons" id="timerButtons"></div>
+  </div>
+  <div style="margin-top: 16px;">
+    <div class="section-label">Difficulty</div>
+    <div class="diff-buttons" id="diffButtons"></div>
+  </div>
+  <div style="margin-top: 16px;">
+    <div class="section-label">Practice Topics</div>
+    <div class="chips" id="topicChips"></div>
+  </div>
 </div>
 
 <div class="reset-score" id="resetArea" style="display:none">
@@ -325,7 +411,19 @@ let difficulty = "easy";
 let currentProblem = null;
 let feedback = null; // null | 'correct' | 'wrong'
 let score = { correct: 0, total: 0 };
+let streak = { type: null, count: 0, best: 0 }; // type: 'correct' | 'wrong' | null
 let settingsOpen = true;
+let timerEnabled = false;
+let timerSpeed = null; // null | 'fast' | 'normal' | 'slow'
+let timerInterval = null;
+let timerRemaining = 0;
+let timerDuration = 0;
+
+const TIMER_SPEEDS = {
+  fast:   { label: "Fast",   seconds: 5,  icon: "⚡" },
+  normal: { label: "Normal", seconds: 10, icon: "⏱️" },
+  slow:   { label: "Slow",   seconds: 15, icon: "🐢" },
+};
 
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -421,10 +519,42 @@ function updateScore() {
     document.getElementById("correctCount").textContent = score.correct;
     document.getElementById("wrongCount").textContent = score.total - score.correct;
     document.getElementById("pctDisplay").textContent = Math.round((score.correct / score.total) * 100);
+    updateStreakDisplay();
   } else {
     bar.classList.add("hidden");
     resetArea.style.display = "none";
   }
+}
+
+function recordStreak(isCorrect) {
+  const type = isCorrect ? "correct" : "wrong";
+  if (streak.type === type) {
+    streak.count++;
+  } else {
+    streak.type = type;
+    streak.count = 1;
+  }
+  if (isCorrect && streak.count > streak.best) {
+    streak.best = streak.count;
+  }
+}
+
+function updateStreakDisplay() {
+  const area = document.getElementById("streakArea");
+  const el = document.getElementById("streakDisplay");
+  if (streak.count <= 0 || !streak.type) {
+    area.classList.add("hidden");
+    el.textContent = "";
+    return;
+  }
+  area.classList.remove("hidden");
+  const icon = streak.type === "correct" ? "🔥" : "💀";
+  el.className = "score-streak" + (streak.type === "correct" ? " streak-correct" : " streak-wrong");
+  el.innerHTML = `${icon} ${streak.count} in a row`;
+  // Pop animation
+  el.classList.remove("streak-pop");
+  el.offsetHeight;
+  el.classList.add("streak-pop");
 }
 
 function checkEmpty() {
@@ -453,9 +583,8 @@ function nextProblem() {
 function renderProblem() {
   const card = document.getElementById("problemCard");
   card.classList.remove("hidden");
-  // Re-trigger animation
   card.style.animation = "none";
-  card.offsetHeight; // force reflow
+  card.offsetHeight;
   card.style.animation = "slideIn 0.35s ease";
 
   const cat = CATEGORIES[currentProblem.category];
@@ -468,15 +597,27 @@ function renderProblem() {
   input.disabled = false;
   setTimeout(() => input.focus(), 50);
 
-  document.getElementById("checkBtn").classList.remove("hidden");
+  // Hide Check button in timed mode
+  const checkBtn = document.getElementById("checkBtn");
+  if (timerEnabled) {
+    checkBtn.classList.add("hidden");
+  } else {
+    checkBtn.classList.remove("hidden");
+  }
+
   document.getElementById("feedbackArea").classList.add("hidden");
   document.getElementById("feedbackArea").innerHTML = "";
   renderActionButtons();
+  startTimer();
 }
 
 function renderActionButtons() {
   const container = document.getElementById("actionButtons");
   container.innerHTML = "";
+
+  // In timed mode, no manual buttons — everything auto-advances
+  if (timerEnabled) return;
+
   if (feedback) {
     const btn = document.createElement("button");
     btn.className = "next-btn";
@@ -490,6 +631,7 @@ function renderActionButtons() {
     btn.addEventListener("click", () => {
       feedback = "wrong";
       score.total++;
+      recordStreak(false);
       updateScore();
       showFeedback(false, true);
     });
@@ -497,7 +639,8 @@ function renderActionButtons() {
   }
 }
 
-function showFeedback(isCorrect, showAns) {
+function showFeedback(isCorrect, showAns, fromTimer) {
+  stopTimer();
   const area = document.getElementById("feedbackArea");
   area.classList.remove("hidden");
   area.className = "feedback";
@@ -517,6 +660,13 @@ function showFeedback(isCorrect, showAns) {
     `;
   }
   renderActionButtons();
+
+  // In timed mode, always auto-advance
+  if (timerEnabled) {
+    setTimeout(() => {
+      if (feedback) nextProblem();
+    }, isCorrect ? 800 : 1200);
+  }
 }
 
 function handleCheck() {
@@ -527,18 +677,129 @@ function handleCheck() {
   feedback = isCorrect ? "correct" : "wrong";
   score.correct += isCorrect ? 1 : 0;
   score.total++;
+  recordStreak(isCorrect);
   updateScore();
   showFeedback(isCorrect, !isCorrect);
+}
+
+// --- Timer functions ---
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  const text = document.getElementById("timerText");
+  const fill = document.getElementById("timerBarFill");
+  const secs = (timerRemaining / 1000).toFixed(1);
+  text.textContent = `${secs}s`;
+  const pct = (timerRemaining / timerDuration) * 100;
+  fill.style.width = pct + "%";
+  const urgent = timerRemaining <= 2000;
+  text.classList.toggle("urgent", urgent);
+  fill.classList.toggle("urgent", urgent);
+}
+
+function startTimer() {
+  stopTimer();
+  const timerText = document.getElementById("timerText");
+  const timerBar = document.getElementById("timerBarWrapper");
+  const fill = document.getElementById("timerBarFill");
+
+  if (!timerEnabled) {
+    timerText.classList.add("hidden");
+    timerBar.classList.add("hidden");
+    return;
+  }
+
+  timerDuration = TIMER_SPEEDS[timerSpeed].seconds * 1000;
+  timerRemaining = timerDuration;
+  timerText.classList.remove("hidden");
+  timerBar.classList.remove("hidden");
+  fill.classList.remove("urgent");
+  timerText.classList.remove("urgent");
+  updateTimerDisplay();
+
+  const tick = 50;
+  timerInterval = setInterval(() => {
+    timerRemaining -= tick;
+    if (timerRemaining <= 0) {
+      timerRemaining = 0;
+      updateTimerDisplay();
+      stopTimer();
+      if (!feedback) {
+        // Check whatever is typed when time runs out
+        const input = document.getElementById("answerInput");
+        const val = input.value.trim();
+        const isCorrect = val !== "" && parseInt(val, 10) === currentProblem.answer;
+        feedback = isCorrect ? "correct" : "wrong";
+        score.correct += isCorrect ? 1 : 0;
+        score.total++;
+        recordStreak(isCorrect);
+        updateScore();
+        showFeedback(isCorrect, !isCorrect);
+      }
+      return;
+    }
+    updateTimerDisplay();
+  }, tick);
+}
+
+function renderTimerButtons() {
+  const container = document.getElementById("timerButtons");
+  container.innerHTML = "";
+  Object.entries(TIMER_SPEEDS).forEach(([key, { label, seconds, icon }]) => {
+    const btn = document.createElement("button");
+    const isActive = timerEnabled && timerSpeed === key;
+    btn.className = "timer-btn" + (isActive ? ` active-${key}` : "");
+    btn.innerHTML = `<span class="timer-btn-icon">${icon}</span>${label} (${seconds}s)`;
+    btn.addEventListener("click", () => {
+      if (timerEnabled && timerSpeed === key) {
+        // Clicking the active button toggles timer off
+        timerEnabled = false;
+        timerSpeed = null;
+        stopTimer();
+        document.getElementById("timerText").classList.add("hidden");
+        document.getElementById("timerBarWrapper").classList.add("hidden");
+        // Show Check button again if mid-problem
+        if (currentProblem && !feedback) {
+          document.getElementById("checkBtn").classList.remove("hidden");
+          renderActionButtons();
+        }
+      } else {
+        // Activate this speed
+        timerEnabled = true;
+        timerSpeed = key;
+        if (currentProblem && !feedback) {
+          document.getElementById("checkBtn").classList.add("hidden");
+          renderActionButtons();
+          startTimer();
+        }
+      }
+      renderTimerButtons();
+    });
+    container.appendChild(btn);
+  });
 }
 
 // --- Event listeners ---
 
 document.getElementById("checkBtn").addEventListener("click", handleCheck);
 
-document.getElementById("answerInput").addEventListener("keydown", (e) => {
+// Global Enter key handler
+document.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
-    if (feedback) nextProblem();
-    else handleCheck();
+    // In timed mode, Enter does nothing — wait for timer
+    if (timerEnabled) return;
+    // In untimed mode: Enter checks or advances
+    if (feedback) {
+      nextProblem();
+    } else {
+      handleCheck();
+    }
   }
 });
 
@@ -557,12 +818,14 @@ document.getElementById("settingsToggle").addEventListener("click", () => {
 
 document.getElementById("resetBtn").addEventListener("click", () => {
   score = { correct: 0, total: 0 };
+  streak = { type: null, count: 0, best: 0 };
   updateScore();
 });
 
 // --- Init ---
 renderChips();
 renderDiffButtons();
+renderTimerButtons();
 updateScore();
 checkEmpty();
 if (getActiveCategories().length > 0) nextProblem();
