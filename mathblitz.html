@@ -263,6 +263,53 @@
     font-family: 'DM Sans', sans-serif;
   }
 
+  /* Timer speed buttons */
+  .timer-buttons { display: flex; gap: 8px; }
+  .timer-btn {
+    padding: 7px 16px;
+    border-radius: 99px;
+    border: 2px solid #e0e0e5;
+    background: transparent;
+    color: #777;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+  }
+  .timer-btn .timer-btn-icon { margin-right: 4px; }
+  .timer-btn.active-fast { border-color: #e74c3c; background: #e74c3c; color: #fff; }
+  .timer-btn.active-normal { border-color: #f5a623; background: #f5a623; color: #fff; }
+  .timer-btn.active-slow { border-color: #34a853; background: #34a853; color: #fff; }
+
+  /* Timer bar on card */
+  .timer-bar-wrapper {
+    width: 100%;
+    height: 6px;
+    background: #eee;
+    border-radius: 99px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .timer-bar-wrapper.hidden { display: none; }
+  .timer-bar-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.1s linear;
+  }
+  .timer-bar-fill.urgent { background: linear-gradient(90deg, #e74c3c, #ff6b6b); }
+  .timer-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: #999;
+    margin-bottom: 8px;
+  }
+  .timer-text.hidden { display: none; }
+  .timer-text.urgent { color: #e74c3c; }
+
   .hidden { display: none; }
 </style>
 </head>
@@ -292,12 +339,20 @@
     <div class="section-label">Difficulty</div>
     <div class="diff-buttons" id="diffButtons"></div>
   </div>
+  <div style="margin-top: 16px;">
+    <div class="section-label">Timer</div>
+    <div class="timer-buttons" id="timerButtons"></div>
+  </div>
 </div>
 
 <div id="emptyMsg" class="empty-msg hidden">Toggle at least one topic above to start!</div>
 
 <div id="problemCard" class="card hidden">
   <div class="card-category" id="cardCategory"></div>
+  <div class="timer-text hidden" id="timerText">5.0s</div>
+  <div class="timer-bar-wrapper hidden" id="timerBarWrapper">
+    <div class="timer-bar-fill" id="timerBarFill" style="width:100%"></div>
+  </div>
   <div class="problem-display" id="problemDisplay"></div>
   <div class="input-row">
     <input type="number" class="answer-input" id="answerInput" placeholder="?">
@@ -326,6 +381,17 @@ let currentProblem = null;
 let feedback = null; // null | 'correct' | 'wrong'
 let score = { correct: 0, total: 0 };
 let settingsOpen = true;
+let timerEnabled = false;
+let timerSpeed = null; // null | 'fast' | 'normal' | 'slow'
+let timerInterval = null;
+let timerRemaining = 0;
+let timerDuration = 0;
+
+const TIMER_SPEEDS = {
+  fast:   { label: "Fast",   seconds: 5,  icon: "⚡" },
+  normal: { label: "Normal", seconds: 10, icon: "⏱️" },
+  slow:   { label: "Slow",   seconds: 15, icon: "🐢" },
+};
 
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -453,9 +519,8 @@ function nextProblem() {
 function renderProblem() {
   const card = document.getElementById("problemCard");
   card.classList.remove("hidden");
-  // Re-trigger animation
   card.style.animation = "none";
-  card.offsetHeight; // force reflow
+  card.offsetHeight;
   card.style.animation = "slideIn 0.35s ease";
 
   const cat = CATEGORIES[currentProblem.category];
@@ -472,6 +537,7 @@ function renderProblem() {
   document.getElementById("feedbackArea").classList.add("hidden");
   document.getElementById("feedbackArea").innerHTML = "";
   renderActionButtons();
+  startTimer();
 }
 
 function renderActionButtons() {
@@ -498,6 +564,7 @@ function renderActionButtons() {
 }
 
 function showFeedback(isCorrect, showAns) {
+  stopTimer();
   const area = document.getElementById("feedbackArea");
   area.classList.remove("hidden");
   area.className = "feedback";
@@ -531,14 +598,108 @@ function handleCheck() {
   showFeedback(isCorrect, !isCorrect);
 }
 
+// --- Timer functions ---
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  const text = document.getElementById("timerText");
+  const fill = document.getElementById("timerBarFill");
+  const secs = (timerRemaining / 1000).toFixed(1);
+  text.textContent = `${secs}s`;
+  const pct = (timerRemaining / timerDuration) * 100;
+  fill.style.width = pct + "%";
+  const urgent = timerRemaining <= 2000;
+  text.classList.toggle("urgent", urgent);
+  fill.classList.toggle("urgent", urgent);
+}
+
+function startTimer() {
+  stopTimer();
+  const timerText = document.getElementById("timerText");
+  const timerBar = document.getElementById("timerBarWrapper");
+  const fill = document.getElementById("timerBarFill");
+
+  if (!timerEnabled) {
+    timerText.classList.add("hidden");
+    timerBar.classList.add("hidden");
+    return;
+  }
+
+  timerDuration = TIMER_SPEEDS[timerSpeed].seconds * 1000;
+  timerRemaining = timerDuration;
+  timerText.classList.remove("hidden");
+  timerBar.classList.remove("hidden");
+  fill.classList.remove("urgent");
+  timerText.classList.remove("urgent");
+  updateTimerDisplay();
+
+  const tick = 50;
+  timerInterval = setInterval(() => {
+    timerRemaining -= tick;
+    if (timerRemaining <= 0) {
+      timerRemaining = 0;
+      updateTimerDisplay();
+      stopTimer();
+      if (!feedback) {
+        feedback = "wrong";
+        score.total++;
+        updateScore();
+        showFeedback(false, true);
+      }
+      return;
+    }
+    updateTimerDisplay();
+  }, tick);
+}
+
+function renderTimerButtons() {
+  const container = document.getElementById("timerButtons");
+  container.innerHTML = "";
+  Object.entries(TIMER_SPEEDS).forEach(([key, { label, seconds, icon }]) => {
+    const btn = document.createElement("button");
+    const isActive = timerEnabled && timerSpeed === key;
+    btn.className = "timer-btn" + (isActive ? ` active-${key}` : "");
+    btn.innerHTML = `<span class="timer-btn-icon">${icon}</span>${label} (${seconds}s)`;
+    btn.addEventListener("click", () => {
+      if (timerEnabled && timerSpeed === key) {
+        // Clicking the active button toggles timer off
+        timerEnabled = false;
+        timerSpeed = null;
+        stopTimer();
+        document.getElementById("timerText").classList.add("hidden");
+        document.getElementById("timerBarWrapper").classList.add("hidden");
+      } else {
+        // Activate this speed
+        timerEnabled = true;
+        timerSpeed = key;
+        if (currentProblem && !feedback) {
+          startTimer();
+        }
+      }
+      renderTimerButtons();
+    });
+    container.appendChild(btn);
+  });
+}
+
 // --- Event listeners ---
 
 document.getElementById("checkBtn").addEventListener("click", handleCheck);
 
-document.getElementById("answerInput").addEventListener("keydown", (e) => {
+// Global Enter key handler so it works even after the input is disabled
+document.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
-    if (feedback) nextProblem();
-    else handleCheck();
+    if (feedback) {
+      nextProblem();
+    } else {
+      handleCheck();
+    }
   }
 });
 
@@ -563,6 +724,7 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 // --- Init ---
 renderChips();
 renderDiffButtons();
+renderTimerButtons();
 updateScore();
 checkEmpty();
 if (getActiveCategories().length > 0) nextProblem();
