@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -136,6 +136,8 @@
 
         .dropdown-menu .menu-icon-emoji.rose { background: var(--rose-50); }
         .dropdown-menu .menu-icon-emoji.teal { background: var(--teal-50); }
+        .dropdown-menu .menu-icon-emoji.indigo { background: var(--indigo-50); }
+
         .dropdown-menu .menu-label { display: flex; flex-direction: column; }
         .dropdown-menu .menu-sublabel { font-size: 0.72rem; color: var(--slate-400); font-weight: 400; margin-top: 0.1rem; }
         .dropdown-divider { height: 1px; background: var(--slate-200); margin: 0; }
@@ -281,6 +283,8 @@
         }
         .modal-box .lock-icon.rose { background: var(--rose-50); }
         .modal-box .lock-icon.teal { background: var(--teal-50); }
+        .modal-box .lock-icon.indigo { background: var(--indigo-50); }
+
         .modal-input {
             width: 100%; padding: 0.7rem 1rem; border: 2px solid var(--slate-200);
             border-radius: 10px; font-family: inherit; font-size: 0.95rem;
@@ -302,6 +306,8 @@
         .modal-btn:hover { opacity: 0.9; }
         .modal-btn.rose { background: var(--rose-600); }
         .modal-btn.teal { background: var(--teal-600); }
+        .modal-btn.indigo { background: var(--indigo-600); }
+
         .modal-cancel {
             background: none; border: none; color: var(--slate-400);
             font-family: inherit; font-size: 0.82rem; font-weight: 500;
@@ -407,6 +413,35 @@
                         </a>
                     </div>
                 </div>
+
+                <!-- Diagnostic Tools Dropdown (Always Locked, password: sensei) -->
+                <div class="dropdown" id="diagnosticDropdown">
+                    <button class="dropdown-toggle" onclick="toggleDropdown('diagnosticDropdown')">
+                        Diagnostic Tools
+                        <span class="dropdown-arrow"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
+                    </button>
+                    <div class="dropdown-menu">
+                        <a href="diagnostic-hub.html" onclick="return gateLink(event, 'diagnostics')">
+                            <span class="menu-icon indigo">
+                                <svg viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="9"/>
+                                    <line x1="12" y1="7" x2="12" y2="12"/>
+                                    <circle cx="12" cy="16" r="1"/>
+                                </svg>
+                            </span>
+                            <span class="menu-label">All Diagnostic Tools <span class="menu-sublabel">Always locked</span></span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a href="reading-diagnostic.html" onclick="return gateLink(event, 'diagnostics')">
+                            <span class="menu-icon-emoji indigo">📖</span>
+                            <span class="menu-label">Reading Diagnostic <span class="menu-sublabel">Literacy assessment</span></span>
+                        </a>
+                        <a href="math-diagnostic.html" onclick="return gateLink(event, 'diagnostics')">
+                            <span class="menu-icon-emoji indigo">➗</span>
+                            <span class="menu-label">Math Diagnostic <span class="menu-sublabel">Skill evaluation</span></span>
+                        </a>
+                    </div>
+                </div>
             </nav>
         </div>
     </header>
@@ -477,6 +512,28 @@
                 <div class="tool-link teal"><span>Browse Apps</span><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
             </a>
         </div>
+
+        <!-- Diagnostic Tools Section (Always Locked, password: sensei) -->
+        <div class="section-header" id="diagnostics">
+            <span class="section-dot indigo"></span> Diagnostic Tools
+        </div>
+        <div class="tools-grid">
+            <a href="diagnostic-hub.html" class="tool-card" onclick="return gateLink(event, 'diagnostics')">
+                <div class="card-top">
+                    <div class="tool-icon indigo">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="9"/>
+                            <line x1="12" y1="7" x2="12" y2="12"/>
+                            <circle cx="12" cy="16" r="1"/>
+                        </svg>
+                    </div>
+                    <span class="tag guides">Assessment</span>
+                </div>
+                <h2>Diagnostic Tools</h2>
+                <p>Always locked. Enter the password to access diagnostic tools for assessing student understanding.</p>
+                <div class="tool-link indigo"><span>Open Tools</span><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+            </a>
+        </div>
     </div>
 
     <!-- Password Modal -->
@@ -525,13 +582,18 @@
             });
         });
 
-        /* ─── Time-Based Access Control ─── */
-        const PASSWORD = 'centers';
+        /* ─── Access Control ─── */
+        const PASSWORDS = {
+            literacy: 'centers',
+            math: 'centers',
+            diagnostics: 'sensei'
+        };
+
         let pendingHref = null;
         let pendingType = null;
 
         // Session unlock flags (persist until tab closes)
-        const unlocked = { literacy: false, math: false };
+        const unlocked = { literacy: false, math: false, diagnostics: false };
 
         function isSchoolHours() {
             const now = new Date();
@@ -545,10 +607,21 @@
         }
 
         function gateLink(event, type) {
-            // If already unlocked this session or within school hours, allow
+            // Diagnostics: ALWAYS locked unless unlocked this session
+            if (type === 'diagnostics') {
+                if (unlocked.diagnostics) return true;
+                event.preventDefault();
+                event.stopPropagation();
+                pendingHref = event.currentTarget.getAttribute('href');
+                pendingType = type;
+                showModal(type);
+                return false;
+            }
+
+            // Literacy/Math: unlocked OR during school hours
             if (unlocked[type] || isSchoolHours()) return true;
 
-            // Block and show modal
+            // Otherwise locked
             event.preventDefault();
             event.stopPropagation();
             pendingHref = event.currentTarget.getAttribute('href');
@@ -563,9 +636,26 @@
             const btn = document.getElementById('modalBtn');
             const input = document.getElementById('modalInput');
             const error = document.getElementById('modalError');
+            const title = document.getElementById('modalTitle');
+            const msg = document.getElementById('modalMsg');
 
-            icon.className = 'lock-icon ' + (type === 'literacy' ? 'rose' : 'teal');
-            btn.className = 'modal-btn ' + (type === 'literacy' ? 'rose' : 'teal');
+            // Set colors + copy
+            if (type === 'literacy') {
+                icon.className = 'lock-icon rose';
+                btn.className = 'modal-btn rose';
+                title.textContent = 'Apps Locked';
+                msg.textContent = 'These apps are available Monday–Friday, 8:00 AM – 4:15 PM. Enter the password to access now.';
+            } else if (type === 'math') {
+                icon.className = 'lock-icon teal';
+                btn.className = 'modal-btn teal';
+                title.textContent = 'Apps Locked';
+                msg.textContent = 'These apps are available Monday–Friday, 8:00 AM – 4:15 PM. Enter the password to access now.';
+            } else { // diagnostics
+                icon.className = 'lock-icon indigo';
+                btn.className = 'modal-btn indigo';
+                title.textContent = 'Diagnostics Locked';
+                msg.textContent = 'Diagnostic Tools are always locked. Enter the password to access.';
+            }
 
             input.value = '';
             input.classList.remove('error');
@@ -585,7 +675,10 @@
             const input = document.getElementById('modalInput');
             const error = document.getElementById('modalError');
 
-            if (input.value.toLowerCase().trim() === PASSWORD) {
+            const expected = (PASSWORDS[pendingType] || '').toLowerCase().trim();
+            const entered = input.value.toLowerCase().trim();
+
+            if (entered === expected) {
                 unlocked[pendingType] = true;
                 closeModal();
                 if (pendingHref) window.location.href = pendingHref;
