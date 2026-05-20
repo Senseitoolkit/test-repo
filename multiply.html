@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MULTIPLY // arcade math</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e27;
+    --bg-2: #141937;
+    --ink: #f5e6c8;
+    --hot: #ff2e63;
+    --acid: #c6ff00;
+    --cyan: #08d9d6;
+    --dim: #4a4e7c;
+    --panel: rgba(20, 25, 55, 0.7);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Mono', monospace;
+    overflow-x: hidden;
+  }
+
+  /* Scanline + grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(rgba(8, 217, 214, 0.04) 1px, transparent 1px) 0 0 / 100% 32px,
+      linear-gradient(90deg, rgba(8, 217, 214, 0.04) 1px, transparent 1px) 0 0 / 32px 100%,
+      radial-gradient(ellipse at top, rgba(255, 46, 99, 0.15), transparent 60%),
+      radial-gradient(ellipse at bottom, rgba(8, 217, 214, 0.12), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 3px
+    );
+    pointer-events: none;
+    z-index: 1;
+    mix-blend-mode: multiply;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 2;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px dashed var(--dim);
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  .logo {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(1.8rem, 7vw, 2.6rem);
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+  }
+  .logo .x {
+    color: var(--hot);
+    display: inline-block;
+    transform: rotate(-8deg) translateY(-2px);
+  }
+  .tag {
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+    color: var(--cyan);
+    letter-spacing: 0.1em;
+  }
+  .tag::before { content: '▸ '; color: var(--acid); }
+
+  /* STATS BAR */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--dim);
+    padding: 12px 14px;
+    position: relative;
+  }
+  .stat::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 8px; height: 8px;
+    border-top: 2px solid var(--acid);
+    border-left: 2px solid var(--acid);
+  }
+  .stat::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-bottom: 2px solid var(--acid);
+    border-right: 2px solid var(--acid);
+  }
+  .stat-label {
+    font-family: 'VT323', monospace;
+    font-size: 0.95rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+  .stat-val {
+    font-family: 'VT323', monospace;
+    font-size: 2rem;
+    color: var(--ink);
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .stat-val.streak { color: var(--acid); }
+  .stat-val.streak.fire { color: var(--hot); text-shadow: 0 0 12px var(--hot); }
+  .stat-val.time { color: var(--cyan); }
+  .stat-val.time.low { color: var(--hot); animation: pulse 0.6s infinite; }
+
+  .reset-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: transparent;
+    border: 1px solid var(--dim);
+    color: var(--dim);
+    font-family: 'VT323', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .reset-btn:hover {
+    color: var(--hot);
+    border-color: var(--hot);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* PROBLEM CARD */
+  .problem {
+    background: var(--bg-2);
+    border: 2px solid var(--ink);
+    box-shadow: 8px 8px 0 var(--hot);
+    padding: 32px 20px;
+    text-align: center;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .problem-tag {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-family: 'VT323', monospace;
+    font-size: 0.95rem;
+    color: var(--cyan);
+    letter-spacing: 0.15em;
+  }
+  .equation {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(2.4rem, 11vw, 3.6rem);
+    letter-spacing: -0.02em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4em;
+    flex-wrap: wrap;
+  }
+  .equation .op { color: var(--hot); }
+  .equation .eq { color: var(--dim); }
+  .equation .num { transition: transform 0.15s; }
+  .equation.flash .num { animation: flashIn 0.25s ease-out; }
+  @keyframes flashIn {
+    from { transform: translateY(-12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* ANSWER INPUT */
+  .answer-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  input.answer {
+    flex: 1;
+    background: var(--bg);
+    border: 2px solid var(--dim);
+    color: var(--acid);
+    font-family: 'VT323', monospace;
+    font-size: 1.8rem;
+    padding: 8px 14px;
+    text-align: center;
+    outline: none;
+    letter-spacing: 0.1em;
+  }
+  input.answer:focus {
+    border-color: var(--acid);
+    box-shadow: 0 0 0 3px rgba(198, 255, 0, 0.15);
+  }
+  input.answer.wrong {
+    border-color: var(--hot);
+    color: var(--hot);
+    animation: shake 0.3s;
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  button.go {
+    background: var(--acid);
+    color: var(--bg);
+    border: 2px solid var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    padding: 0 22px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    font-size: 0.95rem;
+    box-shadow: 4px 4px 0 var(--hot);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  button.go:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--hot); }
+  button.go:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--hot); }
+
+  /* TIMER BAR */
+  .timer-bar-wrap {
+    height: 6px;
+    background: var(--bg);
+    margin-top: 16px;
+    border: 1px solid var(--dim);
+    overflow: hidden;
+  }
+  .timer-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--acid), var(--cyan));
+    transition: width 0.1s linear;
+  }
+  .timer-bar.low { background: var(--hot); }
+
+  /* FEEDBACK */
+  .feedback {
+    text-align: center;
+    font-family: 'VT323', monospace;
+    font-size: 1.4rem;
+    min-height: 1.6em;
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+  }
+  .feedback.win { color: var(--acid); }
+  .feedback.lose { color: var(--hot); }
+
+  /* CONTROLS */
+  .section-title {
+    font-family: 'VT323', monospace;
+    font-size: 1.1rem;
+    color: var(--cyan);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin: 28px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::before {
+    content: '';
+    width: 8px; height: 8px;
+    background: var(--hot);
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    border-top: 1px dashed var(--dim);
+  }
+
+  /* SPEED TOGGLE */
+  .speed-toggle {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border: 2px solid var(--ink);
+    background: var(--bg-2);
+  }
+  .speed-btn {
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    padding: 14px 8px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    font-size: 0.85rem;
+    position: relative;
+    transition: all 0.15s;
+  }
+  .speed-btn:not(:last-child) { border-right: 2px solid var(--ink); }
+  .speed-btn .secs {
+    display: block;
+    font-family: 'VT323', monospace;
+    font-size: 1.3rem;
+    color: var(--dim);
+    margin-top: 2px;
+  }
+  .speed-btn:hover { color: var(--ink); background: rgba(255,255,255,0.04); }
+  .speed-btn.active {
+    background: var(--hot);
+    color: var(--bg);
+  }
+  .speed-btn.active .secs { color: var(--bg); }
+
+  /* TIMES TABLE GRID */
+  .tables-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .table-btn {
+    aspect-ratio: 1;
+    background: var(--bg-2);
+    border: 1.5px solid var(--dim);
+    color: var(--ink);
+    font-family: 'VT323', monospace;
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all 0.12s;
+    position: relative;
+  }
+  .table-btn:hover {
+    border-color: var(--acid);
+    color: var(--acid);
+    transform: translateY(-2px);
+  }
+  .table-btn.active {
+    background: var(--cyan);
+    color: var(--bg);
+    border-color: var(--cyan);
+    font-weight: 700;
+    box-shadow: 0 0 12px rgba(8, 217, 214, 0.5);
+  }
+  .table-btn.active::after {
+    content: '×';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.7rem;
+  }
+
+  .table-meta {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'VT323', monospace;
+    font-size: 0.95rem;
+    color: var(--dim);
+    margin-bottom: 8px;
+    letter-spacing: 0.1em;
+  }
+  .table-meta button {
+    background: none;
+    border: none;
+    color: var(--cyan);
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    letter-spacing: inherit;
+  }
+  .table-meta button:hover { color: var(--acid); }
+
+  /* START / PAUSE OVERLAY */
+  .problem { position: relative; }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 14, 39, 0.92);
+    backdrop-filter: blur(2px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 5;
+    border: 2px dashed var(--cyan);
+  }
+  .overlay-title {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 1.4rem;
+    color: var(--cyan);
+    letter-spacing: 0.1em;
+  }
+  .overlay-sub {
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    text-align: center;
+    padding: 0 16px;
+  }
+  .start-btn {
+    background: var(--hot);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    padding: 14px 36px;
+    cursor: pointer;
+    letter-spacing: 0.2em;
+    font-size: 1rem;
+    box-shadow: 6px 6px 0 var(--acid);
+    transition: transform 0.08s, box-shadow 0.08s;
+    margin-top: 6px;
+  }
+  .start-btn:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--acid); }
+  .start-btn:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 var(--acid); }
+  .overlay.hidden { display: none; }
+
+  footer {
+    text-align: center;
+    margin-top: 32px;
+    font-family: 'VT323', monospace;
+    font-size: 0.9rem;
+    color: var(--dim);
+    letter-spacing: 0.2em;
+  }
+  footer .blink { animation: blink 1.2s infinite; }
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">multi<span class="x">×</span>ply</div>
+    <div class="tag">arcade math v2.6</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">streak</div>
+      <div class="stat-val streak" id="streakVal">0</div>
+      <button class="reset-btn" id="resetBtn" title="reset streak">↺</button>
+    </div>
+    <div class="stat">
+      <div class="stat-label">best</div>
+      <div class="stat-val" id="bestVal">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">time</div>
+      <div class="stat-val time" id="timeVal">--</div>
+    </div>
+  </div>
+
+  <div class="problem">
+    <div class="problem-tag">// solve</div>
+    <div class="equation" id="equation">
+      <span class="num" id="a">7</span>
+      <span class="op">×</span>
+      <span class="num" id="b">8</span>
+      <span class="eq">=</span>
+      <span class="num">?</span>
+    </div>
+    <div class="answer-row">
+      <input class="answer" id="answer" type="number" inputmode="numeric" autocomplete="off" placeholder="answer">
+      <button class="go" id="goBtn">ENTER</button>
+    </div>
+    <div class="timer-bar-wrap">
+      <div class="timer-bar" id="timerBar" style="width:100%"></div>
+    </div>
+    <div class="overlay" id="overlay">
+      <div class="overlay-title" id="overlayTitle">ready?</div>
+      <div class="overlay-sub" id="overlaySub">pick your speed &amp; tables<br>then hit start</div>
+      <button class="start-btn" id="startBtn">▶ START</button>
+    </div>
+  </div>
+
+  <div class="feedback" id="feedback">&nbsp;</div>
+
+  <div class="section-title">speed</div>
+  <div class="speed-toggle" id="speedToggle">
+    <button class="speed-btn" data-speed="slow">SLOW<span class="secs">15s</span></button>
+    <button class="speed-btn active" data-speed="medium">MEDIUM<span class="secs">8s</span></button>
+    <button class="speed-btn" data-speed="fast">FAST<span class="secs">4s</span></button>
+  </div>
+
+  <div class="section-title">times tables</div>
+  <div class="table-meta">
+    <span id="tableCount">12 tables selected</span>
+    <span>
+      <button id="allBtn">all</button> ·
+      <button id="noneBtn">none</button>
+    </span>
+  </div>
+  <div class="tables-grid" id="tablesGrid"></div>
+
+  <footer>insert coin to continue <span class="blink">_</span></footer>
+
+</div>
+
+<script>
+  // ===== STATE =====
+  const state = {
+    speed: 'medium',           // slow | medium | fast
+    selectedTables: new Set([2,3,4,5,6,7,8,9,10,11,12,13]),
+    streak: 0,
+    best: 0,
+    current: { a: 0, b: 0 },
+    timer: null,
+    timeLeft: 0,
+    timeTotal: 0,
+    locked: false,
+    running: false,
+  };
+
+  const SPEED_SECS = { slow: 15, medium: 8, fast: 4 };
+
+  // ===== ELEMENTS =====
+  const el = {
+    a: document.getElementById('a'),
+    b: document.getElementById('b'),
+    equation: document.getElementById('equation'),
+    answer: document.getElementById('answer'),
+    goBtn: document.getElementById('goBtn'),
+    feedback: document.getElementById('feedback'),
+    streakVal: document.getElementById('streakVal'),
+    bestVal: document.getElementById('bestVal'),
+    timeVal: document.getElementById('timeVal'),
+    timerBar: document.getElementById('timerBar'),
+    speedToggle: document.getElementById('speedToggle'),
+    tablesGrid: document.getElementById('tablesGrid'),
+    tableCount: document.getElementById('tableCount'),
+    allBtn: document.getElementById('allBtn'),
+    noneBtn: document.getElementById('noneBtn'),
+    overlay: document.getElementById('overlay'),
+    overlayTitle: document.getElementById('overlayTitle'),
+    overlaySub: document.getElementById('overlaySub'),
+    startBtn: document.getElementById('startBtn'),
+  };
+
+  // ===== BUILD TIMES TABLE GRID =====
+  function buildGrid() {
+    el.tablesGrid.innerHTML = '';
+    for (let i = 1; i <= 20; i++) {
+      const b = document.createElement('button');
+      b.className = 'table-btn' + (state.selectedTables.has(i) ? ' active' : '');
+      b.textContent = i;
+      b.dataset.n = i;
+      b.addEventListener('click', () => toggleTable(i));
+      el.tablesGrid.appendChild(b);
+    }
+    updateTableCount();
+  }
+
+  function toggleTable(n) {
+    if (state.selectedTables.has(n)) state.selectedTables.delete(n);
+    else state.selectedTables.add(n);
+    const btn = el.tablesGrid.querySelector(`[data-n="${n}"]`);
+    btn.classList.toggle('active');
+    updateTableCount();
+  }
+
+  function updateTableCount() {
+    const c = state.selectedTables.size;
+    el.tableCount.textContent = c === 0
+      ? 'pick at least one'
+      : `${c} table${c === 1 ? '' : 's'} selected`;
+  }
+
+  // ===== SPEED TOGGLE =====
+  el.speedToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.speed-btn');
+    if (!btn) return;
+    state.speed = btn.dataset.speed;
+    el.speedToggle.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
+    // restart timer for current problem at new speed, only if running
+    if (state.running && !state.locked) startTimer();
+  });
+
+  // ===== ALL / NONE =====
+  el.allBtn.addEventListener('click', () => {
+    for (let i = 1; i <= 20; i++) state.selectedTables.add(i);
+    el.tablesGrid.querySelectorAll('.table-btn').forEach(b => b.classList.add('active'));
+    updateTableCount();
+  });
+  el.noneBtn.addEventListener('click', () => {
+    state.selectedTables.clear();
+    el.tablesGrid.querySelectorAll('.table-btn').forEach(b => b.classList.remove('active'));
+    updateTableCount();
+  });
+
+  // ===== PROBLEM GENERATION =====
+  function newProblem() {
+    if (state.selectedTables.size === 0) {
+      el.feedback.textContent = '× select at least one table ×';
+      el.feedback.className = 'feedback lose';
+      stopTimer();
+      return;
+    }
+    const tables = [...state.selectedTables];
+    // one operand from selected tables, the other always 1-12
+    const fromTable = tables[Math.floor(Math.random() * tables.length)];
+    const oneToTwelve = Math.floor(Math.random() * 12) + 1;
+    // randomize which side is which
+    if (Math.random() < 0.5) {
+      state.current.a = fromTable;
+      state.current.b = oneToTwelve;
+    } else {
+      state.current.a = oneToTwelve;
+      state.current.b = fromTable;
+    }
+    el.a.textContent = state.current.a;
+    el.b.textContent = state.current.b;
+    el.equation.classList.remove('flash');
+    void el.equation.offsetWidth;
+    el.equation.classList.add('flash');
+    el.answer.value = '';
+    el.answer.classList.remove('wrong');
+    el.answer.focus();
+    state.locked = false;
+    startTimer();
+  }
+
+  // ===== TIMER =====
+  function startTimer() {
+    stopTimer();
+    state.timeTotal = SPEED_SECS[state.speed];
+    state.timeLeft = state.timeTotal;
+    updateTimerUI();
+    state.timer = setInterval(() => {
+      state.timeLeft -= 0.1;
+      if (state.timeLeft <= 0) {
+        state.timeLeft = 0;
+        updateTimerUI();
+        timeUp();
+      } else {
+        updateTimerUI();
+      }
+    }, 100);
+  }
+
+  function stopTimer() {
+    if (state.timer) clearInterval(state.timer);
+    state.timer = null;
+  }
+
+  function updTimerColor() {
+    const pct = state.timeLeft / state.timeTotal;
+    if (pct < 0.25) {
+      el.timerBar.classList.add('low');
+      el.timeVal.classList.add('low');
+    } else {
+      el.timerBar.classList.remove('low');
+      el.timeVal.classList.remove('low');
+    }
+  }
+
+  function updateTimerUI() {
+    const pct = (state.timeLeft / state.timeTotal) * 100;
+    el.timerBar.style.width = pct + '%';
+    el.timeVal.textContent = Math.ceil(state.timeLeft) + 's';
+    updTimerColor();
+  }
+
+  function timeUp() {
+    if (state.locked) return;
+    state.locked = true;
+    stopTimer();
+    const correct = state.current.a * state.current.b;
+    el.feedback.textContent = `× time! answer was ${correct} ×`;
+    el.feedback.className = 'feedback lose';
+    resetStreak();
+    setTimeout(newProblem, 1400);
+  }
+
+  // ===== ANSWER CHECK =====
+  function checkAnswer() {
+    if (state.locked) return;
+    const val = parseInt(el.answer.value, 10);
+    if (isNaN(val)) {
+      el.answer.classList.add('wrong');
+      setTimeout(() => el.answer.classList.remove('wrong'), 300);
+      return;
+    }
+    const correct = state.current.a * state.current.b;
+    if (val === correct) {
+      state.locked = true;
+      stopTimer();
+      state.streak++;
+      if (state.streak > state.best) state.best = state.streak;
+      updateStreakUI();
+      el.feedback.textContent = `✓ correct · +1 streak`;
+      el.feedback.className = 'feedback win';
+      setTimeout(newProblem, 700);
+    } else {
+      el.answer.classList.add('wrong');
+      el.feedback.textContent = `× ${val} is wrong, try again`;
+      el.feedback.className = 'feedback lose';
+      setTimeout(() => {
+        el.answer.classList.remove('wrong');
+        el.answer.value = '';
+        el.answer.focus();
+      }, 350);
+      // wrong answer breaks streak immediately
+      resetStreak();
+    }
+  }
+
+  function resetStreak() {
+    state.streak = 0;
+    updateStreakUI();
+  }
+
+  function updateStreakUI() {
+    el.streakVal.textContent = state.streak;
+    el.bestVal.textContent = state.best;
+    el.streakVal.classList.toggle('fire', state.streak >= 5);
+  }
+
+  // ===== EVENTS =====
+  el.goBtn.addEventListener('click', checkAnswer);
+  el.answer.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') checkAnswer();
+  });
+  el.startBtn.addEventListener('click', startGame);
+  el.resetBtn = document.getElementById('resetBtn');
+  el.resetBtn.addEventListener('click', () => {
+    resetStreak();
+    el.feedback.textContent = '↺ streak reset';
+    el.feedback.className = 'feedback';
+    setTimeout(() => {
+      if (el.feedback.textContent === '↺ streak reset') {
+        el.feedback.textContent = '\u00A0';
+      }
+    }, 1000);
+  });
+
+  // ===== START / STOP =====
+  function startGame() {
+    if (state.selectedTables.size === 0) {
+      el.overlayTitle.textContent = 'oops';
+      el.overlaySub.innerHTML = 'pick at least one<br>times table first';
+      return;
+    }
+    state.running = true;
+    el.overlay.classList.add('hidden');
+    el.feedback.textContent = '\u00A0';
+    el.feedback.className = 'feedback';
+    resetStreak();
+    newProblem();
+  }
+
+  function stopGame(title, sub) {
+    // currently unused — kept in case we want to stop the game later
+    state.running = false;
+    stopTimer();
+    el.overlayTitle.textContent = title || 'ready?';
+    el.overlaySub.innerHTML = sub || 'pick your speed &amp; tables<br>then hit start';
+    el.overlay.classList.remove('hidden');
+    el.timerBar.style.width = '100%';
+    el.timerBar.classList.remove('low');
+    el.timeVal.textContent = '--';
+    el.timeVal.classList.remove('low');
+  }
+
+  // ===== INIT =====
+  buildGrid();
+  updateStreakUI();
+  // Don't auto-start — wait for the start button
+  el.timeVal.textContent = '--';
+</script>
+</body>
+</html>
