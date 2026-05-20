@@ -143,6 +143,25 @@
   .stat-val.time { color: var(--cyan); }
   .stat-val.time.low { color: var(--hot); animation: pulse 0.6s infinite; }
 
+  .reset-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: transparent;
+    border: 1px solid var(--dim);
+    color: var(--dim);
+    font-family: 'VT323', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .reset-btn:hover {
+    color: var(--hot);
+    border-color: var(--hot);
+  }
+
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
@@ -379,6 +398,53 @@
   }
   .table-meta button:hover { color: var(--acid); }
 
+  /* START / PAUSE OVERLAY */
+  .problem { position: relative; }
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 14, 39, 0.92);
+    backdrop-filter: blur(2px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 5;
+    border: 2px dashed var(--cyan);
+  }
+  .overlay-title {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 1.4rem;
+    color: var(--cyan);
+    letter-spacing: 0.1em;
+  }
+  .overlay-sub {
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    text-align: center;
+    padding: 0 16px;
+  }
+  .start-btn {
+    background: var(--hot);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    padding: 14px 36px;
+    cursor: pointer;
+    letter-spacing: 0.2em;
+    font-size: 1rem;
+    box-shadow: 6px 6px 0 var(--acid);
+    transition: transform 0.08s, box-shadow 0.08s;
+    margin-top: 6px;
+  }
+  .start-btn:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--acid); }
+  .start-btn:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 var(--acid); }
+  .overlay.hidden { display: none; }
+
   footer {
     text-align: center;
     margin-top: 32px;
@@ -406,6 +472,7 @@
     <div class="stat">
       <div class="stat-label">streak</div>
       <div class="stat-val streak" id="streakVal">0</div>
+      <button class="reset-btn" id="resetBtn" title="reset streak">↺</button>
     </div>
     <div class="stat">
       <div class="stat-label">best</div>
@@ -432,6 +499,11 @@
     </div>
     <div class="timer-bar-wrap">
       <div class="timer-bar" id="timerBar" style="width:100%"></div>
+    </div>
+    <div class="overlay" id="overlay">
+      <div class="overlay-title" id="overlayTitle">ready?</div>
+      <div class="overlay-sub" id="overlaySub">pick your speed &amp; tables<br>then hit start</div>
+      <button class="start-btn" id="startBtn">▶ START</button>
     </div>
   </div>
 
@@ -470,6 +542,7 @@
     timeLeft: 0,
     timeTotal: 0,
     locked: false,
+    running: false,
   };
 
   const SPEED_SECS = { slow: 15, medium: 8, fast: 4 };
@@ -491,6 +564,10 @@
     tableCount: document.getElementById('tableCount'),
     allBtn: document.getElementById('allBtn'),
     noneBtn: document.getElementById('noneBtn'),
+    overlay: document.getElementById('overlay'),
+    overlayTitle: document.getElementById('overlayTitle'),
+    overlaySub: document.getElementById('overlaySub'),
+    startBtn: document.getElementById('startBtn'),
   };
 
   // ===== BUILD TIMES TABLE GRID =====
@@ -528,8 +605,8 @@
     if (!btn) return;
     state.speed = btn.dataset.speed;
     el.speedToggle.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
-    // restart timer for current problem at new speed
-    startTimer();
+    // restart timer for current problem at new speed, only if running
+    if (state.running && !state.locked) startTimer();
   });
 
   // ===== ALL / NONE =====
@@ -677,11 +754,52 @@
   el.answer.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') checkAnswer();
   });
+  el.startBtn.addEventListener('click', startGame);
+  el.resetBtn = document.getElementById('resetBtn');
+  el.resetBtn.addEventListener('click', () => {
+    resetStreak();
+    el.feedback.textContent = '↺ streak reset';
+    el.feedback.className = 'feedback';
+    setTimeout(() => {
+      if (el.feedback.textContent === '↺ streak reset') {
+        el.feedback.textContent = '\u00A0';
+      }
+    }, 1000);
+  });
+
+  // ===== START / STOP =====
+  function startGame() {
+    if (state.selectedTables.size === 0) {
+      el.overlayTitle.textContent = 'oops';
+      el.overlaySub.innerHTML = 'pick at least one<br>times table first';
+      return;
+    }
+    state.running = true;
+    el.overlay.classList.add('hidden');
+    el.feedback.textContent = '\u00A0';
+    el.feedback.className = 'feedback';
+    resetStreak();
+    newProblem();
+  }
+
+  function stopGame(title, sub) {
+    // currently unused — kept in case we want to stop the game later
+    state.running = false;
+    stopTimer();
+    el.overlayTitle.textContent = title || 'ready?';
+    el.overlaySub.innerHTML = sub || 'pick your speed &amp; tables<br>then hit start';
+    el.overlay.classList.remove('hidden');
+    el.timerBar.style.width = '100%';
+    el.timerBar.classList.remove('low');
+    el.timeVal.textContent = '--';
+    el.timeVal.classList.remove('low');
+  }
 
   // ===== INIT =====
   buildGrid();
   updateStreakUI();
-  newProblem();
+  // Don't auto-start — wait for the start button
+  el.timeVal.textContent = '--';
 </script>
 </body>
 </html>
