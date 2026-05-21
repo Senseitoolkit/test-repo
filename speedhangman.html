@@ -1,980 +1,1131 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Speed Hangman</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #fef6e4;
-      --surface: #ffffff;
-      --primary: #f582ae;
-      --primary-dark: #e0608e;
-      --accent: #8bd3dd;
-      --accent-dark: #6bbfc9;
-      --warning: #f3d250;
-      --danger: #e85d75;
-      --success: #4ecdc4;
-      --text: #2d334a;
-      --text-muted: #8b8fa3;
-      --border: #e8e0d4;
-      --shadow: 0 4px 24px rgba(45,51,74,0.08);
-      --shadow-lg: 0 12px 40px rgba(45,51,74,0.12);
-      --radius: 16px;
-      --radius-sm: 10px;
-      --radius-pill: 999px;
-    }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WORD DROP — Speed Hangman</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0b0f;
+  --surface: #12141c;
+  --surface2: #1a1d2a;
+  --surface3: #222638;
+  --lime: #b8ff3a;
+  --lime-dark: #8acc1e;
+  --lime-glow: rgba(184,255,58,0.18);
+  --violet: #8b5cf6;
+  --violet-light: #a78bfa;
+  --violet-glow: rgba(139,92,246,0.2);
+  --cyan: #22d3ee;
+  --cyan-glow: rgba(34,211,238,0.15);
+  --red: #ff4060;
+  --red-glow: rgba(255,64,96,0.18);
+  --amber: #ffb930;
+  --text: #e2e8f0;
+  --text-muted: #64748b;
+  --text-dim: #3a4460;
+  --border: rgba(255,255,255,0.06);
+  --border-glow: rgba(184,255,58,0.3);
+  --radius: 12px;
+  --font-display: 'Orbitron', monospace;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Inter', sans-serif;
+}
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      font-family: 'Fredoka', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
 
-    body::before, body::after {
-      content: '';
-      position: fixed;
-      border-radius: 50%;
-      z-index: 0;
-      opacity: 0.15;
-      pointer-events: none;
-    }
-    body::before {
-      width: 500px; height: 500px;
-      background: var(--primary);
-      top: -120px; right: -100px;
-      animation: floatBlob 20s ease-in-out infinite;
-    }
-    body::after {
-      width: 400px; height: 400px;
-      background: var(--accent);
-      bottom: -80px; left: -60px;
-      animation: floatBlob 25s ease-in-out infinite reverse;
-    }
-    @keyframes floatBlob {
-      0%, 100% { transform: translate(0, 0) scale(1); }
-      33% { transform: translate(30px, -20px) scale(1.05); }
-      66% { transform: translate(-20px, 15px) scale(0.95); }
-    }
+/* Scanline overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 2px,
+    rgba(0,0,0,0.15) 2px,
+    rgba(0,0,0,0.15) 4px
+  );
+  pointer-events: none;
+  z-index: 9998;
+}
 
-    .app {
-      position: relative;
-      z-index: 1;
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 20px 16px 40px;
-    }
+/* Grid bg */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(184,255,58,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184,255,58,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
 
-    /* Header */
-    .header {
-      text-align: center;
-      margin-bottom: 16px;
-    }
-    .header h1 {
-      font-size: clamp(28px, 5vw, 42px);
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--primary), var(--accent-dark));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      line-height: 1.1;
-    }
-    .header p {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
 
-    /* Score strip */
-    .score-strip {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-bottom: 14px;
-    }
-    .score-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-    .score-item .num {
-      font-weight: 700;
-      font-size: 18px;
-      color: var(--text);
-    }
-    .score-item.wins .num { color: var(--success); }
-    .score-item.losses .num { color: var(--danger); }
-    .score-item.streak .num { color: var(--warning); }
+/* ── HEADER ── */
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+  position: relative;
+}
+.header-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--lime);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+.header h1 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 6vw, 52px);
+  font-weight: 900;
+  color: var(--text);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.header h1 span {
+  color: var(--lime);
+  text-shadow: 0 0 20px var(--lime), 0 0 40px rgba(184,255,58,0.4);
+}
+.header-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+}
+.corner-deco {
+  position: absolute;
+  top: 0;
+  width: 60px;
+  height: 60px;
+  opacity: 0.25;
+}
+.corner-deco.left { left: 0; border-left: 2px solid var(--lime); border-top: 2px solid var(--lime); }
+.corner-deco.right { right: 0; border-right: 2px solid var(--lime); border-top: 2px solid var(--lime); }
 
-    /* Level bar */
-    .level-bar {
-      display: flex;
-      gap: 6px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .level-btn {
-      font-family: 'Fredoka', sans-serif;
-      font-size: 13px;
-      font-weight: 500;
-      padding: 6px 14px;
-      border-radius: var(--radius-pill);
-      border: 2px solid var(--border);
-      background: var(--surface);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .level-btn:hover { border-color: var(--accent); color: var(--text); }
-    .level-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
+/* ── SCORE STRIP ── */
+.score-strip {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.score-item {
+  flex: 1;
+  padding: 10px 8px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+.score-item:last-child { border-right: none; }
+.score-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 2px;
+}
+.score-num {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  display: block;
+}
+.score-item.wins .score-num { color: var(--lime); text-shadow: 0 0 10px var(--lime-glow); }
+.score-item.losses .score-num { color: var(--red); }
+.score-item.streak .score-num { color: var(--amber); }
+.score-item.best .score-num { color: var(--violet-light); }
 
-    /* Mode row */
-    .mode-row {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .mode-btn {
-      font-family: 'Fredoka', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 8px 20px;
-      border-radius: var(--radius-pill);
-      border: 2px solid var(--border);
-      background: var(--surface);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .mode-btn:hover { border-color: var(--primary); color: var(--text); }
-    .mode-btn.active {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: #fff;
-    }
+/* ── CONTROL ROW ── */
+.controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.ctrl-group {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  min-width: 180px;
+}
+.ctrl-group-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.ctrl-section { flex: 1; }
+.chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: 1;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+.chip:hover { border-color: var(--lime); color: var(--text); }
+.chip.active {
+  background: rgba(184,255,58,0.08);
+  border-color: var(--lime);
+  color: var(--lime);
+  box-shadow: 0 0 12px rgba(184,255,58,0.1);
+}
+.chip.mode-speed.active {
+  background: rgba(139,92,246,0.1);
+  border-color: var(--violet);
+  color: var(--violet-light);
+  box-shadow: 0 0 12px var(--violet-glow);
+}
 
-    /* ─── START SCREEN ─── */
-    .start-screen {
-      background: var(--surface);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
-      padding: 48px 32px;
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .start-screen .start-icon {
-      font-size: 64px;
-      margin-bottom: 16px;
-      display: block;
-      animation: bounce 2s ease-in-out infinite;
-    }
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
-    .start-screen h2 {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 8px;
-    }
-    .start-screen p {
-      font-size: 15px;
-      color: var(--text-muted);
-      margin-bottom: 28px;
-      max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
-      line-height: 1.5;
-    }
-    .start-btn {
-      font-family: 'Fredoka', sans-serif;
-      font-size: 20px;
-      font-weight: 700;
-      padding: 16px 48px;
-      border-radius: var(--radius-pill);
-      border: none;
-      background: linear-gradient(135deg, var(--primary), var(--accent-dark));
-      color: #fff;
-      cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: 0 4px 20px rgba(245,130,174,0.35);
-    }
-    .start-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 28px rgba(245,130,174,0.45);
-    }
-    .start-btn:active { transform: translateY(0); }
+/* ── START SCREEN ── */
+.start-screen {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 60px 40px;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.start-screen::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--lime), transparent);
+}
+.start-icon {
+  font-size: 72px;
+  display: block;
+  margin-bottom: 20px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+.start-screen h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+.start-screen p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 360px;
+  margin: 0 auto 32px;
+}
+.start-tips {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.tip-pill {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.tip-pill b { color: var(--lime); }
+.start-btn {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 18px 56px;
+  border-radius: 8px;
+  border: 2px solid var(--lime);
+  background: transparent;
+  color: var(--lime);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+.start-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--lime);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s;
+}
+.start-btn:hover::before { transform: scaleX(1); }
+.start-btn:hover { color: #0a0b0f; }
+.start-btn span { position: relative; z-index: 1; }
 
-    /* Game Card */
-    .game-card {
-      background: var(--surface);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
-      padding: 20px;
-      margin-bottom: 20px;
-    }
+/* ── GAME CARD ── */
+.game-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+  position: relative;
+}
 
-    /* Timer */
-    .timer-wrapper { margin-bottom: 16px; }
-    .timer-track {
-      height: 8px;
-      background: var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .timer-fill {
-      height: 100%;
-      background: var(--success);
-      border-radius: 4px;
-      width: 100%;
-      transition: width 0.1s linear, background 0.3s;
-    }
-    .timer-meta {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
+/* ── TIMER ── */
+.timer-wrapper { margin-bottom: 18px; }
+.timer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.timer-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.timer-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--lime);
+  text-shadow: 0 0 8px var(--lime);
+  min-width: 52px;
+  text-align: right;
+}
+.timer-track {
+  height: 6px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.timer-fill {
+  height: 100%;
+  border-radius: 3px;
+  width: 100%;
+  transition: width 0.1s linear, background-color 0.3s;
+  position: relative;
+}
+.timer-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: inherit;
+  filter: brightness(1.5);
+  box-shadow: 0 0 6px currentColor;
+}
 
-    /* Board */
-    .board {
-      display: flex;
-      gap: 20px;
-      align-items: flex-start;
-    }
-    .board-left { flex: 1; }
-    .board-right {
-      flex-shrink: 0;
-      display: flex;
-      justify-content: center;
-    }
+/* ── BOARD ── */
+.board {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 580px) {
+  .board { grid-template-columns: 1fr; }
+  .board-right { order: -1; display: flex; justify-content: center; }
+}
 
-    .info-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--text-muted);
-      background: rgba(139,211,221,0.12);
-      padding: 4px 12px;
-      border-radius: var(--radius-pill);
-      margin-bottom: 12px;
-    }
-    .info-badge .dot {
-      width: 6px; height: 6px;
-      background: var(--accent);
-      border-radius: 50%;
-    }
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+.badge-level {
+  background: rgba(139,92,246,0.12);
+  border: 1px solid rgba(139,92,246,0.3);
+  color: var(--violet-light);
+}
+.badge-len {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.badge-combo {
+  background: rgba(255,185,48,0.1);
+  border: 1px solid rgba(255,185,48,0.3);
+  color: var(--amber);
+}
 
-    /* Word display */
-    .word-display {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-      min-height: 52px;
-    }
-    .letter-slot {
-      width: 40px;
-      height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Space Mono', monospace;
-      font-size: 22px;
-      font-weight: 700;
-      border-bottom: 3px solid var(--border);
-      color: transparent;
-      transition: all 0.3s;
-    }
-    .letter-slot.revealed {
-      color: var(--text);
-      border-color: var(--success);
-      animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
-    }
-    .letter-slot.hint {
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-    .letter-slot.wrong-reveal {
-      border-color: var(--danger);
-      color: var(--danger);
-    }
-    .letter-slot.apostrophe {
-      width: 16px;
-      border: none;
-      color: var(--text);
-      font-size: 28px;
-    }
-    @keyframes popIn {
-      0% { transform: scale(0.5); opacity: 0; }
-      100% { transform: scale(1); opacity: 1; }
-    }
+/* Word display */
+.word-display {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  min-height: 56px;
+  align-items: flex-end;
+}
+.letter-slot {
+  width: 38px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  border-bottom: 2px solid var(--surface3);
+  color: transparent;
+  transition: all 0.25s;
+  position: relative;
+}
+.letter-slot::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--surface3);
+  transition: background 0.25s;
+}
+.letter-slot.revealed {
+  color: var(--lime);
+  text-shadow: 0 0 8px rgba(184,255,58,0.5);
+  animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.letter-slot.revealed::after { background: var(--lime); box-shadow: 0 0 6px var(--lime); }
+.letter-slot.hint { color: var(--violet-light); }
+.letter-slot.hint::after { background: var(--violet); }
+.letter-slot.wrong-reveal { color: var(--red); }
+.letter-slot.wrong-reveal::after { background: var(--red); }
+.letter-slot.apostrophe {
+  width: 14px;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+}
+.letter-slot.apostrophe::after { display: none; }
+@keyframes popIn {
+  0% { transform: scale(0.4) translateY(-10px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
 
-    /* Lives */
-    .lives-row {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-bottom: 6px;
-    }
-    .heart {
-      font-size: 22px;
-      transition: all 0.3s;
-      display: inline-block;
-    }
-    .heart.lost {
-      opacity: 0.2;
-      transform: scale(0.8);
-      filter: grayscale(1);
-    }
-    .heart.breaking {
-      animation: heartBreak 0.4s ease-out;
-    }
-    @keyframes heartBreak {
-      0% { transform: scale(1); }
-      30% { transform: scale(1.3); }
-      100% { transform: scale(0.8); opacity: 0.2; }
-    }
+/* Lives */
+.lives-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+.life-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 6px rgba(255,64,96,0.5);
+  transition: all 0.3s;
+}
+.life-dot.lost {
+  background: var(--surface3);
+  box-shadow: none;
+}
+.life-dot.breaking { animation: dotPop 0.3s ease-out; }
+@keyframes dotPop {
+  0% { transform: scale(1.5); background: var(--red); }
+  100% { transform: scale(1); background: var(--surface3); }
+}
+.lives-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-left: 6px;
+}
 
-    /* Misses */
-    .misses-row {
-      font-size: 13px;
-      color: var(--text-muted);
-      min-height: 20px;
-    }
-    .miss-letter {
-      display: inline-block;
-      font-family: 'Space Mono', monospace;
-      font-weight: 700;
-      color: var(--danger);
-      background: rgba(232,93,117,0.08);
-      padding: 1px 6px;
-      border-radius: 4px;
-      margin: 0 2px;
-      font-size: 12px;
-    }
+/* Misses */
+.misses-section { margin-bottom: 8px; }
+.misses-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.misses-row { display: flex; flex-wrap: wrap; gap: 4px; min-height: 24px; }
+.miss-chip {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+  background: rgba(255,64,96,0.06);
+  border: 1px solid rgba(255,64,96,0.2);
+  padding: 2px 7px;
+  border-radius: 4px;
+  animation: chipIn 0.2s ease-out;
+}
+@keyframes chipIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 
-    /* Status message */
-    .status-msg {
-      margin-top: 12px;
-      font-size: 18px;
-      font-weight: 600;
-      min-height: 28px;
-      transition: opacity 0.3s;
-    }
-    .status-msg.win { color: var(--success); }
-    .status-msg.lose { color: var(--danger); }
-    .status-msg.hint { color: var(--primary); }
+/* Status */
+.status-msg {
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  min-height: 26px;
+  letter-spacing: 0.5px;
+}
+.status-msg.win { color: var(--lime); text-shadow: 0 0 12px var(--lime); animation: glitch 0.5s ease-out; }
+.status-msg.lose { color: var(--red); }
+.status-msg.hint-msg { color: var(--violet-light); }
+@keyframes glitch {
+  0% { transform: translateX(-4px); opacity: 0.5; }
+  25% { transform: translateX(4px); }
+  50% { transform: translateX(-2px); opacity: 1; }
+  75% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
 
-    /* SVG Hangman */
-    .hangman-svg { width: 160px; height: 200px; }
-    .hangman-svg line, .hangman-svg circle { stroke-linecap: round; stroke-linejoin: round; }
-    .hm-structure { stroke: #c9bfad; stroke-width: 3; fill: none; }
-    .hm-part {
-      stroke: var(--text);
-      stroke-width: 3;
-      fill: none;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .hm-part.show { opacity: 1; animation: drawIn 0.3s ease-out; }
-    .hm-head.show { fill: none; }
-    .hm-face { opacity: 0; transition: opacity 0.3s; font-size: 10px; }
-    .hm-face.show { opacity: 1; }
-    @keyframes drawIn {
-      from { stroke-dasharray: 100; stroke-dashoffset: 100; }
-      to { stroke-dasharray: 100; stroke-dashoffset: 0; }
-    }
+/* ── HANGMAN SVG ── */
+.hangman-wrap {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  width: 160px;
+}
+.hangman-svg { width: 136px; height: 180px; display: block; }
+.hm-struct { stroke: var(--surface3); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.hm-accent { stroke: var(--text-dim); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.hm-part {
+  stroke: var(--violet-light);
+  stroke-width: 3;
+  fill: none;
+  opacity: 0;
+  stroke-linecap: round;
+  transition: opacity 0.35s;
+}
+.hm-part.show { opacity: 1; animation: drawPart 0.4s ease-out forwards; }
+.hm-head.show { fill: none; }
+@keyframes drawPart {
+  from { stroke-dasharray: 200; stroke-dashoffset: 200; opacity: 0; }
+  to { stroke-dasharray: 200; stroke-dashoffset: 0; opacity: 1; }
+}
+.hm-face { opacity: 0; transition: opacity 0.3s; }
+.hm-face.show { opacity: 1; }
 
-    /* Keyboard */
-    .keyboard {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 16px;
-    }
-    .kb-row {
-      display: flex;
-      justify-content: center;
-      gap: 5px;
-    }
-    .key {
-      font-family: 'Fredoka', sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      width: 36px;
-      height: 40px;
-      border-radius: var(--radius-sm);
-      border: 2px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.15s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .key:hover { border-color: var(--accent); background: rgba(139,211,221,0.08); }
-    .key.hit {
-      background: var(--success);
-      border-color: var(--success);
-      color: #fff;
-      pointer-events: none;
-    }
-    .key.miss {
-      background: var(--border);
-      border-color: var(--border);
-      color: var(--text-muted);
-      opacity: 0.4;
-      pointer-events: none;
-    }
+/* ── KEYBOARD ── */
+.keyboard-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.kb-row {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+.key {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  width: 34px;
+  height: 38px;
+  border-radius: 6px;
+  border: 1px solid var(--surface3);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
+}
+.key:hover:not(.hit):not(.miss) {
+  border-color: var(--lime);
+  color: var(--lime);
+  background: rgba(184,255,58,0.06);
+  box-shadow: 0 0 10px rgba(184,255,58,0.1);
+  transform: translateY(-1px);
+}
+.key:active:not(.hit):not(.miss) { transform: translateY(0); }
+.key.hit {
+  background: rgba(184,255,58,0.12);
+  border-color: var(--lime);
+  color: var(--lime);
+  pointer-events: none;
+}
+.key.miss {
+  background: var(--bg);
+  border-color: var(--surface2);
+  color: var(--text-dim);
+  opacity: 0.35;
+  pointer-events: none;
+}
 
-    /* Action buttons */
-    .action-row {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    .action-btn {
-      font-family: 'Fredoka', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 8px 18px;
-      border-radius: var(--radius-pill);
-      border: 2px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .action-btn:hover { border-color: var(--accent); }
-    .action-btn.primary {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
-    }
-    .action-btn.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+/* ── ACTION ROW ── */
+.action-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.action-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 8px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.action-btn:hover { border-color: var(--text-muted); color: var(--text); }
+.action-btn.new-word {
+  border-color: var(--lime);
+  color: var(--lime);
+  background: rgba(184,255,58,0.06);
+}
+.action-btn.new-word:hover {
+  background: rgba(184,255,58,0.14);
+  box-shadow: 0 0 14px rgba(184,255,58,0.15);
+}
 
-    /* Confetti canvas */
-    #confetti-canvas {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      pointer-events: none;
-      z-index: 999;
-    }
+/* ── CONFETTI ── */
+#confetti-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 9997;
+}
 
-    /* Responsive */
-    @media (max-width: 600px) {
-      .board { flex-direction: column; align-items: center; }
-      .board-right { order: -1; }
-      .key { width: 30px; height: 36px; font-size: 14px; }
-      .letter-slot { width: 32px; height: 40px; font-size: 18px; }
-      .start-screen { padding: 36px 20px; }
-      .start-btn { font-size: 18px; padding: 14px 40px; }
-    }
-  </style>
+/* ── FLASH overlay ── */
+.flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9996;
+  opacity: 0;
+  transition: opacity 0.08s;
+}
+.flash.win-flash { background: rgba(184,255,58,0.06); }
+.flash.lose-flash { background: rgba(255,64,96,0.06); }
+.flash.active { opacity: 1; }
+
+@media (max-width: 440px) {
+  .key { width: 28px; height: 34px; font-size: 11px; }
+  .letter-slot { width: 30px; height: 42px; font-size: 16px; }
+  .score-num { font-size: 18px; }
+}
+</style>
 </head>
 <body>
+
 <canvas id="confetti-canvas"></canvas>
+<div class="flash" id="flash"></div>
+
 <div class="app">
 
   <!-- Header -->
   <div class="header">
-    <h1>Speed Hangman</h1>
-    <p>Learn sight words the fun way — guess before time runs out!</p>
+    <div class="corner-deco left"></div>
+    <div class="corner-deco right"></div>
+    <span class="header-label">// arcade edition</span>
+    <h1>WORD<span>DROP</span></h1>
+    <p class="header-sub">sight words · speed mode · survival</p>
   </div>
 
-  <!-- Score -->
+  <!-- Scores -->
   <div class="score-strip">
-    <div class="score-item wins">🏆 <span class="num" id="score-wins">0</span> <span>wins</span></div>
-    <div class="score-item losses">💔 <span class="num" id="score-losses">0</span> <span>losses</span></div>
-    <div class="score-item streak">🔥 <span class="num" id="score-streak">0</span> <span>streak</span></div>
+    <div class="score-item wins">
+      <span class="score-label">WINS</span>
+      <span class="score-num" id="score-wins">0</span>
+    </div>
+    <div class="score-item losses">
+      <span class="score-label">LOST</span>
+      <span class="score-num" id="score-losses">0</span>
+    </div>
+    <div class="score-item streak">
+      <span class="score-label">STREAK</span>
+      <span class="score-num" id="score-streak">0</span>
+    </div>
+    <div class="score-item best">
+      <span class="score-label">BEST</span>
+      <span class="score-num" id="score-best">0</span>
+    </div>
   </div>
 
-  <!-- Levels -->
-  <div class="level-bar" id="level-bar"></div>
-
-  <!-- Mode -->
-  <div class="mode-row">
-    <button class="mode-btn active" id="btn-normal">☀️ Normal</button>
-    <button class="mode-btn" id="btn-speed">⚡ Speed</button>
+  <!-- Controls -->
+  <div class="controls">
+    <div class="ctrl-section">
+      <div class="ctrl-group-label">// grade level</div>
+      <div class="ctrl-group" id="level-bar"></div>
+    </div>
+    <div class="ctrl-section">
+      <div class="ctrl-group-label">// mode</div>
+      <div class="ctrl-group">
+        <button class="chip active" id="btn-normal" onclick="setMode('normal')">NORMAL</button>
+        <button class="chip mode-speed" id="btn-speed" onclick="setMode('speed')">SPEED ⚡</button>
+      </div>
+    </div>
   </div>
 
-  <!-- START SCREEN (shown first) -->
+  <!-- Start screen -->
   <div class="start-screen" id="start-screen">
-    <span class="start-icon">⏱️</span>
-    <h2>Ready to Play?</h2>
-    <p>Pick your level and mode above, then hit the button to start guessing words before time runs out!</p>
-    <button class="start-btn" id="btn-start">Start Game</button>
+    <span class="start-icon">🕹️</span>
+    <h2>INSERT COIN TO PLAY</h2>
+    <p>Guess the hidden sight word before your lives run out — or the clock does.</p>
+    <div class="start-tips">
+      <div class="tip-pill"><b>[A–Z]</b> type letters</div>
+      <div class="tip-pill"><b>[ENTER]</b> new word</div>
+      <div class="tip-pill"><b>8</b> lives per round</div>
+      <div class="tip-pill">no repeats</div>
+    </div>
+    <button class="start-btn" id="btn-start" onclick="startGame()"><span>PRESS START</span></button>
   </div>
 
-  <!-- Game Card (hidden until start) -->
-  <div class="game-card" id="game-card" style="display:none;">
-    <!-- Timer -->
+  <!-- Game card -->
+  <div class="game-card" id="game-card" style="display:none">
     <div class="timer-wrapper">
-      <div class="timer-track"><div class="timer-fill" id="timer-fill"></div></div>
-      <div class="timer-meta">
-        <span id="timer-mode-label">Normal · 10s per guess</span>
-        <span id="timer-text">10.0s</span>
+      <div class="timer-top">
+        <span class="timer-label" id="timer-label">NORMAL · 10s per guess</span>
+        <span class="timer-val" id="timer-text">10.0</span>
+      </div>
+      <div class="timer-track">
+        <div class="timer-fill" id="timer-fill"></div>
       </div>
     </div>
 
-    <!-- Board -->
     <div class="board">
       <div class="board-left">
-        <div class="info-badge"><span class="dot"></span> <span id="level-label">Pre-Primer</span> · <span id="word-length-label">4 letters</span></div>
+        <div class="info-row">
+          <span class="badge badge-level" id="level-label">Pre-Primer</span>
+          <span class="badge badge-len" id="word-len-label">4 letters</span>
+          <span class="badge badge-combo" id="combo-badge" style="display:none"></span>
+        </div>
         <div class="word-display" id="word-display"></div>
         <div class="lives-row" id="lives-display"></div>
-        <div class="misses-row" id="misses-display"></div>
+        <div class="misses-section">
+          <div class="misses-label">missed</div>
+          <div class="misses-row" id="misses-display"></div>
+        </div>
         <div class="status-msg" id="status"></div>
       </div>
       <div class="board-right">
-        <svg class="hangman-svg" viewBox="0 0 160 200" id="hangman-svg">
-          <line class="hm-structure" x1="20" y1="190" x2="140" y2="190"/>
-          <line class="hm-structure" x1="40" y1="190" x2="40" y2="20"/>
-          <line class="hm-structure" x1="40" y1="20" x2="100" y2="20"/>
-          <line class="hm-structure" x1="100" y1="20" x2="100" y2="40"/>
-          <line class="hm-structure" x1="40" y1="50" x2="65" y2="20"/>
-          <circle class="hm-part hm-head" id="hm-head" cx="100" cy="55" r="15"/>
-          <line class="hm-part" id="hm-body" x1="100" y1="70" x2="100" y2="120"/>
-          <line class="hm-part" id="hm-larm" x1="100" y1="82" x2="75" y2="100"/>
-          <line class="hm-part" id="hm-rarm" x1="100" y1="82" x2="125" y2="100"/>
-          <line class="hm-part" id="hm-lleg" x1="100" y1="120" x2="75" y2="155"/>
-          <line class="hm-part" id="hm-rleg" x1="100" y1="120" x2="125" y2="155"/>
-          <line class="hm-part" id="hm-lfoot" x1="75" y1="155" x2="62" y2="152"/>
-          <line class="hm-part" id="hm-rfoot" x1="125" y1="155" x2="138" y2="152"/>
-          <text class="hm-face" id="hm-face" x="100" y="59" text-anchor="middle">x  x</text>
-        </svg>
+        <div class="hangman-wrap">
+          <svg class="hangman-svg" viewBox="0 0 136 180" id="hangman-svg">
+            <line class="hm-struct" x1="8" y1="172" x2="128" y2="172"/>
+            <line class="hm-struct" x1="28" y1="172" x2="28" y2="12"/>
+            <line class="hm-struct" x1="28" y1="12" x2="90" y2="12"/>
+            <line class="hm-accent" x1="28" y1="42" x2="55" y2="12"/>
+            <line class="hm-struct" x1="90" y1="12" x2="90" y2="30"/>
+            <circle class="hm-part hm-head" id="hm-head" cx="90" cy="43" r="13"/>
+            <line class="hm-part" id="hm-body" x1="90" y1="56" x2="90" y2="100"/>
+            <line class="hm-part" id="hm-larm" x1="90" y1="68" x2="68" y2="88"/>
+            <line class="hm-part" id="hm-rarm" x1="90" y1="68" x2="112" y2="88"/>
+            <line class="hm-part" id="hm-lleg" x1="90" y1="100" x2="68" y2="132"/>
+            <line class="hm-part" id="hm-rleg" x1="90" y1="100" x2="112" y2="132"/>
+            <line class="hm-part" id="hm-lfoot" x1="68" y1="132" x2="56" y2="128"/>
+            <line class="hm-part" id="hm-rfoot" x1="112" y1="132" x2="124" y2="128"/>
+            <text class="hm-face" id="hm-face" x="90" y="47" text-anchor="middle" font-size="9" fill="#ff4060" font-family="monospace">x  x</text>
+          </svg>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Keyboard (hidden until start) -->
-  <div id="keyboard-wrap" style="display:none;">
-    <div class="keyboard" id="keyboard"></div>
-    <div class="action-row">
-      <button class="action-btn primary" id="btn-new">New Word</button>
-      <button class="action-btn" id="btn-hint">💡 Hint</button>
-      <button class="action-btn" id="btn-reveal">👁 Reveal</button>
+  <!-- Keyboard wrap -->
+  <div id="keyboard-wrap" style="display:none">
+    <div class="keyboard-wrap">
+      <div class="keyboard" id="keyboard"></div>
+      <div class="action-row">
+        <button class="action-btn new-word" onclick="newWord()">↩ NEW WORD</button>
+        <button class="action-btn" onclick="giveHint()">💡 HINT</button>
+        <button class="action-btn" onclick="revealWord()">👁 REVEAL</button>
+      </div>
     </div>
   </div>
 
 </div>
 
 <script>
-// ─── WORD LISTS (Dolch) ───
 const WORDS = {
-  preprimer: ["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","I","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","two","up","we","where","yellow","you"],
-  primer: ["all","am","are","at","ate","be","black","brown","but","came","did","do","eat","four","get","good","have","he","into","like","must","new","no","now","on","our","out","please","pretty","ran","ride","saw","say","she","so","soon","that","there","they","this","too","under","want","was","well","went","what","white","who","will","with","yes"],
-  first: ["after","again","an","any","as","ask","by","could","every","fly","from","give","going","had","has","her","him","his","how","just","know","let","live","may","of","old","once","open","over","put","round","some","stop","take","thank","them","then","think","walk","were","when"],
-  second: ["always","around","because","been","before","best","both","buy","call","cold","does","don't","fast","first","five","found","gave","goes","green","its","made","many","off","or","pull","read","right","sing","sit","sleep","tell","their","these","those","upon","us","use","very","wash","which","why","wish","work","would","write","your"],
-  third: ["about","better","bring","carry","clean","cut","done","draw","drink","eight","fall","far","full","got","grow","hold","hot","hurt","if","keep","kind","laugh","light","long","much","myself","never","nine","only","own","pick","seven","shall","show","six","small","start","ten","today","together","try","warm","eight","seven","six","ten"]
+  preprimer:["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","two","up","we","where","yellow","you"],
+  primer:["all","am","are","at","ate","be","black","brown","but","came","did","do","eat","four","get","good","have","he","into","like","must","new","no","now","on","our","out","please","pretty","ran","ride","saw","say","she","so","soon","that","there","they","this","too","under","want","was","well","went","what","white","who","will","with","yes"],
+  first:["after","again","an","any","as","ask","by","could","every","fly","from","give","going","had","has","her","him","his","how","just","know","let","live","may","of","old","once","open","over","put","round","some","stop","take","thank","them","then","think","walk","were","when"],
+  second:["always","around","because","been","before","best","both","buy","call","cold","does","don't","fast","first","five","found","gave","goes","green","its","made","many","off","or","pull","read","right","sing","sit","sleep","tell","their","these","those","upon","us","use","very","wash","which","why","wish","work","would","write","your"],
+  third:["about","better","bring","carry","clean","cut","done","draw","drink","eight","fall","far","full","got","grow","hold","hot","hurt","if","keep","kind","laugh","light","long","much","myself","never","nine","only","own","pick","seven","shall","show","six","small","start","ten","today","together","try","warm"]
 };
-
-const LEVEL_NAMES = {
-  preprimer: "Pre-Primer",
-  primer: "Primer",
-  first: "1st Grade",
-  second: "2nd Grade",
-  third: "3rd Grade"
-};
-
-// ─── STATE ───
-const state = {
-  word: "",
-  revealed: [],
-  misses: [],
-  lives: 8,
-  maxLives: 8,
-  gameOver: true,
-  level: "preprimer",
-  mode: "normal",
-  wins: 0,
-  losses: 0,
-  streak: 0,
-  bestStreak: 0,
-  hintsUsed: 0,
-  usedWords: new Set(),
-  started: false
-};
-
-let timerDuration = 10;
-let timerRemaining = 10;
-let timerId = null;
-
-// ─── DOM ───
-const wordDisplay = document.getElementById("word-display");
-const livesDisplay = document.getElementById("lives-display");
-const missesDisplay = document.getElementById("misses-display");
-const statusEl = document.getElementById("status");
-const levelLabel = document.getElementById("level-label");
-const wordLenLabel = document.getElementById("word-length-label");
-const timerFill = document.getElementById("timer-fill");
-const timerText = document.getElementById("timer-text");
-const timerModeLabel = document.getElementById("timer-mode-label");
-const btnNormal = document.getElementById("btn-normal");
-const btnSpeed = document.getElementById("btn-speed");
-const btnNew = document.getElementById("btn-new");
-const btnHint = document.getElementById("btn-hint");
-const btnReveal = document.getElementById("btn-reveal");
-const btnStart = document.getElementById("btn-start");
-const startScreen = document.getElementById("start-screen");
-const gameCard = document.getElementById("game-card");
-const keyboardWrap = document.getElementById("keyboard-wrap");
-
+const LEVEL_LABELS = {preprimer:"PRE-K",primer:"K",first:"GR.1",second:"GR.2",third:"GR.3"};
+const LEVEL_FULL = {preprimer:"Pre-Primer",primer:"Primer",first:"1st Grade",second:"2nd Grade",third:"3rd Grade"};
 const HM_PARTS = ["hm-head","hm-body","hm-larm","hm-rarm","hm-lleg","hm-rleg","hm-lfoot","hm-rfoot"];
 
-// ─── CONFETTI ───
-const confCanvas = document.getElementById("confetti-canvas");
-const confCtx = confCanvas.getContext("2d");
-let confetti = [];
-function resizeConfCanvas() { confCanvas.width = window.innerWidth; confCanvas.height = window.innerHeight; }
-window.addEventListener("resize", resizeConfCanvas);
-resizeConfCanvas();
+const state = {
+  word:"",revealed:[],misses:[],lives:8,maxLives:8,
+  gameOver:true,level:"preprimer",mode:"normal",
+  wins:0,losses:0,streak:0,bestStreak:0,
+  usedWords:new Set(),started:false
+};
 
+let timerDuration = 10, timerRemaining = 10, timerId = null;
+
+const $ = id => document.getElementById(id);
+
+// Confetti
+const confCanvas = $("confetti-canvas");
+const confCtx = confCanvas.getContext("2d");
+let confParts = [];
+function resizeConf() { confCanvas.width=innerWidth; confCanvas.height=innerHeight; }
+addEventListener("resize", resizeConf); resizeConf();
 function launchConfetti() {
-  const colors = ["#f582ae","#8bd3dd","#f3d250","#4ecdc4","#e85d75","#6bbfc9"];
-  for (let i = 0; i < 80; i++) {
-    confetti.push({
-      x: Math.random() * confCanvas.width,
-      y: confCanvas.height + 10,
-      w: Math.random() * 8 + 4,
-      h: Math.random() * 6 + 3,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      vx: (Math.random() - 0.5) * 6,
-      vy: -(Math.random() * 14 + 6),
-      rot: Math.random() * 360,
-      rv: (Math.random() - 0.5) * 10,
-      gravity: 0.18 + Math.random() * 0.08
-    });
-  }
-  if (confetti.length === 80) requestAnimationFrame(animConfetti);
+  const cols = ["#b8ff3a","#22d3ee","#8b5cf6","#ffb930","#ff4060","#ffffff"];
+  for (let i=0;i<100;i++) confParts.push({
+    x:Math.random()*confCanvas.width, y:confCanvas.height+10,
+    w:Math.random()*9+3, h:Math.random()*5+3,
+    color:cols[Math.floor(Math.random()*cols.length)],
+    vx:(Math.random()-0.5)*8, vy:-(Math.random()*16+8),
+    rot:Math.random()*360, rv:(Math.random()-0.5)*12, g:0.2+Math.random()*0.1
+  });
+  if(confParts.length===100) requestAnimationFrame(animConf);
 }
-function animConfetti() {
-  confCtx.clearRect(0, 0, confCanvas.width, confCanvas.height);
-  confetti = confetti.filter(p => p.y < confCanvas.height + 20);
-  confetti.forEach(p => {
-    p.x += p.vx;
-    p.vy += p.gravity;
-    p.y += p.vy;
-    p.rot += p.rv;
-    confCtx.save();
-    confCtx.translate(p.x, p.y);
-    confCtx.rotate(p.rot * Math.PI / 180);
-    confCtx.fillStyle = p.color;
-    confCtx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+function animConf() {
+  confCtx.clearRect(0,0,confCanvas.width,confCanvas.height);
+  confParts = confParts.filter(p=>p.y<confCanvas.height+30);
+  confParts.forEach(p=>{
+    p.x+=p.vx; p.vy+=p.g; p.y+=p.vy; p.rot+=p.rv;
+    confCtx.save(); confCtx.translate(p.x,p.y); confCtx.rotate(p.rot*Math.PI/180);
+    confCtx.fillStyle=p.color; confCtx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
     confCtx.restore();
   });
-  if (confetti.length > 0) requestAnimationFrame(animConfetti);
+  if(confParts.length>0) requestAnimationFrame(animConf);
 }
 
-// ─── TIMER ───
+function flashScreen(type) {
+  const el = $("flash");
+  el.className = `flash ${type}-flash active`;
+  setTimeout(()=>el.classList.remove("active"),200);
+}
+
+// Timer
 function resetTimer() {
   clearInterval(timerId);
   timerRemaining = timerDuration;
   updateTimerUI();
-  timerId = setInterval(() => {
-    timerRemaining -= 0.1;
-    if (timerRemaining <= 0) {
-      timerRemaining = 0;
+  timerId = setInterval(()=>{
+    timerRemaining = Math.max(0, timerRemaining-0.1);
+    updateTimerUI();
+    if(timerRemaining<=0) {
       clearInterval(timerId);
-      // Time up = lose a life
-      if (!state.gameOver) {
+      if(!state.gameOver) {
         state.lives--;
-        updateLives();
-        updateHangman();
+        updateLives(); updateHangman();
         checkEnd();
-        if (!state.gameOver) resetTimer();
+        if(!state.gameOver) resetTimer();
       }
     }
-    updateTimerUI();
-  }, 100);
+  },100);
 }
-
 function updateTimerUI() {
-  const pct = timerRemaining / timerDuration;
-  timerFill.style.width = (pct * 100) + "%";
-  timerText.textContent = timerRemaining.toFixed(1) + "s";
-  if (pct > 0.5) timerFill.style.background = "var(--success)";
-  else if (pct > 0.25) timerFill.style.background = "var(--warning)";
-  else timerFill.style.background = "var(--danger)";
+  const pct = timerRemaining/timerDuration;
+  $("timer-fill").style.width = (pct*100)+"%";
+  $("timer-text").textContent = timerRemaining.toFixed(1);
+  const fill = $("timer-fill");
+  if(pct>0.5) { fill.style.backgroundColor="var(--lime)"; }
+  else if(pct>0.25) { fill.style.backgroundColor="var(--amber)"; }
+  else { fill.style.backgroundColor="var(--red)"; }
 }
 
-// ─── UI BUILDERS ───
+// Level bar
 function buildLevelBar() {
-  const bar = document.getElementById("level-bar");
-  bar.innerHTML = "";
-  Object.keys(LEVEL_NAMES).forEach(key => {
+  const bar = $("level-bar");
+  bar.innerHTML="";
+  Object.keys(LEVEL_LABELS).forEach(key=>{
     const btn = document.createElement("button");
-    btn.className = "level-btn" + (key === state.level ? " active" : "");
-    btn.textContent = LEVEL_NAMES[key];
-    btn.addEventListener("click", () => setLevel(key));
+    btn.className="chip"+(key===state.level?" active":"");
+    btn.textContent=LEVEL_LABELS[key];
+    btn.onclick=()=>setLevel(key);
     bar.appendChild(btn);
   });
 }
 
+// Keyboard
 function buildKeyboard() {
-  const kb = document.getElementById("keyboard");
-  const rows = ["qwertyuiop","asdfghjkl","zxcvbnm"];
-  kb.innerHTML = "";
-  rows.forEach(row => {
-    const rowDiv = document.createElement("div");
-    rowDiv.className = "kb-row";
-    row.split("").forEach(ch => {
-      const btn = document.createElement("button");
-      btn.className = "key";
-      btn.textContent = ch.toUpperCase();
-      btn.dataset.letter = ch;
-      btn.addEventListener("click", () => handleGuess(ch));
-      rowDiv.appendChild(btn);
+  const kb = $("keyboard");
+  ["qwertyuiop","asdfghjkl","zxcvbnm"].forEach(row=>{
+    const r=document.createElement("div"); r.className="kb-row";
+    row.split("").forEach(ch=>{
+      const b=document.createElement("button");
+      b.className="key"; b.textContent=ch.toUpperCase(); b.dataset.letter=ch;
+      b.onclick=()=>handleGuess(ch);
+      r.appendChild(b);
     });
-    kb.appendChild(rowDiv);
+    kb.appendChild(r);
   });
 }
 
 function updateWordDisplay() {
-  wordDisplay.innerHTML = "";
-  if (!state.word) return;
-  wordLenLabel.textContent = state.word.replace(/'/g, "").length + " letters";
-  state.word.split("").forEach((ch, i) => {
-    const slot = document.createElement("div");
-    if (ch === "'") {
-      slot.className = "letter-slot apostrophe";
-      slot.textContent = "'";
+  const wd = $("word-display");
+  wd.innerHTML="";
+  if(!state.word) return;
+  const letters = state.word.replace(/'/g,"").length;
+  $("word-len-label").textContent = letters+" letter"+(letters!==1?"s":"");
+  state.word.split("").forEach((ch,i)=>{
+    const slot=document.createElement("div");
+    if(ch==="'") {
+      slot.className="letter-slot apostrophe"; slot.textContent="'";
     } else {
-      slot.className = "letter-slot" + (state.revealed[i] ? " revealed" : "");
-      slot.textContent = ch.toUpperCase();
+      slot.className="letter-slot"+(state.revealed[i]?" revealed":"");
+      slot.textContent=ch.toUpperCase();
     }
-    wordDisplay.appendChild(slot);
+    wd.appendChild(slot);
   });
 }
 
 function updateLives() {
-  livesDisplay.innerHTML = "";
-  for (let i = 0; i < state.maxLives; i++) {
-    const h = document.createElement("span");
-    h.className = "heart" + (i >= state.lives ? " lost" : "");
-    h.textContent = "❤️";
-    livesDisplay.appendChild(h);
+  const ld=$("lives-display"); ld.innerHTML="";
+  for(let i=0;i<state.maxLives;i++){
+    const d=document.createElement("div");
+    d.className="life-dot"+(i>=state.lives?" lost":"");
+    ld.appendChild(d);
   }
+  const lbl=document.createElement("span");
+  lbl.className="lives-label"; lbl.textContent=state.lives+"/"+state.maxLives;
+  ld.appendChild(lbl);
 }
 
 function updateMisses() {
-  missesDisplay.innerHTML = state.misses.map(m => `<span class="miss-letter">${m.toUpperCase()}</span>`).join(" ");
+  const md=$("misses-display"); md.innerHTML="";
+  state.misses.forEach(m=>{
+    const c=document.createElement("div");
+    c.className="miss-chip"; c.textContent=m.toUpperCase();
+    md.appendChild(c);
+  });
 }
 
 function updateScores() {
-  document.getElementById("score-wins").textContent = state.wins;
-  document.getElementById("score-losses").textContent = state.losses;
-  document.getElementById("score-streak").textContent = state.streak;
+  $("score-wins").textContent=state.wins;
+  $("score-losses").textContent=state.losses;
+  $("score-streak").textContent=state.streak;
+  $("score-best").textContent=state.bestStreak;
 }
 
-function resetHangman() {
-  HM_PARTS.forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove("show"); });
-  const face = document.getElementById("hm-face");
-  if (face) face.classList.remove("show");
-}
-
-function updateHangman() {
-  const missed = state.maxLives - state.lives;
-  HM_PARTS.forEach((id, i) => {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle("show", i < missed);
-  });
-  if (state.lives <= 0) {
-    const face = document.getElementById("hm-face");
-    if (face) face.classList.add("show");
+function updateCombo() {
+  const cb=$("combo-badge");
+  if(state.streak>=3) {
+    cb.style.display="inline";
+    cb.textContent="🔥 ×"+state.streak+" STREAK";
+  } else {
+    cb.style.display="none";
   }
 }
 
-// ─── GAME LOGIC ───
+function resetHangman() {
+  HM_PARTS.forEach(id=>{const el=$(id); if(el) el.classList.remove("show");});
+  const face=$("hm-face"); if(face) face.classList.remove("show");
+}
+
+function updateHangman() {
+  const missed=state.maxLives-state.lives;
+  HM_PARTS.forEach((id,i)=>{const el=$(id); if(el) el.classList.toggle("show",i<missed);});
+  if(state.lives<=0){ const face=$("hm-face"); if(face) face.classList.add("show"); }
+}
+
 function pickWord() {
-  const pool = WORDS[state.level];
-  const available = pool.filter(w => !state.usedWords.has(w));
-  const list = available.length > 0 ? available : pool;
-  if (available.length === 0) state.usedWords.clear();
-  const word = list[Math.floor(Math.random() * list.length)];
+  const pool=WORDS[state.level];
+  const avail=pool.filter(w=>!state.usedWords.has(w));
+  const list=avail.length>0?avail:pool;
+  if(avail.length===0) state.usedWords.clear();
+  const word=list[Math.floor(Math.random()*list.length)];
   state.usedWords.add(word);
   return word.toLowerCase();
 }
 
 function newWord() {
-  state.word = pickWord();
-  state.revealed = new Array(state.word.length).fill(false);
-  state.misses = [];
-  state.lives = state.maxLives;
-  state.gameOver = false;
-  state.hintsUsed = 0;
-  statusEl.textContent = "";
-  statusEl.className = "status-msg";
-
-  // Reveal apostrophes only
-  for (let i = 0; i < state.word.length; i++) {
-    if (state.word[i] === "'") state.revealed[i] = true;
-  }
-
-  // Reset keyboard
-  document.querySelectorAll(".key").forEach(k => { k.className = "key"; });
-
-  resetHangman();
-  updateWordDisplay();
-  updateMisses();
-  updateLives();
-  resetTimer();
+  state.word=pickWord();
+  state.revealed=new Array(state.word.length).fill(false);
+  state.misses=[]; state.lives=state.maxLives; state.gameOver=false;
+  const status=$("status"); status.textContent=""; status.className="status-msg";
+  state.word.split("").forEach((ch,i)=>{ if(ch==="'") state.revealed[i]=true; });
+  document.querySelectorAll(".key").forEach(k=>k.className="key");
+  resetHangman(); updateWordDisplay(); updateMisses(); updateLives(); updateCombo(); resetTimer();
 }
 
 function setLevel(key) {
-  state.level = key;
+  state.level=key;
   state.usedWords.clear();
-  levelLabel.textContent = LEVEL_NAMES[key];
-  document.querySelectorAll(".level-btn").forEach((btn, i) => {
-    btn.classList.toggle("active", Object.keys(LEVEL_NAMES)[i] === key);
+  $("level-label").textContent=LEVEL_FULL[key];
+  document.querySelectorAll(".chip").forEach(b=>{
+    if(Object.keys(LEVEL_LABELS).includes(b.textContent.toLowerCase().replace(".","").replace("-","").replace(" ","")) ||
+       Object.values(LEVEL_LABELS).includes(b.textContent)) {
+      b.classList.remove("active");
+    }
   });
-  if (state.started) newWord();
+  buildLevelBar();
+  if(state.started) newWord();
 }
 
 function setMode(m) {
-  state.mode = m;
-  btnNormal.classList.toggle("active", m === "normal");
-  btnSpeed.classList.toggle("active", m === "speed");
-  timerDuration = m === "speed" ? 5 : 10;
-  timerModeLabel.textContent = m === "speed" ? "Speed · 5s per guess" : "Normal · 10s per guess";
-  if (state.started) resetTimer();
+  state.mode=m;
+  const nb=$("btn-normal"), sb=$("btn-speed");
+  nb.classList.toggle("active",m==="normal");
+  sb.classList.toggle("active",m==="speed");
+  timerDuration = m==="speed"?5:10;
+  $("timer-label").textContent = m==="speed"?"SPEED · 5s per guess":"NORMAL · 10s per guess";
+  if(state.started) resetTimer();
 }
 
 function handleGuess(letter) {
-  if (state.gameOver || !state.started) return;
-  letter = letter.toLowerCase();
-  if (!/^[a-z]$/.test(letter)) return;
+  if(state.gameOver||!state.started) return;
+  letter=letter.toLowerCase();
+  if(!/^[a-z]$/.test(letter)) return;
+  const alreadyHit=state.revealed.some((v,i)=>v&&state.word[i]===letter);
+  if(alreadyHit||state.misses.includes(letter)) return;
 
-  const alreadyHit = state.revealed.some((v, i) => v && state.word[i] === letter);
-  if (alreadyHit || state.misses.includes(letter)) return;
-
-  const keyBtn = document.querySelector(`.key[data-letter="${letter}"]`);
-
-  if (state.word.includes(letter)) {
-    state.word.split("").forEach((ch, idx) => { if (ch === letter) state.revealed[idx] = true; });
-    if (keyBtn) keyBtn.classList.add("hit");
+  const keyBtn=document.querySelector(`.key[data-letter="${letter}"]`);
+  if(state.word.includes(letter)) {
+    state.word.split("").forEach((ch,i)=>{ if(ch===letter) state.revealed[i]=true; });
+    if(keyBtn) keyBtn.classList.add("hit");
   } else {
     state.misses.push(letter);
     state.lives--;
-    if (keyBtn) keyBtn.classList.add("miss");
-    updateMisses();
-    updateLives();
-    updateHangman();
+    if(keyBtn) keyBtn.classList.add("miss");
+    updateMisses(); updateLives(); updateHangman();
+    flashScreen("lose");
   }
-
   updateWordDisplay();
   checkEnd();
-  if (!state.gameOver) resetTimer();
+  if(!state.gameOver) resetTimer();
 }
 
 function checkEnd() {
-  if (state.revealed.every(v => v)) {
-    state.gameOver = true;
-    clearInterval(timerId);
-    state.wins++;
-    state.streak++;
-    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
-    updateScores();
-    statusEl.textContent = "You got it! 🎉";
-    statusEl.className = "status-msg win";
-    document.querySelectorAll(".letter-slot").forEach(s => s.classList.add("revealed"));
-    launchConfetti();
-    return;
+  if(state.revealed.every(v=>v)) {
+    state.gameOver=true; clearInterval(timerId);
+    state.wins++; state.streak++;
+    if(state.streak>state.bestStreak) state.bestStreak=state.streak;
+    updateScores(); updateCombo();
+    const status=$("status");
+    status.className="status-msg win";
+    status.textContent = state.streak>=3 ? "🔥 COMBO x"+state.streak+"!" : "✓ CORRECT!";
+    flashScreen("win"); launchConfetti(); return;
   }
-  if (state.lives <= 0) {
-    state.gameOver = true;
-    clearInterval(timerId);
-    state.losses++;
-    state.streak = 0;
-    updateScores();
-    state.word.split("").forEach((ch, i) => { state.revealed[i] = true; });
+  if(state.lives<=0) {
+    state.gameOver=true; clearInterval(timerId);
+    state.losses++; state.streak=0; updateScores(); updateCombo();
+    state.word.split("").forEach((_,i)=>state.revealed[i]=true);
     updateWordDisplay();
-    document.querySelectorAll(".letter-slot:not(.revealed)").forEach(s => s.classList.add("wrong-reveal"));
-    statusEl.innerHTML = `The word was <strong>${state.word.toUpperCase()}</strong>`;
-    statusEl.className = "status-msg lose";
+    const status=$("status");
+    status.className="status-msg lose";
+    status.textContent="✗ "+state.word.toUpperCase();
     updateHangman();
   }
 }
 
 function giveHint() {
-  if (state.gameOver || !state.word) return;
-  const idx = state.revealed.findIndex(v => !v);
-  if (idx === -1) return;
-  state.revealed[idx] = true;
-  state.hintsUsed++;
+  if(state.gameOver||!state.word) return;
+  const idx=state.revealed.findIndex(v=>!v);
+  if(idx===-1) return;
+  state.revealed[idx]=true;
   updateWordDisplay();
-  const letter = state.word[idx];
-  const keyBtn = document.querySelector(`.key[data-letter="${letter}"]`);
-  if (keyBtn && !keyBtn.classList.contains("hit")) keyBtn.classList.add("hit");
-  const slots = wordDisplay.children;
-  if (slots[idx]) slots[idx].classList.add("hint");
-  statusEl.textContent = "💡 Hint used!";
-  statusEl.className = "status-msg hint";
-  checkEnd();
-  if (!state.gameOver) resetTimer();
+  const letter=state.word[idx];
+  const keyBtn=document.querySelector(`.key[data-letter="${letter}"]`);
+  if(keyBtn&&!keyBtn.classList.contains("hit")) keyBtn.classList.add("hit");
+  const slots=$("word-display").children;
+  if(slots[idx]) slots[idx].className=(slots[idx].className||"")+" hint";
+  const status=$("status"); status.className="status-msg hint-msg"; status.textContent="💡 "+letter.toUpperCase()+" revealed";
+  checkEnd(); if(!state.gameOver) resetTimer();
 }
 
 function revealWord() {
-  if (!state.word) return;
-  state.revealed = new Array(state.word.length).fill(true);
-  state.gameOver = true;
-  clearInterval(timerId);
+  if(!state.word) return;
+  state.revealed=new Array(state.word.length).fill(true);
+  state.gameOver=true; clearInterval(timerId);
   updateWordDisplay();
-  statusEl.innerHTML = `Revealed: <strong>${state.word.toUpperCase()}</strong>`;
-  statusEl.className = "status-msg";
+  const status=$("status"); status.className="status-msg"; status.textContent="→ "+state.word.toUpperCase();
 }
 
-// ─── START GAME ───
 function startGame() {
-  state.started = true;
-  startScreen.style.display = "none";
-  gameCard.style.display = "";
-  keyboardWrap.style.display = "";
+  state.started=true;
+  $("start-screen").style.display="none";
+  $("game-card").style.display="";
+  $("keyboard-wrap").style.display="";
   newWord();
 }
 
-// ─── EVENTS ───
-btnNormal.addEventListener("click", () => { setMode("normal"); if (state.started) newWord(); });
-btnSpeed.addEventListener("click", () => { setMode("speed"); if (state.started) newWord(); });
-btnNew.addEventListener("click", newWord);
-btnHint.addEventListener("click", giveHint);
-btnReveal.addEventListener("click", revealWord);
-btnStart.addEventListener("click", startGame);
-
-document.addEventListener("keydown", e => {
-  if (!state.started) {
-    if (e.key === "Enter") { startGame(); return; }
-    return;
-  }
-  if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-    handleGuess(e.key);
-  } else if (e.key === "Enter") {
-    newWord();
-  }
+document.addEventListener("keydown",e=>{
+  if(!state.started){ if(e.key==="Enter"){startGame();} return; }
+  if(e.key.length===1&&/[a-zA-Z]/.test(e.key)){ handleGuess(e.key); }
+  else if(e.key==="Enter"){ newWord(); }
 });
 
-// ─── INIT (no auto-start) ───
 buildLevelBar();
 buildKeyboard();
 setMode("normal");
