@@ -111,7 +111,7 @@
       <div class="countdown-ring"><svg viewBox="0 0 52 52"><circle class="ring-bg" cx="26" cy="26" r="22"/><circle class="ring-fill" id="ring-fill" cx="26" cy="26" r="22" stroke-dasharray="138.23" stroke-dashoffset="0"/></svg><div class="countdown-text" id="countdown-text">5</div></div>
     </div>
     <div class="input-area">
-      <input type="text" class="spell-input" id="spell-input" placeholder="start typing..." autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <input type="text" class="spell-input" id="spell-input" placeholder="just start typing..." autocomplete="off" autocapitalize="off" spellcheck="false" />
     </div>
     <div class="status-msg" id="status">&nbsp;</div>
     <div class="action-bar">
@@ -136,9 +136,8 @@ var DOLCH = {
 var LEVEL_NAMES = { preprimer:"Pre-Primer", primer:"Primer", first:"1st Grade", second:"2nd Grade", third:"3rd Grade", nouns:"Nouns" };
 var LEVEL_KEYS = Object.keys(LEVEL_NAMES);
 
-// STATE - multi-select levels
 var selectedLevels = {};
-LEVEL_KEYS.forEach(function(k){ selectedLevels[k] = true; }); // default: ALL selected
+LEVEL_KEYS.forEach(function(k){ selectedLevels[k] = true; });
 var activeList = [];
 var speed = 5, wordIndex = 0, streak = 0, bestStreak = 0;
 var phase = "idle", timerId = null, timerRemaining = 0, flashTimerId = null;
@@ -149,7 +148,6 @@ var progressFill = G("progress-fill"), progLabel = G("prog-label"), progLevel = 
 var ringFill = G("ring-fill"), countdownText = G("countdown-text"), wordChips = G("word-chips");
 var confettiCanvas = G("confetti-canvas"), CIRC = 2*Math.PI*22;
 
-// CONFETTI
 var confCtx = confettiCanvas.getContext("2d"), confPieces = [], confAnimId = null;
 function resizeConf(){ confettiCanvas.width=window.innerWidth; confettiCanvas.height=window.innerHeight; }
 window.addEventListener("resize", resizeConf); resizeConf();
@@ -166,7 +164,6 @@ function animConf(){
   if(alive)confAnimId=requestAnimationFrame(animConf);else{confAnimId=null;confCtx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);}
 }
 
-// COMBINED LIST
 function rebuildList(){
   activeList=[];
   for(var i=0;i<LEVEL_KEYS.length;i++) if(selectedLevels[LEVEL_KEYS[i]]) activeList=activeList.concat(DOLCH[LEVEL_KEYS[i]]);
@@ -178,7 +175,6 @@ function getLabel(){
   return n.join(", ");
 }
 
-// UI
 function buildLevelBar(){
   var bar=G("level-bar"); bar.innerHTML="";
   var allBtn=document.createElement("button");
@@ -209,7 +205,7 @@ function onLevelsChanged(){
   buildLevelBar(); buildChips(); updateScores(); updateProgress(); showWord();
   spellInput.value=""; spellInput.className="spell-input"; spellInput.disabled=false;
   setCD(speed,speed);
-  statusEl.innerHTML="Press <b>Enter</b> to start!"; statusEl.className="status-msg info";
+  statusEl.innerHTML="Just start typing to begin!"; statusEl.className="status-msg info";
 }
 function buildChips(){
   wordChips.innerHTML="";
@@ -240,7 +236,6 @@ function setSpeed(s){ speed=s; document.querySelectorAll(".speed-btn").forEach(f
 function showWord(){ if(wordIndex<activeList.length){flashWord.textContent=activeList[wordIndex];flashWord.className="flash-word";} }
 function stopTimers(){ clearInterval(timerId); clearTimeout(flashTimerId); timerId=null; flashTimerId=null; }
 
-// GAME
 function startRound(){
   if(wordIndex>=activeList.length){
     phase="done"; flashWord.textContent="\uD83C\uDF89"; flashWord.className="flash-word";
@@ -258,12 +253,20 @@ function startRound(){
   },100);
 }
 function checkInput(){
+  // If idle, auto-start the round when the user begins typing
+  if(phase==="idle"){
+    startRound();
+    // After startRound clears the input, restore the character that triggered this
+    // We do this on next tick so startRound's spellInput.value="" doesn't erase it
+    return;
+  }
   if(phase!=="typing") return;
   var word=activeList[wordIndex];
   if(spellInput.value.trim().toLowerCase()===word.toLowerCase()){clearInterval(timerId);handleCorrect(word);}
 }
 function handleEnter(){
-  if(phase==="idle"||phase==="done"){startRound();return;}
+  if(phase==="idle"){startRound();return;}
+  if(phase==="done"){restartGame();return;}
   if(phase==="typing"){
     clearInterval(timerId); var word=activeList[wordIndex]; var ans=spellInput.value.trim().toLowerCase();
     if(ans===word.toLowerCase()) handleCorrect(word); else handleWrong(word,ans);
@@ -284,7 +287,7 @@ function goBack(delay){
     wordIndex=0; updateProgress(); updateScores(); buildChips(); showWord();
     spellInput.value=""; spellInput.className="spell-input"; spellInput.disabled=false;
     setCD(speed,speed);
-    statusEl.innerHTML="Back to word 1. Press <b>Enter</b> to go!"; statusEl.className="status-msg info"; phase="idle";
+    statusEl.innerHTML="Back to word 1. Just start typing!"; statusEl.className="status-msg info"; phase="idle";
   },delay||2000);
 }
 function handleWrong(word,ans){
@@ -315,15 +318,27 @@ function restartGame(){
   updateProgress(); updateScores(); buildChips(); showWord();
   spellInput.value=""; spellInput.className="spell-input"; spellInput.disabled=false;
   setCD(speed,speed);
-  statusEl.innerHTML="Press <b>Enter</b> to start!"; statusEl.className="status-msg info";
+  statusEl.innerHTML="Just start typing to begin!"; statusEl.className="status-msg info";
 }
 
 // EVENTS
-spellInput.addEventListener("input", checkInput);
-spellInput.addEventListener("keydown", function(e){ if(e.key==="Enter"){e.preventDefault();handleEnter();} });
+spellInput.addEventListener("keydown", function(e){
+  if(e.key==="Enter"){e.preventDefault();handleEnter();return;}
+  // Auto-start on any letter key when idle
+  if(phase==="idle" && e.key.length===1 && /[a-zA-Z']/.test(e.key)){
+    startRound();
+    // Let the keydown continue so the character lands in the (now-active) input naturally
+  }
+});
+spellInput.addEventListener("input", function(){
+  if(phase==="typing") checkInput();
+});
 document.addEventListener("keydown", function(e){
   if(e.key==="Enter"){e.preventDefault();if(phase==="idle"||phase==="done")handleEnter();return;}
-  if(e.key.length===1 && /[a-zA-Z']/.test(e.key) && document.activeElement!==spellInput && !spellInput.disabled) spellInput.focus();
+  if(e.key.length===1 && /[a-zA-Z']/.test(e.key) && document.activeElement!==spellInput && !spellInput.disabled){
+    spellInput.focus();
+    if(phase==="idle") startRound();
+  }
 });
 G("btn-restart").addEventListener("click", restartGame);
 G("btn-skip").addEventListener("click", skipWord);
@@ -334,7 +349,8 @@ document.querySelectorAll(".speed-btn").forEach(function(btn){
 // INIT
 buildLevelBar(); setSpeed(5); rebuildList(); buildChips();
 updateScores(); updateProgress(); showWord();
-statusEl.innerHTML="Press <b>Enter</b> to start!"; statusEl.className="status-msg info";
+statusEl.innerHTML="Just start typing to begin!"; statusEl.className="status-msg info";
+spellInput.focus();
 </script>
 </body>
 </html>
