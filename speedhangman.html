@@ -214,6 +214,11 @@ body::after {
   color: var(--violet-light);
   box-shadow: 0 0 12px var(--violet-glow);
 }
+.chip.timer-off {
+  background: rgba(255,64,96,0.08);
+  border-color: var(--red);
+  color: var(--red);
+}
 
 /* ── START SCREEN ── */
 .start-screen {
@@ -727,14 +732,16 @@ body::after {
   <!-- Controls -->
   <div class="controls">
     <div class="ctrl-section">
-      <div class="ctrl-group-label">// grade level</div>
-      <div class="ctrl-group" id="level-bar"></div>
-    </div>
-    <div class="ctrl-section">
       <div class="ctrl-group-label">// mode</div>
       <div class="ctrl-group">
         <button class="chip active" id="btn-normal" onclick="setMode('normal')">NORMAL</button>
         <button class="chip mode-speed" id="btn-speed" onclick="setMode('speed')">SPEED ⚡</button>
+      </div>
+    </div>
+    <div class="ctrl-section">
+      <div class="ctrl-group-label">// timer</div>
+      <div class="ctrl-group">
+        <button class="chip active" id="btn-timer" onclick="toggleTimer()">⏱ TIMER ON</button>
       </div>
     </div>
   </div>
@@ -768,7 +775,7 @@ body::after {
     <div class="board">
       <div class="board-left">
         <div class="info-row">
-          <span class="badge badge-level" id="level-label">Pre-Primer</span>
+          <span class="badge badge-level">ALL LEVELS</span>
           <span class="badge badge-len" id="word-len-label">4 letters</span>
           <span class="badge badge-combo" id="combo-badge" style="display:none"></span>
         </div>
@@ -818,20 +825,12 @@ body::after {
 </div>
 
 <script>
-const WORDS = {
-  preprimer:["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","two","up","we","where","yellow","you"],
-  primer:["all","am","are","at","ate","be","black","brown","but","came","did","do","eat","four","get","good","have","he","into","like","must","new","no","now","on","our","out","please","pretty","ran","ride","saw","say","she","so","soon","that","there","they","this","too","under","want","was","well","went","what","white","who","will","with","yes"],
-  first:["after","again","an","any","as","ask","by","could","every","fly","from","give","going","had","has","her","him","his","how","just","know","let","live","may","of","old","once","open","over","put","round","some","stop","take","thank","them","then","think","walk","were","when"],
-  second:["always","around","because","been","before","best","both","buy","call","cold","does","don't","fast","first","five","found","gave","goes","green","its","made","many","off","or","pull","read","right","sing","sit","sleep","tell","their","these","those","upon","us","use","very","wash","which","why","wish","work","would","write","your"],
-  third:["about","better","bring","carry","clean","cut","done","draw","drink","eight","fall","far","full","got","grow","hold","hot","hurt","if","keep","kind","laugh","light","long","much","myself","never","nine","only","own","pick","seven","shall","show","six","small","start","ten","today","together","try","warm"]
-};
-const LEVEL_LABELS = {preprimer:"PRE-K",primer:"K",first:"GR.1",second:"GR.2",third:"GR.3"};
-const LEVEL_FULL = {preprimer:"Pre-Primer",primer:"Primer",first:"1st Grade",second:"2nd Grade",third:"3rd Grade"};
+const ALL_WORDS = ["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","two","up","we","where","yellow","you","all","am","are","at","ate","be","black","brown","but","came","did","do","eat","four","get","good","have","he","into","like","must","new","no","now","on","our","out","please","pretty","ran","ride","saw","say","she","so","soon","that","there","they","this","too","under","want","was","well","went","what","white","who","will","with","yes","after","again","an","any","as","ask","by","could","every","fly","from","give","going","had","has","her","him","his","how","just","know","let","live","may","of","old","once","open","over","put","round","some","stop","take","thank","them","then","think","walk","were","when","always","around","because","been","before","best","both","buy","call","cold","does","don't","fast","first","five","found","gave","goes","green","its","made","many","off","or","pull","read","right","sing","sit","sleep","tell","their","these","those","upon","us","use","very","wash","which","why","wish","work","would","write","your","about","better","bring","carry","clean","cut","done","draw","drink","eight","fall","far","full","got","grow","hold","hot","hurt","if","keep","kind","laugh","light","long","much","myself","never","nine","only","own","pick","seven","shall","show","six","small","start","ten","today","together","try","warm"];
 const HM_PARTS = ["hm-head","hm-body","hm-larm","hm-rarm","hm-lleg","hm-rleg","hm-lfoot","hm-rfoot"];
 
 const state = {
   word:"",revealed:[],misses:[],lives:8,maxLives:8,
-  gameOver:true,level:"preprimer",mode:"normal",
+  gameOver:true,mode:"normal",timerOn:true,
   wins:0,losses:0,streak:0,bestStreak:0,
   usedWords:new Set(),started:false
 };
@@ -878,6 +877,12 @@ function flashScreen(type) {
 // Timer
 function resetTimer() {
   clearInterval(timerId);
+  if(!state.timerOn) {
+    $("timer-fill").style.width="100%";
+    $("timer-fill").style.backgroundColor="var(--text-dim)";
+    $("timer-text").textContent="∞";
+    return;
+  }
   timerRemaining = timerDuration;
   updateTimerUI();
   timerId = setInterval(()=>{
@@ -902,6 +907,20 @@ function updateTimerUI() {
   if(pct>0.5) { fill.style.backgroundColor="var(--lime)"; }
   else if(pct>0.25) { fill.style.backgroundColor="var(--amber)"; }
   else { fill.style.backgroundColor="var(--red)"; }
+}
+function toggleTimer() {
+  state.timerOn = !state.timerOn;
+  const btn=$("btn-timer");
+  btn.textContent = state.timerOn ? "⏱ TIMER ON" : "⏱ TIMER OFF";
+  btn.classList.toggle("active", state.timerOn);
+  btn.classList.toggle("timer-off", !state.timerOn);
+  const label=$("timer-label");
+  if(!state.timerOn) {
+    label.textContent="NO TIMER · relaxed mode";
+  } else {
+    label.textContent = state.mode==="speed"?"SPEED · 5s per guess":"NORMAL · 10s per guess";
+  }
+  if(state.started) resetTimer();
 }
 
 // Level bar
@@ -1000,9 +1019,8 @@ function updateHangman() {
 }
 
 function pickWord() {
-  const pool=WORDS[state.level];
-  const avail=pool.filter(w=>!state.usedWords.has(w));
-  const list=avail.length>0?avail:pool;
+  const avail=ALL_WORDS.filter(w=>!state.usedWords.has(w));
+  const list=avail.length>0?avail:ALL_WORDS;
   if(avail.length===0) state.usedWords.clear();
   const word=list[Math.floor(Math.random()*list.length)];
   state.usedWords.add(word);
@@ -1019,27 +1037,13 @@ function newWord() {
   resetHangman(); updateWordDisplay(); updateMisses(); updateLives(); updateCombo(); resetTimer();
 }
 
-function setLevel(key) {
-  state.level=key;
-  state.usedWords.clear();
-  $("level-label").textContent=LEVEL_FULL[key];
-  document.querySelectorAll(".chip").forEach(b=>{
-    if(Object.keys(LEVEL_LABELS).includes(b.textContent.toLowerCase().replace(".","").replace("-","").replace(" ","")) ||
-       Object.values(LEVEL_LABELS).includes(b.textContent)) {
-      b.classList.remove("active");
-    }
-  });
-  buildLevelBar();
-  if(state.started) newWord();
-}
-
 function setMode(m) {
   state.mode=m;
   const nb=$("btn-normal"), sb=$("btn-speed");
   nb.classList.toggle("active",m==="normal");
   sb.classList.toggle("active",m==="speed");
   timerDuration = m==="speed"?5:10;
-  $("timer-label").textContent = m==="speed"?"SPEED · 5s per guess":"NORMAL · 10s per guess";
+  if(state.timerOn) $("timer-label").textContent = m==="speed"?"SPEED · 5s per guess":"NORMAL · 10s per guess";
   if(state.started) resetTimer();
 }
 
@@ -1126,7 +1130,6 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="Enter"){ newWord(); }
 });
 
-buildLevelBar();
 buildKeyboard();
 setMode("normal");
 </script>
