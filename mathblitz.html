@@ -16,7 +16,6 @@
     color: #1a1a2e;
   }
 
-  /* Remove number input spinners */
   input[type=number]::-webkit-inner-spin-button,
   input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type=number] { -moz-appearance: textfield; }
@@ -36,6 +35,11 @@
     40% { transform: translateX(8px); }
     60% { transform: translateX(-4px); }
     80% { transform: translateX(4px); }
+  }
+  @keyframes streakPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
   }
 
   .header { text-align: center; margin-bottom: 20px; }
@@ -57,21 +61,8 @@
   .score-correct { color: #34a853; }
   .score-wrong { color: #e74c3c; }
   .score-pct { color: #888; }
-  .score-streak { color: #667eea; }
-  .score-streak.streak-correct { color: #34a853; }
-  .score-streak.streak-wrong { color: #e74c3c; }
 
-  @keyframes streakPop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.3); }
-    100% { transform: scale(1); }
-  }
-  .streak-pop { animation: streakPop 0.3s ease; }
-
-  .streak-area {
-    text-align: center;
-    margin-bottom: 16px;
-  }
+  .streak-area { text-align: center; margin-bottom: 16px; }
   .streak-area .score-streak {
     display: inline-block;
     font-size: 20px;
@@ -84,6 +75,7 @@
   }
   .streak-area .score-streak.streak-correct { color: #34a853; }
   .streak-area .score-streak.streak-wrong { color: #e74c3c; }
+  .streak-pop { animation: streakPop 0.3s ease; }
 
   .settings-toggle {
     text-align: center;
@@ -143,9 +135,9 @@
   }
   .chip-icon { font-size: 16px; }
 
-  .diff-buttons { display: flex; gap: 8px; }
-  .diff-btn {
-    padding: 7px 20px;
+  .timer-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  .timer-btn {
+    padding: 7px 16px;
     border-radius: 99px;
     border: 2px solid #e0e0e5;
     background: transparent;
@@ -155,12 +147,12 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
   }
-  .diff-btn.active-easy { border-color: #34a853; background: #34a853; color: #fff; }
-  .diff-btn.active-medium { border-color: #f5a623; background: #f5a623; color: #fff; }
-  .diff-btn.active-hard { border-color: #e74c3c; background: #e74c3c; color: #fff; }
+  .timer-btn .timer-btn-icon { margin-right: 4px; }
+  .timer-btn.active-fast { border-color: #e74c3c; background: #e74c3c; color: #fff; }
+  .timer-btn.active-normal { border-color: #f5a623; background: #f5a623; color: #fff; }
+  .timer-btn.active-slow { border-color: #34a853; background: #34a853; color: #fff; }
 
   .card {
     max-width: 520px;
@@ -290,27 +282,6 @@
     font-family: 'DM Sans', sans-serif;
   }
 
-  /* Timer speed buttons */
-  .timer-buttons { display: flex; gap: 8px; }
-  .timer-btn {
-    padding: 7px 16px;
-    border-radius: 99px;
-    border: 2px solid #e0e0e5;
-    background: transparent;
-    color: #777;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.02em;
-  }
-  .timer-btn .timer-btn-icon { margin-right: 4px; }
-  .timer-btn.active-fast { border-color: #e74c3c; background: #e74c3c; color: #fff; }
-  .timer-btn.active-normal { border-color: #f5a623; background: #f5a623; color: #fff; }
-  .timer-btn.active-slow { border-color: #34a853; background: #34a853; color: #fff; }
-
-  /* Timer bar on card */
   .timer-bar-wrapper {
     width: 100%;
     height: 6px;
@@ -384,10 +355,6 @@
     <div class="timer-buttons" id="timerButtons"></div>
   </div>
   <div style="margin-top: 16px;">
-    <div class="section-label">Difficulty</div>
-    <div class="diff-buttons" id="diffButtons"></div>
-  </div>
-  <div style="margin-top: 16px;">
     <div class="section-label">Practice Topics</div>
     <div class="chips" id="topicChips"></div>
   </div>
@@ -399,6 +366,8 @@
 
 <script>
 const CATEGORIES = {
+  numberBonds10:      { label: "Number Bonds to 10",       icon: "🔟",  active: false },
+  subtraction10:      { label: "Subtraction within 10",    icon: "🔢",  active: false },
   numberBonds:        { label: "Number Bonds to 20",       icon: "🔗",  active: true },
   timesTables:        { label: "Times Tables (to 12)",     icon: "✖️",  active: true },
   missingAddends:     { label: "Missing Addends",          icon: "➕",  active: false },
@@ -407,14 +376,13 @@ const CATEGORIES = {
   subtraction3Digit:  { label: "Subtraction (up to 3 digits)", icon: "📉", active: false },
 };
 
-let difficulty = "easy";
 let currentProblem = null;
-let feedback = null; // null | 'correct' | 'wrong'
+let feedback = null;
 let score = { correct: 0, total: 0 };
-let streak = { type: null, count: 0, best: 0 }; // type: 'correct' | 'wrong' | null
+let streak = { type: null, count: 0, best: 0 };
 let settingsOpen = true;
 let timerEnabled = false;
-let timerSpeed = null; // null | 'fast' | 'normal' | 'slow'
+let timerSpeed = null;
 let timerInterval = null;
 let timerRemaining = 0;
 let timerDuration = 0;
@@ -428,8 +396,19 @@ const TIMER_SPEEDS = {
 const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 function generateProblem(cat) {
-  const d = difficulty;
   switch (cat) {
+    case "numberBonds10": {
+      const a = rand(0, 10), b = 10 - a;
+      return Math.random() > 0.5
+        ? { display: `${a} + ? = 10`, answer: b }
+        : { display: `? + ${b} = 10`, answer: a };
+    }
+    case "subtraction10": {
+      const a = rand(0, 10), b = rand(0, a);
+      return Math.random() > 0.5
+        ? { display: `${a} − ${b} = ?`, answer: a - b }
+        : { display: `${a} − ? = ${a - b}`, answer: b };
+    }
     case "numberBonds": {
       const a = rand(0, 20), b = 20 - a;
       return Math.random() > 0.5
@@ -437,36 +416,29 @@ function generateProblem(cat) {
         : { display: `? + ${b} = 20`, answer: a };
     }
     case "timesTables": {
-      const mx = d === "easy" ? 5 : d === "medium" ? 9 : 12;
-      const a = rand(1, mx), b = rand(1, 12), v = rand(0, 2);
+      const a = rand(1, 12), b = rand(1, 12), v = rand(0, 2);
       if (v === 0) return { display: `${a} × ${b} = ?`, answer: a * b };
       if (v === 1) return { display: `? × ${b} = ${a * b}`, answer: a };
       return { display: `${a} × ? = ${a * b}`, answer: b };
     }
     case "missingAddends": {
-      const mx = d === "easy" ? 20 : d === "medium" ? 50 : 100;
-      const total = rand(2, mx), a = rand(0, total), b = total - a;
+      const total = rand(2, 100), a = rand(0, total), b = total - a;
       return rand(0, 1) === 0
         ? { display: `? + ${b} = ${total}`, answer: a }
         : { display: `${a} + ? = ${total}`, answer: b };
     }
     case "missingSubtrahends": {
-      const mx = d === "easy" ? 20 : d === "medium" ? 50 : 100;
-      const total = rand(2, mx), sub = rand(0, total), res = total - sub;
+      const total = rand(2, 100), sub = rand(0, total), res = total - sub;
       return rand(0, 1) === 0
         ? { display: `${total} − ? = ${res}`, answer: sub }
         : { display: `? − ${sub} = ${res}`, answer: total };
     }
     case "addition3Digit": {
-      const maxV = d === "easy" ? 99 : d === "medium" ? 499 : 999;
-      const minV = d === "easy" ? 10 : 100;
-      const a = rand(minV, maxV), b = rand(minV, maxV);
+      const a = rand(100, 999), b = rand(100, 999);
       return { display: `${a} + ${b} = ?`, answer: a + b };
     }
     case "subtraction3Digit": {
-      const maxV = d === "easy" ? 99 : d === "medium" ? 499 : 999;
-      const minV = d === "easy" ? 10 : 100;
-      let a = rand(minV, maxV), b = rand(minV, maxV);
+      let a = rand(100, 999), b = rand(100, 999);
       if (b > a) [a, b] = [b, a];
       return { display: `${a} − ${b} = ?`, answer: a - b };
     }
@@ -476,8 +448,6 @@ function generateProblem(cat) {
 function getActiveCategories() {
   return Object.entries(CATEGORIES).filter(([, v]) => v.active).map(([k]) => k);
 }
-
-// --- Render functions ---
 
 function renderChips() {
   const container = document.getElementById("topicChips");
@@ -490,21 +460,6 @@ function renderChips() {
       CATEGORIES[key].active = !CATEGORIES[key].active;
       renderChips();
       checkEmpty();
-    });
-    container.appendChild(btn);
-  });
-}
-
-function renderDiffButtons() {
-  const container = document.getElementById("diffButtons");
-  container.innerHTML = "";
-  ["easy", "medium", "hard"].forEach((d) => {
-    const btn = document.createElement("button");
-    btn.className = "diff-btn" + (difficulty === d ? ` active-${d}` : "");
-    btn.textContent = d;
-    btn.addEventListener("click", () => {
-      difficulty = d;
-      renderDiffButtons();
     });
     container.appendChild(btn);
   });
@@ -523,6 +478,7 @@ function updateScore() {
   } else {
     bar.classList.add("hidden");
     resetArea.style.display = "none";
+    document.getElementById("streakArea").classList.add("hidden");
   }
 }
 
@@ -544,14 +500,12 @@ function updateStreakDisplay() {
   const el = document.getElementById("streakDisplay");
   if (streak.count <= 0 || !streak.type) {
     area.classList.add("hidden");
-    el.textContent = "";
     return;
   }
   area.classList.remove("hidden");
   const icon = streak.type === "correct" ? "🔥" : "💀";
   el.className = "score-streak" + (streak.type === "correct" ? " streak-correct" : " streak-wrong");
   el.innerHTML = `${icon} ${streak.count} in a row`;
-  // Pop animation
   el.classList.remove("streak-pop");
   el.offsetHeight;
   el.classList.add("streak-pop");
@@ -564,9 +518,11 @@ function checkEmpty() {
   if (active.length === 0) {
     card.classList.add("hidden");
     msg.classList.remove("hidden");
+    currentProblem = null;
+    stopTimer();
   } else {
     msg.classList.add("hidden");
-    if (!currentProblem) nextProblem();
+    nextProblem();
   }
 }
 
@@ -597,7 +553,6 @@ function renderProblem() {
   input.disabled = false;
   setTimeout(() => input.focus(), 50);
 
-  // Hide Check button in timed mode
   const checkBtn = document.getElementById("checkBtn");
   if (timerEnabled) {
     checkBtn.classList.add("hidden");
@@ -615,7 +570,6 @@ function renderActionButtons() {
   const container = document.getElementById("actionButtons");
   container.innerHTML = "";
 
-  // In timed mode, no manual buttons — everything auto-advances
   if (timerEnabled) return;
 
   if (feedback) {
@@ -639,7 +593,7 @@ function renderActionButtons() {
   }
 }
 
-function showFeedback(isCorrect, showAns, fromTimer) {
+function showFeedback(isCorrect, showAns) {
   stopTimer();
   const area = document.getElementById("feedbackArea");
   area.classList.remove("hidden");
@@ -661,7 +615,6 @@ function showFeedback(isCorrect, showAns, fromTimer) {
   }
   renderActionButtons();
 
-  // In timed mode, always auto-advance
   if (timerEnabled) {
     setTimeout(() => {
       if (feedback) nextProblem();
@@ -682,7 +635,7 @@ function handleCheck() {
   showFeedback(isCorrect, !isCorrect);
 }
 
-// --- Timer functions ---
+// --- Timer ---
 
 function stopTimer() {
   if (timerInterval) {
@@ -731,7 +684,6 @@ function startTimer() {
       updateTimerDisplay();
       stopTimer();
       if (!feedback) {
-        // Check whatever is typed when time runs out
         const input = document.getElementById("answerInput");
         const val = input.value.trim();
         const isCorrect = val !== "" && parseInt(val, 10) === currentProblem.answer;
@@ -758,19 +710,16 @@ function renderTimerButtons() {
     btn.innerHTML = `<span class="timer-btn-icon">${icon}</span>${label} (${seconds}s)`;
     btn.addEventListener("click", () => {
       if (timerEnabled && timerSpeed === key) {
-        // Clicking the active button toggles timer off
         timerEnabled = false;
         timerSpeed = null;
         stopTimer();
         document.getElementById("timerText").classList.add("hidden");
         document.getElementById("timerBarWrapper").classList.add("hidden");
-        // Show Check button again if mid-problem
         if (currentProblem && !feedback) {
           document.getElementById("checkBtn").classList.remove("hidden");
           renderActionButtons();
         }
       } else {
-        // Activate this speed
         timerEnabled = true;
         timerSpeed = key;
         if (currentProblem && !feedback) {
@@ -785,21 +734,15 @@ function renderTimerButtons() {
   });
 }
 
-// --- Event listeners ---
+// --- Events ---
 
 document.getElementById("checkBtn").addEventListener("click", handleCheck);
 
-// Global Enter key handler
 document.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
-    // In timed mode, Enter does nothing — wait for timer
     if (timerEnabled) return;
-    // In untimed mode: Enter checks or advances
-    if (feedback) {
-      nextProblem();
-    } else {
-      handleCheck();
-    }
+    if (feedback) nextProblem();
+    else handleCheck();
   }
 });
 
@@ -824,7 +767,6 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 
 // --- Init ---
 renderChips();
-renderDiffButtons();
 renderTimerButtons();
 updateScore();
 checkEmpty();
