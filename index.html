@@ -427,7 +427,7 @@
                         <span class="dropdown-arrow"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></span>
                     </button>
                     <div class="dropdown-menu">
-                        <a href="quiz-hub.html">
+                        <a href="quiz-hub.html" onclick="return gateLink(event, 'diagnostics')">
                             <span class="menu-icon indigo">
                                 <svg viewBox="0 0 24 24">
                                     <circle cx="12" cy="12" r="10"></circle>
@@ -577,9 +577,15 @@
         let pendingHref = null;
         let pendingType = null;
 
-        const unlocked = { literacy: false, math: false, guides: false, diagnostics: false };
+        // Map each gate type to the sessionStorage key used on the destination pages,
+        // so unlocking here carries through (and vice versa).
+        const sessionKey = { guides: 'guidesUnlocked', diagnostics: 'guidesUnlocked', literacy: 'appsUnlocked', math: 'appsUnlocked' };
         // Types that auto-unlock during school hours. Others always require the password.
         const timeUnlockTypes = ['literacy', 'math'];
+
+        function isUnlocked(type) {
+            return sessionStorage.getItem(sessionKey[type]) === '1';
+        }
 
         function isSchoolHours() {
             const now = new Date();
@@ -594,7 +600,7 @@
 
         function gateLink(event, type) {
             const allowTime = timeUnlockTypes.includes(type);
-            if (unlocked[type] || (allowTime && isSchoolHours())) return true;
+            if (isUnlocked(type) || (allowTime && isSchoolHours())) return true;
             event.preventDefault();
             event.stopPropagation();
             pendingHref = event.currentTarget.getAttribute('href');
@@ -642,7 +648,7 @@
             const error = document.getElementById('modalError');
 
             if (input.value.toLowerCase().trim() === PASSWORD) {
-                unlocked[pendingType] = true;
+                sessionStorage.setItem(sessionKey[pendingType], '1');
                 closeModal();
                 if (pendingHref) window.location.href = pendingHref;
             } else {
