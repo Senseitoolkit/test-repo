@@ -74,16 +74,32 @@
     padding:8px 20px;border-radius:99px;font-size:clamp(15px,1.7vw,22px);
     box-shadow:0 4px 0 rgba(0,0,0,.15);white-space:nowrap;
   }
-  .timerwrap{flex:1;display:flex;align-items:center;gap:14px;}
+  .timerwrap{flex:1;display:flex;align-items:center;gap:12px;}
+  .timebtn{
+    border:none;cursor:pointer;background:rgba(255,255,255,.10);color:#fff;
+    font-family:'Baloo 2',var(--font);font-weight:800;font-size:clamp(13px,1.4vw,18px);
+    padding:8px 12px;border-radius:12px;transition:.12s;line-height:1;white-space:nowrap;
+  }
+  .timebtn:hover{background:rgba(255,255,255,.22);transform:translateY(-1px);}
+  .timebtn:active{transform:translateY(1px);}
   .clock{
     font-family:'Baloo 2';font-weight:800;font-size:clamp(26px,3.4vw,48px);
     min-width:2.6ch;text-align:center;line-height:1;
     background:rgba(255,255,255,.08);padding:6px 16px;border-radius:14px;
+    transition:color .2s;
   }
   .clock.warn{color:var(--gold);}
-  .clock.over{color:var(--coral);}
+  .clock.over{color:var(--coral);animation:clockpulse .8s ease-in-out infinite;}
+  @keyframes clockpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
   .bar{flex:1;height:16px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;}
-  .bar > i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:99px;transition:width 1s linear;}
+  .bar > i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:99px;transition:width .4s linear;}
+  /* transition countdown */
+  .trans-count{font-family:'Baloo 2',var(--font);font-weight:800;font-size:clamp(16px,1.9vw,26px);color:var(--gold);margin-top:6px;}
+  .trans-count span{display:inline-block;min-width:1.4ch;}
+  /* full-screen rotation flash */
+  .flash{position:fixed;inset:0;z-index:90;pointer-events:none;background:var(--gold);opacity:0;}
+  .flash.go{animation:flashfade 1s ease-out;}
+  @keyframes flashfade{0%{opacity:.55;}100%{opacity:0;}}
 
   /* main content area */
   .content{flex:1;padding:6px 30px 26px;overflow:auto;min-height:0;}
@@ -275,14 +291,15 @@
       <div class="logo" id="brandLogo">📚</div>
       <div>
         <h1 id="brandTitle">Literacy Centers</h1>
-        <div class="tag" id="brandSub">Self-management · Routine · Skillful</div>
+        <div class="tag" id="brandSub">Skillful · Self-managed · Routines</div>
       </div>
     </div>
     <div class="controls">
-      <button class="iconbtn" id="prevBtn" title="Previous" aria-label="Previous">‹</button>
-      <button class="iconbtn play" id="playBtn" title="Start / Pause" aria-label="Play or pause">▶</button>
-      <button class="iconbtn" id="nextBtn" title="Next" aria-label="Next">›</button>
-      <button class="iconbtn" id="fsBtn" title="Fullscreen" aria-label="Fullscreen">⛶</button>
+      <button class="iconbtn" id="prevBtn" title="Previous (←)" aria-label="Previous">‹</button>
+      <button class="iconbtn play" id="playBtn" title="Start / Pause (Space)" aria-label="Play or pause">▶</button>
+      <button class="iconbtn" id="nextBtn" title="Next (→)" aria-label="Next">›</button>
+      <button class="iconbtn" id="soundBtn" title="Sound on/off (M)" aria-label="Toggle sound">🔔</button>
+      <button class="iconbtn" id="fsBtn" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
       <button class="iconbtn" id="gearBtn" title="Edit" aria-label="Edit settings">⚙</button>
     </div>
   </div>
@@ -290,7 +307,9 @@
   <div class="statusrow" id="statusRow">
     <div class="rot-label" id="rotLabel">Get Ready</div>
     <div class="timerwrap">
+      <button class="timebtn" id="minusMin" title="Subtract one minute" aria-label="Subtract one minute">−1m</button>
       <div class="clock" id="clock">--:--</div>
+      <button class="timebtn" id="plusMin" title="Add one minute" aria-label="Add one minute">+1m</button>
       <div class="bar"><i id="barFill"></i></div>
     </div>
   </div>
@@ -301,6 +320,8 @@
 
   <div class="footer" id="footer"></div>
 </div>
+
+<div class="flash" id="flash" aria-hidden="true"></div>
 
 <!-- SETTINGS -->
 <div class="overlay" id="overlay">
@@ -328,6 +349,14 @@
           <input type="number" id="setMins" min="1" max="60" style="width:90px">
           <label style="min-width:auto">Auto-advance</label>
           <select id="setAuto"><option value="true">On</option><option value="false">Off</option></select>
+        </div>
+        <div class="row">
+          <label>“Almost up” warning</label>
+          <input type="number" id="setWarn" min="0" max="600" style="width:90px"> <span style="font-size:13px;color:#5a6478;font-weight:600">seconds before end (0 = off)</span>
+        </div>
+        <div class="row">
+          <label>Transition length</label>
+          <input type="number" id="setTransSecs" min="2" max="120" style="width:90px"> <span style="font-size:13px;color:#5a6478;font-weight:600">seconds on the “Rotate!” screen</span>
         </div>
         <div class="row">
           <label>Header icon (emoji)</label>
@@ -490,7 +519,7 @@ const PRESETS={
     auto:true,
     logo:"🔄",
     text:{
-      subtitle:"Self-management · Routine · Skillful",
+      subtitle:"Skillful · Self-managed · Routines",
       introLead:"Find your group and get your materials ready.",
       startBtn:"Start Rotations",
       transHeading:"Rotate!",
@@ -551,7 +580,7 @@ function load(){
     const r=localStorage.getItem(KEY);
     if(r){const d=JSON.parse(r);return migrate(d);}
   }catch(e){}
-  return JSON.parse(JSON.stringify(DEFAULT));
+  return migrate(JSON.parse(JSON.stringify(DEFAULT)));
 }
 function migrate(d){
   // older saves had no group names — derive from the widest rotation
@@ -562,6 +591,9 @@ function migrate(d){
   if(!d.logo) d.logo="📚";
   d.text=Object.assign({},DEFAULT.text,d.text||{});
   if(!Array.isArray(d.text.reminders)) d.text.reminders=DEFAULT.text.reminders.slice();
+  if(typeof d.transitionSecs!=="number") d.transitionSecs=8;   // auto-transition countdown
+  if(typeof d.warnSecs!=="number") d.warnSecs=60;              // "almost up" warning threshold
+  if(typeof d.chime!=="boolean") d.chime=true;                 // sound on/off
   return d;
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}}
@@ -580,8 +612,11 @@ function buildScenes(){
 }
 let pos=0;          // current scene
 let running=false;  // auto mode active
-let remaining=0;    // seconds left in a rotation
+let remaining=0;    // seconds left in current phase
 let tick=null;
+let endAt=0;        // timestamp (ms) when current phase ends — drift-free
+let warned=false;   // warning chime already played this rotation
+let phase="rotation"; // "rotation" | "transition" — what the timer is counting
 
 const EXTRA_COLORS=[
   {c:"#c0392b",d:"#922b21",soft:"#fbe4e0",hex:"#c0392b"},
@@ -619,6 +654,7 @@ function render(){
     statusRow.style.visibility="hidden";
     footer.style.display="flex";
     content.innerHTML=transitionHTML(scene.from,scene.to);
+    if(running && data.auto){ startTransitionCountdown(); } else { clearInterval(tick); }
   } else { // rotation
     statusRow.style.visibility="visible";
     footer.style.display="flex";
@@ -626,6 +662,11 @@ function render(){
     content.innerHTML=rotationHTML(scene.index);
     if(running){ startTimer(); } else { setClock(data.minutes*60,false); }
   }
+  // +/- time only useful during a running rotation
+  const showTime = scene.type==="rotation" && running;
+  const pm=document.getElementById("plusMin"), mm=document.getElementById("minusMin");
+  if(pm) pm.style.visibility=showTime?"visible":"hidden";
+  if(mm) mm.style.visibility=showTime?"visible":"hidden";
   updatePlayBtn();
 }
 
@@ -703,10 +744,13 @@ function transitionHTML(fromR,toR){
     </div>`;
   }).join("");
   const emo=data.text.transEmoji?esc(data.text.transEmoji)+" ":"";
+  const secs=Math.max(2,data.transitionSecs||8);
+  const counter=(data.auto)?`<div class="trans-count">Next rotation in <span id="transCount">${secs}</span>s</div>`:"";
   return `<div class="transition">
     <div class="trans-badge">${emo}${esc(data.text.transHeading||"Rotate!")}</div>
     <div class="trans-sub">${esc(data.text.transSub||"")}</div>
     <div class="moves">${rows}</div>
+    ${counter}
   </div>`;
 }
 
@@ -724,19 +768,65 @@ function renderDots(){
 }
 
 /* ---------- TIMER ---------- */
+/* ---------- TIMER (timestamp-based, drift-free) ---------- */
 function startTimer(){
   clearInterval(tick);
-  remaining=data.minutes*60;
+  phase="rotation";
+  if(resuming && pausedLeft>0){
+    remaining=pausedLeft;
+    warned = remaining<=(data.warnSecs||0); // don't replay warning if already past it
+  } else {
+    remaining=data.minutes*60;
+    warned=false;
+  }
+  resuming=false; pausedLeft=0;
+  endAt=Date.now()+remaining*1000;
   setClock(remaining,true);
-  tick=setInterval(()=>{
-    remaining--;
-    setClock(remaining,true);
-    if(remaining<=0){
-      clearInterval(tick);
-      playChime();
-      setTimeout(()=>{ if(running) advance(); },800);
+  tick=setInterval(timerStep,250);
+}
+function startTransitionCountdown(){
+  // short countdown shown on the transition screen, then advance to next rotation
+  clearInterval(tick);
+  phase="transition";
+  const secs=Math.max(2,data.transitionSecs||8);
+  endAt=Date.now()+secs*1000;
+  remaining=secs;
+  updateTransitionClock(secs);
+  tick=setInterval(timerStep,250);
+}
+function timerStep(){
+  const left=Math.max(0,Math.round((endAt-Date.now())/1000));
+  if(phase==="rotation"){
+    remaining=left;
+    setClock(left,true);
+    if(!warned && data.warnSecs>0 && left<=data.warnSecs && left>0){
+      warned=true; if(data.chime) playChime("warn");
     }
-  },1000);
+    if(left<=0){
+      clearInterval(tick);
+      if(data.chime) playChime("end");
+      flashScreen();
+      if(running){ setTimeout(()=>{ if(running) advance(); },600); }
+    }
+  } else { // transition
+    remaining=left;
+    updateTransitionClock(left);
+    if(left<=0){
+      clearInterval(tick);
+      if(running) advance();
+    }
+  }
+}
+function updateTransitionClock(left){
+  const el=document.getElementById("transCount");
+  if(el) el.textContent=left;
+}
+function addTime(deltaSecs){
+  if(!running || phase!=="rotation") return;
+  endAt+=deltaSecs*1000;
+  const left=Math.max(0,Math.round((endAt-Date.now())/1000));
+  if(left>data.warnSecs) warned=false; // re-arm warning if we added enough time
+  setClock(left,true);
 }
 function setClock(sec,active){
   const clk=document.getElementById("clock");
@@ -745,9 +835,15 @@ function setClock(sec,active){
   const s=Math.max(0,sec);
   const m=Math.floor(s/60), ss=s%60;
   clk.textContent=`${m}:${String(ss).padStart(2,'0')}`;
-  clk.className="clock"+(s<=10&&active?" over":(s<=60&&active?" warn":""));
+  const warnLevel=data.warnSecs>0?data.warnSecs:60;
+  clk.className="clock"+(s<=10&&active?" over":(s<=warnLevel&&active?" warn":""));
   const pct=Math.max(0,Math.min(100,(s/total)*100));
   fill.style.width=pct+"%";
+}
+function flashScreen(){
+  const f=document.getElementById("flash");
+  if(!f) return;
+  f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
 }
 
 /* ---------- NAV ---------- */
@@ -755,34 +851,47 @@ function advance(){ if(pos<scenes.length-1){pos++;render();} else {stop();} }
 function back(){ if(pos>0){pos--;render();} }
 function jumpToFirstRotation(){ pos=scenes.findIndex(s=>s.type==="rotation"); if(pos<0)pos=0; }
 
+let pausedLeft=0;     // seconds left when paused on a rotation
+let resuming=false;   // resume current rotation instead of restarting
 function play(){
   const scene=scenes[pos];
   if(scene.type==="title"){ jumpToFirstRotation(); }
   else if(scene.type==="end"){ pos=0; jumpToFirstRotation(); }
+  else if(scene.type==="rotation" && pausedLeft>0){ resuming=true; }
   running=true; render();
 }
-function pause(){ running=false; clearInterval(tick); updatePlayBtn(); }
-function stop(){ running=false; clearInterval(tick); updatePlayBtn(); }
+function pause(){
+  running=false;
+  if(phase==="rotation"){ pausedLeft=Math.max(0,Math.round((endAt-Date.now())/1000)); }
+  clearInterval(tick);
+  updatePlayBtn();
+}
+function stop(){ running=false; pausedLeft=0; clearInterval(tick); updatePlayBtn(); }
 function togglePlay(){ running?pause():play(); }
 function updatePlayBtn(){ document.getElementById("playBtn").textContent=running?"⏸":"▶"; }
 
-/* manual next/prev should respect timer when in a rotation */
-function manualNext(){ clearInterval(tick); advance(); }
-function manualPrev(){ clearInterval(tick); back(); }
+/* manual next/prev */
+function manualNext(){ clearInterval(tick); pausedLeft=0; advance(); }
+function manualPrev(){ clearInterval(tick); pausedLeft=0; back(); }
 
 /* ---------- CHIME (WebAudio, no file needed) ---------- */
 let actx=null;
-function playChime(){
+function playChime(kind){
   try{
     actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==="suspended") actx.resume();
     const now=actx.currentTime;
-    [880,1175,1568].forEach((f,i)=>{
+    // warning = two gentle descending notes; end = rising three-note arpeggio
+    const notes = kind==="warn" ? [784,659] : [880,1175,1568];
+    const gap   = kind==="warn" ? 0.22 : 0.16;
+    const peak  = kind==="warn" ? 0.16 : 0.25;
+    notes.forEach((f,i)=>{
       const o=actx.createOscillator(),g=actx.createGain();
       o.type="sine";o.frequency.value=f;
       o.connect(g);g.connect(actx.destination);
-      const t=now+i*0.16;
+      const t=now+i*gap;
       g.gain.setValueAtTime(0,t);
-      g.gain.linearRampToValueAtTime(0.25,t+0.03);
+      g.gain.linearRampToValueAtTime(peak,t+0.03);
       g.gain.exponentialRampToValueAtTime(0.001,t+0.7);
       o.start(t);o.stop(t+0.75);
     });
@@ -796,6 +905,8 @@ function openSheet(){
   document.getElementById("setTitle").value=data.title;
   document.getElementById("setMins").value=data.minutes;
   document.getElementById("setAuto").value=String(data.auto);
+  document.getElementById("setWarn").value=data.warnSecs;
+  document.getElementById("setTransSecs").value=data.transitionSecs;
   document.getElementById("setLogo").value=data.logo||"📚";
   document.getElementById("setSubtitle").value=t.subtitle||"";
   document.getElementById("txtIntroLead").value=t.introLead||"";
@@ -1000,6 +1111,8 @@ function readSettingsFields(){
   data.title=g("setTitle").value;
   data.minutes=Math.max(1,Math.min(60,+g("setMins").value||20));
   data.auto=g("setAuto").value==="true";
+  data.warnSecs=Math.max(0,Math.min(600,+g("setWarn").value||0));
+  data.transitionSecs=Math.max(2,Math.min(120,+g("setTransSecs").value||8));
   data.logo=g("setLogo").value;
   const t=data.text;
   t.subtitle=g("setSubtitle").value;
@@ -1069,12 +1182,25 @@ function toggleFS(){
   if(!document.fullscreenElement){document.documentElement.requestFullscreen?.();}
   else{document.exitFullscreen?.();}
 }
+function toggleSound(){
+  data.chime=!data.chime;
+  persist();
+  updateSoundBtn();
+  if(data.chime) playChime("warn"); // brief confirmation when turning on
+}
+function updateSoundBtn(){
+  const b=document.getElementById("soundBtn");
+  if(b){ b.textContent=data.chime?"🔔":"🔕"; b.title=(data.chime?"Sound on":"Sound off")+" (M)"; }
+}
 
 /* ---------- WIRING ---------- */
 document.getElementById("playBtn").onclick=togglePlay;
 document.getElementById("nextBtn").onclick=manualNext;
 document.getElementById("prevBtn").onclick=manualPrev;
 document.getElementById("fsBtn").onclick=toggleFS;
+document.getElementById("soundBtn").onclick=toggleSound;
+document.getElementById("plusMin").onclick=()=>addTime(60);
+document.getElementById("minusMin").onclick=()=>addTime(-60);
 document.getElementById("gearBtn").onclick=openSheet;
 document.getElementById("closeSheet").onclick=closeSheet;
 document.getElementById("saveBtn").onclick=saveSettings;
@@ -1102,9 +1228,12 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="ArrowLeft"){manualPrev();}
   else if(e.key===" "){e.preventDefault();togglePlay();}
   else if(e.key.toLowerCase()==="f"){toggleFS();}
+  else if(e.key.toLowerCase()==="m"){toggleSound();}
+  else if(e.key==="+"||e.key==="="){addTime(60);}
+  else if(e.key==="-"||e.key==="_"){addTime(-60);}
 });
 
-buildScenes();render();
+buildScenes();updateSoundBtn();render();
 </script>
 </body>
 </html>
