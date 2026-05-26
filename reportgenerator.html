@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap');
+
+  :root {
+    --paper:#f5f0e6; --ink:#2b2620; --ink-soft:#5a5145;
+    --rust:#b5532a; --rust-deep:#8f3e1c; --olive:#6b7245;
+    --teal:#3d6b6b; --gold:#c08a2d;
+    --line:#d8cdb8; --card:#fbf8f1; --shadow:rgba(43,38,32,0.12);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    font-family:'Newsreader',Georgia,serif; background:var(--paper);
+    background-image:
+      radial-gradient(circle at 12% 20%, rgba(192,138,45,0.05), transparent 40%),
+      radial-gradient(circle at 88% 80%, rgba(61,107,107,0.05), transparent 40%);
+    color:var(--ink); line-height:1.5; min-height:100vh;
+  }
+  body::before {
+    content:""; position:fixed; inset:0; pointer-events:none; opacity:0.4; z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  header {
+    position:relative; z-index:1; padding:22px 38px 14px;
+    border-bottom:2px solid var(--ink); display:flex;
+    align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  .masthead h1 { font-family:'Fraunces',serif; font-weight:700; font-size:clamp(1.6rem,4vw,2.6rem); letter-spacing:-0.02em; line-height:0.95; }
+  .masthead h1 em { font-style:italic; color:var(--rust); }
+  .masthead .sub { font-style:italic; color:var(--ink-soft); font-size:0.9rem; margin-top:6px; max-width:60ch; }
+  .crest { font-family:'Fraunces',serif; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.2em; color:var(--ink-soft); text-align:right; border-left:1px solid var(--line); padding-left:14px; }
+  .crest strong { display:block; color:var(--rust); font-size:0.8rem; letter-spacing:0.16em; }
+
+  .layout { position:relative; z-index:1; display:grid; grid-template-columns:1fr 1fr; max-width:1600px; margin:0 auto; min-height:calc(100vh - 86px); }
+  .bank { padding:20px 38px 60px; border-right:1px dashed var(--line); }
+  .report-side { padding:20px 38px 60px; }
+
+  .tabs { display:flex; gap:5px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab {
+    font-family:'Fraunces',serif; font-weight:600; font-size:0.82rem; padding:9px 15px;
+    background:transparent; border:1.5px solid var(--ink); color:var(--ink);
+    cursor:pointer; border-radius:2px; transition:all 0.18s ease; line-height:1.1;
+  }
+  .tab:hover { background:rgba(43,38,32,0.06); }
+  .tab.active { color:var(--paper); }
+  .tab[data-area="tdi"].active{ background:var(--teal); border-color:var(--teal);}
+  .tab[data-area="home"].active{ background:var(--olive); border-color:var(--olive);}
+  .tab[data-area="pse"].active{ background:var(--rust); border-color:var(--rust);}
+
+  .area-intro { font-style:italic; color:var(--ink-soft); margin-bottom:14px; font-size:0.9rem; padding-left:12px; border-left:3px solid var(--gold); }
+
+  .meta-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .meta-row label { font-family:'Fraunces',serif; font-size:0.64rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); }
+  .meta-row input { font-family:'Newsreader',serif; font-size:0.95rem; padding:6px 10px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:2px; min-width:140px; }
+  .meta-row input:focus { outline:2px solid var(--gold); }
+
+  .group { margin-bottom:18px; }
+  .group h3 {
+    font-family:'Fraunces',serif; font-weight:600; font-size:0.72rem; text-transform:uppercase;
+    letter-spacing:0.15em; color:var(--ink); margin-bottom:9px; display:flex; align-items:center; gap:9px;
+  }
+  .group h3 .num { color:var(--rust); font-size:0.78rem; }
+  .group h3::after { content:""; flex:1; height:1px; background:var(--line); }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip {
+    font-family:'Newsreader',serif; font-size:0.92rem; padding:5px 12px; background:var(--card);
+    border:1px solid var(--line); border-radius:15px; cursor:pointer; transition:all 0.14s ease;
+    color:var(--ink); box-shadow:0 1px 2px var(--shadow); user-select:none; white-space:nowrap;
+  }
+  .chip:hover { transform:translateY(-1px); border-color:var(--ink-soft); box-shadow:0 3px 6px var(--shadow); }
+  .chip:active { transform:translateY(0); }
+  .chip.flash { background:var(--gold); color:#fff; border-color:var(--gold); }
+
+  .report-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; }
+  .report-head h2 { font-family:'Fraunces',serif; font-weight:700; font-size:1.35rem; }
+
+  .tpl-row { display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+  .tpl-row label { font-family:'Fraunces',serif; font-size:0.64rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); }
+  .tpl-row select { font-family:'Newsreader',serif; font-size:0.92rem; padding:6px 10px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:2px; max-width:100%; flex:1; min-width:200px; }
+  .tpl-row select:focus { outline:2px solid var(--gold); }
+
+  #report {
+    width:100%; min-height:320px; resize:vertical; font-family:'Newsreader',serif; font-size:1.04rem;
+    line-height:1.9; padding:18px 20px; background:var(--card); border:1px solid var(--line);
+    border-radius:3px; color:var(--ink); box-shadow:inset 0 1px 4px rgba(43,38,32,0.06);
+    background-image:repeating-linear-gradient(transparent, transparent 32px, rgba(184,83,42,0.06) 32px, rgba(184,83,42,0.06) 33px);
+  }
+  #report:focus { outline:2px solid var(--gold); }
+
+  .toolbar { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .btn {
+    font-family:'Fraunces',serif; font-weight:600; font-size:0.8rem; letter-spacing:0.04em;
+    padding:10px 18px; border:1.5px solid var(--ink); background:var(--ink); color:var(--paper);
+    cursor:pointer; border-radius:2px; transition:all 0.16s ease;
+  }
+  .btn:hover { background:var(--rust); border-color:var(--rust); }
+  .btn.ghost { background:transparent; color:var(--ink); }
+  .btn.ghost:hover { background:rgba(43,38,32,0.06); color:var(--ink); border-color:var(--ink); }
+
+  .hint { margin-top:16px; font-style:italic; font-size:0.84rem; color:var(--ink-soft); padding:12px 15px; background:rgba(192,138,45,0.08); border-radius:3px; border:1px dashed var(--line); }
+  .hint strong { font-style:normal; color:var(--rust-deep); }
+
+  .toast {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--paper); font-family:'Fraunces',serif; font-size:0.84rem;
+    letter-spacing:0.06em; padding:11px 22px; border-radius:3px; opacity:0; pointer-events:none;
+    transition:all 0.3s ease; z-index:50; box-shadow:0 6px 18px rgba(0,0,0,0.25);
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:920px){
+    .layout { grid-template-columns:1fr; }
+    .bank { border-right:none; border-bottom:1px dashed var(--line); }
+    header { padding:18px 20px 12px; }
+    .bank, .report-side { padding:18px 20px 48px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <div class="masthead">
+      <h1>Report <em>Generator</em></h1>
+      <p class="sub">Type the student's name, then tap keywords to gather rough notes. Expand the list into a full comment later.</p>
+    </div>
+    <div class="crest">Report<br><strong>Generator</strong><br>Comment Bank</div>
+  </header>
+
+  <div class="layout">
+    <section class="bank">
+      <div class="tabs">
+        <button class="tab active" data-area="tdi">Transdisciplinary Inquiry</button>
+        <button class="tab" data-area="home">How to Help at Home</button>
+        <button class="tab" data-area="pse">PSE</button>
+      </div>
+      <p class="area-intro" id="areaIntro"></p>
+      <div id="bankContent"></div>
+    </section>
+
+    <section class="report-side">
+      <div class="meta-row">
+        <label for="studentName">Student name</label>
+        <input type="text" id="studentName" placeholder="First name…" autocomplete="off">
+      </div>
+
+      <div class="report-head">
+        <h2>Rough Notes</h2>
+      </div>
+
+      <div class="tpl-row">
+        <label for="tplSelect">Start with a template</label>
+        <select id="tplSelect">
+          <option value="">— choose a generic frame —</option>
+        </select>
+      </div>
+
+      <textarea id="report" placeholder="Tap keywords on the left — they collect here as a comma list under the student's name. Add your own typing too. Use this as notes to expand into a full comment."></textarea>
+
+      <div class="toolbar">
+        <button class="btn" id="copyBtn">Copy Notes</button>
+        <button class="btn ghost" id="newBtn">New Student</button>
+        <button class="btn ghost" id="undoBtn">Undo</button>
+      </div>
+
+      <div class="hint">
+        <strong>How to use:</strong> Optionally pick a generic template to start a frame, set the name, then tap keywords to add details. Colon keywords (e.g. <em>central idea:</em>) drop the cursor in so you can type the specific. Copy the notes and expand them into a finished comment.
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast">Copied to clipboard</div>
+
+<script>
+/* Short keywords grouped by area. A keyword ending in ":" is a prompt
+   for you to type the specific detail right after it.
+   PSE strands & TDI levels follow the report framework. */
+const DATA = {
+  tdi: {
+    intro: "Transdisciplinary Inquiry — unit details, then Knowledge, Concept, Approaches to Learning, and Action (S / A / M), plus the learner profile and next steps.",
+    groups: [
+      { title:"Unit / central idea", chips:[
+        "unit:","central idea:","transdisciplinary theme:","line of inquiry:"
+      ]},
+      { title:"Knowledge (level)", chips:[
+        "M: understands central idea","A: some understanding","S: starting to develop",
+        "constructs meaning","extends prior knowledge","shares understanding with others",
+        "demonstrated the ability to","building a foundation"
+      ]},
+      { title:"Concept", chips:[
+        "uses new information","connects within subject","connects across subjects",
+        "form","function","causation","change","connection","perspective","responsibility","reflection"
+      ]},
+      { title:"Approaches to Learning", chips:[
+        "thinking skills","research skills","communication skills","social skills","self-management",
+        "uses skills consistently","needs prompting to use skills"
+      ]},
+      { title:"Action / Application", chips:[
+        "reflects then applies","applies independently","applies with support",
+        "takes personal action","takes community action","shows agency"
+      ]},
+      { title:"Learner Profile", chips:[
+        "inquirer","knowledgeable","thinker","communicator","principled",
+        "open-minded","caring","risk-taker","balanced","reflective"
+      ]},
+      { title:"Positive engagement", chips:[
+        "enthusiastic learner","participates eagerly","attentive during instruction",
+        "hard working in tasks","conscientious","observant","works quickly",
+        "does not waste class time","excellent work","making steady progress"
+      ]},
+      { title:"Areas to develop", chips:[
+        "progressing slowly","inconsistent quality","needs reminders to focus",
+        "vaguely understands","overestimates ability","rarely finishes tasks",
+        "limited ability to","lacks skills needed to","struggles to listen"
+      ]},
+      { title:"Next steps", chips:[
+        "keep trying to:","would benefit from:","will need to:",
+        "to take this further:","a valuable skill to learn:"
+      ]}
+    ]
+  },
+
+  pse: {
+    intro: "Personal, Social & Emotional — Personal, Social, and Emotional strands. Tap positives or concerns, then a next step. Concerns are worded factually to expand constructively.",
+    groups: [
+      { title:"Personal — positive", chips:[
+        "independent","responsible","participates eagerly","enthusiastic learner",
+        "attentive during instruction","hard working","conscientious","observant",
+        "mindful","self-controlled","well mannered","capable","diligent","works quickly"
+      ]},
+      { title:"Personal — concern", chips:[
+        "stubborn","poor time management","forgetful","poor retention","lacks self-control",
+        "makes poor decisions","impulsive","inattentive","careless","clumsy","perfectionist",
+        "often absent","easily distracted","slow worker","needs frequent reminders","rarely finishes work"
+      ]},
+      { title:"Social — positive", chips:[
+        "cooperative in class","thoughtful","well spoken","helpful to peers","helpful to teachers",
+        "supportive","understanding","shares well","honest","courteous","friendly","polite",
+        "respectful","likeable","caring","sociable","shows appreciation"
+      ]},
+      { title:"Social — concern", chips:[
+        "aggressive","selfish","makes excessive demands","uncooperative","disruptive",
+        "attention seeking","overly chatty","unhelpful","awkward","prone to peer pressure",
+        "overly silly","rarely interacts with peers","plays alone","rejects offers to play",
+        "chats in line","easily distracts others","interrupts peers"
+      ]},
+      { title:"Emotional — positive", chips:[
+        "happy","good natured","enjoys learning","confident in their work",
+        "receives correction well","very well behaved","sweet natured","thrives on encouragement"
+      ]},
+      { title:"Emotional — concern", chips:[
+        "occasional outbursts","tantrums","fussy","complains","sulks","apathetic",
+        "timid","quiet","shy","anxious","nervous","defensive","defiant","boastful",
+        "rude","insensitive","negative self-talk","struggles to control emotions","likes getting their own way"
+      ]},
+      { title:"Classroom behaviour", chips:[
+        "makes noise disruptions","shouts out during instruction","gets up during instruction",
+        "talks during quiet work","struggles to work independently without reminders",
+        "off-task without supervision","leaves seat without permission","difficulty following routines",
+        "rushes work","struggles to settle after breaks","struggles with self-control"
+      ]},
+      { title:"Progress phrases", chips:[
+        "made significant progress","beginning to communicate better with peers",
+        "finding ways to share interests","initiating play in healthier ways",
+        "increasingly confident","attitude has greatly improved","much happier with",
+        "efforts have improved","shown significant growth"
+      ]},
+      { title:"Next steps", chips:[
+        "would benefit greatly from:","it is important that they:","they will need to:",
+        "keep working on:","to improve further:"
+      ]},
+      { title:"Closing", chips:[
+        "a joy to teach","well-rounded","a delight to have in class"
+      ]}
+    ]
+  },
+
+  home: {
+    intro: "How to Help at Home — pick the support level (foundational / developing / extending), then specific suggestions families can use.",
+    groups: [
+      { title:"Support level", chips:[
+        "foundational support","developing skills","ready to extend"
+      ]},
+      { title:"Foundational — routines", chips:[
+        "consistent daily routine","consistent bedtime","specific encouragement",
+        "model each task","awareness of classroom expectations","one-on-one focused time"
+      ]},
+      { title:"Foundational — practice", chips:[
+        "master simple tasks first","practise phonics & letter formation","practise in interesting ways",
+        "lots of exposure & repetition","praise small improvements","work at or just below ability to build confidence"
+      ]},
+      { title:"Developing — environment", chips:[
+        "a literacy-rich environment","time to interact with peers","model good adult habits",
+        "find ways to engage enthusiastically","intrinsic & extrinsic incentives","room to be creative & make mistakes",
+        "specific encouraging feedback","balanced opportunities"
+      ]},
+      { title:"Developing — activities", chips:[
+        "a sport (cooperation & teamwork)","music for stamina & patterns","clubs","play dates",
+        "exploring","projects","responsibilities at home"
+      ]},
+      { title:"Developing — focus", chips:[
+        "complete work to their best","reflect on mistakes","don't give up when not perfect",
+        "stay positive","build everyday stamina","find interests and read about them"
+      ]},
+      { title:"Extending — challenge", chips:[
+        "abundant reading (books & comics)","daily writing","increased responsibilities",
+        "sports for leadership","music for commitment","independent learning (clubs, books, programs)"
+      ]},
+      { title:"Extending — perspective", chips:[
+        "gain perspective from others","travel & new experiences","embrace creativity beyond expectations",
+        "expand knowledge independently","a variety of activities to adapt"
+      ]},
+      { title:"Reading & writing", chips:[
+        "read together daily","predict & question while reading","discuss new words",
+        "retell stories","keep a journal","write lists, cards & notes"
+      ]},
+      { title:"Maths", chips:[
+        "practise number facts","cook & measure","talk about money","spot patterns","tell the time"
+      ]},
+      { title:"Partnership", chips:[
+        "reach out anytime","share home interests","valued learning partner","attend conferences"
+      ]}
+    ]
+  }
+};
+
+let currentArea = 'tdi';
+const bankContent = document.getElementById('bankContent');
+const areaIntro = document.getElementById('areaIntro');
+
+/* Generic comment templates per section. [name] = student name,
+   [they]/[their] etc. left as placeholders for the teacher to adjust. */
+const TEMPLATES = {
+  tdi: [
+    "[name] engaged with our unit on [central idea]. [They] showed [a developing / a clear] understanding of the central idea and made connections to [their] prior knowledge. Throughout the inquiry [they] used [thinking / research / communication] skills and [reflected on / applied] [their] learning.",
+    "During this unit, [name] explored [lines of inquiry] with [curiosity / enthusiasm]. [They] demonstrated the ability to [example], and applied [their] skills [independently / with support]. A next step is to [next step].",
+    "[name] approached the unit as [a thinker / an inquirer / a communicator]. [They] [constructed meaning / asked thoughtful questions] and took [personal / community] action by [action]. Overall [they] [met / are approaching] expectations for this unit.",
+    "[name] is making steady progress and is building a foundation in [area]. While [they] [vaguely understand / need reminders to] [skill], with continued practice [they] will [next step]."
+  ],
+  home: [
+    "To support [name] at home, you could [suggestion]. Reading together daily and talking about [their] day will also help. [They] would benefit from [focus area].",
+    "[name] is doing well, and you can extend this at home by [suggestion]. Encouraging [name] to [activity] would build on what we are doing in class. Thank you for being a valued partner in [their] learning.",
+    "[name] would benefit from a consistent routine and specific, encouraging feedback. Practising [skill] in interesting ways and praising small improvements will build [their] confidence. Please reach out anytime.",
+    "[name] is ready to be challenged at home. Abundant opportunities to [activity], along with gaining perspective through [travel / clubs / new experiences], will help [them] continue to grow independently."
+  ],
+  pse: [
+    "[name] is [a conscientious / an enthusiastic / a responsible] member of our class. [They] are [cooperative / helpful / respectful] with peers and [confident / happy] in [their] work. [They] [receive correction well / participate eagerly] and are [well mannered / hard working].",
+    "[name] has shown [significant] growth this semester. [They] are [increasingly confident / beginning to communicate better with peers] and [their] attitude towards [area] has greatly improved. A gentle next step is to [next step].",
+    "[name] is [likeable / kind / hardworking] and approaches learning positively. While [they] sometimes [concern], [they] [are learning to / are working on] [improvement]. Overall, [name] is a joy to teach.",
+    "While [name] is capable, [they] would benefit from support with [concern]. [They] sometimes [behaviour] during [instruction / independent work], and [they] need reminders to [self-regulate / focus / work independently]. With consistent encouragement, [name] is making progress in this area."
+  ]
+};
+
+const tplSelect = document.getElementById('tplSelect');
+
+function populateTemplates(area){
+  tplSelect.innerHTML = '<option value="">— choose a generic frame —</option>';
+  TEMPLATES[area].forEach((t, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = 'Template ' + (i+1) + ': ' + t.slice(0, 48) + '…';
+    tplSelect.appendChild(opt);
+  });
+}
+
+function applyTemplate(area, idx){
+  let t = TEMPLATES[area][idx];
+  const name = (document.getElementById('studentName').value || '').trim();
+  if (name) t = t.replace(/\[name\]/g, name);
+  history.push(report.value);
+  const cur = report.value.replace(/\s+$/,'');
+  report.value = cur.length ? cur + '\n\n' + t : t;
+  report.focus();
+  report.scrollTop = report.scrollHeight;
+}
+
+tplSelect.addEventListener('change', ()=>{
+  if (tplSelect.value !== ''){
+    applyTemplate(currentArea, parseInt(tplSelect.value, 10));
+    tplSelect.value = '';
+  }
+});
+
+function renderBank(area){
+  currentArea = area;
+  const data = DATA[area];
+  areaIntro.textContent = data.intro;
+  bankContent.innerHTML = '';
+  data.groups.forEach((group, gi) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'group';
+    const h3 = document.createElement('h3');
+    h3.innerHTML = '<span class="num">'+(gi+1)+'</span>'+group.title;
+    wrap.appendChild(h3);
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    group.chips.forEach(word => {
+      const chip = document.createElement('button');
+      chip.className = 'chip';
+      chip.type = 'button';
+      chip.textContent = word;
+      chip.addEventListener('click', ()=> addWord(word, chip));
+      chips.appendChild(chip);
+    });
+    wrap.appendChild(chips);
+    bankContent.appendChild(wrap);
+  });
+}
+
+const report = document.getElementById('report');
+let history = [];
+
+function namePrefix(){
+  const name = (document.getElementById('studentName').value || '').trim();
+  return (name || "Student") + ": ";
+}
+
+function addWord(word, chipEl){
+  history.push(report.value);
+  let cur = report.value.replace(/\s+$/,'');
+  const endsColon = /:$/.test(cur);          // previous item is a "type detail" prompt
+  if (!cur.length){
+    report.value = namePrefix() + word;
+  } else if (endsColon){
+    report.value = cur + ' ' + word;          // attach without comma after a colon prompt
+  } else {
+    report.value = cur + ', ' + word;
+  }
+  chipEl.classList.add('flash');
+  setTimeout(()=>chipEl.classList.remove('flash'),250);
+  report.scrollTop = report.scrollHeight;
+  // if the new word itself ends with a colon, drop the cursor right after it for typing
+  if (/:$/.test(word)){
+    report.focus();
+    const pos = report.value.length;
+    report.setSelectionRange(pos, pos);
+  }
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    renderBank(tab.dataset.area);
+    populateTemplates(tab.dataset.area);
+  });
+});
+
+document.getElementById('newBtn').addEventListener('click', ()=>{
+  history.push(report.value);
+  report.value='';
+  const nameField = document.getElementById('studentName');
+  nameField.value='';
+  nameField.focus();
+});
+document.getElementById('undoBtn').addEventListener('click', ()=>{
+  if(history.length){ report.value = history.pop(); }
+});
+
+const toast = document.getElementById('toast');
+document.getElementById('copyBtn').addEventListener('click', async ()=>{
+  try { await navigator.clipboard.writeText(report.value); }
+  catch(e){ report.select(); document.execCommand('copy'); }
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),1700);
+});
+
+renderBank('tdi');
+populateTemplates('tdi');
+</script>
+</body>
+</html>
