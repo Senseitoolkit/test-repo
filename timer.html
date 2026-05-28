@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Clock — Teacher Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1a2238;
+    --paper:#f4ede1;
+    --paper-2:#ece1cf;
+    --accent:#e0533d;
+    --accent-2:#3a7563;
+    --gold:#d9a441;
+    --shadow:rgba(26,34,56,.18);
+    --bar:#e0533d;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Fraunces',Georgia,serif;
+    background:
+      radial-gradient(120% 120% at 80% -10%, #fbf6ec 0%, var(--paper) 45%, var(--paper-2) 100%);
+    color:var(--ink);
+    min-height:100vh;
+    overflow-x:hidden;
+    transition:background .6s ease;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E");
+  }
+  .wrap{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:32px 24px 80px}
+
+  header.app{
+    display:flex;align-items:baseline;justify-content:space-between;
+    flex-wrap:wrap;gap:12px;margin-bottom:28px;
+    border-bottom:3px solid var(--ink);padding-bottom:14px;
+  }
+  .brand{display:flex;align-items:baseline;gap:14px}
+  .brand h1{font-size:clamp(28px,5vw,46px);font-weight:700;letter-spacing:-.02em;line-height:1}
+  .brand .dot{width:16px;height:16px;border-radius:50%;background:var(--accent);transform:translateY(-2px)}
+  .tag{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;opacity:.65}
+
+  /* mode switch */
+  .modes{display:flex;gap:0;border:2.5px solid var(--ink);border-radius:50px;overflow:hidden;width:max-content;margin-bottom:26px}
+  .modes button{
+    font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.1em;text-transform:uppercase;
+    padding:11px 22px;background:transparent;border:none;cursor:pointer;color:var(--ink);font-weight:700;
+    transition:.25s;
+  }
+  .modes button.active{background:var(--ink);color:var(--paper)}
+
+  .card{
+    background:linear-gradient(180deg,#fffdf8, #f7f0e3);
+    border:2.5px solid var(--ink);border-radius:20px;
+    box-shadow:10px 12px 0 var(--shadow);
+    padding:34px 30px;margin-bottom:26px;
+  }
+
+  /* big display */
+  .display{
+    text-align:center;position:relative;
+  }
+  .label-in{font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.25em;text-transform:uppercase;opacity:.6;margin-bottom:8px}
+  .time{
+    font-family:'Space Mono',monospace;font-weight:700;
+    font-size:clamp(72px,18vw,168px);line-height:.92;letter-spacing:-.03em;
+    font-variant-numeric:tabular-nums;
+    transition:color .4s;
+  }
+  .time.warn{color:var(--gold)}
+  .time.danger{color:var(--accent);animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.45}}
+
+  .progress{height:14px;border:2.5px solid var(--ink);border-radius:50px;margin:22px auto 6px;max-width:560px;overflow:hidden;background:#fff8ec}
+  .progress > i{display:block;height:100%;width:100%;background:var(--bar);transition:width 1s linear, background .4s}
+
+  /* time setters */
+  .setters{display:flex;justify-content:center;align-items:center;gap:18px;margin-top:6px;flex-wrap:wrap}
+  .unit{text-align:center}
+  .unit .stepper{display:flex;flex-direction:column;gap:6px;align-items:center}
+  .unit button{
+    width:48px;height:34px;border:2px solid var(--ink);background:#fff8ec;border-radius:10px;
+    font-size:18px;font-weight:700;cursor:pointer;line-height:1;transition:.15s;
+  }
+  .unit button:hover{background:var(--ink);color:var(--paper)}
+  .unit input{
+    width:90px;text-align:center;font-family:'Space Mono',monospace;font-weight:700;font-size:34px;
+    border:none;background:transparent;color:var(--ink);
+  }
+  .unit .u-label{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.6;margin-top:2px}
+  .colon{font-family:'Space Mono',monospace;font-size:38px;font-weight:700;opacity:.5;padding-top:30px}
+
+  /* presets */
+  .presets{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:22px}
+  .presets button{
+    font-family:'Space Mono',monospace;font-size:13px;font-weight:700;letter-spacing:.05em;
+    padding:8px 16px;border:2px solid var(--ink);border-radius:50px;background:transparent;cursor:pointer;transition:.2s;
+  }
+  .presets button:hover{background:var(--gold);border-color:var(--gold)}
+  .presets button.chosen{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+  /* controls */
+  .controls{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .controls button{
+    font-family:'Fraunces',serif;font-weight:700;font-size:19px;letter-spacing:.01em;
+    padding:15px 38px;border:2.5px solid var(--ink);border-radius:14px;cursor:pointer;
+    box-shadow:5px 5px 0 var(--shadow);transition:.15s;display:flex;align-items:center;gap:9px;
+  }
+  .controls button:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--shadow)}
+  #startBtn{background:var(--accent-2);color:#fff}
+  #pauseBtn{background:var(--gold);color:var(--ink)}
+  #resetBtn{background:#fff8ec;color:var(--ink)}
+
+  .label-row{display:flex;justify-content:center;margin-top:20px}
+  .label-row input{
+    font-family:'Fraunces',serif;font-size:20px;text-align:center;font-weight:600;
+    border:none;border-bottom:2.5px dashed var(--ink);background:transparent;color:var(--ink);
+    padding:6px 4px;width:min(420px,80%);
+  }
+  .label-row input::placeholder{opacity:.4;font-style:italic}
+
+  .foot-actions{display:flex;gap:14px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+  .foot-actions button{
+    font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+    padding:11px 20px;border:2px solid var(--ink);background:transparent;border-radius:50px;cursor:pointer;transition:.2s;
+  }
+  .foot-actions button:hover{background:var(--ink);color:var(--paper)}
+
+  /* fullscreen / projection overlay */
+  #stage{
+    position:fixed;inset:0;z-index:50;display:none;
+    flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(130% 130% at 50% 0%, #232c4a 0%, #161c30 60%, #0e1322 100%);
+    color:var(--paper);text-align:center;padding:4vh 4vw;
+  }
+  #stage.show{display:flex}
+  #stageLabel{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(26px,5vw,64px);margin-bottom:2vh;opacity:.92}
+  #stageTime{
+    font-family:'Space Mono',monospace;font-weight:700;font-variant-numeric:tabular-nums;
+    font-size:clamp(120px,32vw,560px);line-height:.86;letter-spacing:-.03em;color:#fff;
+  }
+  #stageTime.warn{color:var(--gold)}
+  #stageTime.danger{color:#ff6a52;animation:pulse 1s infinite}
+  #stageBar{height:18px;width:min(70vw,1000px);border:3px solid rgba(244,237,225,.5);border-radius:50px;margin-top:5vh;overflow:hidden}
+  #stageBar > i{display:block;height:100%;background:var(--accent);transition:width 1s linear,background .4s}
+  #stageDir{font-family:'Space Mono',monospace;letter-spacing:.3em;text-transform:uppercase;font-size:14px;opacity:.55;margin-top:4vh}
+  .stage-ctrls{position:fixed;bottom:28px;display:flex;gap:14px}
+  .stage-ctrls button{
+    font-family:'Space Mono',monospace;font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+    padding:13px 26px;border:2px solid rgba(244,237,225,.6);background:transparent;color:var(--paper);
+    border-radius:50px;cursor:pointer;transition:.2s;
+  }
+  .stage-ctrls button:hover{background:var(--paper);color:var(--ink)}
+  .esc-hint{position:fixed;top:24px;right:28px;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.15em;opacity:.4}
+
+  .done-flash{position:fixed;inset:0;z-index:60;background:var(--accent);display:none;align-items:center;justify-content:center}
+  .done-flash.show{display:flex;animation:flash .6s 6 alternate}
+  @keyframes flash{from{opacity:.15}to{opacity:.85}}
+  .done-flash span{font-family:'Fraunces',serif;font-weight:700;font-size:clamp(50px,12vw,160px);color:#fff}
+
+  @media(max-width:560px){
+    .card{padding:24px 16px}
+    .colon{padding-top:24px;font-size:30px}
+    .unit input{width:70px;font-size:28px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1>Class&nbsp;Clock</h1>
+    </div>
+    <span class="tag">Teacher Timer · Project to the Board</span>
+  </header>
+
+  <div class="modes" id="modes">
+    <button data-mode="down" class="active">↓ Count&nbsp;Down</button>
+    <button data-mode="up">↑ Count&nbsp;Up</button>
+  </div>
+
+  <div class="card">
+    <div class="display">
+      <div class="label-in" id="modeLabel">Time Remaining</div>
+      <div class="time" id="time">10:00</div>
+      <div class="progress"><i id="bar"></i></div>
+    </div>
+
+    <div class="presets" id="presets">
+      <button data-sec="60">1 min</button>
+      <button data-sec="120">2 min</button>
+      <button data-sec="300">5 min</button>
+      <button data-sec="600">10 min</button>
+      <button data-sec="900">15 min</button>
+      <button data-sec="1200">20 min</button>
+      <button data-sec="1800">30 min</button>
+      <button data-sec="2700">45 min</button>
+    </div>
+
+    <div class="label-row">
+      <input id="taskLabel" placeholder="Label this timer… e.g. Silent Reading, Group Work, Quiz">
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">▶ Start</button>
+    <button id="pauseBtn">❚❚ Pause</button>
+    <button id="resetBtn">↺ Reset</button>
+  </div>
+
+  <div class="foot-actions">
+    <button id="projectBtn">⛶ Project Full Screen</button>
+    <button id="soundBtn">🔔 Sound: On</button>
+  </div>
+</div>
+
+<!-- Projection stage -->
+<div id="stage">
+  <div class="esc-hint">ESC to exit</div>
+  <div id="stageLabel">Time Remaining</div>
+  <div id="stageTime">10:00</div>
+  <div id="stageBar"><i></i></div>
+  <div id="stageDir">Counting Down</div>
+  <div class="stage-ctrls">
+    <button id="sStart">▶ Start</button>
+    <button id="sPause">❚❚ Pause</button>
+    <button id="sReset">↺ Reset</button>
+    <button id="sExit">✕ Exit</button>
+  </div>
+</div>
+
+<div class="done-flash" id="flash"><span>TIME'S UP!</span></div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  let mode='down';          // 'down' or 'up'
+  let total=600;            // configured seconds (target / start)
+  let remaining=600;        // for down mode
+  let elapsed=0;            // for up mode
+  let running=false, tick=null, soundOn=true;
+
+  const fmt=s=>{
+    s=Math.max(0,Math.round(s));
+    const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
+    const mm=String(m).padStart(2,'0'), ss=String(x).padStart(2,'0');
+    return h>0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+  };
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  function setTotal(sec){
+    total=sec;
+    remaining=total; elapsed=0;
+    pause();
+    render();
+  }
+
+  function curDisplay(){ return mode==='down' ? remaining : elapsed; }
+  function curFraction(){
+    if(mode==='down') return total>0 ? remaining/total : 0;
+    return total>0 ? clamp(elapsed/total,0,1) : 0; // up-mode bar fills toward optional target
+  }
+
+  function render(){
+    const v=curDisplay();
+    const t=fmt(v), labelText=$('taskLabel').value.trim();
+    const baseLabel = mode==='down' ? 'Time Remaining' : 'Time Elapsed';
+    $('modeLabel').textContent = labelText || baseLabel;
+    $('time').textContent=t;
+    $('stageTime').textContent=t;
+    $('stageLabel').textContent= labelText || baseLabel;
+    $('stageDir').textContent = mode==='down' ? 'Counting Down' : 'Counting Up';
+
+    // progress
+    let frac;
+    if(mode==='down'){ frac=total>0?remaining/total:0; }
+    else { frac=total>0?clamp(elapsed/total,0,1):0; }
+    const pct=clamp(frac*100,0,100);
+    $('bar').style.width=pct+'%';
+    $('stageBar').firstElementChild.style.width=pct+'%';
+
+    // color states (down mode urgency)
+    const tEl=$('time'), sEl=$('stageTime');
+    tEl.classList.remove('warn','danger'); sEl.classList.remove('warn','danger');
+    let col=getComputedStyle(document.documentElement).getPropertyValue('--accent');
+    if(mode==='down'){
+      if(remaining<=10 && remaining>0){tEl.classList.add('danger');sEl.classList.add('danger');col='#ff6a52';}
+      else if(remaining<=Math.max(30,total*0.15)){tEl.classList.add('warn');sEl.classList.add('warn');col='#d9a441';}
+      else col='#3a7563';
+    } else col='#3a7563';
+    $('bar').style.background=col;
+    $('stageBar').firstElementChild.style.background=col;
+
+    syncStageBtns();
+  }
+
+  function step(){
+    if(mode==='down'){
+      remaining--;
+      if(remaining<=0){ remaining=0; render(); finish(); return; }
+    } else {
+      elapsed++;
+      if(total>0 && elapsed>=total){ render(); finish(); return; }
+    }
+    render();
+  }
+
+  function start(){
+    if(running) return;
+    if(mode==='down'){ if(remaining<=0) remaining=total; }
+    running=true;
+    tick=setInterval(step,1000);
+    syncStageBtns();
+  }
+  function pause(){ running=false; clearInterval(tick); syncStageBtns(); }
+  function reset(){
+    pause();
+    remaining=total; elapsed=0;
+    render();
+  }
+
+  function finish(){
+    pause();
+    if(soundOn) beep();
+    const f=$('flash'); f.classList.add('show');
+    setTimeout(()=>f.classList.remove('show'),3600);
+  }
+
+  // simple chime via WebAudio
+  function beep(){
+    try{
+      const ctx=new (window.AudioContext||window.webkitAudioContext)();
+      const notes=[660,880,990];
+      notes.forEach((freq,i)=>{
+        const o=ctx.createOscillator(), g=ctx.createGain();
+        o.type='sine'; o.frequency.value=freq;
+        o.connect(g); g.connect(ctx.destination);
+        const t=ctx.currentTime+i*0.22;
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(0.4,t+0.03);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.4);
+        o.start(t); o.stop(t+0.42);
+      });
+    }catch(e){}
+  }
+
+  // --- mode switch ---
+  $('modes').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    mode=b.dataset.mode;
+    [...$('modes').children].forEach(x=>x.classList.toggle('active',x===b));
+    reset();
+  });
+
+  // --- presets ---
+  $('presets').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    [...$('presets').children].forEach(x=>x.classList.toggle('chosen',x===b));
+    setTotal(parseInt(b.dataset.sec));
+  });
+
+  $('taskLabel').addEventListener('input',render);
+
+  // --- main controls ---
+  $('startBtn').onclick=start;
+  $('pauseBtn').onclick=pause;
+  $('resetBtn').onclick=reset;
+
+  // --- sound toggle ---
+  $('soundBtn').onclick=()=>{ soundOn=!soundOn; $('soundBtn').textContent='🔔 Sound: '+(soundOn?'On':'Off'); };
+
+  // --- projection / fullscreen ---
+  const stage=$('stage');
+  function openStage(){
+    stage.classList.add('show');
+    if(stage.requestFullscreen) stage.requestFullscreen().catch(()=>{});
+    render();
+  }
+  function closeStage(){
+    stage.classList.remove('show');
+    if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  }
+  $('projectBtn').onclick=openStage;
+  $('sExit').onclick=closeStage;
+  $('sStart').onclick=start;
+  $('sPause').onclick=pause;
+  $('sReset').onclick=reset;
+
+  function syncStageBtns(){
+    $('sStart').style.opacity=running?.4:1;
+    $('startBtn').style.opacity=running?.55:1;
+  }
+
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape' && stage.classList.contains('show')) closeStage();
+    if(e.key===' '){ e.preventDefault(); running?pause():start(); }
+  });
+  document.addEventListener('fullscreenchange',()=>{
+    if(!document.fullscreenElement) stage.classList.remove('show');
+  });
+
+  // init
+  setTotal(600);
+  const def=[...$('presets').children].find(b=>b.dataset.sec==='600');
+  if(def) def.classList.add('chosen');
+})();
+</script>
+</body>
+</html>
