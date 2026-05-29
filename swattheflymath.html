@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Swat the Fly! — Math Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sky-top:#aee6f6; --sky-bot:#c7ecff; --grass:#9bdb6b; --grass-dk:#79c54f;
+    --ink:#1b1b22; --paper:#fffdf4; --red:#e23b2e; --red-dk:#b62a20;
+    --green:#46c463; --green-dk:#2f9c49; --goo:#9fe83a; --goo-dk:#6fbb18;
+    --sun:#ffd84d; --gold:#ffcf3a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{
+    font-family:'Fredoka',system-ui,sans-serif;color:var(--ink);
+    background:
+      radial-gradient(circle at 14% 12%, rgba(255,255,255,.9) 0%, rgba(255,255,255,0) 26%),
+      radial-gradient(circle at 86% 0%, var(--sun) 0%, rgba(255,216,77,0) 16%),
+      linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bot) 55%, var(--grass) 55.1%, var(--grass-dk) 100%);
+    user-select:none;-webkit-user-select:none;
+  }
+  body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:45%;
+    background-image:repeating-linear-gradient(78deg, rgba(43,120,30,.10) 0 6px, transparent 6px 16px);pointer-events:none;}
+  .cloud{position:fixed;background:#fff;border-radius:50%;opacity:.85;pointer-events:none;z-index:0;}
+  .cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%;}
+  .c1{width:120px;height:46px;top:8%;left:18%;}
+  .c1::before{width:70px;height:70px;top:-34px;left:18px;} .c1::after{width:54px;height:54px;top:-22px;left:64px;}
+  .c2{width:150px;height:52px;top:14%;left:64%;}
+  .c2::before{width:80px;height:80px;top:-40px;left:24px;} .c2::after{width:60px;height:60px;top:-26px;left:80px;}
+
+  #app{position:relative;height:100%;display:flex;flex-direction:column;z-index:2;}
+
+  #controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;
+    background:rgba(255,253,244,.92);border-bottom:4px solid var(--ink);
+    box-shadow:0 4px 0 rgba(0,0,0,.12);transition:transform .35s ease;z-index:30;}
+  #controls.hidden{transform:translateY(-104%);}
+  .group{display:flex;align-items:center;gap:6px;}
+  .seg{display:flex;border:3px solid var(--ink);border-radius:14px;overflow:hidden;background:#fff;}
+  .seg button{font-family:'Fredoka';font-weight:700;font-size:clamp(.8rem,1.5vw,1.05rem);
+    border:none;background:transparent;color:var(--ink);padding:8px 13px;cursor:pointer;line-height:1;white-space:nowrap;}
+  .seg button+button{border-left:3px solid var(--ink);}
+  .seg button.active{background:var(--gold);}
+  .lbl{font-weight:600;font-size:.78rem;opacity:.6;text-transform:uppercase;letter-spacing:.05em;margin-right:2px;}
+  .btn{font-family:'Fredoka';font-weight:700;cursor:pointer;border:3px solid var(--ink);border-radius:14px;
+    padding:9px 16px;font-size:clamp(.85rem,1.6vw,1.1rem);line-height:1;
+    box-shadow:0 4px 0 rgba(0,0,0,.25);transition:transform .06s, box-shadow .06s;}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.25);}
+  .btn.green{background:var(--green);color:#fff;} .btn.red{background:var(--red);color:#fff;}
+  .btn.shine{animation:shine .7s ease infinite;}
+  @keyframes shine{0%,100%{box-shadow:0 4px 0 rgba(0,0,0,.25);}50%{box-shadow:0 4px 0 rgba(0,0,0,.25),0 0 0 6px rgba(70,196,99,.4);}}
+  .spacer{flex:1;}
+  .counter{font-weight:700;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:7px 12px;
+    display:flex;align-items:center;gap:7px;font-size:clamp(.8rem,1.5vw,1.05rem);}
+  .iconbtn{font-family:'Fredoka';font-weight:700;cursor:pointer;background:#fff;border:3px solid var(--ink);
+    border-radius:14px;padding:7px 11px;font-size:clamp(.8rem,1.5vw,1.05rem);}
+  #showTab{position:fixed;top:8px;left:50%;transform:translateX(-50%);display:none;z-index:40;background:var(--gold);
+    border:3px solid var(--ink);border-radius:0 0 14px 14px;border-top:none;padding:5px 16px;font-weight:700;cursor:pointer;
+    box-shadow:0 3px 0 rgba(0,0,0,.2);}
+  #controls.hidden ~ #showTab{display:block;}
+
+  #stage{flex:1;display:flex;flex-direction:column;min-height:0;}
+  #sentenceWrap{display:flex;justify-content:center;padding:14px 10px 4px;}
+  #sentence{font-family:'Luckiest Guy',cursive;background:var(--paper);color:var(--ink);
+    border:6px solid var(--ink);border-radius:24px;box-shadow:8px 8px 0 rgba(0,0,0,.18);
+    padding:.18em .7em .28em;font-size:clamp(2.6rem,8.2vw,7rem);line-height:1;letter-spacing:.02em;
+    transform:rotate(-1.4deg);text-shadow:2px 2px 0 rgba(0,0,0,.08);}
+  #sentence .eq{color:#9a8a3a;margin:0 .12em;} #sentence .q{color:var(--red);}
+  #hint{text-align:center;font-weight:600;font-size:clamp(.9rem,2vw,1.25rem);color:#274a6b;margin:2px 0 0;
+    text-shadow:0 1px 0 rgba(255,255,255,.6);display:none;}
+  #hint.show{display:block;}
+  #field{position:relative;flex:1;min-height:0;}
+
+  /* a fly — perfectly still */
+  .fly{position:absolute;width:clamp(86px,11vw,150px);aspect-ratio:1/1;
+    transform:translate(-50%,-50%);z-index:5;transition:opacity .45s ease;cursor:default;}
+  .fly .scale{width:100%;height:100%;position:relative;}
+  .fly .buzz{width:100%;height:100%;position:relative;}
+  .fly svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;
+    filter:drop-shadow(2px 4px 3px rgba(0,0,0,.28));
+    transition:transform .18s ease, opacity .18s ease, filter .18s ease;}
+  .fly .num{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-family:'Fredoka';font-weight:700;color:#fff;font-size:clamp(1.5rem,3.4vw,2.9rem);line-height:1;
+    text-shadow:0 2px 2px rgba(0,0,0,.55);pointer-events:none;z-index:3;transition:opacity .15s;}
+  .fly.dimmed{opacity:.32;}
+
+  .goo{position:absolute;left:50%;top:52%;width:135%;height:135%;transform:translate(-50%,-50%) scale(0);
+    background:radial-gradient(circle at 42% 38%, var(--goo) 0%, var(--goo-dk) 70%, var(--goo-dk) 100%);
+    border-radius:46% 54% 60% 40% / 55% 42% 58% 45%;z-index:2;opacity:0;pointer-events:none;
+    box-shadow:28px -18px 0 -8px var(--goo-dk),-30px 14px 0 -10px var(--goo),18px 30px 0 -12px var(--goo-dk),-22px -22px 0 -12px var(--goo);}
+  .fly.splatted .goo{animation:gooPop .4s cubic-bezier(.2,1.4,.5,1) forwards;}
+  @keyframes gooPop{0%{transform:translate(-50%,-50%) scale(0);opacity:1}70%{transform:translate(-50%,-50%) scale(1.12)}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+  .fly.splatted svg{transform:scaleY(.22) translateY(60%);opacity:.45;filter:grayscale(.6) drop-shadow(0 2px 1px rgba(0,0,0,.2));}
+  .fly.splatted .num{color:#3a4a10;font-size:clamp(1.1rem,2.4vw,2rem);text-shadow:none;}
+
+  #swatter{position:absolute;left:0;top:0;transform:translate(-50%,-50%);z-index:20;pointer-events:none;display:none;
+    width:clamp(96px,12vw,150px);}
+  #swatter .arm{position:relative;transform-origin:50% 130%;transform:translateY(-170px) rotate(-32deg);}
+  #swatter .paddle{position:relative;width:100%;aspect-ratio:1/1.05;background:var(--red);border:5px solid var(--ink);
+    border-radius:20px;box-shadow:inset 0 -8px 0 rgba(0,0,0,.18);}
+  #swatter .paddle::before{content:"";position:absolute;inset:16%;border-radius:12px;
+    background-image:radial-gradient(circle, rgba(0,0,0,.26) 32%, transparent 34%);background-size:23% 23%;background-position:center;}
+  #swatter .handle{position:absolute;top:97%;left:50%;width:16%;height:120px;transform:translateX(-50%) rotate(6deg);
+    transform-origin:top center;background:linear-gradient(90deg,#caa05a,#a87f3c);border:5px solid var(--ink);border-radius:10px;}
+
+  #feedback{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%) scale(.4);
+    font-family:'Luckiest Guy',cursive;font-size:clamp(3rem,11vw,9rem);opacity:0;pointer-events:none;z-index:25;
+    text-align:center;-webkit-text-stroke:4px var(--ink);color:var(--goo);}
+  #feedback.show{animation:pop 1.4s ease forwards;}
+  @keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-8deg)}
+    18%{opacity:1;transform:translate(-50%,-50%) scale(1.1) rotate(-4deg)}
+    30%{transform:translate(-50%,-50%) scale(1) rotate(-3deg)}
+    80%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-3deg)}
+    100%{opacity:0;transform:translate(-50%,-60%) scale(1) rotate(-3deg)}}
+  @media (max-width:640px){#controls{gap:8px;padding:8px;} .lbl{display:none;}}
+</style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <radialGradient id="flyBody" cx="38%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#62626e"/><stop offset="55%" stop-color="#2c2c34"/><stop offset="100%" stop-color="#16161b"/>
+    </radialGradient>
+  </defs></svg>
+
+  <div class="cloud c1"></div><div class="cloud c2"></div>
+
+  <div id="app">
+    <div id="controls">
+      <div class="group"><span class="lbl">Math</span>
+        <div class="seg" id="modeSeg">
+          <button data-mode="addsub" class="active">➕ ➖ Add &amp; Subtract</button>
+          <button data-mode="muldiv">✖️ ➗ Multiply &amp; Divide</button>
+        </div>
+      </div>
+      <div class="group"><span class="lbl">Level</span>
+        <div class="seg" id="diffSeg">
+          <button data-diff="easy" class="active">Easy</button>
+          <button data-diff="medium">Medium</button>
+          <button data-diff="hard">Hard</button>
+        </div>
+      </div>
+      <button class="btn red" id="splatBtn">🪰 SPLAT! (Enter)</button>
+      <button class="btn green" id="next">🔄 New Problem</button>
+      <div class="spacer"></div>
+      <button class="iconbtn" id="helpBtn">❔ How to play</button>
+      <button class="iconbtn" id="soundBtn">🔊 Sound</button>
+      <div class="counter">🪰 Splats: <span id="splatCount">0</span> <span id="resetCount" style="cursor:pointer;opacity:.5">↺</span></div>
+      <button class="iconbtn" id="hideBtn">Hide ▲</button>
+    </div>
+    <div id="showTab">▼ Show menu</div>
+
+    <div id="stage">
+      <div id="sentenceWrap"><div id="sentence">…</div></div>
+      <p id="hint"></p>
+      <div id="field">
+        <div id="flies"></div>
+        <div id="swatter"><div class="arm"><div class="paddle"></div><div class="handle"></div></div></div>
+        <div id="feedback"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const fliesBox=$('#flies'), sentenceEl=$('#sentence'), swatter=$('#swatter'),
+        arm=swatter.querySelector('.arm'), feedback=$('#feedback'),
+        splatCountEl=$('#splatCount'), hintEl=$('#hint');
+
+  let mode='addsub', diff='easy', muted=false;
+  let busy=false, won=false, splatCount=0;
+  let positions=[], flyEls=[], current=null, correctIdx=-1, lastText='', fbTimer=null;
+
+  const rint=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+  function genProblem(){
+    let a,b,op,answer,text;
+    if(mode==='addsub'){
+      const max=diff==='easy'?10:diff==='medium'?25:99, min=diff==='hard'?10:1;
+      op=Math.random()<.5?'+':'\u2212';
+      a=rint(min,max); b=rint(min,max);
+      if(op==='+'){answer=a+b; text=`${a} + ${b}`;}
+      else{ if(b>a){const t=a;a=b;b=t;} answer=a-b; text=`${a} \u2212 ${b}`; }
+    }else{
+      const maxF=diff==='easy'?5:diff==='medium'?10:12, minF=diff==='hard'?2:1;
+      op=Math.random()<.5?'\u00d7':'\u00f7';
+      if(op==='\u00d7'){ a=rint(minF,maxF); b=rint(minF,maxF); answer=a*b; text=`${a} \u00d7 ${b}`; }
+      else{ b=rint(Math.max(minF,1),maxF); answer=rint(minF,maxF); a=b*answer; text=`${a} \u00f7 ${b}`; }
+    }
+    return {text,answer,options:makeOptions(answer)};
+  }
+  function makeOptions(answer){
+    const set=new Set([answer]);
+    const offs=[1,2,3,4,5,6,7,8,9,10,11,12,15,20], cand=[];
+    offs.forEach(d=>{cand.push(answer+d,answer-d);});
+    shuffle(cand);
+    for(const c of cand){ if(set.size>=8)break; if(Number.isInteger(c)&&c>=0&&!set.has(c))set.add(c); }
+    let p=1; while(set.size<8&&p<60){ const c=answer+(set.size%2?p:-p); if(c>=0&&!set.has(c))set.add(c); p++; }
+    while(set.size<8){ set.add(answer+rint(6,45)); }
+    return shuffle([...set]);
+  }
+
+  const flySVG=`<svg viewBox="0 0 120 120" aria-hidden="true">
+    <line x1="50" y1="42" x2="40" y2="18" stroke="#16161b" stroke-width="3" stroke-linecap="round"/>
+    <line x1="70" y1="42" x2="80" y2="18" stroke="#16161b" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="39" cy="16" r="4" fill="#16161b"/><circle cx="81" cy="16" r="4" fill="#16161b"/>
+    <ellipse cx="42" cy="44" rx="27" ry="16" transform="rotate(-26 42 44)" fill="rgba(255,255,255,.78)" stroke="#bcd3dd" stroke-width="2"/>
+    <ellipse cx="78" cy="44" rx="27" ry="16" transform="rotate(26 78 44)" fill="rgba(255,255,255,.78)" stroke="#bcd3dd" stroke-width="2"/>
+    <g stroke="#16161b" stroke-width="3" stroke-linecap="round">
+      <line x1="40" y1="78" x2="22" y2="92"/><line x1="42" y1="86" x2="26" y2="104"/><line x1="46" y1="92" x2="36" y2="112"/>
+      <line x1="80" y1="78" x2="98" y2="92"/><line x1="78" y1="86" x2="94" y2="104"/><line x1="74" y1="92" x2="84" y2="112"/>
+    </g>
+    <ellipse cx="60" cy="62" rx="35" ry="32" fill="url(#flyBody)" stroke="#0c0c10" stroke-width="3"/>
+    <ellipse cx="49" cy="50" rx="9" ry="6" fill="rgba(255,255,255,.28)"/>
+  </svg>`;
+
+  function makeFly(val,x,y,idx){
+    const el=document.createElement('div');
+    el.className='fly'; el.style.left=x+'%'; el.style.top=y+'%';
+    el.dataset.idx=idx;
+    el.innerHTML=`<div class="goo"></div><div class="scale"><div class="buzz">${flySVG}<span class="num">${val}</span></div></div>`;
+    return el;
+  }
+  function buildField(){
+    fliesBox.innerHTML=''; flyEls=[]; positions=[]; correctIdx=-1;
+    const cols=[16,38.5,61.5,84], rows=[34,73];
+    let idx=0;
+    for(let r=0;r<2;r++)for(let c=0;c<4;c++){
+      const x=cols[c]+(Math.random()*8-4), y=rows[r]+(Math.random()*10-5);
+      positions.push({x,y});
+      const val=current.options[idx];
+      if(val===current.answer) correctIdx=idx;
+      const fly=makeFly(val,x,y,idx);
+      fliesBox.appendChild(fly); flyEls.push(fly); idx++;
+    }
+  }
+
+  function slamCorrect(){
+    if(busy||won||correctIdx<0) return;
+    busy=true;
+    const p=positions[correctIdx];
+    swatter.style.left=p.x+'%'; swatter.style.top=p.y+'%'; swatter.style.display='block';
+    arm.style.transition='none'; arm.style.transform='translateY(-170px) rotate(-32deg)';
+    void arm.offsetWidth;
+    const down=arm.animate(
+      [{transform:'translateY(-170px) rotate(-32deg)'},{transform:'translateY(0) rotate(3deg)'}],
+      {duration:175,easing:'cubic-bezier(.5,0,.4,1)',fill:'forwards'});
+    down.onfinish=()=>{
+      const fly=flyEls[correctIdx];
+      fly.classList.add('splatted');
+      fly.querySelector('.num').textContent='\u00d7 \u00d7';
+      flyEls.forEach((f,i)=>{ if(i!==correctIdx) f.classList.add('dimmed'); });
+      showFeedback('SPLAT!'); beep();
+      won=true; splatCount++; splatCountEl.textContent=splatCount;
+      $('#next').classList.add('shine');
+      const up=arm.animate(
+        [{transform:'translateY(0) rotate(3deg)'},{transform:'translateY(-14px) rotate(-5deg)'},{transform:'translateY(-170px) rotate(-32deg)'}],
+        {duration:300,easing:'ease-out',fill:'forwards',delay:130});
+      up.onfinish=()=>{ swatter.style.display='none'; busy=false; };
+    };
+  }
+
+  function showFeedback(t){
+    feedback.textContent=t; feedback.className=''; void feedback.offsetWidth;
+    feedback.classList.add('show'); clearTimeout(fbTimer);
+    fbTimer=setTimeout(()=>feedback.classList.remove('show'),1400);
+  }
+
+  function newProblem(){
+    won=false; busy=false; swatter.style.display='none';
+    $('#next').classList.remove('shine'); feedback.classList.remove('show');
+    let tries=0;
+    do{ current=genProblem(); tries++; }while(current.text===lastText && tries<8);
+    lastText=current.text;
+    sentenceEl.innerHTML=`${current.text} <span class="eq">=</span> <span class="q">?</span>`;
+    buildField();
+  }
+  function updateHint(){
+    hintEl.textContent='Kids swat the flies with real swatters. Press ENTER to splat the correct answer \u2014 then press ENTER again for the next problem! \uD83E\uDEB0';
+  }
+
+  /* audio */
+  let actx=null;
+  function ac(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); return actx; }
+  function resumeAudio(){ if(actx&&actx.state==='suspended')actx.resume(); }
+  function beep(){
+    if(muted) return;
+    const c=ac(), now=c.currentTime;
+    const buf=c.createBuffer(1,c.sampleRate*0.18,c.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+    const s=c.createBufferSource(); s.buffer=buf;
+    const g=c.createGain(); g.gain.value=0.45; s.connect(g).connect(c.destination); s.start();
+    const o=c.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(170,now); o.frequency.exponentialRampToValueAtTime(55,now+0.16);
+    const og=c.createGain(); og.gain.setValueAtTime(0.5,now); og.gain.exponentialRampToValueAtTime(0.001,now+0.18);
+    o.connect(og).connect(c.destination); o.start(now); o.stop(now+0.2);
+  }
+
+  function splat(){ resumeAudio(); slamCorrect(); }
+
+  /* controls */
+  $('#modeSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;b.blur();
+    [...e.currentTarget.children].forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode;newProblem();});
+  $('#diffSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;b.blur();
+    [...e.currentTarget.children].forEach(x=>x.classList.remove('active'));b.classList.add('active');diff=b.dataset.diff;newProblem();});
+  $('#splatBtn').addEventListener('click',e=>{e.currentTarget.blur();splat();});
+  $('#next').addEventListener('click',e=>{e.currentTarget.blur();newProblem();});
+  $('#soundBtn').addEventListener('click',e=>{e.currentTarget.blur();muted=!muted;e.currentTarget.textContent=muted?'\uD83D\uDD07 Muted':'\uD83D\uDD0A Sound';});
+  $('#helpBtn').addEventListener('click',e=>{e.currentTarget.blur();$('#hint').classList.toggle('show');});
+  $('#resetCount').addEventListener('click',e=>{e.stopPropagation();splatCount=0;splatCountEl.textContent=0;});
+  $('#hideBtn').addEventListener('click',e=>{e.currentTarget.blur();$('#controls').classList.add('hidden');});
+  $('#showTab').addEventListener('click',()=>$('#controls').classList.remove('hidden'));
+
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ e.preventDefault(); if(busy) return; if(!won) splat(); else newProblem(); }
+    else if(e.key==='n'||e.key==='N'||e.key==='ArrowRight'||e.key===' '){ e.preventDefault(); newProblem(); }
+    else if(e.key==='h'||e.key==='H'){ $('#controls').classList.toggle('hidden'); }
+    else if(e.key==='i'||e.key==='I'||e.key==='?'){ $('#hint').classList.toggle('show'); }
+  });
+
+  updateHint(); newProblem();
+})();
+</script>
+</body>
+</html>
