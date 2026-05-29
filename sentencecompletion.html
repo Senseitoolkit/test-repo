@@ -1,0 +1,939 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+
+/* ============================================================================
+   1. CONFIG
+   Tunable constants live here so behaviour is changed in one place.
+============================================================================ */
+const CONFIG = {
+  TEST_DURATION_SECONDS: 5 * 60, // auto-finish after 5 minutes
+  QUESTIONS_PER_TEST: 20, // sample this many from the year's bank each run
+  YEARS: [1, 2, 3, 4, 5, 6],
+  GAP_TOKEN: "____", // marker in a sentence string that becomes the blank
+};
+
+/* ============================================================================
+   2. QUESTION BANK  (PURE DATA LAYER)
+   ---------------------------------------------------------------------------
+   This is the layer you flesh out with content later. Logic never hard-codes
+   questions; it only reads from here. Each question:
+     { id, sentence (contains GAP_TOKEN), answer, distractors[] }
+   Vocabulary is pitched at the UK National Curriculum for English by year
+   group (Years 1-6 / KS1-KS2). A handful of seed questions per year are
+   included to prove the architecture — add more to each array freely.
+============================================================================ */
+const QUESTION_BANK = {
+  1: [
+    // --- CVC / simple decodable words ---
+    { id: "y1-1", sentence: "The cat sat on the ____.", answer: "mat", distractors: ["run", "sky", "cup", "tree"] },
+    { id: "y1-2", sentence: "I can ____ very fast.", answer: "run", distractors: ["cup", "blue", "door", "ten"] },
+    { id: "y1-3", sentence: "We put the toys in the ____.", answer: "box", distractors: ["milk", "rain", "song", "leg"] },
+    { id: "y1-4", sentence: "The pig rolled in the wet ____.", answer: "mud", distractors: ["bed", "sun", "hat", "map"] },
+    { id: "y1-5", sentence: "Mum gave me a big ____.", answer: "hug", distractors: ["dig", "wig", "leg", "log"] },
+    { id: "y1-6", sentence: "The ____ buzzed by my ear.", answer: "bee", distractors: ["bus", "bed", "bag", "box"] },
+    { id: "y1-7", sentence: "I sat on a soft ____.", answer: "bed", distractors: ["bat", "bin", "bun", "bib"] },
+    // --- common digraphs (sh, ch, th, ck, ng) ---
+    { id: "y1-8", sentence: "A small ____ swam in the pond.", answer: "fish", distractors: ["dish", "wish", "ship", "shop"] },
+    { id: "y1-9", sentence: "We sat by the warm ____ at the beach.", answer: "ship", distractors: ["chip", "shell", "sand", "wave"] },
+    { id: "y1-10", sentence: "The clock began to ____.", answer: "tick", distractors: ["tock", "lick", "kick", "sick"] },
+    { id: "y1-11", sentence: "I like to ____ my food slowly.", answer: "chew", distractors: ["chop", "chin", "chat", "chip"] },
+    { id: "y1-12", sentence: "The bird sat on a long ____.", answer: "branch", distractors: ["bench", "brush", "bunch", "beach"] },
+    { id: "y1-13", sentence: "We had ____ and chips for tea.", answer: "fish", distractors: ["dash", "wish", "rush", "cash"] },
+    // --- common exception / high-frequency words ---
+    { id: "y1-14", sentence: "I want ____ go to the park.", answer: "to", distractors: ["the", "we", "so", "no"] },
+    { id: "y1-15", sentence: "She ____ a red coat today.", answer: "has", distractors: ["was", "his", "had", "saw"] },
+    { id: "y1-16", sentence: "____ are my new shoes.", answer: "These", distractors: ["Their", "There", "Those", "This"] },
+    { id: "y1-17", sentence: "We went to the shop ____ buy bread.", answer: "to", distractors: ["too", "two", "do", "go"] },
+    { id: "y1-18", sentence: "He ____ his bike to school.", answer: "rides", distractors: ["read", "rode", "ride", "rids"] },
+    { id: "y1-19", sentence: "____ is my best friend.", answer: "She", distractors: ["Shy", "Show", "Shoe", "Shut"] },
+    // --- vowel digraphs (ai, ee, oo, ar, or) ---
+    { id: "y1-20", sentence: "It started to ____ so we got wet.", answer: "rain", distractors: ["rail", "ran", "rang", "rate"] },
+    { id: "y1-21", sentence: "The owl sleeps in a tall ____.", answer: "tree", distractors: ["free", "three", "knee", "true"] },
+    { id: "y1-22", sentence: "I read a good ____ before bed.", answer: "book", distractors: ["boot", "boat", "back", "bank"] },
+    { id: "y1-23", sentence: "The shiny ____ twinkled at night.", answer: "star", distractors: ["stir", "stay", "step", "stop"] },
+    { id: "y1-24", sentence: "We opened the ____ to go outside.", answer: "door", distractors: ["deer", "dear", "dare", "dial"] },
+    { id: "y1-25", sentence: "The moon shines in the ____ sky.", answer: "night", distractors: ["light", "right", "tight", "sight"] },
+    // --- simple meaning / vocabulary in context ---
+    { id: "y1-26", sentence: "The ice was very ____ to touch.", answer: "cold", distractors: ["hot", "kind", "loud", "soft"] },
+    { id: "y1-27", sentence: "An elephant is a very ____ animal.", answer: "big", distractors: ["tiny", "thin", "sad", "wet"] },
+    { id: "y1-28", sentence: "We laughed because the clown was so ____.", answer: "funny", distractors: ["angry", "sleepy", "scary", "empty"] },
+    { id: "y1-29", sentence: "After the long walk my legs felt ____.", answer: "tired", distractors: ["happy", "clean", "early", "lucky"] },
+    { id: "y1-30", sentence: "Be ____ and share your toys with friends.", answer: "kind", distractors: ["loud", "fast", "cold", "wild"] },
+    // --- more CVC / CVCC blends ---
+    { id: "y1-31", sentence: "The frog can ____ very high.", answer: "jump", distractors: ["jam", "jet", "job", "jug"] },
+    { id: "y1-32", sentence: "I keep my pet ____ in a hutch.", answer: "rabbit", distractors: ["robin", "ribbon", "rocket", "ribbit"] },
+    { id: "y1-33", sentence: "Please put the milk back in the ____.", answer: "fridge", distractors: ["ridge", "badge", "bridge", "hedge"] },
+    { id: "y1-34", sentence: "The ____ stung me on the arm.", answer: "wasp", distractors: ["wisp", "wash", "wing", "wand"] },
+    { id: "y1-35", sentence: "We made sandcastles on the ____.", answer: "beach", distractors: ["bench", "branch", "bunch", "batch"] },
+    // --- more digraphs / trigraphs (ay, ow, ai, igh, oa) ---
+    { id: "y1-36", sentence: "We like to ____ in the garden.", answer: "play", distractors: ["plan", "plum", "plot", "plug"] },
+    { id: "y1-37", sentence: "The little boat began to ____.", answer: "float", distractors: ["flat", "flap", "flag", "flip"] },
+    { id: "y1-38", sentence: "A ____ has soft white wool.", answer: "sheep", distractors: ["sharp", "shape", "ship", "shop"] },
+    { id: "y1-39", sentence: "The cow gives us fresh ____.", answer: "milk", distractors: ["mask", "mark", "mint", "mend"] },
+    { id: "y1-40", sentence: "We saw a bright ____ after the rain.", answer: "rainbow", distractors: ["window", "shadow", "pillow", "yellow"] },
+    // --- more common exception / HFW ---
+    { id: "y1-41", sentence: "____ you like to come with me?", answer: "Would", distractors: ["Could", "Should", "Wood", "World"] },
+    { id: "y1-42", sentence: "I ____ a film at the cinema.", answer: "saw", distractors: ["was", "say", "sat", "sad"] },
+    { id: "y1-43", sentence: "____ are going to the zoo today.", answer: "We", distractors: ["Me", "Be", "He", "By"] },
+    { id: "y1-44", sentence: "My brother is ____ years old.", answer: "one", distractors: ["won", "own", "now", "new"] },
+    { id: "y1-45", sentence: "The cake is ____ the table.", answer: "on", distractors: ["of", "no", "an", "in"] },
+    // --- more vocabulary in context ---
+    { id: "y1-46", sentence: "The feather felt very ____.", answer: "soft", distractors: ["hard", "loud", "deep", "fast"] },
+    { id: "y1-47", sentence: "We must be ____ near the road.", answer: "careful", distractors: ["cheerful", "playful", "useful", "helpful"] },
+    { id: "y1-48", sentence: "The puppy was ____ and wagged its tail.", answer: "happy", distractors: ["angry", "empty", "dirty", "windy"] },
+    { id: "y1-49", sentence: "It was so ____ that we wore our coats.", answer: "windy", distractors: ["sunny", "happy", "funny", "dusty"] },
+    { id: "y1-50", sentence: "The snail moved very ____ across the path.", answer: "slowly", distractors: ["quickly", "loudly", "neatly", "kindly"] },
+  ],
+  2: [
+    // --- adjectives in context (emotion, sense, simple descriptive) ---
+    { id: "y2-1", sentence: "The children were very ____ when it started to snow.", answer: "excited", distractors: ["asleep", "broken", "empty", "round"] },
+    { id: "y2-2", sentence: "The bread was so ____ that it was hard to chew.", answer: "stale", distractors: ["fresh", "happy", "tall", "loud"] },
+    { id: "y2-3", sentence: "The puppy's fur felt ____ and warm.", answer: "fluffy", distractors: ["sticky", "spiky", "shiny", "stripy"] },
+    { id: "y2-4", sentence: "The lemon was so ____ it made me pull a face.", answer: "sour", distractors: ["sweet", "smooth", "sleepy", "spotty"] },
+    { id: "y2-5", sentence: "The grumpy old man was always ____.", answer: "cross", distractors: ["clean", "cosy", "calm", "crisp"] },
+    { id: "y2-6", sentence: "The treasure chest was very ____ to lift.", answer: "heavy", distractors: ["empty", "happy", "early", "tidy"] },
+    { id: "y2-7", sentence: "The thin ice was very ____ and might crack.", answer: "fragile", distractors: ["furious", "famous", "frosty", "friendly"] },
+    // --- vivid verbs (stronger than 'said', 'walked', 'looked') ---
+    { id: "y2-8", sentence: "She gently ____ the tiny kitten.", answer: "stroked", distractors: ["shouted", "dropped", "spilled", "marched"] },
+    { id: "y2-9", sentence: "The angry teacher ____ at the noisy class.", answer: "shouted", distractors: ["whispered", "wondered", "wandered", "wanted"] },
+    { id: "y2-10", sentence: "The mouse ____ across the kitchen floor.", answer: "scurried", distractors: ["snored", "stirred", "smiled", "shouted"] },
+    { id: "y2-11", sentence: "The little baby ____ when it dropped its toy.", answer: "cried", distractors: ["clapped", "cooked", "called", "crawled"] },
+    { id: "y2-12", sentence: "He ____ the rope with all his strength.", answer: "gripped", distractors: ["giggled", "guessed", "grumbled", "groaned"] },
+    { id: "y2-13", sentence: "The old door ____ when she pushed it open.", answer: "creaked", distractors: ["cracked", "crawled", "cooked", "carried"] },
+    // --- common exception words (Year 2 spelling list) ---
+    { id: "y2-14", sentence: "We had to ____ for our turn on the swing.", answer: "wait", distractors: ["went", "want", "was", "weak"] },
+    { id: "y2-15", sentence: "I ate the ____ apple after lunch.", answer: "whole", distractors: ["hole", "while", "wheel", "weight"] },
+    { id: "y2-16", sentence: "____ are going to the museum tomorrow.", answer: "They", distractors: ["The", "Then", "Them", "That"] },
+    { id: "y2-17", sentence: "Please come ____ for tea at six o'clock.", answer: "here", distractors: ["hear", "her", "hare", "hire"] },
+    { id: "y2-18", sentence: "The little girl ____ her mum at the gate.", answer: "found", distractors: ["fond", "fund", "fend", "feed"] },
+    { id: "y2-19", sentence: "I want to be a teacher when I am ____ up.", answer: "grown", distractors: ["green", "grain", "groan", "groin"] },
+    { id: "y2-20", sentence: "The cat ____ at the bird in the tree.", answer: "watched", distractors: ["washed", "wished", "wanted", "warned"] },
+    // --- suffixes (-ed, -ing, -er, -est) ---
+    { id: "y2-21", sentence: "Today is even ____ than yesterday.", answer: "hotter", distractors: ["hottest", "hotting", "hots", "hot"] },
+    { id: "y2-22", sentence: "Mount Everest is the ____ mountain in the world.", answer: "tallest", distractors: ["taller", "talling", "tall", "tally"] },
+    { id: "y2-23", sentence: "The children are ____ in the playground.", answer: "running", distractors: ["runner", "runned", "runs", "run"] },
+    { id: "y2-24", sentence: "She ____ the door behind her quietly.", answer: "closed", distractors: ["closing", "closer", "closes", "close"] },
+    // --- suffixes (-ly, -ful, -less, -ment, -ness) ---
+    { id: "y2-25", sentence: "The little boy walked ____ to his classroom.", answer: "slowly", distractors: ["slower", "slows", "slow", "slowed"] },
+    { id: "y2-26", sentence: "Mum made a ____ cake for my birthday.", answer: "beautiful", distractors: ["beauty", "beautify", "beauties", "beautied"] },
+    { id: "y2-27", sentence: "The wind was ____ and blew our hats away.", answer: "powerful", distractors: ["power", "powering", "powered", "powers"] },
+    { id: "y2-28", sentence: "The puppy was ____ without its mother.", answer: "helpless", distractors: ["helping", "helper", "helps", "helped"] },
+    { id: "y2-29", sentence: "She smiled with great ____ when she won the prize.", answer: "happiness", distractors: ["happy", "happily", "happier", "happiest"] },
+    { id: "y2-30", sentence: "The puzzle gave him a lot of ____.", answer: "enjoyment", distractors: ["enjoy", "enjoying", "enjoyed", "enjoys"] },
+    // --- apostrophes: contractions and possession ---
+    { id: "y2-31", sentence: "I ____ know the answer to the question.", answer: "don't", distractors: ["didn't", "doesn't", "won't", "isn't"] },
+    { id: "y2-32", sentence: "____ playing in the garden after school.", answer: "We're", distractors: ["Were", "Where", "Wear", "Weren't"] },
+    { id: "y2-33", sentence: "That book is ____, not mine.", answer: "Sam's", distractors: ["Sams", "Sam", "Sames", "Sam'es"] },
+    { id: "y2-34", sentence: "The dog wagged ____ tail.", answer: "its", distractors: ["it's", "its'", "his'", "it"] },
+    // --- homophones (Y2 spelling appendix) ---
+    { id: "y2-35", sentence: "I can ____ the bell ringing from here.", answer: "hear", distractors: ["here", "her", "hare", "heir"] },
+    { id: "y2-36", sentence: "The sun shone ____ the window.", answer: "through", distractors: ["threw", "though", "thought", "thorough"] },
+    { id: "y2-37", sentence: "I went to the shop to buy ____ bread.", answer: "some", distractors: ["sum", "same", "sun", "son"] },
+    { id: "y2-38", sentence: "We had cake ____ ice cream for pudding.", answer: "and", distractors: ["end", "an", "ant", "any"] },
+    // --- compound words (Y2 focus) ---
+    { id: "y2-39", sentence: "I eat ____ before I go to school.", answer: "breakfast", distractors: ["bedroom", "birthday", "bathroom", "blackboard"] },
+    { id: "y2-40", sentence: "The bees live in a wooden ____ in the garden.", answer: "beehive", distractors: ["birdcage", "doghouse", "henhouse", "anthill"] },
+    { id: "y2-41", sentence: "The farmer keeps the cows in the ____.", answer: "farmyard", distractors: ["farmland", "farmhouse", "farmwork", "farmer"] },
+    { id: "y2-42", sentence: "The ____ shone brightly in the night sky.", answer: "moonlight", distractors: ["midnight", "morning", "midday", "midweek"] },
+    // --- inference / meaning in context ---
+    { id: "y2-43", sentence: "The bath was so ____ that steam rose from it.", answer: "hot", distractors: ["cold", "deep", "wide", "low"] },
+    { id: "y2-44", sentence: "After playing in the rain, my clothes were ____.", answer: "soaked", distractors: ["sorted", "sealed", "served", "seated"] },
+    { id: "y2-45", sentence: "The cake had a ____ smell that filled the kitchen.", answer: "sweet", distractors: ["short", "sharp", "spare", "stiff"] },
+    { id: "y2-46", sentence: "The thunder was so loud the baby felt ____.", answer: "scared", distractors: ["sleepy", "sticky", "spotted", "sturdy"] },
+    // --- conjunctions / connectives (and, but, because, when, if, that) ---
+    { id: "y2-47", sentence: "I took my umbrella ____ it was raining.", answer: "because", distractors: ["before", "between", "below", "beside"] },
+    { id: "y2-48", sentence: "We can go to the park ____ you finish your lunch.", answer: "when", distractors: ["why", "what", "where", "who"] },
+    { id: "y2-49", sentence: "I will help you ____ you ask me nicely.", answer: "if", distractors: ["in", "it", "is", "of"] },
+    { id: "y2-50", sentence: "The dog barked ____ the postman arrived.", answer: "when", distractors: ["with", "well", "what", "wide"] },
+  ],
+  3: [
+    // --- adjectives in context (emotion, character, atmosphere) ---
+    { id: "y3-1", sentence: "The explorer felt ____ as he entered the dark cave.", answer: "nervous", distractors: ["cheerful", "sleepy", "hungry", "polite"] },
+    { id: "y3-2", sentence: "He spoke in a ____ voice so as not to wake the baby.", answer: "hushed", distractors: ["furious", "enormous", "rusty", "spotty"] },
+    { id: "y3-3", sentence: "The knight was ____ and refused to give up.", answer: "determined", distractors: ["delicious", "transparent", "circular", "frozen"] },
+    { id: "y3-4", sentence: "Grandma was ____ when I forgot her birthday.", answer: "disappointed", distractors: ["delighted", "decorated", "discovered", "delivered"] },
+    { id: "y3-5", sentence: "The abandoned house looked ____ in the moonlight.", answer: "spooky", distractors: ["sporty", "sandy", "sunny", "sticky"] },
+    { id: "y3-6", sentence: "She gave a ____ smile when she heard the news.", answer: "grateful", distractors: ["graceful", "growing", "grumpy", "greedy"] },
+    { id: "y3-7", sentence: "The tired traveller was ____ to find a warm bed.", answer: "relieved", distractors: ["reviewed", "removed", "repeated", "received"] },
+    // --- vivid verbs (stronger alternatives to common words) ---
+    { id: "y3-8", sentence: "The garden was ____ with colourful flowers.", answer: "bursting", distractors: ["leaking", "freezing", "yawning", "sinking"] },
+    { id: "y3-9", sentence: "The hungry wolf ____ the meat.", answer: "devoured", distractors: ["delivered", "deserved", "designed", "denied"] },
+    { id: "y3-10", sentence: "The shy boy ____ his answer to the teacher.", answer: "mumbled", distractors: ["marched", "managed", "melted", "mended"] },
+    { id: "y3-11", sentence: "The puppy ____ excitedly when its owner came home.", answer: "bounded", distractors: ["balanced", "boiled", "borrowed", "blamed"] },
+    { id: "y3-12", sentence: "Rain ____ against the classroom window all morning.", answer: "lashed", distractors: ["leaned", "lifted", "linked", "listed"] },
+    { id: "y3-13", sentence: "The crowd ____ when the team scored a goal.", answer: "cheered", distractors: ["chewed", "checked", "changed", "chopped"] },
+    { id: "y3-14", sentence: "He ____ the heavy bag onto his back.", answer: "hoisted", distractors: ["hopped", "hated", "healed", "hummed"] },
+    // --- nouns / vocabulary in context ---
+    { id: "y3-15", sentence: "The old map showed a ____ to the hidden treasure.", answer: "route", distractors: ["meal", "crowd", "voice", "stamp"] },
+    { id: "y3-16", sentence: "We visited the ____ to learn about ancient Egypt.", answer: "museum", distractors: ["meadow", "machine", "magnet", "mountain"] },
+    { id: "y3-17", sentence: "A loud ____ shook the windows during the storm.", answer: "rumble", distractors: ["ribbon", "riddle", "ripple", "rocket"] },
+    { id: "y3-18", sentence: "The princess lived in a grand ____ on the hill.", answer: "palace", distractors: ["puddle", "parcel", "pebble", "pocket"] },
+    { id: "y3-19", sentence: "The detective looked for ____ at the scene of the crime.", answer: "clues", distractors: ["clubs", "claws", "cliffs", "clocks"] },
+    { id: "y3-20", sentence: "We could see our ____ in the still water of the lake.", answer: "reflection", distractors: ["collection", "direction", "selection", "decoration"] },
+    // --- adverbs (manner, frequency) ---
+    { id: "y3-21", sentence: "The cat crept ____ towards the unsuspecting mouse.", answer: "silently", distractors: ["loudly", "happily", "rudely", "kindly"] },
+    { id: "y3-22", sentence: "She ____ tidied her room before her friend arrived.", answer: "quickly", distractors: ["sweetly", "loudly", "softly", "darkly"] },
+    { id: "y3-23", sentence: "The teacher ____ explained the problem again.", answer: "patiently", distractors: ["angrily", "wildly", "noisily", "lazily"] },
+    { id: "y3-24", sentence: "The thief ____ opened the door so no one would hear.", answer: "carefully", distractors: ["cheerfully", "carelessly", "clumsily", "constantly"] },
+    // --- prefixes (un-, dis-, mis-, re-) ---
+    { id: "y3-25", sentence: "It was ____ to climb the tree without permission.", answer: "unwise", distractors: ["unkind", "unsure", "unable", "unfair"] },
+    { id: "y3-26", sentence: "I had to ____ my homework because I made a mistake.", answer: "redo", distractors: ["undo", "remove", "react", "refill"] },
+    { id: "y3-27", sentence: "They ____ about who should go first.", answer: "disagreed", distractors: ["discovered", "displayed", "disturbed", "dismissed"] },
+    { id: "y3-28", sentence: "I ____ my sister's name and she laughed.", answer: "misspelled", distractors: ["mistreated", "misplaced", "misled", "misheard"] },
+    // --- suffixes (-ly, -ful, -less, -ment) ---
+    { id: "y3-29", sentence: "The old bridge was ____ and no one used it.", answer: "useless", distractors: ["useful", "user", "using", "users"] },
+    { id: "y3-30", sentence: "She felt great ____ when she finished the race.", answer: "enjoyment", distractors: ["enjoyable", "enjoying", "enjoyed", "enjoys"] },
+    { id: "y3-31", sentence: "The little girl was ____ in the busy shop.", answer: "fearful", distractors: ["fearless", "fearing", "feared", "fears"] },
+    { id: "y3-32", sentence: "He spoke ____ during the school play.", answer: "clearly", distractors: ["clearer", "clearing", "cleared", "clears"] },
+    // --- homophones / commonly confused words ---
+    { id: "y3-33", sentence: "I can hear the music ____ the wall.", answer: "through", distractors: ["threw", "though", "thought", "thorough"] },
+    { id: "y3-34", sentence: "The horse swished its ____ at the flies.", answer: "tail", distractors: ["tale", "tile", "toil", "tall"] },
+    { id: "y3-35", sentence: "The shop sells ____ kinds of cheese.", answer: "many", distractors: ["money", "merry", "meant", "messy"] },
+    { id: "y3-36", sentence: "We sat ____ the campfire telling stories.", answer: "around", distractors: ["arose", "aloud", "allow", "abroad"] },
+    // --- inference from context ---
+    { id: "y3-37", sentence: "The cake was ____ because no one had taken a slice.", answer: "untouched", distractors: ["unfolded", "unaware", "unhappy", "unsteady"] },
+    { id: "y3-38", sentence: "Her bedroom was ____ — clothes and books were everywhere.", answer: "messy", distractors: ["empty", "tidy", "windy", "cosy"] },
+    { id: "y3-39", sentence: "The puddle was so ____ it covered my whole boot.", answer: "deep", distractors: ["thin", "calm", "dry", "soft"] },
+    { id: "y3-40", sentence: "The library was ____ so we whispered to each other.", answer: "silent", distractors: ["distant", "modern", "ancient", "crowded"] },
+    { id: "y3-41", sentence: "After running for an hour, his face was ____ and red.", answer: "sweaty", distractors: ["sleepy", "speedy", "sturdy", "steady"] },
+    { id: "y3-42", sentence: "The ice cream had melted into a sticky ____.", answer: "puddle", distractors: ["bundle", "muddle", "saddle", "candle"] },
+    // --- conjunctions / connectives (Y3 focus) ---
+    { id: "y3-43", sentence: "We had to take umbrellas ____ it was raining hard.", answer: "because", distractors: ["before", "between", "beyond", "behind"] },
+    { id: "y3-44", sentence: "I ate my lunch ____ I finished my work.", answer: "after", distractors: ["above", "again", "alone", "among"] },
+    { id: "y3-45", sentence: "He was tired, ____ he kept on running.", answer: "but", distractors: ["so", "or", "if", "and"] },
+    // --- richer Year 3 vocabulary ---
+    { id: "y3-46", sentence: "The ____ animals slept in the cold winter months.", answer: "hibernating", distractors: ["hesitating", "celebrating", "decorating", "investigating"] },
+    { id: "y3-47", sentence: "The food at the party was absolutely ____.", answer: "delicious", distractors: ["dangerous", "decorated", "delivered", "different"] },
+    { id: "y3-48", sentence: "The teacher gave us clear ____ for the experiment.", answer: "instructions", distractors: ["interruptions", "introductions", "inventions", "impressions"] },
+    { id: "y3-49", sentence: "The ancient castle was ____ but still standing.", answer: "crumbling", distractors: ["crowding", "crawling", "crashing", "creaking"] },
+    { id: "y3-50", sentence: "The magician's trick left the audience ____.", answer: "amazed", distractors: ["aged", "armed", "aimed", "asked"] },
+  ],
+  4: [
+    // --- richer adjectives (Tier 2 vocabulary in context) ---
+    { id: "y4-1", sentence: "The volcano had been ____ for hundreds of years.", answer: "dormant", distractors: ["delighted", "generous", "fragile", "punctual"] },
+    { id: "y4-2", sentence: "Her ____ argument convinced the whole class.", answer: "persuasive", distractors: ["edible", "horizontal", "muddy", "feathered"] },
+    { id: "y4-3", sentence: "The empty old house felt ____ at night.", answer: "eerie", distractors: ["eager", "early", "easy", "edgy"] },
+    { id: "y4-4", sentence: "The audience gave a ____ round of applause.", answer: "tremendous", distractors: ["transparent", "triangular", "tropical", "treacherous"] },
+    { id: "y4-5", sentence: "She kept her diary in a ____ place no one could find.", answer: "secret", distractors: ["sudden", "second", "select", "severe"] },
+    { id: "y4-6", sentence: "The lost dog looked ____ and refused to eat.", answer: "miserable", distractors: ["magnificent", "marvellous", "memorable", "muscular"] },
+    { id: "y4-7", sentence: "The ____ explorer travelled deep into the jungle.", answer: "courageous", distractors: ["curious", "creative", "comfortable", "convenient"] },
+    // --- vivid / precise verbs ---
+    { id: "y4-8", sentence: "The river ____ gently through the valley.", answer: "meandered", distractors: ["exploded", "shattered", "demanded", "applauded"] },
+    { id: "y4-9", sentence: "The detective ____ the suspect for over an hour.", answer: "questioned", distractors: ["queued", "quivered", "quoted", "quarrelled"] },
+    { id: "y4-10", sentence: "The thieves ____ into the museum after dark.", answer: "sneaked", distractors: ["snapped", "snorted", "sneezed", "snatched"] },
+    { id: "y4-11", sentence: "She ____ over the meaning of the strange message.", answer: "puzzled", distractors: ["polished", "punished", "published", "punctured"] },
+    { id: "y4-12", sentence: "The crowd ____ in horror as the building collapsed.", answer: "gasped", distractors: ["grasped", "groaned", "gathered", "guarded"] },
+    { id: "y4-13", sentence: "Lightning ____ across the night sky.", answer: "flashed", distractors: ["flooded", "floated", "flapped", "fluttered"] },
+    // --- prefixes (Y4 statutory: anti-, super-, inter-, sub-, auto-) ---
+    { id: "y4-14", sentence: "The doctor put ____ cream on the cut.", answer: "antiseptic", distractors: ["antifreeze", "antiwar", "antisocial", "antiviral"] },
+    { id: "y4-15", sentence: "Astronauts must wear a ____ in space.", answer: "spacesuit", distractors: ["superstar", "supermarket", "superpower", "superhero"] },
+    { id: "y4-16", sentence: "The two countries signed an ____ agreement.", answer: "international", distractors: ["interactive", "interrupted", "interesting", "intermediate"] },
+    { id: "y4-17", sentence: "A ____ travels deep beneath the ocean.", answer: "submarine", distractors: ["subtitle", "subtotal", "suburb", "subzero"] },
+    { id: "y4-18", sentence: "The author wrote her own life story called an ____.", answer: "autobiography", distractors: ["automobile", "autopilot", "autograph", "automatic"] },
+    // --- suffixes (-ation, -ous, -sion, -tion, -ly, -ible/-able) ---
+    { id: "y4-19", sentence: "The teacher gave a clear ____ of how to solve the sum.", answer: "explanation", distractors: ["explorer", "explainer", "explained", "explaining"] },
+    { id: "y4-20", sentence: "The lion is a ____ and powerful animal.", answer: "dangerous", distractors: ["danger", "dangering", "dangerful", "dangerless"] },
+    { id: "y4-21", sentence: "She made a difficult ____ to move to a new school.", answer: "decision", distractors: ["decide", "decider", "deciding", "decided"] },
+    { id: "y4-22", sentence: "The class went on an ____ to the local farm.", answer: "expedition", distractors: ["expose", "exposure", "experience", "experiment"] },
+    { id: "y4-23", sentence: "He waited ____ for the bus to arrive.", answer: "patiently", distractors: ["patience", "patient", "patiented", "patienting"] },
+    { id: "y4-24", sentence: "The cup was light and very ____.", answer: "breakable", distractors: ["breaking", "breaker", "breaks", "broke"] },
+    // --- word endings (-le, -el, -al, -il) ---
+    { id: "y4-25", sentence: "We blew out the candles on the ____ cake.", answer: "birthday", distractors: ["bicycle", "bottle", "battle", "bubble"] },
+    { id: "y4-26", sentence: "The angry king lived in a tall ____.", answer: "castle", distractors: ["camel", "cancel", "carnival", "council"] },
+    { id: "y4-27", sentence: "The doctor wrote in the patient's ____.", answer: "journal", distractors: ["journey", "juggle", "jungle", "jumble"] },
+    { id: "y4-28", sentence: "A snail moves with the help of a slimy ____.", answer: "trail", distractors: ["travel", "tunnel", "trifle", "trouble"] },
+    // --- homophones (Y4 spelling appendix) ---
+    { id: "y4-29", sentence: "I have a stomach ____ from eating too quickly.", answer: "ache", distractors: ["ace", "age", "ape", "ask"] },
+    { id: "y4-30", sentence: "Please don't ____ the secret to anyone.", answer: "reveal", distractors: ["repeal", "revere", "revel", "review"] },
+    { id: "y4-31", sentence: "The runner won the gold ____ at the championships.", answer: "medal", distractors: ["meddle", "metal", "model", "modal"] },
+    { id: "y4-32", sentence: "We should ____ the rules of the game.", answer: "accept", distractors: ["except", "expect", "exempt", "extract"] },
+    { id: "y4-33", sentence: "The shop has a special ____ on toys this week.", answer: "offer", distractors: ["officer", "office", "often", "offering"] },
+    // --- plurals and irregular plurals ---
+    { id: "y4-34", sentence: "The dentist examined her ____ carefully.", answer: "teeth", distractors: ["tooths", "toothes", "teeths", "toothies"] },
+    { id: "y4-35", sentence: "The shepherd counted his ____ at the end of the day.", answer: "sheep", distractors: ["sheeps", "shepe", "sheepies", "shept"] },
+    { id: "y4-36", sentence: "Many small ____ scurried out from under the rock.", answer: "mice", distractors: ["mouses", "mices", "mousies", "micies"] },
+    // --- inference from longer sentences ---
+    { id: "y4-37", sentence: "Even though it was raining, she refused to take an ____.", answer: "umbrella", distractors: ["umbrage", "urgency", "uniform", "utensil"] },
+    { id: "y4-38", sentence: "The library was so ____ that you could hear a pin drop.", answer: "silent", distractors: ["solid", "simple", "similar", "single"] },
+    { id: "y4-39", sentence: "The thirsty traveller drank ____ from the cool stream.", answer: "eagerly", distractors: ["easily", "early", "elegantly", "evenly"] },
+    { id: "y4-40", sentence: "Although she was nervous, her speech sounded ____.", answer: "confident", distractors: ["confused", "constant", "continued", "convinced"] },
+    { id: "y4-41", sentence: "The team had practised for weeks and felt fully ____.", answer: "prepared", distractors: ["pretended", "presented", "preferred", "presumed"] },
+    { id: "y4-42", sentence: "The food at the restaurant was so ____ it earned a top award.", answer: "exquisite", distractors: ["exhausting", "expensive", "extensive", "exploring"] },
+    // --- conjunctions and complex sentence connectives ---
+    { id: "y4-43", sentence: "I checked the answers ____ I handed in my work.", answer: "before", distractors: ["beyond", "behind", "beside", "between"] },
+    { id: "y4-44", sentence: "____ the sun was shining, we played in the garden.", answer: "Since", distractors: ["Until", "Unless", "Whether", "Whenever"] },
+    { id: "y4-45", sentence: "We waited inside ____ the rain finally stopped.", answer: "until", distractors: ["unless", "under", "upon", "using"] },
+    // --- Y3/4 statutory word list in context ---
+    { id: "y4-46", sentence: "The fire spread ____ through the dry forest.", answer: "rapidly", distractors: ["regularly", "recently", "reasonably", "remotely"] },
+    { id: "y4-47", sentence: "The actor remembered his lines without any ____.", answer: "difficulty", distractors: ["different", "difference", "differently", "differ"] },
+    { id: "y4-48", sentence: "The ____ ship sank to the bottom of the sea.", answer: "ancient", distractors: ["anxious", "appear", "answer", "accident"] },
+    { id: "y4-49", sentence: "The detective was ____ that the suspect was lying.", answer: "certain", distractors: ["centre", "century", "certify", "ceremony"] },
+    { id: "y4-50", sentence: "The astronaut described his journey through ____.", answer: "space", distractors: ["spare", "spade", "spear", "speak"] },
+  ],
+  5: [
+    // --- sophisticated adjectives (Tier 2 in context) ---
+    { id: "y5-1", sentence: "The scientist's discovery was truly ____ and changed the field.", answer: "remarkable", distractors: ["edible", "punctual", "horizontal", "reluctant"] },
+    { id: "y5-2", sentence: "He gave an ____ apology that nobody believed.", answer: "insincere", distractors: ["fragrant", "spherical", "nocturnal", "metallic"] },
+    { id: "y5-3", sentence: "The lawyer presented a ____ case to the jury.", answer: "compelling", distractors: ["edible", "buoyant", "fractured", "dormant"] },
+    { id: "y5-4", sentence: "The mountaineer made a ____ climb to the summit.", answer: "perilous", distractors: ["punctual", "portable", "previous", "peculiar"] },
+    { id: "y5-5", sentence: "Her ____ memory allowed her to recall every detail.", answer: "phenomenal", distractors: ["philosophical", "photographic", "physical", "phonetic"] },
+    { id: "y5-6", sentence: "The judge gave an ____ verdict that satisfied no one.", answer: "ambiguous", distractors: ["amphibious", "ambitious", "amateur", "amicable"] },
+    { id: "y5-7", sentence: "The traveller's stories were so ____ that everyone listened.", answer: "captivating", distractors: ["calculating", "celebrating", "cultivating", "communicating"] },
+    // --- precise verbs ---
+    { id: "y5-8", sentence: "The ancient ruins were ____ by tourists every summer.", answer: "frequented", distractors: ["evaporated", "fossilised", "whispered", "demolished"] },
+    { id: "y5-9", sentence: "The witness ____ that he had seen the suspect that night.", answer: "confirmed", distractors: ["conformed", "confined", "confronted", "confessed"] },
+    { id: "y5-10", sentence: "The negotiator tried to ____ the two warring sides.", answer: "reconcile", distractors: ["reclaim", "recognise", "recommend", "reconstruct"] },
+    { id: "y5-11", sentence: "Her sharp criticism ____ him to make changes.", answer: "prompted", distractors: ["promoted", "promised", "pronounced", "prospered"] },
+    { id: "y5-12", sentence: "The protesters ____ outside the town hall for hours.", answer: "assembled", distractors: ["ascended", "assumed", "assigned", "assisted"] },
+    { id: "y5-13", sentence: "The general ordered his troops to ____ at dawn.", answer: "advance", distractors: ["abandon", "achieve", "approve", "announce"] },
+    // --- precise nouns ---
+    { id: "y5-14", sentence: "Her ____ for music was obvious from a young age.", answer: "aptitude", distractors: ["reluctance", "boundary", "fragment", "interval"] },
+    { id: "y5-15", sentence: "The teacher praised the student's ____ and hard work.", answer: "perseverance", distractors: ["performance", "permission", "personality", "persuasion"] },
+    { id: "y5-16", sentence: "There was a strange ____ in the sky just before dawn.", answer: "phenomenon", distractors: ["philosopher", "photograph", "phantom", "phrase"] },
+    { id: "y5-17", sentence: "The two leaders signed a ____ to end the war.", answer: "treaty", distractors: ["theory", "thesis", "thread", "throne"] },
+    { id: "y5-18", sentence: "The detective searched the room for any ____ of the crime.", answer: "evidence", distractors: ["essence", "absence", "audience", "experience"] },
+    // --- Y5/6 suffix: -cious / -tious ---
+    { id: "y5-19", sentence: "The lion was ____ when defending its territory.", answer: "ferocious", distractors: ["fortunate", "fearless", "frequent", "feasible"] },
+    { id: "y5-20", sentence: "The hotel chef cooked a ____ three-course meal.", answer: "delicious", distractors: ["different", "difficult", "delicate", "deliberate"] },
+    { id: "y5-21", sentence: "She was ____ in everything she set out to do.", answer: "ambitious", distractors: ["anxious", "obvious", "envious", "various"] },
+    // --- Y5/6 suffix: -cial / -tial ---
+    { id: "y5-22", sentence: "Reading is an ____ skill for learning other subjects.", answer: "essential", distractors: ["eventual", "external", "emotional", "exceptional"] },
+    { id: "y5-23", sentence: "The mayor made an ____ announcement on the news.", answer: "official", distractors: ["optional", "occasional", "original", "objectional"] },
+    { id: "y5-24", sentence: "The plan had the ____ to change the whole school.", answer: "potential", distractors: ["practical", "personal", "particular", "patriotic"] },
+    // --- Y5/6 suffix: -ant / -ance / -ancy ---
+    { id: "y5-25", sentence: "The teacher's ____ helped me improve my writing.", answer: "guidance", distractors: ["guarantee", "grievance", "gracious", "gratitude"] },
+    { id: "y5-26", sentence: "There was a long period of ____ before he replied.", answer: "hesitance", distractors: ["heritage", "hindrance", "hierarchy", "hibernation"] },
+    { id: "y5-27", sentence: "The candle flickered, casting a ____ glow on the wall.", answer: "radiant", distractors: ["rampant", "redundant", "reluctant", "resistant"] },
+    // --- Y5/6 suffix: -ent / -ence / -ency ---
+    { id: "y5-28", sentence: "The witness gave a clear and ____ account of events.", answer: "coherent", distractors: ["competent", "convenient", "continent", "contingent"] },
+    { id: "y5-29", sentence: "The room fell silent in the ____ of the head teacher.", answer: "presence", distractors: ["patience", "preference", "performance", "persistence"] },
+    { id: "y5-30", sentence: "She had to act with great ____ in front of the camera.", answer: "confidence", distractors: ["conference", "consequence", "convergence", "coincidence"] },
+    // --- Y5/6 suffix: -able / -ible ---
+    { id: "y5-31", sentence: "The handwriting was so faded it was barely ____.", answer: "legible", distractors: ["likable", "liable", "logical", "lateral"] },
+    { id: "y5-32", sentence: "His ____ behaviour at parties made him popular.", answer: "sociable", distractors: ["sensible", "suitable", "sizeable", "syllable"] },
+    { id: "y5-33", sentence: "The conclusion was ____ from the evidence presented.", answer: "inevitable", distractors: ["incredible", "invisible", "infallible", "inflexible"] },
+    // --- silent letters (Y5/6 spelling) ---
+    { id: "y5-34", sentence: "The detective spotted a ____ in the suspect's story.", answer: "knot", distractors: ["not", "note", "knit", "neat"] },
+    { id: "y5-35", sentence: "She raised her ____ to ask a question.", answer: "hand", distractors: ["wand", "band", "land", "sand"] },
+    { id: "y5-36", sentence: "The knight wielded a heavy ____ in battle.", answer: "sword", distractors: ["soared", "sward", "shroud", "stride"] },
+    { id: "y5-37", sentence: "We could see the ____ in the dough rising as it baked.", answer: "yeast", distractors: ["yield", "yarn", "year", "youth"] },
+    // --- figurative language / similes / metaphor in context ---
+    { id: "y5-38", sentence: "Her voice was as ____ as a nightingale's song.", answer: "melodious", distractors: ["mechanical", "monotonous", "miserable", "metallic"] },
+    { id: "y5-39", sentence: "The icy wind ____ through the empty streets.", answer: "howled", distractors: ["healed", "hauled", "halted", "hovered"] },
+    { id: "y5-40", sentence: "His face turned ____ red when he was caught lying.", answer: "beetroot", distractors: ["beautiful", "beneath", "beforehand", "beside"] },
+    // --- modal verbs (Y5 grammar focus) ---
+    { id: "y5-41", sentence: "Visitors ____ keep dogs on a lead in the park.", answer: "must", distractors: ["may", "might", "mostly", "merely"] },
+    { id: "y5-42", sentence: "I ____ go to the cinema if I finish my homework.", answer: "could", distractors: ["cold", "cured", "called", "carved"] },
+    { id: "y5-43", sentence: "It ____ rain later, so take an umbrella.", answer: "might", distractors: ["must", "make", "mean", "mend"] },
+    // --- inference from layered sentences ---
+    { id: "y5-44", sentence: "Despite his cheerful manner, the headmaster was secretly ____ about the inspection.", answer: "anxious", distractors: ["amused", "ancient", "annoying", "amazing"] },
+    { id: "y5-45", sentence: "The detective remained ____ even when the evidence seemed to contradict him.", answer: "convinced", distractors: ["conceited", "concerned", "convicted", "concealed"] },
+    { id: "y5-46", sentence: "Although it looked easy, the puzzle was actually ____ to solve.", answer: "intricate", distractors: ["intimate", "internal", "intentional", "intensive"] },
+    // --- Y5/6 statutory word list in context ---
+    { id: "y5-47", sentence: "The pupils had to ____ their work to the teacher by Friday.", answer: "submit", distractors: ["subtract", "subdue", "submerge", "substitute"] },
+    { id: "y5-48", sentence: "The new museum exhibit was a great ____ for the town.", answer: "achievement", distractors: ["acknowledgement", "advertisement", "appointment", "amusement"] },
+    { id: "y5-49", sentence: "The vegetables in the soup are home-grown and very ____.", answer: "nutritious", distractors: ["notorious", "noticeable", "necessary", "neighbourly"] },
+    { id: "y5-50", sentence: "She gave a ____ speech that moved the entire audience.", answer: "sincere", distractors: ["severe", "secure", "serene", "separate"] },
+  ],
+  6: [
+    // --- sophisticated adjectives (advanced Tier 2 in context) ---
+    { id: "y6-1", sentence: "The author's ____ prose made the novel a joy to read.", answer: "eloquent", distractors: ["obsolete", "abrasive", "perishable", "sedentary"] },
+    { id: "y6-2", sentence: "Despite the setback, she remained ____ about the outcome.", answer: "optimistic", distractors: ["catastrophic", "synthetic", "perpendicular", "ravenous"] },
+    { id: "y6-3", sentence: "His ____ remarks offended several guests at the dinner.", answer: "tactless", distractors: ["luminous", "biodegradable", "symmetrical", "perennial"] },
+    { id: "y6-4", sentence: "The witness gave a ____ account that left no doubt.", answer: "categorical", distractors: ["chronological", "circumstantial", "constitutional", "characteristic"] },
+    { id: "y6-5", sentence: "The artist's work was praised for being highly ____.", answer: "innovative", distractors: ["indicative", "infectious", "indignant", "indifferent"] },
+    { id: "y6-6", sentence: "The peace agreement proved to be a ____ moment in history.", answer: "pivotal", distractors: ["plausible", "perpetual", "primitive", "prosperous"] },
+    { id: "y6-7", sentence: "Her ____ generosity touched the whole community.", answer: "boundless", distractors: ["bountiful", "burdensome", "biased", "brittle"] },
+    // --- precise verbs ---
+    { id: "y6-8", sentence: "The historian sought to ____ the legends from the facts.", answer: "disentangle", distractors: ["discover", "disconnect", "discredit", "distinguish"] },
+    { id: "y6-9", sentence: "The lawyer attempted to ____ the witness's testimony.", answer: "discredit", distractors: ["disclose", "discharge", "discourse", "disclaim"] },
+    { id: "y6-10", sentence: "Years of pollution had begun to ____ the ancient stonework.", answer: "erode", distractors: ["evade", "endure", "embed", "exhume"] },
+    { id: "y6-11", sentence: "The poet's words seemed to ____ the very air.", answer: "transform", distractors: ["transmit", "transcribe", "transfer", "transplant"] },
+    { id: "y6-12", sentence: "The dictator tried to ____ all opposition to his rule.", answer: "suppress", distractors: ["surpass", "surround", "surrender", "subscribe"] },
+    { id: "y6-13", sentence: "The committee voted to ____ the new policy immediately.", answer: "implement", distractors: ["impede", "imply", "impress", "import"] },
+    // --- precise / abstract nouns ---
+    { id: "y6-14", sentence: "The committee reached a ____ decision after long debate.", answer: "unanimous", distractors: ["ambiguous", "tangible", "nocturnal", "spontaneous"] },
+    { id: "y6-15", sentence: "The negotiations finally reached a ____ that satisfied both sides.", answer: "compromise", distractors: ["catastrophe", "monologue", "sediment", "vertebra"] },
+    { id: "y6-16", sentence: "Her ____ to the cause inspired everyone around her.", answer: "dedication", distractors: ["declaration", "decoration", "dedicating", "deduction"] },
+    { id: "y6-17", sentence: "The detective followed every ____ until he found the truth.", answer: "hypothesis", distractors: ["hypocrisy", "hyperbole", "hibernation", "hindrance"] },
+    { id: "y6-18", sentence: "The factory closure had serious ____ for the local economy.", answer: "ramifications", distractors: ["recommendations", "reconciliations", "recollections", "registrations"] },
+    { id: "y6-19", sentence: "The judge's role is to remain ____ in every trial.", answer: "impartial", distractors: ["imperial", "important", "impatient", "imperfect"] },
+    // --- Latinate / Greek-origin vocabulary ---
+    { id: "y6-20", sentence: "The professor delivered a ____ lecture on Roman history.", answer: "scholarly", distractors: ["solitary", "stationary", "secondary", "sedentary"] },
+    { id: "y6-21", sentence: "The ancient temple was an architectural ____.", answer: "marvel", distractors: ["mantle", "muddle", "morsel", "mortal"] },
+    { id: "y6-22", sentence: "Her ____ for languages helped her travel the world.", answer: "facility", distractors: ["faculty", "fatality", "fragility", "futility"] },
+    { id: "y6-23", sentence: "The new law was met with widespread ____ from the public.", answer: "scepticism", distractors: ["spectator", "specimen", "speculation", "specialist"] },
+    // --- advanced suffixes: -ity, -ify, -ise ---
+    { id: "y6-24", sentence: "The scientist had to ____ her findings before publishing.", answer: "verify", distractors: ["clarify", "modify", "amplify", "qualify"] },
+    { id: "y6-25", sentence: "The committee will ____ their decision next week.", answer: "publicise", distractors: ["pulverise", "patronise", "paralyse", "polarise"] },
+    { id: "y6-26", sentence: "The room had an air of quiet ____.", answer: "dignity", distractors: ["density", "deity", "diversity", "destiny"] },
+    // --- subjunctive form (Y6 grammar statutory) ---
+    { id: "y6-27", sentence: "The judge demanded that the witness ____ the truth.", answer: "tell", distractors: ["tells", "told", "telling", "tale"] },
+    { id: "y6-28", sentence: "If I ____ you, I would apologise immediately.", answer: "were", distractors: ["was", "am", "had", "have"] },
+    { id: "y6-29", sentence: "It is essential that every pupil ____ the safety rules.", answer: "follow", distractors: ["follows", "followed", "following", "followers"] },
+    // --- formal vs informal register (Y6 grammar focus) ---
+    { id: "y6-30", sentence: "The headmaster requested that we ____ from running in the corridors.", answer: "refrain", distractors: ["retreat", "retract", "retrieve", "rebuke"] },
+    { id: "y6-31", sentence: "We ____ your attendance at the annual ceremony.", answer: "request", distractors: ["require", "remember", "remind", "reserve"] },
+    { id: "y6-32", sentence: "The minister responded with a formal ____ to the criticism.", answer: "rebuttal", distractors: ["retrieval", "removal", "reversal", "renewal"] },
+    // --- figurative language: idioms, personification, metaphor ---
+    { id: "y6-33", sentence: "After the argument, the silence between them was ____.", answer: "deafening", distractors: ["defeating", "deceiving", "defending", "departing"] },
+    { id: "y6-34", sentence: "The whispering trees seemed to ____ secrets to the wind.", answer: "confide", distractors: ["confine", "confirm", "conflict", "conform"] },
+    { id: "y6-35", sentence: "She had to swallow her ____ and apologise first.", answer: "pride", distractors: ["price", "prize", "pricked", "pried"] },
+    { id: "y6-36", sentence: "His confession opened a ____ of new questions.", answer: "floodgate", distractors: ["foothold", "footnote", "foreground", "foreword"] },
+    // --- punctuation as a meaning cue (semi-colon, dash, colon, brackets) ---
+    { id: "y6-37", sentence: "The garden was a riot of colour; the flowers were in full ____.", answer: "bloom", distractors: ["boom", "broom", "blood", "blown"] },
+    { id: "y6-38", sentence: "There is one thing he prizes above all else: ____.", answer: "honesty", distractors: ["happiness", "hostility", "hesitation", "humility"] },
+    { id: "y6-39", sentence: "The old castle — once a fortress — now stood ____ on the cliff.", answer: "derelict", distractors: ["deliberate", "delicate", "dedicated", "decisive"] },
+    // --- inference from complex syntax / concessive clauses ---
+    { id: "y6-40", sentence: "Although outwardly cheerful, the prince was ____ tormented by guilt.", answer: "inwardly", distractors: ["unwillingly", "instantly", "intensely", "increasingly"] },
+    { id: "y6-41", sentence: "However compelling her argument, the jury remained ____.", answer: "unconvinced", distractors: ["unconcerned", "unconscious", "uncontrolled", "uncorrected"] },
+    { id: "y6-42", sentence: "Far from being defeated, the team felt ____ by the challenge.", answer: "invigorated", distractors: ["intimidated", "investigated", "intoxicated", "interrupted"] },
+    { id: "y6-43", sentence: "Not only was she punctual, she was also remarkably ____.", answer: "thorough", distractors: ["thoughtless", "threatened", "throaty", "thrilling"] },
+    { id: "y6-44", sentence: "The evidence, while compelling, was hardly ____.", answer: "conclusive", distractors: ["confusing", "conducive", "consistent", "contagious"] },
+    // --- Y5/6 statutory word list in context ---
+    { id: "y6-45", sentence: "Even after the war, the ____ between the families continued.", answer: "controversy", distractors: ["correspondence", "consequence", "convenience", "construction"] },
+    { id: "y6-46", sentence: "The athlete's behaviour was an ____ to the entire sport.", answer: "embarrassment", distractors: ["entertainment", "enlargement", "engagement", "enchantment"] },
+    { id: "y6-47", sentence: "The new evidence was ____ to the original ruling.", answer: "relevant", distractors: ["resilient", "redundant", "reluctant", "respectful"] },
+    { id: "y6-48", sentence: "The witness's story was full of ____ that could not be explained.", answer: "inconsistencies", distractors: ["insufficiencies", "incompetencies", "indiscretions", "infrequencies"] },
+    { id: "y6-49", sentence: "The new policy provoked ____ from across the political spectrum.", answer: "criticism", distractors: ["cynicism", "scepticism", "patriotism", "optimism"] },
+    { id: "y6-50", sentence: "Despite the chaos, the captain remained calm and ____.", answer: "composed", distractors: ["compelled", "complete", "compared", "computed"] },
+  ],
+};
+
+/* ============================================================================
+   3. RANDOMISATION LAYER  (PURE FUNCTIONS)
+   ---------------------------------------------------------------------------
+   Fisher-Yates shuffle. Used to randomise (a) question order and (b) the order
+   of the five answer choices. Building a fresh test reshuffles everything, so
+   each refresh / restart yields a new order — satisfying the requirement.
+============================================================================ */
+function shuffle(array) {
+  const a = [...array];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Build a randomised test for a given year.
+ * Each returned question carries its shuffled options and the correct answer
+ * kept separately, so scoring never depends on option position.
+ */
+function buildTest(year) {
+  const source = QUESTION_BANK[year] || [];
+  // Shuffle the whole bank, then take only the first N — so each run draws a
+  // different random subset, and both question order and answer order vary.
+  const questions = shuffle(source)
+    .slice(0, CONFIG.QUESTIONS_PER_TEST)
+    .map((q) => ({
+      id: q.id,
+      sentence: q.sentence,
+      answer: q.answer,
+      options: shuffle([q.answer, ...q.distractors]),
+    }));
+  return { year, questions };
+}
+
+/* ============================================================================
+   4. SCORING  (PURE FUNCTION)
+   answers: { [questionId]: selectedOption }
+============================================================================ */
+function scoreTest(questions, answers) {
+  const total = questions.length;
+  let correct = 0;
+  for (const q of questions) {
+    if (answers[q.id] === q.answer) correct++;
+  }
+  const percentage = total === 0 ? 0 : Math.round((correct / total) * 100);
+  return { correct, total, percentage };
+}
+
+/* ============================================================================
+   5. TIMER HOOK
+   Counts down from a starting value; fires onExpire exactly once at zero.
+============================================================================ */
+function useCountdown(startSeconds, isRunning, onExpire) {
+  const [remaining, setRemaining] = useState(startSeconds);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    // reset whenever the timer is (re)started
+    if (isRunning) {
+      setRemaining(startSeconds);
+      firedRef.current = false;
+    }
+  }, [isRunning, startSeconds]);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const id = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          clearInterval(id);
+          if (!firedRef.current) {
+            firedRef.current = true;
+            onExpire();
+          }
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isRunning, onExpire]);
+
+  return remaining;
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+/* ============================================================================
+   6. PRESENTATION  (LAYOUT — refine this later)
+   Reads from the layers above; owns no test logic.
+============================================================================ */
+export default function App() {
+  // ---- top-level state machine: 'setup' | 'active' | 'finished'
+  const [phase, setPhase] = useState("setup");
+  const [year, setYear] = useState(3);
+  const [test, setTest] = useState(null); // { year, questions[] }
+  const [answers, setAnswers] = useState({}); // { questionId: option }
+  const [index, setIndex] = useState(0);
+  const [result, setResult] = useState(null);
+
+  const finishTest = useCallback(() => {
+    setTest((currentTest) => {
+      setAnswers((currentAnswers) => {
+        if (currentTest) {
+          setResult(scoreTest(currentTest.questions, currentAnswers));
+        }
+        return currentAnswers;
+      });
+      return currentTest;
+    });
+    setPhase("finished");
+  }, []);
+
+  const remaining = useCountdown(
+    CONFIG.TEST_DURATION_SECONDS,
+    phase === "active",
+    finishTest
+  );
+
+  const startTest = useCallback(() => {
+    setTest(buildTest(year));
+    setAnswers({});
+    setIndex(0);
+    setResult(null);
+    setPhase("active");
+  }, [year]);
+
+  const selectOption = (qId, option) =>
+    setAnswers((a) => ({ ...a, [qId]: option }));
+
+  const current = test?.questions[index];
+  const answeredCount = useMemo(
+    () => (test ? test.questions.filter((q) => answers[q.id]).length : 0),
+    [test, answers]
+  );
+
+  const timeLow = remaining <= 30;
+
+  return (
+    <div style={styles.shell}>
+      <style>{globalCss}</style>
+      <div style={styles.frame}>
+        {/* ---------- HEADER ---------- */}
+        <header style={styles.header}>
+          <div>
+            <div style={styles.kicker}>Reading Practice</div>
+            <h1 style={styles.title}>Sentence Completion</h1>
+          </div>
+          {phase === "active" && (
+            <div style={{ ...styles.timer, ...(timeLow ? styles.timerLow : {}) }}>
+              <span style={styles.timerLabel}>TIME</span>
+              <span style={styles.timerValue}>{formatTime(remaining)}</span>
+            </div>
+          )}
+        </header>
+
+        {/* ---------- SETUP ---------- */}
+        {phase === "setup" && (
+          <section style={styles.panel}>
+            <p style={styles.lede}>
+              Choose a year group. You have five minutes to answer as many
+              questions as you can. Pick the word that best completes each
+              sentence.
+            </p>
+            <div style={styles.yearLabel}>Year group</div>
+            <div style={styles.yearGrid}>
+              {CONFIG.YEARS.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => setYear(y)}
+                  style={{
+                    ...styles.yearChip,
+                    ...(year === y ? styles.yearChipActive : {}),
+                  }}
+                >
+                  {y}
+                  <span style={styles.yearChipSub}>
+                    {Math.min(QUESTION_BANK[y]?.length || 0, CONFIG.QUESTIONS_PER_TEST)} Qs
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button style={styles.primaryBtn} onClick={startTest}>
+              Begin test →
+            </button>
+          </section>
+        )}
+
+        {/* ---------- ACTIVE ---------- */}
+        {phase === "active" && current && (
+          <section style={styles.panel}>
+            <div style={styles.progressRow}>
+              <span>
+                Question {index + 1} of {test.questions.length}
+              </span>
+              <span>{answeredCount} answered</span>
+            </div>
+            <div style={styles.progressTrack}>
+              <div
+                style={{
+                  ...styles.progressFill,
+                  width: `${((index + 1) / test.questions.length) * 100}%`,
+                }}
+              />
+            </div>
+
+            <div style={styles.questionCard}>
+              <p style={styles.sentence}>
+                {current.sentence.split(CONFIG.GAP_TOKEN).map((part, i, arr) => (
+                  <React.Fragment key={i}>
+                    {part}
+                    {i < arr.length - 1 && <span style={styles.blank} />}
+                  </React.Fragment>
+                ))}
+              </p>
+            </div>
+
+            <div style={styles.options}>
+              {current.options.map((opt) => {
+                const selected = answers[current.id] === opt;
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => selectOption(current.id, opt)}
+                    style={{
+                      ...styles.option,
+                      ...(selected ? styles.optionSelected : {}),
+                    }}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={styles.navRow}>
+              <button
+                style={styles.ghostBtn}
+                disabled={index === 0}
+                onClick={() => setIndex((i) => Math.max(0, i - 1))}
+              >
+                ← Back
+              </button>
+              {index < test.questions.length - 1 ? (
+                <button
+                  style={styles.primaryBtn}
+                  onClick={() => setIndex((i) => i + 1)}
+                >
+                  Next →
+                </button>
+              ) : (
+                <button style={styles.finishBtn} onClick={finishTest}>
+                  Finish test
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ---------- FINISHED ---------- */}
+        {phase === "finished" && result && (
+          <section style={styles.panel}>
+            <div style={styles.scoreWrap}>
+              <div
+                style={{
+                  ...styles.scoreRing,
+                  ["--p"]: `${result.percentage}%`,
+                }}
+              >
+                <span style={styles.scorePct}>{result.percentage}%</span>
+              </div>
+              <p style={styles.scoreLine}>
+                {result.correct} out of {result.total} correct
+              </p>
+              {remaining === 0 && (
+                <p style={styles.timeUp}>Time ran out — test auto-submitted.</p>
+              )}
+            </div>
+            <div style={styles.navRow}>
+              <button style={styles.ghostBtn} onClick={() => setPhase("setup")}>
+                Change year
+              </button>
+              <button style={styles.primaryBtn} onClick={startTest}>
+                Try again
+              </button>
+            </div>
+          </section>
+        )}
+      </div>
+      <p style={styles.footnote}>
+        Practice tool · sentence completion · vocabulary aligned to the UK
+        National Curriculum for English (Years 1–6)
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================================
+   STYLES  (part of presentation — restyle freely)
+============================================================================ */
+const ink = "#1d2433";
+const paper = "#f4efe6";
+const accent = "#c8553d";
+const accent2 = "#2e5e4e";
+
+const globalCss = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap');
+  * { box-sizing: border-box; }
+  button { font-family: inherit; cursor: pointer; transition: all .15s ease; }
+  button:disabled { opacity: .35; cursor: default; }
+`;
+
+const styles = {
+  shell: {
+    minHeight: "100vh",
+    background: `radial-gradient(circle at 20% 10%, #fbf7ef, ${paper})`,
+    fontFamily: "'Newsreader', Georgia, serif",
+    color: ink,
+    padding: "32px 16px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  frame: {
+    width: "100%",
+    maxWidth: 620,
+    background: "#fffdf8",
+    border: `1px solid ${ink}1a`,
+    borderRadius: 18,
+    boxShadow: "0 24px 60px -30px rgba(29,36,51,.35)",
+    overflow: "hidden",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    padding: "28px 32px 20px",
+    borderBottom: `1px solid ${ink}14`,
+  },
+  kicker: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 12,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    color: accent,
+    fontWeight: 600,
+  },
+  title: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 600,
+    fontSize: 30,
+    margin: "4px 0 0",
+    letterSpacing: -0.5,
+  },
+  timer: {
+    textAlign: "right",
+    background: ink,
+    color: paper,
+    padding: "8px 14px",
+    borderRadius: 10,
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 78,
+  },
+  timerLow: { background: accent },
+  timerLabel: { fontSize: 9, letterSpacing: 2, opacity: 0.7 },
+  timerValue: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 22,
+    fontVariantNumeric: "tabular-nums",
+    lineHeight: 1.1,
+  },
+  panel: { padding: "28px 32px 34px" },
+  lede: { fontSize: 18, lineHeight: 1.5, margin: "0 0 24px", color: `${ink}cc` },
+  yearLabel: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 13,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: `${ink}99`,
+    marginBottom: 10,
+  },
+  yearGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(6, 1fr)",
+    gap: 8,
+    marginBottom: 28,
+  },
+  yearChip: {
+    border: `1.5px solid ${ink}22`,
+    background: "transparent",
+    borderRadius: 12,
+    padding: "12px 0 8px",
+    fontFamily: "'Fraunces', serif",
+    fontSize: 22,
+    fontWeight: 600,
+    color: ink,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    lineHeight: 1,
+  },
+  yearChipActive: {
+    background: accent2,
+    color: "#fff",
+    borderColor: accent2,
+    transform: "translateY(-2px)",
+  },
+  yearChipSub: { fontSize: 9, fontWeight: 400, marginTop: 5, opacity: 0.65, fontFamily: "'Newsreader', serif" },
+  primaryBtn: {
+    background: ink,
+    color: paper,
+    border: "none",
+    borderRadius: 12,
+    padding: "14px 24px",
+    fontSize: 17,
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 500,
+  },
+  finishBtn: {
+    background: accent,
+    color: "#fff",
+    border: "none",
+    borderRadius: 12,
+    padding: "14px 24px",
+    fontSize: 17,
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 500,
+  },
+  ghostBtn: {
+    background: "transparent",
+    color: ink,
+    border: `1.5px solid ${ink}22`,
+    borderRadius: 12,
+    padding: "14px 24px",
+    fontSize: 16,
+    fontFamily: "'Fraunces', serif",
+  },
+  progressRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: 13,
+    color: `${ink}99`,
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  progressTrack: {
+    height: 5,
+    background: `${ink}12`,
+    borderRadius: 99,
+    overflow: "hidden",
+    marginBottom: 26,
+  },
+  progressFill: {
+    height: "100%",
+    background: accent2,
+    borderRadius: 99,
+    transition: "width .3s ease",
+  },
+  questionCard: {
+    background: paper,
+    borderRadius: 14,
+    padding: "28px 26px",
+    marginBottom: 22,
+    border: `1px solid ${ink}10`,
+  },
+  sentence: {
+    fontSize: 24,
+    lineHeight: 1.6,
+    margin: 0,
+    fontWeight: 400,
+  },
+  blank: {
+    display: "inline-block",
+    width: 76,
+    borderBottom: `3px solid ${accent}`,
+    margin: "0 4px",
+    verticalAlign: "middle",
+    height: 2,
+  },
+  options: { display: "grid", gap: 10, marginBottom: 26 },
+  option: {
+    textAlign: "left",
+    background: "#fff",
+    border: `1.5px solid ${ink}1f`,
+    borderRadius: 11,
+    padding: "15px 18px",
+    fontSize: 18,
+    fontFamily: "'Newsreader', serif",
+    color: ink,
+  },
+  optionSelected: {
+    borderColor: accent2,
+    background: `${accent2}12`,
+    boxShadow: `inset 0 0 0 1px ${accent2}`,
+  },
+  navRow: { display: "flex", justifyContent: "space-between", gap: 12 },
+  scoreWrap: { textAlign: "center", padding: "10px 0 30px" },
+  scoreRing: {
+    width: 150,
+    height: 150,
+    borderRadius: "50%",
+    margin: "0 auto 18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: `conic-gradient(${accent2} var(--p,0%), ${ink}12 0)`,
+    border: `1px solid ${ink}10`,
+  },
+  scorePct: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 44,
+    fontWeight: 600,
+    background: "#fffdf8",
+    width: 116,
+    height: 116,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scoreLine: { fontSize: 20, margin: "0 0 6px" },
+  timeUp: { fontSize: 14, color: accent, fontStyle: "italic", margin: 0 },
+  footnote: {
+    fontSize: 12,
+    color: `${ink}80`,
+    marginTop: 22,
+    textAlign: "center",
+    maxWidth: 520,
+    lineHeight: 1.5,
+  },
+};
