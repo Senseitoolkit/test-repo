@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Splat the Germ! — Spelling Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#163a30; --paper:#fffdf4; --red:#e23b2e; --red-dk:#b62a20;
+    --green:#46c463; --green-dk:#2f9c49; --goo:#9fe83a; --goo-dk:#6fbb18;
+    --gold:#ffcf3a; --teal:#43c6b8; --fix:#1f7a34;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{font-family:'Fredoka',system-ui,sans-serif;color:var(--ink);
+    background:radial-gradient(circle at 50% 40%, #f0fbf6 0%, #d3efe3 55%, #b1e1cf 100%);
+    user-select:none;-webkit-user-select:none;}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 220px rgba(20,70,55,.18);}
+  .blob{position:fixed;border-radius:50%;filter:blur(10px);opacity:.22;pointer-events:none;z-index:0;}
+  .b1{width:240px;height:240px;background:var(--teal);top:-60px;left:-40px;}
+  .b2{width:320px;height:320px;background:#b06ee6;bottom:-90px;right:-70px;}
+  .b3{width:170px;height:170px;background:#ff9b42;top:32%;right:7%;}
+
+  #app{position:relative;height:100%;display:flex;flex-direction:column;z-index:2;}
+
+  #controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 16px;
+    background:rgba(255,253,244,.92);border-bottom:4px solid var(--ink);
+    box-shadow:0 4px 0 rgba(0,0,0,.12);transition:transform .35s ease;z-index:30;}
+  #controls.hidden{transform:translateY(-104%);}
+  .group{display:flex;align-items:center;gap:6px;}
+  .seg{display:flex;border:3px solid var(--ink);border-radius:14px;overflow:hidden;background:#fff;}
+  .seg button{font-family:'Fredoka';font-weight:700;font-size:clamp(.8rem,1.5vw,1.05rem);
+    border:none;background:transparent;color:var(--ink);padding:8px 13px;cursor:pointer;line-height:1;white-space:nowrap;}
+  .seg button+button{border-left:3px solid var(--ink);}
+  .seg button.active{background:var(--gold);}
+  .lbl{font-weight:600;font-size:.78rem;opacity:.6;text-transform:uppercase;letter-spacing:.05em;margin-right:2px;}
+  .btn{font-family:'Fredoka';font-weight:700;cursor:pointer;border:3px solid var(--ink);border-radius:14px;
+    padding:9px 16px;font-size:clamp(.85rem,1.6vw,1.1rem);line-height:1;
+    box-shadow:0 4px 0 rgba(0,0,0,.25);transition:transform .06s, box-shadow .06s;}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.25);}
+  .btn.green{background:var(--green);color:#fff;} .btn.red{background:var(--red);color:#fff;}
+  .btn.shine{animation:shine .7s ease infinite;}
+  @keyframes shine{0%,100%{box-shadow:0 4px 0 rgba(0,0,0,.25);}50%{box-shadow:0 4px 0 rgba(0,0,0,.25),0 0 0 6px rgba(70,196,99,.4);}}
+  .spacer{flex:1;}
+  .counter{font-weight:700;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:7px 12px;
+    display:flex;align-items:center;gap:7px;font-size:clamp(.8rem,1.5vw,1.05rem);}
+  .iconbtn{font-family:'Fredoka';font-weight:700;cursor:pointer;background:#fff;border:3px solid var(--ink);
+    border-radius:14px;padding:7px 11px;font-size:clamp(.8rem,1.5vw,1.05rem);}
+  #showTab{position:fixed;top:8px;left:50%;transform:translateX(-50%);display:none;z-index:40;background:var(--gold);
+    border:3px solid var(--ink);border-radius:0 0 14px 14px;border-top:none;padding:5px 16px;font-weight:700;cursor:pointer;
+    box-shadow:0 3px 0 rgba(0,0,0,.2);}
+  #controls.hidden ~ #showTab{display:block;}
+
+  #stage{flex:1;display:flex;flex-direction:column;min-height:0;}
+  #sentenceWrap{display:flex;justify-content:center;padding:14px 10px 4px;}
+  #sentence{font-family:'Luckiest Guy',cursive;background:var(--paper);color:var(--ink);
+    border:6px solid var(--ink);border-radius:24px;box-shadow:8px 8px 0 rgba(0,0,0,.18);
+    padding:.2em .7em .3em;font-size:clamp(1.5rem,4.6vw,3.4rem);line-height:1.05;letter-spacing:.02em;
+    transform:rotate(-1.4deg);text-shadow:2px 2px 0 rgba(0,0,0,.08);text-align:center;}
+  #sentence .hot{color:var(--red);}
+  #hint{text-align:center;font-weight:600;font-size:clamp(.9rem,2vw,1.25rem);color:#1d5a4a;margin:2px 0 0;
+    text-shadow:0 1px 0 rgba(255,255,255,.6);display:none;}
+  #hint.show{display:block;}
+  #field{position:relative;flex:1;min-height:0;}
+
+  /* a still germ carrying a word sign */
+  .germ{position:absolute;width:clamp(122px,14vw,190px);aspect-ratio:1/1;
+    transform:translate(-50%,-50%);z-index:5;transition:opacity .45s ease;cursor:default;}
+  .germ .scale{width:100%;height:100%;position:relative;}
+  .germ svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;
+    filter:drop-shadow(2px 5px 4px rgba(0,40,30,.3));
+    transition:transform .18s ease, opacity .18s ease, filter .18s ease;}
+  .germ .word{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);
+    font-family:'Fredoka';font-weight:700;color:var(--ink);background:var(--paper);
+    border:4px solid var(--ink);border-radius:14px;padding:.1em .45em;
+    font-size:clamp(1.15rem,2.7vw,2.2rem);line-height:1.05;white-space:nowrap;
+    box-shadow:0 3px 0 rgba(0,0,0,.2);pointer-events:none;z-index:3;transition:color .15s,border-color .15s,background .15s;}
+  .germ .word.long{font-size:clamp(.98rem,2.2vw,1.75rem);}
+  .germ .word.xlong{font-size:clamp(.82rem,1.85vw,1.45rem);}
+  .germ.dimmed{opacity:.3;}
+
+  .goo{position:absolute;left:50%;top:52%;width:130%;height:130%;transform:translate(-50%,-50%) scale(0);
+    background:radial-gradient(circle at 42% 38%, var(--goo) 0%, var(--goo-dk) 70%, var(--goo-dk) 100%);
+    border-radius:46% 54% 60% 40% / 55% 42% 58% 45%;z-index:2;opacity:0;pointer-events:none;
+    box-shadow:28px -18px 0 -8px var(--goo-dk),-30px 14px 0 -10px var(--goo),18px 30px 0 -12px var(--goo-dk),-22px -22px 0 -12px var(--goo);}
+  .germ.splatted .goo{animation:gooPop .4s cubic-bezier(.2,1.4,.5,1) forwards;}
+  @keyframes gooPop{0%{transform:translate(-50%,-50%) scale(0);opacity:1}70%{transform:translate(-50%,-50%) scale(1.12)}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+  .germ.splatted svg{transform:scaleY(.2) translateY(60%);opacity:.5;filter:grayscale(.4) drop-shadow(0 2px 1px rgba(0,0,0,.2));}
+  .germ.splatted .word{color:var(--fix);border-color:var(--fix);background:#eafff0;z-index:6;}
+
+  /* sponge smasher */
+  #swatter{position:absolute;left:0;top:0;transform:translate(-50%,-50%);z-index:20;pointer-events:none;display:none;
+    width:clamp(112px,13.5vw,176px);}
+  #swatter .arm{position:relative;transform-origin:50% 50%;transform:translateY(-185px) rotate(-10deg);}
+  #swatter .sponge{position:relative;width:100%;aspect-ratio:1/0.78;background:var(--gold);
+    border:5px solid var(--ink);border-radius:16px;overflow:hidden;box-shadow:inset 0 -7px 0 rgba(0,0,0,.16);}
+  #swatter .sponge::before{content:"";position:absolute;left:0;right:0;bottom:0;height:36%;
+    background:var(--green);border-top:4px solid var(--ink);}
+  #swatter .sponge::after{content:"";position:absolute;left:10%;right:10%;top:10%;height:42%;
+    background-image:radial-gradient(circle, rgba(0,0,0,.18) 30%, transparent 32%);background-size:26% 60%;}
+
+  #feedback{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%) scale(.4);
+    font-family:'Luckiest Guy',cursive;font-size:clamp(3rem,11vw,9rem);opacity:0;pointer-events:none;z-index:25;
+    text-align:center;-webkit-text-stroke:4px var(--ink);color:var(--goo);}
+  #feedback.show{animation:pop 1.4s ease forwards;}
+  @keyframes pop{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-8deg)}
+    18%{opacity:1;transform:translate(-50%,-50%) scale(1.1) rotate(-4deg)}
+    30%{transform:translate(-50%,-50%) scale(1) rotate(-3deg)}
+    80%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-3deg)}
+    100%{opacity:0;transform:translate(-50%,-60%) scale(1) rotate(-3deg)}}
+  @media (max-width:640px){#controls{gap:8px;padding:8px;} .lbl{display:none;}}
+</style>
+</head>
+<body>
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+
+  <div id="app">
+    <div id="controls">
+      <div class="group"><span class="lbl">Dolch level</span>
+        <div class="seg" id="levelSeg">
+          <button data-lvl="preprimer" class="active">Pre-K</button>
+          <button data-lvl="primer">Primer</button>
+          <button data-lvl="grade1">Grade 1</button>
+          <button data-lvl="grade2">Grade 2</button>
+          <button data-lvl="grade3">Grade 3</button>
+        </div>
+      </div>
+      <button class="btn red" id="splatBtn">🦠 SPLAT! (Enter)</button>
+      <button class="btn green" id="next">🔄 New Words</button>
+      <div class="spacer"></div>
+      <button class="iconbtn" id="helpBtn">❔ How to play</button>
+      <button class="iconbtn" id="soundBtn">🔊 Sound</button>
+      <div class="counter">🦠 Germs: <span id="splatCount">0</span> <span id="resetCount" style="cursor:pointer;opacity:.5">↺</span></div>
+      <button class="iconbtn" id="hideBtn">Hide ▲</button>
+    </div>
+    <div id="showTab">▼ Show menu</div>
+
+    <div id="stage">
+      <div id="sentenceWrap"><div id="sentence">🔬 Splat the word spelled <span class="hot">WRONG!</span></div></div>
+      <p id="hint"></p>
+      <div id="field">
+        <div id="germs"></div>
+        <div id="swatter"><div class="arm"><div class="sponge"></div></div></div>
+        <div id="feedback"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const germsBox=$('#germs'), swatter=$('#swatter'), arm=swatter.querySelector('.arm'),
+        feedback=$('#feedback'), splatCountEl=$('#splatCount'), hintEl=$('#hint');
+
+  const LEVELS={
+    preprimer:["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","two","up","we","where","yellow","you"],
+    primer:["all","am","are","at","ate","be","black","brown","but","came","did","do","eat","four","get","good","have","he","into","like","must","new","no","now","on","our","out","please","pretty","ran","ride","saw","say","she","so","soon","that","there","they","this","too","under","want","was","well","went","what","white","who","will","with","yes"],
+    grade1:["after","again","an","any","as","ask","by","could","every","fly","from","give","going","had","has","her","him","his","how","just","know","let","live","may","of","old","once","open","over","put","round","some","stop","take","thank","them","then","think","walk","were","when"],
+    grade2:["always","around","because","been","before","best","both","buy","call","cold","does","fast","first","five","found","gave","goes","green","its","made","many","off","or","pull","read","right","sing","sit","sleep","tell","their","these","those","upon","us","use","very","wash","which","why","wish","work","would","write","your"],
+    grade3:["about","better","bring","carry","clean","cut","done","draw","drink","eight","fall","far","full","got","grow","hold","hot","hurt","if","keep","kind","laugh","light","long","much","myself","never","only","own","pick","seven","shall","show","six","small","start","ten","today","together","try","warm"]
+  };
+  const MASTER=new Set(); Object.values(LEVELS).forEach(a=>a.forEach(w=>MASTER.add(w.toLowerCase())));
+
+  let level='preprimer', muted=false;
+  let busy=false, won=false, splatCount=0;
+  let positions=[], germEls=[], targetIdx=-1, correctWord='', lastTarget='', fbTimer=null;
+
+  const rint=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+
+  const VOWELS='aeiou';
+  function transpose(w){const idx=[];for(let i=0;i<w.length-1;i++)if(w[i]!==w[i+1])idx.push(i);
+    if(!idx.length)return null;const i=idx[rint(0,idx.length-1)];return w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2);}
+  function dropLetter(w){const i=rint(1,w.length-1);return w.slice(0,i)+w.slice(i+1);}
+  function doubleLetter(w){const i=rint(0,w.length-1);return w.slice(0,i+1)+w[i]+w.slice(i+1);}
+  function swapVowel(w){const idx=[];for(let i=0;i<w.length;i++)if(VOWELS.includes(w[i]))idx.push(i);
+    if(!idx.length)return null;const i=idx[rint(0,idx.length-1)];let v=VOWELS[rint(0,4)];
+    let guard=0;while(v===w[i]&&guard++<10)v=VOWELS[rint(0,4)];return w.slice(0,i)+v+w.slice(i+1);}
+  function makeMisspelling(word,shown){
+    const w=word.toLowerCase();
+    const strat=shuffle(['transpose','vowel','double','drop','transpose','vowel']);
+    for(const s of strat){
+      let r=null;
+      if(s==='transpose'&&w.length>=3)r=transpose(w);
+      else if(s==='vowel')r=swapVowel(w);
+      else if(s==='double')r=doubleLetter(w);
+      else if(s==='drop'&&w.length>=4)r=dropLetter(w);
+      if(r&&r!==w&&!shown.has(r)&&!MASTER.has(r))return r;
+    }
+    let r=w[0]+w[0]+w.slice(1);
+    if(r!==w&&!MASTER.has(r))return r;
+    return w+w[w.length-1];
+  }
+
+  /* ---------- germ art ---------- */
+  const GERM_COLORS=['#7bd44b','#43c6b8','#b06ee6','#ff9b42','#ff6f91','#5aa9ff','#e0c93a','#56d6a0'];
+  const BLOBS=[
+    "M60,10 C84,8 106,26 106,50 C106,68 118,82 104,96 C92,108 74,112 58,110 C42,108 22,114 13,97 C5,82 16,68 13,49 C11,30 34,12 60,10 Z",
+    "M62,12 C80,9 98,20 104,40 C110,58 112,76 98,92 C86,106 66,110 50,108 C34,106 18,110 11,94 C4,78 14,64 12,46 C10,28 38,15 62,12 Z",
+    "M58,11 C78,8 100,22 105,44 C109,62 116,80 100,94 C86,106 70,113 54,109 C38,105 20,112 12,95 C5,80 18,66 14,48 C10,28 36,14 58,11 Z"
+  ];
+  function germSVG(color){
+    const blob=BLOBS[rint(0,BLOBS.length-1)], rot=rint(-12,12), ex=rint(-3,3);
+    return `<svg viewBox="0 0 120 120" aria-hidden="true">
+      <g transform="rotate(${rot} 60 60)">
+        <path d="${blob}" fill="${color}" stroke="rgba(0,0,0,.4)" stroke-width="3"/>
+        <ellipse cx="40" cy="80" rx="12" ry="8" fill="rgba(0,0,0,.14)"/>
+        <ellipse cx="84" cy="62" rx="9" ry="7" fill="rgba(0,0,0,.14)"/>
+      </g>
+      <circle cx="${49+ex}" cy="36" r="8" fill="#fff" stroke="rgba(0,0,0,.4)" stroke-width="2"/>
+      <circle cx="${71+ex}" cy="36" r="8" fill="#fff" stroke="rgba(0,0,0,.4)" stroke-width="2"/>
+      <circle cx="${50+ex}" cy="38" r="3.4" fill="#16161b"/>
+      <circle cx="${72+ex}" cy="38" r="3.4" fill="#16161b"/>
+    </svg>`;
+  }
+  const lenClass=w=>w.length>=9?'xlong':w.length>=7?'long':'';
+
+  function makeGerm(word,x,y,idx,color){
+    const el=document.createElement('div');
+    el.className='germ'; el.style.left=x+'%'; el.style.top=y+'%'; el.dataset.idx=idx;
+    el.innerHTML=`<div class="goo"></div><div class="scale">${germSVG(color)}<span class="word ${lenClass(word)}">${word}</span></div>`;
+    return el;
+  }
+
+  function buildRound(){
+    const pool=shuffle(LEVELS[level].slice());
+    let chosen=pool.slice(0,8);
+    let ti=chosen.findIndex(w=>/^[a-z]{4,}$/.test(w));
+    if(ti<0) ti=chosen.findIndex(w=>/^[a-z]{3,}$/.test(w));
+    if(ti<0) ti=0;
+    correctWord=chosen[ti];
+    const shown=new Set(chosen.map(w=>w.toLowerCase()));
+    const mis=makeMisspelling(correctWord,shown);
+    const display=chosen.slice(); display[ti]=mis;
+    targetIdx=ti;
+
+    germsBox.innerHTML=''; germEls=[]; positions=[];
+    const cols=[15,38,62,85], rows=[36,74], pal=shuffle(GERM_COLORS.slice()); let idx=0;
+    for(let r=0;r<2;r++)for(let c=0;c<4;c++){
+      const xx=cols[c]+(Math.random()*6-3), yy=rows[r]+(Math.random()*8-4);
+      positions.push({x:xx,y:yy});
+      const germ=makeGerm(display[idx],xx,yy,idx,pal[idx%pal.length]);
+      germsBox.appendChild(germ); germEls.push(germ); idx++;
+    }
+  }
+
+  function slamTarget(){
+    if(busy||won||targetIdx<0) return;
+    busy=true;
+    const p=positions[targetIdx];
+    swatter.style.left=p.x+'%'; swatter.style.top=p.y+'%'; swatter.style.display='block';
+    arm.style.transition='none'; arm.style.transform='translateY(-185px) rotate(-10deg)';
+    void arm.offsetWidth;
+    const down=arm.animate(
+      [{transform:'translateY(-185px) rotate(-10deg)'},{transform:'translateY(0) rotate(2deg)'}],
+      {duration:175,easing:'cubic-bezier(.5,0,.4,1)',fill:'forwards'});
+    down.onfinish=()=>{
+      const germ=germEls[targetIdx];
+      germ.classList.add('splatted');
+      const wEl=germ.querySelector('.word');
+      wEl.textContent='\u2713 '+correctWord;
+      wEl.className='word '+lenClass(correctWord);
+      germEls.forEach((g,i)=>{ if(i!==targetIdx) g.classList.add('dimmed'); });
+      showFeedback('SPLAT!'); beep();
+      won=true; splatCount++; splatCountEl.textContent=splatCount;
+      $('#next').classList.add('shine');
+      const up=arm.animate(
+        [{transform:'translateY(0) rotate(2deg)'},{transform:'translateY(-16px) rotate(-6deg)'},{transform:'translateY(-185px) rotate(-10deg)'}],
+        {duration:300,easing:'ease-out',fill:'forwards',delay:130});
+      up.onfinish=()=>{ swatter.style.display='none'; busy=false; };
+    };
+  }
+
+  function showFeedback(t){
+    feedback.textContent=t; feedback.className=''; void feedback.offsetWidth;
+    feedback.classList.add('show'); clearTimeout(fbTimer);
+    fbTimer=setTimeout(()=>feedback.classList.remove('show'),1400);
+  }
+
+  function newRound(){
+    won=false; busy=false; swatter.style.display='none';
+    $('#next').classList.remove('shine'); feedback.classList.remove('show');
+    let tries=0;
+    do{ buildRound(); tries++; }while(correctWord===lastTarget && tries<6);
+    lastTarget=correctWord;
+  }
+  function updateHint(){
+    hintEl.textContent='One germ\u2019s word is spelled WRONG \u2014 find it! Press ENTER to splat it (the correct spelling appears), then ENTER again for new words. \uD83E\uDDFD';
+  }
+
+  /* audio */
+  let actx=null;
+  function ac(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); return actx; }
+  function resumeAudio(){ if(actx&&actx.state==='suspended')actx.resume(); }
+  function beep(){
+    if(muted) return;
+    const c=ac(), now=c.currentTime;
+    const buf=c.createBuffer(1,c.sampleRate*0.18,c.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,2);
+    const s=c.createBufferSource(); s.buffer=buf;
+    const g=c.createGain(); g.gain.value=0.45; s.connect(g).connect(c.destination); s.start();
+    const o=c.createOscillator(); o.type='sine';
+    o.frequency.setValueAtTime(170,now); o.frequency.exponentialRampToValueAtTime(55,now+0.16);
+    const og=c.createGain(); og.gain.setValueAtTime(0.5,now); og.gain.exponentialRampToValueAtTime(0.001,now+0.18);
+    o.connect(og).connect(c.destination); o.start(now); o.stop(now+0.2);
+  }
+
+  function splat(){ resumeAudio(); slamTarget(); }
+
+  /* controls */
+  $('#levelSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;b.blur();
+    [...e.currentTarget.children].forEach(x=>x.classList.remove('active'));b.classList.add('active');level=b.dataset.lvl;newRound();});
+  $('#splatBtn').addEventListener('click',e=>{e.currentTarget.blur();splat();});
+  $('#next').addEventListener('click',e=>{e.currentTarget.blur();newRound();});
+  $('#soundBtn').addEventListener('click',e=>{e.currentTarget.blur();muted=!muted;e.currentTarget.textContent=muted?'\uD83D\uDD07 Muted':'\uD83D\uDD0A Sound';});
+  $('#helpBtn').addEventListener('click',e=>{e.currentTarget.blur();$('#hint').classList.toggle('show');});
+  $('#resetCount').addEventListener('click',e=>{e.stopPropagation();splatCount=0;splatCountEl.textContent=0;});
+  $('#hideBtn').addEventListener('click',e=>{e.currentTarget.blur();$('#controls').classList.add('hidden');});
+  $('#showTab').addEventListener('click',()=>$('#controls').classList.remove('hidden'));
+
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ e.preventDefault(); if(busy) return; if(!won) splat(); else newRound(); }
+    else if(e.key==='n'||e.key==='N'||e.key==='ArrowRight'||e.key===' '){ e.preventDefault(); newRound(); }
+    else if(e.key==='h'||e.key==='H'){ $('#controls').classList.toggle('hidden'); }
+    else if(e.key==='i'||e.key==='I'||e.key==='?'){ $('#hint').classList.toggle('show'); }
+  });
+
+  updateHint(); newRound();
+})();
+</script>
+</body>
+</html>
