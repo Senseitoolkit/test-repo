@@ -1,0 +1,522 @@
+import { useState, useEffect, useRef } from "react";
+
+const STORE_KEY = "catchup:v1";
+
+const DEFAULT_ITEMS = [
+  { id: 1, text: "Read the lecture notes I missed", done: false },
+  { id: 2, text: "Finish the problem set", done: false },
+  { id: 3, text: "Reply to outstanding emails", done: false },
+];
+
+function beep() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.type = "sine";
+    o.frequency.value = 880;
+    g.gain.setValueAtTime(0.001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    o.start();
+    o.stop(ctx.currentTime + 0.6);
+  } catch (e) {
+    /* audio not available */
+  }
+}
+
+const pad = (n) => String(n).padStart(2, "0");
+const fmt = (s) => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+
+export default function CatchUp() {
+  const [title, setTitle] = useState("Catch-Up Work");
+  const [editingTitle, setEditingTitle] = useState(false);
+
+  const [items, setItems] = useState(DEFAULT_ITEMS);
+  const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+
+  const [base, setBase] = useState(25 * 60);
+  const [secs, setSecs] = useState(25 * 60);
+  const [running, setRunning] = useState(false);
+  const [finished, setFinished] = useState(false);
+
+  const editRef = useRef(null);
+
+  // ---- load saved state ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (window.storage) {
+          const res = await window.storage.get(STORE_KEY);
+          if (res && res.value && !cancelled) {
+            const data = JSON.parse(res.value);
+            if (Array.isArray(data.items)) setItems(data.items);
+            if (typeof data.base === "number") {
+              setBase(data.base);
+              setSecs(data.base);
+            }
+            if (typeof data.title === "string") setTitle(data.title);
+          }
+        }
+      } catch (e) {
+        /* no saved state yet */
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // ---- persist ----
+  useEffect(() => {
+    if (!hydrated) return;
+    (async () => {
+      try {
+        if (window.storage) {
+          await window.storage.set(
+            STORE_KEY,
+            JSON.stringify({ items, base, title })
+          );
+        }
+      } catch (e) {
+        /* ignore write failures */
+      }
+    })();
+  }, [items, base, title, hydrated]);
+
+  // ---- countdown ----
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => {
+      setSecs((s) => {
+        if (s <= 1) {
+          clearInterval(t);
+          setRunning(false);
+          setFinished(true);
+          beep();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [running]);
+
+  useEffect(() => {
+    if (editingId !== null && editRef.current) editRef.current.focus();
+  }, [editingId]);
+
+  // ---- timer controls ----
+  const idle = !running && secs === base;
+  const adjust = (delta) => {
+    setFinished(false);
+    setSecs((s) => Math.max(0, s + delta));
+    if (idle) setBase((b) => Math.max(0, b + delta));
+  };
+  const toggleRun = () => {
+    if (secs === 0) return;
+    setFinished(false);
+    setRunning((r) => !r);
+  };
+  const reset = () => {
+    setRunning(false);
+    setFinished(false);
+    setSecs(base);
+  };
+
+  // ---- checklist actions ----
+  const addItem = () => {
+    const text = draft.trim();
+    if (!text) return;
+    setItems((it) => [...it, { id: Date.now(), text, done: false }]);
+    setDraft("");
+  };
+  const toggle = (id) =>
+    setItems((it) =>
+      it.map((x) => (x.id === id ? { ...x, done: !x.done } : x))
+    );
+  const remove = (id) => setItems((it) => it.filter((x) => x.id !== id));
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    setEditText(item.text);
+  };
+  const commitEdit = () => {
+    const text = editText.trim();
+    setItems((it) =>
+      it
+        .map((x) => (x.id === editingId ? { ...x, text } : x))
+        .filter((x) => x.text.length > 0)
+    );
+    setEditingId(null);
+    setEditText("");
+  };
+  const clearDone = () => setItems((it) => it.filter((x) => !x.done));
+
+  const total = items.length;
+  const done = items.filter((x) => x.done).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  // ---- ring geometry ----
+  const R = 86;
+  const C = 2 * Math.PI * R;
+  const frac = base > 0 ? Math.max(0, Math.min(1, secs / base)) : 0;
+  const low = running && secs <= 60;
+
+  return (
+    <div className="cu-root">
+      <style>{css}</style>
+
+      {/* LEFT — timer */}
+      <section className="cu-left">
+        <div className="cu-head">
+          <div className="cu-kicker">FOCUS SESSION</div>
+          {editingTitle ? (
+            <input
+              className="cu-title-input"
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => setEditingTitle(false)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === "Escape")
+                  setEditingTitle(false);
+              }}
+            />
+          ) : (
+            <h1
+              className="cu-title"
+              onClick={() => setEditingTitle(true)}
+              title="Click to rename"
+            >
+              {title}
+            </h1>
+          )}
+        </div>
+
+        <div className={`cu-timer ${finished ? "is-done" : ""}`}>
+          <div className="cu-ring-wrap">
+            <svg viewBox="0 0 200 200" className="cu-ring">
+              <circle cx="100" cy="100" r={R} className="cu-ring-track" />
+              <circle
+                cx="100"
+                cy="100"
+                r={R}
+                className={`cu-ring-progress ${low ? "low" : ""}`}
+                style={{
+                  strokeDasharray: C,
+                  strokeDashoffset: C * (1 - frac),
+                }}
+              />
+            </svg>
+            <div className="cu-ring-center">
+              <div className={`cu-time ${low ? "low" : ""}`}>{fmt(secs)}</div>
+              <div className="cu-status">
+                {finished
+                  ? "time's up"
+                  : running
+                  ? "counting down"
+                  : "paused"}
+              </div>
+            </div>
+          </div>
+
+          <div className="cu-controls">
+            <button
+              className="cu-step"
+              onClick={() => adjust(-60)}
+              aria-label="Subtract one minute"
+            >
+              <span className="cu-step-sym">−</span>
+              <span className="cu-step-lbl">1 min</span>
+            </button>
+
+            <button
+              className={`cu-play ${running ? "running" : ""}`}
+              onClick={toggleRun}
+            >
+              {running ? "Pause" : secs === 0 ? "Done" : "Start"}
+            </button>
+
+            <button
+              className="cu-step"
+              onClick={() => adjust(60)}
+              aria-label="Add one minute"
+            >
+              <span className="cu-step-sym">+</span>
+              <span className="cu-step-lbl">1 min</span>
+            </button>
+          </div>
+
+          <button className="cu-reset" onClick={reset}>
+            ↺ reset to {fmt(base)}
+          </button>
+        </div>
+      </section>
+
+      {/* RIGHT — checklist */}
+      <section className="cu-right">
+        <div className="cu-list-head">
+          <span className="cu-count">
+            {done} of {total} done
+          </span>
+          <div className="cu-bar">
+            <div className="cu-bar-fill" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+
+        <ul className="cu-list">
+          {items.map((item, i) => (
+            <li
+              key={item.id}
+              className={`cu-item ${item.done ? "done" : ""}`}
+              style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
+            >
+              <button
+                className="cu-check"
+                onClick={() => toggle(item.id)}
+                aria-label={item.done ? "Mark not done" : "Mark done"}
+              >
+                {item.done && (
+                  <svg viewBox="0 0 24 24" className="cu-tick">
+                    <path d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
+              </button>
+
+              {editingId === item.id ? (
+                <input
+                  ref={editRef}
+                  className="cu-edit"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  onBlur={commitEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") commitEdit();
+                    if (e.key === "Escape") {
+                      setEditingId(null);
+                      setEditText("");
+                    }
+                  }}
+                />
+              ) : (
+                <span
+                  className="cu-text"
+                  onClick={() => startEdit(item)}
+                  title="Click to edit"
+                >
+                  {item.text}
+                </span>
+              )}
+
+              <button
+                className="cu-del"
+                onClick={() => remove(item.id)}
+                aria-label="Delete task"
+              >
+                ×
+              </button>
+            </li>
+          ))}
+          {items.length === 0 && (
+            <li className="cu-empty">
+              Nothing here yet — add your first task below.
+            </li>
+          )}
+        </ul>
+
+        <div className="cu-footer">
+          <div className="cu-add">
+            <input
+              className="cu-add-input"
+              placeholder="Add a task to catch up on…"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addItem()}
+            />
+            <button className="cu-add-btn" onClick={addItem}>
+              Add
+            </button>
+          </div>
+          {done > 0 && (
+            <button className="cu-clear" onClick={clearDone}>
+              Clear {done} completed
+            </button>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+const css = `
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap');
+
+html,body{height:100%;margin:0;}
+
+.cu-root{
+  --paper:#f1e8d8; --card:#fbf6ec; --ink:#2a2017; --soft:#7c7062;
+  --line:#e6dac5; --accent:#bd4a2c; --accent-2:#d98a3a; --green:#5f7d4a;
+  --shadow:0 1px 2px rgba(60,40,20,.06),0 10px 30px rgba(80,50,25,.10);
+  font-family:'Hanken Grotesk',ui-sans-serif,system-ui,sans-serif;
+  color:var(--ink);
+  background:
+    radial-gradient(130% 100% at 25% -10%, #f7f0e2 0%, var(--paper) 55%, #ece1cd 100%);
+  display:flex; align-items:stretch;
+  width:100%; min-height:100vh; box-sizing:border-box;
+  padding:clamp(20px,3vw,48px);
+  gap:clamp(20px,3vw,52px);
+}
+.cu-root *{box-sizing:border-box;}
+
+/* ---------- LEFT : timer ---------- */
+.cu-left{
+  flex:0 0 42%; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:clamp(14px,2.2vh,30px);
+}
+.cu-head{text-align:center;}
+.cu-kicker{font-size:clamp(11px,1vw,15px); letter-spacing:.34em;
+  color:var(--accent); font-weight:700; margin-bottom:8px;}
+.cu-title{font-family:'Fraunces',serif; font-weight:600;
+  font-size:clamp(30px,3.8vw,58px); line-height:1.02; margin:0; cursor:text;
+  letter-spacing:-.01em; font-optical-sizing:auto;}
+.cu-title:hover{color:var(--accent);}
+.cu-title-input{font-family:'Fraunces',serif; font-weight:600;
+  font-size:clamp(30px,3.8vw,58px); text-align:center; border:none;
+  border-bottom:2px dashed var(--line); background:transparent; color:var(--ink);
+  width:min(90vw,520px); outline:none;}
+
+.cu-timer{display:flex; flex-direction:column; align-items:center;
+  gap:clamp(16px,2.4vh,30px); transition:filter .3s;}
+.cu-timer.is-done{animation:flash 1s ease 3;}
+@keyframes flash{50%{filter:drop-shadow(0 0 14px rgba(189,74,44,.6));}}
+
+.cu-ring-wrap{position:relative; width:clamp(240px,30vw,400px); aspect-ratio:1;}
+.cu-ring{width:100%; height:100%; transform:rotate(-90deg);}
+.cu-ring-track{fill:none; stroke:var(--line); stroke-width:8;}
+.cu-ring-progress{fill:none; stroke:var(--accent); stroke-width:8;
+  stroke-linecap:round; transition:stroke-dashoffset .9s linear, stroke .4s;}
+.cu-ring-center{position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;}
+.cu-time{font-family:'Fraunces',serif; font-weight:500;
+  font-size:clamp(54px,7vw,118px); letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums; font-optical-sizing:auto; line-height:1;}
+.cu-time.low{color:var(--accent); animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{50%{opacity:.5;}}
+.cu-status{font-size:clamp(11px,1vw,15px); letter-spacing:.24em;
+  text-transform:uppercase; color:var(--soft); margin-top:6px;}
+
+.cu-controls{display:flex; align-items:center; gap:clamp(16px,2vw,28px);}
+.cu-step{display:flex; flex-direction:column; align-items:center; gap:2px;
+  width:clamp(74px,7vw,104px); height:clamp(74px,7vw,104px); border-radius:50%;
+  border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer;
+  box-shadow:var(--shadow); transition:transform .12s, background .2s, color .2s;}
+.cu-step:hover{transform:translateY(-3px); background:var(--accent); color:#fff;
+  border-color:var(--accent);}
+.cu-step:active{transform:translateY(0) scale(.96);}
+.cu-step-sym{font-size:clamp(28px,3vw,42px); line-height:1; font-weight:600; margin-top:8px;}
+.cu-step-lbl{font-size:clamp(10px,.9vw,13px); letter-spacing:.08em; opacity:.72;}
+
+.cu-play{min-width:clamp(140px,13vw,200px); height:clamp(54px,5.5vw,76px);
+  border-radius:40px; border:none; background:var(--accent); color:#fdf7ee;
+  font-family:'Hanken Grotesk'; font-size:clamp(18px,1.8vw,28px); font-weight:700;
+  letter-spacing:.02em; cursor:pointer; box-shadow:0 8px 20px rgba(189,74,44,.32);
+  transition:transform .12s, filter .2s;}
+.cu-play:hover{filter:brightness(1.05); transform:translateY(-2px);}
+.cu-play:active{transform:translateY(0) scale(.98);}
+.cu-play.running{background:var(--ink); box-shadow:0 8px 20px rgba(42,32,23,.28);}
+
+.cu-reset{background:none; border:none; color:var(--soft);
+  font-family:'Hanken Grotesk'; font-size:clamp(13px,1.1vw,17px); cursor:pointer;
+  letter-spacing:.03em;}
+.cu-reset:hover{color:var(--accent);}
+
+/* ---------- RIGHT : checklist ---------- */
+.cu-right{
+  flex:1; min-width:0; display:flex; flex-direction:column;
+  background:var(--card); border:1px solid var(--line);
+  border-radius:24px; box-shadow:var(--shadow);
+  padding:clamp(20px,2vw,34px); min-height:0;
+}
+.cu-list-head{display:flex; align-items:center; gap:clamp(14px,1.5vw,24px);
+  margin-bottom:clamp(16px,1.8vh,26px);}
+.cu-count{font-size:clamp(14px,1.2vw,20px); font-weight:600; color:var(--soft);
+  white-space:nowrap;}
+.cu-bar{flex:1; height:clamp(8px,.9vw,12px); background:var(--line);
+  border-radius:99px; overflow:hidden;}
+.cu-bar-fill{height:100%;
+  background:linear-gradient(90deg,var(--accent-2),var(--green));
+  border-radius:99px; transition:width .4s ease;}
+
+.cu-list{list-style:none; margin:0; padding:4px 4px 4px 0; display:flex;
+  flex-direction:column; gap:2px; flex:1; min-height:0; overflow-y:auto;}
+.cu-list::-webkit-scrollbar{width:8px;}
+.cu-list::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px;}
+
+.cu-item{display:flex; align-items:center; gap:clamp(14px,1.3vw,20px);
+  padding:clamp(10px,1.1vh,16px) 8px; border-radius:14px;
+  transition:background .15s; animation:rise .4s ease both;}
+.cu-item:hover{background:rgba(189,74,44,.05);}
+.cu-item:hover .cu-del{opacity:1;}
+@keyframes rise{from{opacity:0; transform:translateY(7px);}}
+
+.cu-check{flex:none; width:clamp(28px,2.4vw,38px); height:clamp(28px,2.4vw,38px);
+  border-radius:10px; border:2px solid var(--line); background:#fff; cursor:pointer;
+  padding:0; display:flex; align-items:center; justify-content:center; transition:all .18s;}
+.cu-check:hover{border-color:var(--accent);}
+.cu-item.done .cu-check{background:var(--green); border-color:var(--green);}
+.cu-tick{width:62%; height:62%; fill:none; stroke:#fff; stroke-width:3;
+  stroke-linecap:round; stroke-linejoin:round;}
+
+.cu-text{flex:1; font-size:clamp(17px,1.5vw,27px); line-height:1.3; cursor:text;
+  color:var(--ink); padding:2px 0; word-break:break-word;}
+.cu-item.done .cu-text{text-decoration:line-through; color:var(--soft);
+  text-decoration-color:var(--accent-2);}
+.cu-edit{flex:1; font-family:'Hanken Grotesk'; font-size:clamp(17px,1.5vw,27px);
+  border:none; border-bottom:2px solid var(--accent); background:transparent;
+  color:var(--ink); outline:none; padding:1px 0;}
+
+.cu-del{flex:none; width:clamp(30px,2.5vw,40px); height:clamp(30px,2.5vw,40px);
+  border:none; background:none; color:var(--soft);
+  font-size:clamp(24px,2.2vw,34px); line-height:1; cursor:pointer; opacity:0;
+  border-radius:9px; transition:opacity .15s, color .15s, background .15s;}
+.cu-del:hover{color:var(--accent); background:rgba(189,74,44,.1);}
+
+.cu-empty{color:var(--soft); font-size:clamp(15px,1.3vw,22px); text-align:center;
+  padding:20px 0;}
+
+.cu-footer{margin-top:clamp(14px,1.6vh,22px);}
+.cu-add{display:flex; gap:10px;}
+.cu-add-input{flex:1; font-family:'Hanken Grotesk'; font-size:clamp(15px,1.3vw,22px);
+  border:1px solid var(--line); border-radius:13px;
+  padding:clamp(11px,1.2vh,17px) clamp(13px,1.2vw,18px); background:#fff;
+  color:var(--ink); outline:none; transition:border-color .2s;}
+.cu-add-input:focus{border-color:var(--accent);}
+.cu-add-input::placeholder{color:#b3a690;}
+.cu-add-btn{flex:none; border:none; border-radius:13px; padding:0 clamp(18px,2vw,30px);
+  background:var(--ink); color:#fdf7ee; font-family:'Hanken Grotesk'; font-weight:600;
+  font-size:clamp(15px,1.3vw,22px); cursor:pointer; transition:background .2s;}
+.cu-add-btn:hover{background:var(--accent);}
+
+.cu-clear{margin-top:12px; width:100%; background:none; border:1px dashed var(--line);
+  color:var(--soft); border-radius:13px; padding:clamp(8px,1vh,12px);
+  font-family:'Hanken Grotesk'; font-size:clamp(13px,1.1vw,17px); cursor:pointer;
+  transition:all .2s;}
+.cu-clear:hover{border-color:var(--accent); color:var(--accent);}
+
+/* ---------- stack when not landscape ---------- */
+@media (max-width:820px), (orientation:portrait){
+  .cu-root{flex-direction:column; min-height:0;}
+  .cu-left{flex:none;}
+  .cu-right{flex:none; min-height:340px;}
+}
+`;
