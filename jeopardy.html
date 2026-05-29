@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jeopardy! — Editable</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Libre+Franklin:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #1a0a2e; --cell-bg: #2d1b69; --cell-hover: #3d2b7a;
+  --gold: #ffd740; --gold-dim: #c8a415; --white: #f5f5f5;
+  --cat-bg: #4a148c; --overlay: rgba(10,4,25,0.93);
+  --correct: #43a047; --wrong: #c62828; --radius: 8px;
+  --edit-accent: #00bcd4;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:'Libre Franklin',sans-serif;background:var(--bg);color:var(--white);
+  overflow-x:hidden;min-height:100vh;
+  background-image:
+    radial-gradient(ellipse at 20% 80%,rgba(74,20,140,.5) 0%,transparent 60%),
+    radial-gradient(ellipse at 80% 20%,rgba(45,27,105,.5) 0%,transparent 60%);
+}
+
+/* ── TOP BAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;flex-wrap:wrap;gap:8px;}
+.topbar h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.4rem,4vw,2.2rem);letter-spacing:5px;color:var(--gold);text-shadow:0 2px 10px rgba(255,215,64,.3);}
+.mode-toggle{display:flex;background:rgba(255,255,255,.1);border-radius:30px;overflow:hidden;}
+.mode-btn{
+  padding:8px 20px;border:none;font-family:'Bebas Neue',sans-serif;
+  font-size:.9rem;letter-spacing:2px;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.5);background:transparent;
+}
+.mode-btn.active{background:var(--gold);color:var(--bg);}
+.mode-btn:hover:not(.active){color:#fff;}
+
+/* ── SCOREBOARD ── */
+.scoreboard{display:flex;justify-content:center;gap:10px;padding:6px 16px 10px;flex-wrap:wrap;}
+.team-score{
+  display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);
+  border-radius:40px;padding:5px 16px 5px 5px;border:2px solid transparent;transition:all .3s;user-select:none;
+}
+.team-score.active-team{border-color:var(--gold);box-shadow:0 0 16px rgba(255,215,64,.25);}
+.team-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#fff;flex-shrink:0;}
+.team-name-display{font-weight:700;font-size:.82rem;}
+.team-pts{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--gold);min-width:28px;text-align:right;}
+
+/* ── BOARD ── */
+.board-container{padding:0 10px 16px;max-width:1200px;margin:auto;}
+.board{display:grid;gap:5px;}
+.cat-cell{
+  background:var(--cat-bg);border-radius:var(--radius);padding:8px 4px;text-align:center;
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(.6rem,1.6vw,.9rem);
+  letter-spacing:1px;color:var(--gold);line-height:1.15;
+  display:flex;align-items:center;justify-content:center;min-height:50px;
+  text-shadow:0 1px 3px rgba(0,0,0,.4);position:relative;
+}
+.q-cell{
+  background:var(--cell-bg);border-radius:var(--radius);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;font-size:clamp(1.2rem,3vw,1.8rem);
+  color:var(--gold);cursor:pointer;transition:all .18s;min-height:54px;
+  text-shadow:0 2px 5px rgba(0,0,0,.3);
+}
+.q-cell:hover{background:var(--cell-hover);transform:scale(1.04);}
+.q-cell.used{background:rgba(255,255,255,.03);color:rgba(255,255,255,.1);cursor:default;pointer-events:none;}
+
+/* ── EDIT MODE BOARD ── */
+.edit-mode .q-cell{border:1px dashed rgba(0,188,212,.3);cursor:pointer;}
+.edit-mode .q-cell:hover{border-color:var(--edit-accent);background:rgba(0,188,212,.1);}
+.edit-mode .cat-cell{cursor:pointer;border:1px dashed rgba(0,188,212,.3);}
+.edit-mode .cat-cell:hover{border-color:var(--edit-accent);}
+
+/* ── OVERLAY (shared) ── */
+.overlay{
+  display:none;position:fixed;inset:0;background:var(--overlay);z-index:100;
+  align-items:center;justify-content:center;padding:16px;overflow-y:auto;animation:fadeIn .25s;
+}
+.overlay.show{display:flex;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.card{
+  background:linear-gradient(160deg,#2d1b69,#1a0a2e);
+  border:2px solid rgba(255,215,64,.25);border-radius:16px;
+  padding:26px 22px;max-width:620px;width:100%;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);animation:slideUp .3s ease-out;margin:auto;
+}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.points-badge{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--gold);margin-bottom:4px;letter-spacing:3px;}
+.category-label{font-size:.7rem;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:12px;}
+.question-text{
+  font-family:'Playfair Display',serif;font-size:clamp(.95rem,2.5vw,1.25rem);
+  line-height:1.55;color:var(--white);margin-bottom:18px;
+}
+.question-text .math-block{
+  font-family:'Libre Franklin',sans-serif;font-size:1.1rem;font-weight:700;
+  background:rgba(255,255,255,.06);border-left:3px solid var(--gold-dim);
+  padding:10px 16px;margin:10px auto;text-align:center;border-radius:0 8px 8px 0;
+  display:inline-block;min-width:160px;letter-spacing:1px;
+}
+.question-text .hint{
+  font-family:'Libre Franklin',sans-serif;font-size:.8rem;
+  color:rgba(255,255,255,.5);font-style:italic;margin-top:6px;
+}
+.options{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.opt-btn{
+  background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.15);
+  border-radius:10px;color:var(--white);padding:11px 8px;font-size:.92rem;
+  font-family:'Libre Franklin',sans-serif;cursor:pointer;transition:all .15s;
+}
+.opt-btn:hover:not(:disabled){background:rgba(255,255,255,.13);border-color:var(--gold);}
+.opt-btn.correct-pick{background:var(--correct)!important;border-color:var(--correct)!important;color:#fff!important;animation:pop .35s;}
+.opt-btn.wrong-pick{background:var(--wrong)!important;border-color:var(--wrong)!important;color:#fff!important;}
+.opt-btn.reveal-correct{border-color:var(--correct)!important;box-shadow:0 0 10px rgba(67,160,71,.5);}
+@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.06)}100%{transform:scale(1)}}
+.feedback{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;min-height:34px;margin-bottom:6px;}
+.feedback.right{color:var(--correct);}.feedback.wrong{color:var(--wrong);}
+.team-buzz{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;}
+.buzz-btn{
+  padding:8px 16px;border-radius:30px;border:none;font-family:'Bebas Neue',sans-serif;
+  font-size:.9rem;letter-spacing:1.5px;color:#fff;cursor:pointer;transition:all .15s;
+}
+.buzz-btn:hover:not(:disabled){transform:scale(1.06);filter:brightness(1.15);}
+.buzz-btn:disabled{opacity:.3;cursor:default;transform:none;filter:none;}
+.close-btn,.action-btn{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  border-radius:30px;color:var(--white);padding:8px 24px;
+  font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;margin:4px;
+}
+.close-btn:hover,.action-btn:hover{background:rgba(255,255,255,.2);}
+.action-btn.accent{border-color:var(--edit-accent);color:var(--edit-accent);}
+.action-btn.accent:hover{background:rgba(0,188,212,.15);}
+.action-btn.danger{border-color:#ef5350;color:#ef5350;}
+.action-btn.danger:hover{background:rgba(239,83,80,.15);}
+.action-btn.gold{border-color:var(--gold);color:var(--gold);}
+.action-btn.gold:hover{background:rgba(255,215,64,.15);}
+.turn-label{font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:10px;}
+.daily-double-flash{
+  font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--gold);
+  letter-spacing:4px;text-shadow:0 0 20px rgba(255,215,64,.6);
+  animation:ddPulse .6s ease-in-out 3;margin-bottom:6px;
+}
+@keyframes ddPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.08)}}
+
+/* ── WINNER ── */
+.winner-screen{display:none;position:fixed;inset:0;background:var(--overlay);z-index:200;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:30px;}
+.winner-screen.show{display:flex;}
+.winner-screen h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,6vw,3.2rem);color:var(--gold);letter-spacing:5px;margin-bottom:8px;text-shadow:0 4px 20px rgba(255,215,64,.4);}
+.winner-screen .winner-name{font-family:'Playfair Display',serif;font-size:clamp(1.4rem,4vw,2.2rem);margin-bottom:18px;}
+.final-scores{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:22px;}
+.fs{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;padding:10px 20px;border-radius:10px;background:rgba(255,255,255,.08);}
+.play-again-btn{background:var(--gold);color:var(--bg);border:none;padding:12px 34px;border-radius:30px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;cursor:pointer;transition:transform .2s;}
+.play-again-btn:hover{transform:scale(1.06);}
+
+/* ── EDIT PANEL ── */
+.edit-panel{
+  max-width:1200px;margin:0 auto 16px;padding:0 10px;
+  display:none;
+}
+.edit-panel.show{display:block;}
+.ep-section{
+  background:rgba(255,255,255,.05);border:1px solid rgba(0,188,212,.2);
+  border-radius:12px;padding:16px;margin-bottom:12px;
+}
+.ep-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--edit-accent);margin-bottom:10px;}
+.team-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.team-row input[type=text]{
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);
+  border-radius:6px;color:#fff;padding:6px 10px;font-size:.85rem;width:140px;
+  font-family:'Libre Franklin',sans-serif;
+}
+.team-row input[type=color]{width:36px;height:30px;border:none;border-radius:6px;cursor:pointer;background:transparent;}
+.team-row .remove-team{
+  background:none;border:1px solid rgba(239,83,80,.4);color:#ef5350;
+  border-radius:6px;padding:4px 10px;font-size:.75rem;cursor:pointer;
+  font-family:'Libre Franklin',sans-serif;
+}
+.team-row .remove-team:hover{background:rgba(239,83,80,.15);}
+.board-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+
+/* ── EDIT QUESTION FORM ── */
+.eq-overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:150;align-items:center;justify-content:center;padding:16px;overflow-y:auto;}
+.eq-overlay.show{display:flex;}
+.eq-card{
+  background:linear-gradient(160deg,#1a2a40,#0d1520);
+  border:2px solid rgba(0,188,212,.3);border-radius:16px;
+  padding:24px 20px;max-width:560px;width:100%;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);animation:slideUp .3s ease-out;margin:auto;
+}
+.eq-card label{display:block;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;color:var(--edit-accent);margin:10px 0 4px;text-align:left;}
+.eq-card input,.eq-card textarea{
+  width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);
+  border-radius:8px;color:#fff;padding:8px 10px;font-size:.9rem;
+  font-family:'Libre Franklin',sans-serif;
+}
+.eq-card textarea{resize:vertical;min-height:60px;}
+.eq-card .opt-row{display:flex;gap:6px;align-items:center;margin-bottom:4px;}
+.eq-card .opt-row input[type=text]{flex:1;}
+.eq-card .opt-row input[type=radio]{accent-color:var(--correct);width:18px;height:18px;cursor:pointer;}
+.eq-card .opt-row .correct-label{font-size:.7rem;color:rgba(255,255,255,.4);}
+.eq-buttons{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.eq-card .daily-check{display:flex;align-items:center;gap:6px;margin-top:8px;}
+.eq-card .daily-check input{width:18px;height:18px;accent-color:var(--gold);}
+
+@media(max-width:550px){
+  .options{grid-template-columns:1fr;}
+  .card,.eq-card{padding:20px 14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1 id="gameTitle">Jeopardy!</h1>
+  <div class="mode-toggle">
+    <button class="mode-btn" id="btnPlay" onclick="setMode('play')">▶ Play</button>
+    <button class="mode-btn active" id="btnEdit" onclick="setMode('edit')">✏️ Edit</button>
+  </div>
+</div>
+
+<div class="edit-panel show" id="editPanel">
+  <div class="ep-section">
+    <div class="ep-title">Teams</div>
+    <div id="teamEditor"></div>
+    <button class="action-btn accent" onclick="addTeam()">+ Add Team</button>
+  </div>
+  <div class="ep-section">
+    <div class="ep-title">Board — click any cell to edit</div>
+    <div class="board-actions">
+      <button class="action-btn accent" onclick="addCategory()">+ Add Category</button>
+      <button class="action-btn danger" onclick="removeCategory()">− Remove Last Category</button>
+      <button class="action-btn accent" onclick="addRow()">+ Add Row</button>
+      <button class="action-btn danger" onclick="removeRow()">− Remove Last Row</button>
+    </div>
+  </div>
+  <div class="ep-section" style="text-align:center">
+    <div class="ep-title">Game Title</div>
+    <input type="text" id="titleInput" value="Jeopardy!" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;padding:8px 12px;font-size:1rem;width:280px;text-align:center;font-family:'Libre Franklin',sans-serif;" oninput="S.title=this.value;document.getElementById('gameTitle').textContent=this.value;">
+  </div>
+</div>
+
+<div class="scoreboard" id="scoreboard"></div>
+<div class="board-container edit-mode" id="boardWrap"><div class="board" id="board"></div></div>
+<div class="overlay" id="overlay"><div class="card" id="card"></div></div>
+<div class="eq-overlay" id="eqOverlay"><div class="eq-card" id="eqCard"></div></div>
+<div class="winner-screen" id="winnerScreen"></div>
+
+<script>
+// ═══════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════
+const COLORS = ['#ef5350','#42a5f5','#66bb6a','#ffa726','#ab47bc','#26c6da','#ec407a','#8d6e63'];
+
+let S = {
+  title: "Jeopardy!",
+  mode: 'edit', // start in edit mode
+  teams: [
+    {name:'Team 1',color:'#ef5350',score:0},
+    {name:'Team 2',color:'#42a5f5',score:0},
+    {name:'Team 3',color:'#66bb6a',score:0},
+  ],
+  categories: ["Category 1","Category 2","Category 3","Category 4","Category 5"],
+  pointValues: [100,200,300,400,500],
+  questions: {},
+  currentTeam: 0,
+  used: {},
+  answered: 0,
+};
+
+function qKey(c,r){return c+'-'+r;}
+function totalQs(){return S.categories.length * S.pointValues.length;}
+
+function emptyQ(pts){return {q:"(Click to edit)",opts:["A","B","C","D"],ans:0,pts:pts||100};}
+
+// Seed all cells as blank
+function seedDefaults(){
+  for(let c=0;c<S.categories.length;c++){
+    for(let r=0;r<S.pointValues.length;r++){
+      S.questions[qKey(c,r)]=emptyQ(S.pointValues[r]);
+    }
+  }
+}
+
+seedDefaults();
+
+// ═══════════════════════════════════════
+// MODE
+// ═══════════════════════════════════════
+function setMode(m){
+  S.mode=m;
+  document.getElementById('btnPlay').classList.toggle('active',m==='play');
+  document.getElementById('btnEdit').classList.toggle('active',m==='edit');
+  document.getElementById('editPanel').classList.toggle('show',m==='edit');
+  document.getElementById('boardWrap').classList.toggle('edit-mode',m==='edit');
+  if(m==='edit') renderTeamEditor();
+  if(m==='play') resetGame();
+  renderBoard();
+}
+
+// ═══════════════════════════════════════
+// TEAM EDITOR
+// ═══════════════════════════════════════
+function renderTeamEditor(){
+  const el=document.getElementById('teamEditor');
+  el.innerHTML=S.teams.map((t,i)=>`
+    <div class="team-row">
+      <input type="color" value="${t.color}" onchange="S.teams[${i}].color=this.value;renderAll();">
+      <input type="text" value="${t.name}" oninput="S.teams[${i}].name=this.value;renderScoreboard();" placeholder="Team name">
+      ${S.teams.length>1?`<button class="remove-team" onclick="removeTeam(${i})">✕ Remove</button>`:''}
+    </div>`).join('');
+}
+function addTeam(){
+  if(S.teams.length>=8)return;
+  const c=COLORS[S.teams.length%COLORS.length];
+  S.teams.push({name:'Team '+(S.teams.length+1),color:c,score:0});
+  renderTeamEditor();renderScoreboard();
+}
+function removeTeam(i){
+  if(S.teams.length<=1)return;
+  S.teams.splice(i,1);
+  if(S.currentTeam>=S.teams.length)S.currentTeam=0;
+  renderTeamEditor();renderScoreboard();
+}
+
+// ═══════════════════════════════════════
+// CATEGORY / ROW MANAGEMENT
+// ═══════════════════════════════════════
+function addCategory(){
+  if(S.categories.length>=8)return;
+  const idx=S.categories.length;
+  S.categories.push("New\nCategory");
+  S.pointValues.forEach((pv,r)=>{S.questions[qKey(idx,r)]=emptyQ(pv);});
+  renderBoard();
+}
+function removeCategory(){
+  if(S.categories.length<=1)return;
+  const idx=S.categories.length-1;
+  S.pointValues.forEach((_,r)=>{delete S.questions[qKey(idx,r)];});
+  S.categories.pop();
+  renderBoard();
+}
+function addRow(){
+  if(S.pointValues.length>=8)return;
+  const last=S.pointValues[S.pointValues.length-1]||0;
+  const newPts=last+100;
+  S.pointValues.push(newPts);
+  const r=S.pointValues.length-1;
+  S.categories.forEach((_,c)=>{S.questions[qKey(c,r)]=emptyQ(newPts);});
+  renderBoard();
+}
+function removeRow(){
+  if(S.pointValues.length<=1)return;
+  const r=S.pointValues.length-1;
+  S.categories.forEach((_,c)=>{delete S.questions[qKey(c,r)];});
+  S.pointValues.pop();
+  renderBoard();
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+function renderAll(){renderScoreboard();renderBoard();}
+
+function renderScoreboard(){
+  document.getElementById('scoreboard').innerHTML=S.teams.map((t,i)=>`
+    <div class="team-score ${i===S.currentTeam&&S.mode==='play'?'active-team':''}">
+      <div class="team-dot" style="background:${t.color}">${i+1}</div>
+      <span class="team-name-display">${t.name}</span>
+      <span class="team-pts">${S.mode==='play'?t.score:''}</span>
+    </div>`).join('');
+}
+
+function renderBoard(){
+  const b=document.getElementById('board');
+  b.style.gridTemplateColumns=`repeat(${S.categories.length},1fr)`;
+  b.innerHTML='';
+  S.categories.forEach((c,ci)=>{
+    const d=document.createElement('div');d.className='cat-cell';
+    d.innerHTML=c.replace(/\n/g,'<br>');
+    if(S.mode==='edit') d.onclick=()=>editCategoryName(ci);
+    b.appendChild(d);
+  });
+  for(let r=0;r<S.pointValues.length;r++){
+    for(let c=0;c<S.categories.length;c++){
+      const k=qKey(c,r);
+      const qd=S.questions[k]||emptyQ(S.pointValues[r]);
+      const d=document.createElement('div');d.className='q-cell';d.id='cell-'+k;
+      if(S.mode==='play'&&S.used[k]){d.classList.add('used');d.textContent='';}
+      else{
+        d.textContent='$'+S.pointValues[r];
+        d.onclick=S.mode==='play'?()=>openQuestion(k):()=>openEditor(k);
+      }
+      b.appendChild(d);
+    }
+  }
+}
+
+// ═══════════════════════════════════════
+// EDIT: CATEGORY NAME
+// ═══════════════════════════════════════
+function editCategoryName(ci){
+  const raw=S.categories[ci].replace(/\n/g,' ');
+  const v=prompt('Category name:',raw);
+  if(v!==null){S.categories[ci]=v;renderBoard();}
+}
+
+// ═══════════════════════════════════════
+// EDIT: QUESTION EDITOR
+// ═══════════════════════════════════════
+function openEditor(key){
+  const qd=S.questions[key]||emptyQ(100);
+  const ov=document.getElementById('eqOverlay');
+  const card=document.getElementById('eqCard');
+  const [ci,ri]=key.split('-').map(Number);
+
+  let html=`<div class="ep-title" style="margin-bottom:12px">Edit Question — ${S.categories[ci].replace(/\n/,' ')} $${S.pointValues[ri]}</div>`;
+  html+=`<label>Question text (HTML ok)</label><textarea id="eq_q">${qd.q||''}</textarea>`;
+  html+=`<label>Math block (optional)</label><input type="text" id="eq_math" value="${(qd.math||'').replace(/"/g,'&quot;')}">`;
+  html+=`<label>Hint (optional)</label><input type="text" id="eq_hint" value="${(qd.hint||'').replace(/"/g,'&quot;')}">`;
+  html+=`<label>Options (select the correct answer)</label>`;
+  const opts=qd.opts||["A","B","C","D"];
+  for(let i=0;i<4;i++){
+    html+=`<div class="opt-row">
+      <input type="radio" name="eq_ans" value="${i}" ${qd.ans===i?'checked':''}>
+      <input type="text" id="eq_opt${i}" value="${(opts[i]||'').replace(/"/g,'&quot;')}">
+      ${i===0?'<span class="correct-label">← correct</span>':''}
+    </div>`;
+  }
+  html+=`<div class="daily-check"><input type="checkbox" id="eq_daily" ${qd.daily?'checked':''}> <span style="font-size:.82rem;color:rgba(255,255,255,.6)">Daily Double (2× points)</span></div>`;
+  html+=`<div class="eq-buttons">
+    <button class="action-btn gold" onclick="saveQuestion('${key}')">Save</button>
+    <button class="action-btn" onclick="document.getElementById('eqOverlay').classList.remove('show')">Cancel</button>
+  </div>`;
+  card.innerHTML=html;
+  ov.classList.add('show');
+}
+
+function saveQuestion(key){
+  const [ci,ri]=key.split('-').map(Number);
+  const ans=parseInt(document.querySelector('input[name=eq_ans]:checked')?.value||0);
+  S.questions[key]={
+    q:document.getElementById('eq_q').value,
+    math:document.getElementById('eq_math').value||undefined,
+    hint:document.getElementById('eq_hint').value||undefined,
+    opts:[0,1,2,3].map(i=>document.getElementById('eq_opt'+i).value),
+    ans:ans,
+    pts:S.pointValues[ri],
+    daily:document.getElementById('eq_daily').checked||false,
+  };
+  document.getElementById('eqOverlay').classList.remove('show');
+  renderBoard();
+}
+
+// ═══════════════════════════════════════
+// PLAY: GAME LOGIC
+// ═══════════════════════════════════════
+let selectedTeamForQ=-1;
+
+function openQuestion(key){
+  if(S.used[key])return;
+  const qd=S.questions[key];if(!qd)return;
+  const [ci]=key.split('-').map(Number);
+  const catName=S.categories[ci].replace(/\n/g,' ');
+  const ov=document.getElementById('overlay');
+  const card=document.getElementById('card');
+
+  let html='';
+  if(qd.daily)html+=`<div class="daily-double-flash">⭐ DAILY DOUBLE ⭐</div>`;
+  html+=`<div class="points-badge">$${qd.pts}</div>`;
+  html+=`<div class="category-label">${catName}</div>`;
+  html+=`<div class="turn-label">Which team is answering?</div>`;
+  html+=`<div class="team-buzz">`;
+  S.teams.forEach((t,i)=>{html+=`<button class="buzz-btn" style="background:${t.color}" onclick="selectTeam(${i})">${t.name}</button>`;});
+  html+=`</div>`;
+  html+=`<div class="question-text">${qd.q}`;
+  if(qd.math)html+=`<div class="math-block">${qd.math}</div>`;
+  if(qd.hint)html+=`<div class="hint">${qd.hint}</div>`;
+  html+=`</div>`;
+  html+=`<div class="options">`;
+  (qd.opts||[]).forEach((o,i)=>{html+=`<button class="opt-btn" id="opt-${i}" disabled onclick="answerPicked(${i},'${key}')">${o}</button>`;});
+  html+=`</div>`;
+  html+=`<div class="feedback" id="feedback"></div>`;
+  html+=`<button class="close-btn" id="closeBtn" style="display:none" onclick="closeOverlay('${key}')">Back to Board</button>`;
+  card.innerHTML=html;
+  ov.classList.add('show');ov.scrollTop=0;
+}
+
+function selectTeam(i){
+  selectedTeamForQ=i;
+  document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=false);
+  document.querySelectorAll('.buzz-btn').forEach((b,j)=>{
+    if(j===i){b.style.outline='3px solid var(--gold)';b.style.outlineOffset='2px';}
+    else b.disabled=true;
+  });
+  document.querySelector('.turn-label').textContent=S.teams[i].name+' is answering…';
+}
+
+function answerPicked(picked,key){
+  const qd=S.questions[key];
+  const fb=document.getElementById('feedback');
+  document.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
+  if(picked===qd.ans){
+    document.getElementById('opt-'+picked).classList.add('correct-pick');
+    const earned=qd.daily?qd.pts*2:qd.pts;
+    fb.textContent='✓ Correct! +$'+earned;fb.className='feedback right';
+    S.teams[selectedTeamForQ].score+=earned;
+  }else{
+    document.getElementById('opt-'+picked).classList.add('wrong-pick');
+    document.getElementById('opt-'+qd.ans).classList.add('reveal-correct');
+    fb.textContent='✗ Not quite!';fb.className='feedback wrong';
+  }
+  renderScoreboard();
+  document.getElementById('closeBtn').style.display='inline-block';
+}
+
+function closeOverlay(key){
+  document.getElementById('overlay').classList.remove('show');
+  S.used[key]=true;S.answered++;
+  document.getElementById('cell-'+key).classList.add('used');
+  document.getElementById('cell-'+key).textContent='';
+  S.currentTeam=(S.currentTeam+1)%S.teams.length;
+  selectedTeamForQ=-1;
+  renderScoreboard();
+  if(S.answered>=totalQs())showWinner();
+}
+
+function showWinner(){
+  const ws=document.getElementById('winnerScreen');
+  const sorted=[...S.teams].sort((a,b)=>b.score-a.score);
+  const w=sorted[0];const tie=sorted.filter(t=>t.score===w.score).length>1;
+  ws.innerHTML=`
+    <h2>🏆 Game Over! 🏆</h2>
+    <div class="winner-name" style="color:${tie?'var(--gold)':w.color}">${tie?"It's a Tie!":w.name+' Wins!'}</div>
+    <div class="final-scores">${S.teams.map(t=>`<div class="fs" style="border:2px solid ${t.color}">${t.name}: <span style="color:var(--gold)">$${t.score}</span></div>`).join('')}</div>
+    <button class="play-again-btn" onclick="resetGame()">Play Again</button>`;
+  ws.classList.add('show');
+}
+
+function resetGame(){
+  S.teams.forEach(t=>t.score=0);
+  S.currentTeam=0;S.answered=0;S.used={};selectedTeamForQ=-1;
+  document.getElementById('winnerScreen').classList.remove('show');
+  renderAll();
+}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+seedDefaults();
+renderAll();
+renderTeamEditor();
+</script>
+</body>
+</html>
