@@ -1,1239 +1,545 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Centers Rotation</title>
 <style>
-  :root{
-    --navy:#1b2a4a;
-    --navy-deep:#142038;
-    --navy-soft:#26395f;
-    --ink:#0f1729;
-    --teal:#1d9e75;     --teal-d:#0f6e56;  --teal-soft:#e1f5ee;
-    --coral:#e8633a;    --coral-d:#b8431f; --coral-soft:#fbe9e2;
-    --purple:#6c5ce0;   --purple-d:#4a3fb0;--purple-soft:#eceafb;
-    --gold:#ffc94d;
-    --paper:#f7f5ef;
-    --white:#ffffff;
-    --radius:22px;
-    --shadow:0 10px 30px rgba(0,0,0,.18);
-    --font:'Baloo 2','Trebuchet MS',-apple-system,system-ui,sans-serif;
-  }
-  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0;}
-  html,body{height:100%;}
-  body{
-    font-family:'Nunito',var(--font);
-    background:
-      radial-gradient(circle at 12% 18%, rgba(255,201,77,.10), transparent 38%),
-      radial-gradient(circle at 88% 78%, rgba(108,92,224,.16), transparent 42%),
-      linear-gradient(160deg,var(--navy) 0%, var(--navy-deep) 100%);
-    color:#fff;
-    overflow:hidden;
-    height:100vh;
-  }
-  h1,h2,h3,.display{font-family:'Baloo 2',var(--font);}
+:root{
+  --ink:#2c2c2c;--soft-ink:#555;--red:#d62828;--maroon:#9d1b1b;
+  --gold:#f2a900;--blue:#1f6fb2;--blue-pale:#eef5fb;--blue-line:#bcd9ef;
+  --purple:#7b3fbf;--green:#3a9d5d;--paper:#fff;--bg:#f6f4ef;
+  --shadow:0 4px 18px rgba(40,30,20,.10);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  font-family:'Nunito',sans-serif;color:var(--ink);
+  background:radial-gradient(1200px 600px at 12% -10%,#fffdf7 0%,transparent 60%),
+    radial-gradient(1000px 700px at 110% 120%,#fff0f4 0%,transparent 55%),var(--bg);
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+}
 
-  /* floating decorative shapes */
-  .blob{position:fixed;border-radius:50%;filter:blur(2px);opacity:.18;z-index:0;pointer-events:none;}
-  .blob.b1{width:240px;height:240px;background:var(--teal);top:-60px;left:-40px;}
-  .blob.b2{width:200px;height:200px;background:var(--coral);bottom:-50px;right:8%;opacity:.16;}
-  .blob.b3{width:150px;height:150px;background:var(--gold);top:20%;right:-40px;opacity:.14;}
+/* ── Toolbar ── */
+.toolbar{position:fixed;top:12px;right:12px;z-index:50;display:flex;gap:7px;font-family:'Nunito',sans-serif;}
+.toolbar button{border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:13px;color:#fff;
+  background:var(--ink);padding:8px 13px;border-radius:999px;box-shadow:var(--shadow);
+  display:inline-flex;align-items:center;gap:6px;transition:transform .12s,background .2s;}
+.toolbar button:hover{transform:translateY(-2px);}
+.toolbar .b-fs{background:var(--blue);}
+.toolbar .b-edit{background:var(--green);}
+body.locked .toolbar .b-edit{background:var(--soft-ink);}
+.toolbar .b-reset{background:#8a8a8a;font-size:12px;padding:8px 11px;}
+.toolbar .b-fs-up,.toolbar .b-fs-dn{background:#7b3fbf;font-size:13px;padding:8px 12px;letter-spacing:.02em;}
+.toolbar svg{width:15px;height:15px;}
+:fullscreen .toolbar{opacity:0;transition:opacity .3s;}
+:fullscreen .toolbar:hover{opacity:1;}
+body.locked .hint{display:none;}
+.hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:40;font-size:12px;
+  color:var(--soft-ink);background:rgba(255,255,255,.88);padding:5px 13px;border-radius:999px;
+  box-shadow:var(--shadow);pointer-events:none;}
 
-  .stage{position:relative;z-index:2;height:100vh;display:flex;flex-direction:column;}
+/* ── Stage & Board ── */
+.stage{height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;padding:1.8vmin;}
+.board{width:100%;max-width:1700px;height:100%;background:var(--paper);border-radius:20px;
+  box-shadow:0 16px 48px rgba(60,45,25,.15);border:1px solid #ece6da;
+  padding:clamp(10px,1.8vmin,22px) clamp(14px,2.4vmin,34px);
+  display:flex;flex-direction:column;gap:clamp(6px,1vmin,12px);overflow:hidden;}
 
-  /* top bar */
-  .topbar{
-    display:flex;align-items:center;justify-content:space-between;
-    padding:18px 30px 6px;gap:16px;
-  }
-  .brand{display:flex;align-items:center;gap:14px;}
-  .brand .logo{
-    width:52px;height:52px;border-radius:16px;background:var(--gold);
-    display:flex;align-items:center;justify-content:center;font-size:30px;
-    box-shadow:0 4px 0 rgba(0,0,0,.15);
-  }
-  .brand h1{font-size:clamp(22px,2.6vw,38px);font-weight:800;letter-spacing:.5px;line-height:1;}
-  .brand .tag{font-size:clamp(11px,1.1vw,15px);color:#bcc9e6;font-weight:700;margin-top:3px;}
+/* ── Edit highlight ── */
+[data-edit]{outline:none;border-radius:5px;}
+body:not(.locked) [data-edit]:hover{background:rgba(31,111,178,.07);}
+body:not(.locked) [data-edit]:focus{background:rgba(31,111,178,.10);box-shadow:inset 0 0 0 2px rgba(31,111,178,.4);}
 
-  .controls{display:flex;align-items:center;gap:10px;}
-  .iconbtn{
-    width:46px;height:46px;border:none;border-radius:14px;cursor:pointer;
-    background:rgba(255,255,255,.10);color:#fff;font-size:20px;
-    display:flex;align-items:center;justify-content:center;transition:.15s;
-  }
-  .iconbtn:hover{background:rgba(255,255,255,.22);transform:translateY(-1px);}
-  .iconbtn.play{background:var(--gold);color:#3a2b00;width:58px;font-size:24px;}
-  .iconbtn.play:hover{background:#ffd770;}
+/* ── Title ── */
+.title{font-family:'Fredoka',sans-serif;font-weight:700;text-align:center;
+  font-size:clamp(1.625em,4vmin,3.625em);letter-spacing:.4px;margin:0;color:var(--ink);flex:0 0 auto;}
 
-  /* timer + rotation status row */
-  .statusrow{display:flex;align-items:center;gap:18px;padding:4px 30px 12px;}
-  .rot-label{
-    background:var(--gold);color:#3a2b00;font-weight:800;font-family:'Baloo 2';
-    padding:8px 20px;border-radius:99px;font-size:clamp(15px,1.7vw,22px);
-    box-shadow:0 4px 0 rgba(0,0,0,.15);white-space:nowrap;
-  }
-  .timerwrap{flex:1;display:flex;align-items:center;gap:12px;}
-  .timebtn{
-    border:none;cursor:pointer;background:rgba(255,255,255,.10);color:#fff;
-    font-family:'Baloo 2',var(--font);font-weight:800;font-size:clamp(13px,1.4vw,18px);
-    padding:8px 12px;border-radius:12px;transition:.12s;line-height:1;white-space:nowrap;
-  }
-  .timebtn:hover{background:rgba(255,255,255,.22);transform:translateY(-1px);}
-  .timebtn:active{transform:translateY(1px);}
-  .clock{
-    font-family:'Baloo 2';font-weight:800;font-size:clamp(26px,3.4vw,48px);
-    min-width:2.6ch;text-align:center;line-height:1;
-    background:rgba(255,255,255,.08);padding:6px 16px;border-radius:14px;
-    transition:color .2s;
-  }
-  .clock.warn{color:var(--gold);}
-  .clock.over{color:var(--coral);animation:clockpulse .8s ease-in-out infinite;}
-  @keyframes clockpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
-  .bar{flex:1;height:16px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;}
-  .bar > i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--teal),var(--gold));border-radius:99px;transition:width .4s linear;}
-  /* transition countdown */
-  .trans-count{font-family:'Baloo 2',var(--font);font-weight:800;font-size:clamp(16px,1.9vw,26px);color:var(--gold);margin-top:6px;}
-  .trans-count span{display:inline-block;min-width:1.4ch;}
-  /* full-screen rotation flash */
-  .flash{position:fixed;inset:0;z-index:90;pointer-events:none;background:var(--gold);opacity:0;}
-  .flash.go{animation:flashfade 1s ease-out;}
-  @keyframes flashfade{0%{opacity:.55;}100%{opacity:0;}}
+/* ── Top cards ── */
+.cards{display:grid;grid-template-columns:1fr 1.15fr .85fr;gap:clamp(5px,.9vmin,12px);flex:0 0 auto;}
+.card{border-radius:10px;padding:clamp(4px,.6vmin,8px) clamp(7px,1.1vmin,13px);
+  display:flex;gap:clamp(5px,.9vmin,11px);align-items:center;
+  font-size:clamp(0.688em,1.6vmin,1.125em);line-height:1.3;border:2px solid;box-shadow:var(--shadow);}
 
-  /* main content area */
-  .content{flex:1;padding:6px 30px 26px;overflow:auto;min-height:0;}
+/* Trait toggle cards */
+.card.trait-card{flex-direction:column;align-items:stretch;gap:.1vmin;
+  padding:clamp(3px,.5vmin,7px) clamp(7px,1.1vmin,13px);cursor:default;}
+.trait-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.1vmin;}
+.trait-cat-name{font-family:'Fredoka',sans-serif;font-weight:700;font-size:clamp(0.688em,1.6vmin,1.25em);}
+.trait-nav{display:flex;align-items:center;gap:.3em;}
+.trait-nav button{background:none;border:2px solid;border-radius:50%;
+  width:clamp(15px,2vmin,24px);height:clamp(15px,2vmin,24px);
+  font-size:clamp(0.562em,1.3vmin,0.938em);font-weight:900;cursor:pointer;
+  display:grid;place-items:center;padding:0;line-height:1;transition:background .15s,color .15s;}
+.trait-dot-row{display:flex;gap:3px;align-items:center;}
+.trait-dot{width:5px;height:5px;border-radius:50%;background:#ccc;transition:background .2s;}
+.trait-items{display:flex;flex-wrap:wrap;gap:.2em .45em;min-height:clamp(16px,2.2vmin,30px);align-content:flex-start;}
+.trait-item{font-weight:700;font-size:clamp(0.625em,1.4vmin,1.062em);border-radius:5px;padding:.05em .3em;}
+.trait-slide{animation:tslide .2s ease;}
+@keyframes tslide{from{opacity:0;transform:translateX(8px);}to{opacity:1;transform:none;}}
 
-  /* ---- ROTATION VIEW (3 columns of centers) ---- */
-  .rotation-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;height:100%;}
-  .center-card{
-    background:var(--white);color:var(--ink);border-radius:var(--radius);
-    display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow);
-    border:5px solid var(--c);
-  }
-  .cc-head{background:var(--c);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;}
-  .cc-emoji{
-    width:clamp(46px,4vw,66px);height:clamp(46px,4vw,66px);flex-shrink:0;
-    background:rgba(255,255,255,.22);border-radius:18px;
-    display:flex;align-items:center;justify-content:center;font-size:clamp(26px,2.8vw,40px);
-  }
-  .cc-titles{min-width:0;}
-  .cc-tray{font-size:clamp(11px,1.1vw,15px);font-weight:800;opacity:.92;letter-spacing:.5px;text-transform:uppercase;}
-  .cc-name{font-family:'Baloo 2';font-weight:800;font-size:clamp(18px,2.1vw,32px);line-height:1.05;}
-  .cc-body{padding:14px 18px;display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;}
-  .cc-desc{font-weight:700;font-size:clamp(13px,1.35vw,20px);color:#3a4660;line-height:1.25;}
-  .steps{display:flex;flex-direction:column;gap:9px;overflow:auto;}
-  .step{display:flex;align-items:flex-start;gap:12px;}
-  .step .num{
-    flex-shrink:0;width:clamp(26px,2.5vw,38px);height:clamp(26px,2.5vw,38px);
-    background:var(--c-soft);color:var(--c-d);border-radius:50%;
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Baloo 2';font-weight:800;font-size:clamp(14px,1.4vw,20px);
-  }
-  .step .txt{font-size:clamp(13px,1.35vw,20px);font-weight:600;line-height:1.3;color:#1f2a44;padding-top:2px;}
+/* Self-management card */
+.card.grey{background:#f2f2f2;border-color:#ccc;flex-direction:column;align-items:stretch;gap:.15vmin;}
+.card.grey .smh{font-family:'Fredoka',sans-serif;font-weight:600;color:#666;
+  text-align:center;font-size:clamp(0.688em,1.6vmin,1.25em);}
+.card.grey .grid4{display:grid;grid-template-columns:1fr 1fr;gap:.15vmin clamp(3px,.7vmin,9px);}
+.card.grey .skill{display:flex;align-items:center;gap:.35em;font-weight:800;
+  color:var(--ink);font-size:clamp(0.625em,1.4vmin,1.062em);}
+.card.grey .skill svg{width:clamp(13px,1.8vmin,22px);height:clamp(13px,1.8vmin,22px);color:#888;flex:0 0 auto;}
 
-  /* ---- TRANSITION VIEW ---- */
-  .transition{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:6px 0;}
-  .trans-badge{
-    font-family:'Baloo 2',var(--font);font-weight:800;font-size:clamp(34px,5.5vw,76px);
-    color:var(--gold);text-shadow:0 6px 0 rgba(0,0,0,.18);letter-spacing:1px;
-    animation:pulse 1.4s ease-in-out infinite;
-  }
-  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.05);}}
-  .trans-sub{font-size:clamp(16px,2vw,28px);font-weight:800;color:#cdd8f0;margin-top:-4px;}
-  .moves{display:flex;flex-direction:column;gap:12px;width:min(760px,90%);}
-  .move{
-    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;
-    background:rgba(255,255,255,.07);border-radius:16px;padding:11px 22px;
-  }
-  .move .from{display:flex;align-items:center;gap:14px;justify-content:flex-end;}
-  .move .chip{
-    display:flex;align-items:center;gap:10px;background:var(--c);color:#fff;
-    padding:10px 18px;border-radius:14px;font-family:'Baloo 2';font-weight:800;
-    font-size:clamp(16px,1.9vw,26px);box-shadow:0 4px 0 rgba(0,0,0,.15);
-  }
-  .move .chip .e{font-size:1.2em;}
-  .move .arrow{font-size:clamp(26px,3.4vw,46px);color:var(--gold);}
-  .move .to{font-family:'Baloo 2';font-weight:800;font-size:clamp(18px,2.2vw,30px);color:#dfe7f8;text-align:left;}
+/* ── Body (two columns) ── */
+.body{flex:1 1 auto;display:grid;grid-template-columns:1.6fr 1fr;
+  gap:clamp(12px,2.2vmin,30px);min-height:0;overflow:hidden;}
 
-  /* ---- TITLE & END VIEWS ---- */
-  .splash{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;padding:16px 20px;}
-  .splash .big{font-family:'Baloo 2';font-weight:800;font-size:clamp(44px,8vw,110px);line-height:1;color:#fff;text-shadow:0 7px 0 rgba(0,0,0,.2);}
-  .splash .big .hl{color:var(--gold);}
-  .splash .lead{font-size:clamp(18px,2.6vw,34px);font-weight:800;color:#d6def2;max-width:18ch;line-height:1.25;}
-  .splash .centers-row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;margin-top:10px;}
-  .splash .pill-center{
-    display:flex;align-items:center;gap:12px;background:var(--c);color:#fff;
-    padding:14px 26px;border-radius:99px;font-family:'Baloo 2';font-weight:800;
-    font-size:clamp(16px,2vw,28px);box-shadow:0 5px 0 rgba(0,0,0,.16);
-  }
-  .splash .pill-center .e{font-size:1.3em;}
-  .splash .note{font-size:clamp(14px,1.6vw,22px);font-weight:700;color:#aebbd8;margin-top:6px;}
-  .startbtn{
-    margin-top:8px;border:none;cursor:pointer;background:var(--gold);color:#3a2b00;
-    font-family:'Baloo 2';font-weight:800;font-size:clamp(20px,2.4vw,32px);
-    padding:16px 46px;border-radius:99px;box-shadow:0 6px 0 rgba(0,0,0,.2);transition:.12s;
-  }
-  .startbtn:hover{background:#ffd770;transform:translateY(-2px);}
-  .startbtn:active{transform:translateY(2px);box-shadow:0 3px 0 rgba(0,0,0,.2);}
-  .celebrate{font-size:clamp(40px,6vw,80px);}
+/* Left col: goals text + wheel side by side */
+.left-col{display:grid;grid-template-columns:1fr auto;gap:clamp(8px,1.2vmin,18px);
+  align-items:stretch;min-height:0;overflow:hidden;}
+.goals-text{min-width:0;overflow:hidden;display:flex;flex-direction:column;}
+.weekgoals{font-family:'Fredoka',sans-serif;font-weight:600;
+  font-size:clamp(1.375em,3.6vmin,3.125em);margin:0 0 .3vmin;color:var(--ink);flex:0 0 auto;}
+.goal-head{font-family:'Fredoka',sans-serif;font-weight:600;
+  font-size:clamp(1.0em,2.6vmin,2.25em);margin:.6vmin 0 .2vmin;display:inline-block;
+  border-bottom:3px solid currentColor;padding-bottom:1px;flex:0 0 auto;}
+.goal-head.essential{color:var(--maroon);}
+.goal-head.further{color:var(--red);}
+ol.goals{margin:.1vmin 0 0;padding-left:1.4em;font-size:clamp(0.875em,2.2vmin,1.875em);line-height:1.35;flex:0 0 auto;}
+ol.goals > li{margin:.25vmin 0;font-weight:800;padding-left:.1em;}
+ol.goals ul{margin:.05vmin 0 .2vmin;padding-left:1.1em;list-style:none;}
+ol.goals ul li{font-weight:600;color:var(--soft-ink);position:relative;margin:.05vmin 0;}
+ol.goals ul li::before{content:"•";color:var(--ink);position:absolute;left:-.8em;}
+.arrow{color:var(--red);font-weight:900;}
 
-  /* preset toggles on title screen */
-  .preset-toggles{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center;margin-top:0;}
-  .preset-lead{font-size:clamp(13px,1.4vw,18px);font-weight:800;color:#aebbd8;margin-right:4px;}
-  .preset-toggle{
-    display:flex;align-items:center;gap:8px;cursor:pointer;border:2px solid rgba(255,255,255,.22);
-    background:rgba(255,255,255,.06);color:#dfe7f8;border-radius:99px;
-    font-family:'Baloo 2',var(--font);font-weight:800;font-size:clamp(14px,1.5vw,20px);
-    padding:9px 20px;transition:.12s;
-  }
-  .preset-toggle:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);transform:translateY(-1px);}
-  .preset-toggle.active{background:var(--gold);color:#3a2b00;border-color:var(--gold);}
-  .preset-toggle .e{font-size:1.2em;}
-  .preset-hint{font-size:clamp(11px,1.2vw,15px);font-weight:700;color:#8fa0c4;margin-top:-2px;}
+/* Wheel area */
+.wheel-area{display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.spinner-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4vmin;}
+.spinner-svg{width:clamp(280px,44vmin,580px);height:clamp(280px,44vmin,580px);
+  filter:drop-shadow(0 4px 14px rgba(0,0,0,.18));cursor:pointer;}
 
-  /* footer reminders */
-  .footer{
-    display:flex;align-items:center;justify-content:center;gap:30px;flex-wrap:wrap;
-    padding:10px 30px 18px;color:#cdd8f0;font-weight:700;font-size:clamp(12px,1.3vw,18px);
-  }
-  .footer .fitem{display:flex;align-items:center;gap:8px;}
-  .footer .fitem .ic{font-size:1.3em;}
-  .dot{width:6px;height:6px;border-radius:50%;background:#5b6e96;}
+/* Right col */
+.right-col{display:flex;flex-direction:column;gap:clamp(6px,1vmin,12px);min-height:0;height:100%;}
 
-  /* dots progress */
-  .dots{display:flex;gap:8px;align-items:center;justify-content:center;padding-bottom:8px;}
-  .dots .d{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.22);transition:.2s;}
-  .dots .d.active{background:var(--gold);width:30px;border-radius:6px;}
+/* Top Priorities */
+.priorities-section{flex:0 0 auto;}
+.priorities-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.25vmin;}
+.priorities-label{font-family:'Fredoka',sans-serif;font-weight:700;color:var(--red);
+  font-size:clamp(0.938em,2.3vmin,1.875em);border-bottom:2px solid var(--red);padding-bottom:2px;display:inline-block;}
+.check-add-btn{background:var(--red);color:#fff;border:none;border-radius:50%;
+  width:clamp(18px,2.5vmin,30px);height:clamp(18px,2.5vmin,30px);
+  font-size:clamp(0.812em,1.8vmin,1.25em);font-weight:900;cursor:pointer;
+  display:grid;place-items:center;line-height:1;transition:transform .12s;flex:0 0 auto;}
+.check-add-btn:hover{transform:scale(1.12);}
+body.locked .check-add-btn{display:none;}
+.checklist{display:flex;flex-direction:column;gap:.2vmin;}
+.check{display:flex;align-items:center;gap:.4em;color:var(--red);font-weight:600;
+  text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;
+  font-size:clamp(1.062em,2.7vmin,2.375em);font-family:'Fredoka',sans-serif;}
+.check svg{width:clamp(18px,2.6vmin,34px);height:clamp(18px,2.6vmin,34px);flex:0 0 auto;color:var(--red);}
+.check-del-btn{display:none;}
+body:not(.locked) .check-del-btn{display:grid;place-items:center;background:none;border:none;
+  cursor:pointer;color:#ccc;font-size:clamp(0.688em,1.4vmin,1.0em);padding:0 .15em;
+  transition:color .15s;flex:0 0 auto;}
+body:not(.locked) .check-del-btn:hover{color:var(--red);}
 
-  /* SETTINGS PANEL */
-  .overlay{position:fixed;inset:0;background:rgba(10,16,30,.72);z-index:100;display:none;align-items:center;justify-content:center;padding:24px;}
-  .overlay.show{display:flex;}
-  .sheet{
-    background:var(--paper);color:var(--ink);border-radius:24px;width:min(900px,96vw);
-    max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.4);
-  }
-  .sheet-head{
-    position:sticky;top:0;background:var(--navy);color:#fff;padding:18px 26px;
-    display:flex;align-items:center;justify-content:space-between;z-index:2;
-  }
-  .sheet-head h2{font-size:24px;font-weight:800;}
-  .sheet-body{padding:22px 26px;}
-  .sheet-section{margin-bottom:26px;}
-  .sheet-section > h3{font-size:18px;font-weight:800;margin-bottom:6px;color:var(--navy);}
-  .sheet-section > p{font-size:14px;color:#5a6478;margin-bottom:12px;font-weight:600;}
-  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
-  .row label{font-weight:800;font-size:14px;min-width:130px;}
-  input[type=text],input[type=number],textarea,select{
-    font:inherit;font-weight:600;border:2px solid #d8d3c6;border-radius:10px;
-    padding:9px 12px;background:#fff;color:var(--ink);
-  }
-  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--purple);}
-  textarea{width:100%;min-height:90px;resize:vertical;line-height:1.5;}
-  .center-edit{
-    background:#fff;border-radius:16px;padding:16px;margin-bottom:14px;
-    border-left:8px solid var(--ce);
-  }
-  .center-edit .ce-top{display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
-  .center-edit .ce-top input.nm{flex:1;min-width:160px;font-weight:800;font-size:16px;}
-  .center-edit .ce-top input.em{width:64px;text-align:center;font-size:20px;}
-  /* icon picker */
-  .icon-pick{position:relative;}
-  .icon-btn{
-    width:56px;height:42px;border:2px solid #d8d3c6;border-radius:10px;background:#fff;
-    font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;
-  }
-  .icon-btn:hover{border-color:var(--purple);}
-  .icon-btn .car{font-size:10px;color:#8a8576;margin-left:2px;}
-  .icon-pop{
-    position:absolute;z-index:30;top:48px;left:0;width:300px;max-height:280px;overflow:auto;
-    background:#fff;border:2px solid #d8d3c6;border-radius:14px;padding:10px;
-    box-shadow:0 12px 30px rgba(0,0,0,.18);
-  }
-  .icon-pop .cat{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a8576;margin:8px 2px 4px;}
-  .icon-pop .cat:first-child{margin-top:0;}
-  .icon-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;}
-  .icon-opt{
-    border:none;background:transparent;font-size:20px;border-radius:8px;padding:5px 0;cursor:pointer;line-height:1;
-  }
-  .icon-opt:hover{background:#efe9da;}
-  .icon-opt.sel{background:var(--purple);}
-  .icon-pop .custom{display:flex;gap:6px;align-items:center;margin-top:10px;border-top:1px solid #eee;padding-top:8px;}
-  .icon-pop .custom input{flex:1;width:auto;text-align:center;font-size:18px;padding:6px;}
-  .icon-pop .custom span{font-size:11px;font-weight:800;color:#8a8576;}
-  .field-lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a8576;margin:8px 0 4px;}
-  .btn{
-    font:inherit;font-weight:800;border:none;border-radius:12px;padding:11px 22px;cursor:pointer;
-    background:var(--navy);color:#fff;transition:.12s;font-size:15px;
-  }
-  .btn:hover{filter:brightness(1.12);}
-  .btn.ghost{background:#e6e1d4;color:var(--navy);}
-  .btn.gold{background:var(--gold);color:#3a2b00;}
-  .btn.sm{padding:6px 14px;font-size:13px;}
-  .sheet-foot{position:sticky;bottom:0;background:var(--paper);border-top:2px solid #e2dcce;padding:16px 26px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
-  .seq-table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;}
-  .seq-table th,.seq-table td{padding:10px;border:1px solid #e8e3d6;text-align:center;font-weight:700;font-size:14px;}
-  .seq-table th{background:#efe9da;font-weight:800;}
-  .seq-table select{padding:6px 8px;width:100%;}
-  .help{font-size:13px;color:#5a6478;font-weight:600;background:#fff;border-radius:10px;padding:10px 14px;border-left:5px solid var(--gold);}
-  .hidden{display:none!important;}
-  /* fade animation between scenes */
-  #content > *{animation:fade .4s ease;}
-  @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+/* Groups panel */
+.groups-section{flex:0 0 auto;display:flex;flex-direction:column;gap:.4vmin;
+  border:2px solid #ddd;border-radius:12px;
+  padding:clamp(5px,.9vmin,11px) clamp(7px,1.1vmin,14px);
+  background:#fafafa;overflow:hidden;height:calc(100% / 3);margin-top:auto;}
+.groups-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.3em;flex:0 0 auto;}
+.groups-title{font-family:'Fredoka',sans-serif;font-weight:700;
+  font-size:clamp(0.812em,2vmin,1.5em);color:var(--ink);}
+.groups-toggle-row{display:flex;gap:.3em;flex-wrap:wrap;}
+.gtab{font-family:'Nunito',sans-serif;font-weight:800;font-size:clamp(0.625em,1.4vmin,1.0em);
+  border:2px solid #ccc;border-radius:999px;background:#fff;color:var(--soft-ink);
+  padding:.15em .7em;cursor:pointer;transition:background .15s,border-color .15s,color .15s;}
+.gtab.active-writing{background:#eef5fb;border-color:var(--blue);color:var(--blue);}
+.gtab.active-reading{background:#fff6dc;border-color:var(--gold);color:#8a6000;}
+.gtab.active-off{background:#f0f0f0;border-color:#aaa;color:#888;}
+.groups-body{flex:1 1 auto;overflow-y:auto;display:flex;flex-direction:column;gap:.3vmin;}
+.group-row{display:flex;align-items:flex-start;gap:.5em;font-size:clamp(0.688em,1.6vmin,1.188em);
+  padding:.15em 0;border-bottom:1px solid #eee;}
+.group-row:last-child{border-bottom:none;}
+.group-label{font-family:'Fredoka',sans-serif;font-weight:600;
+  min-width:clamp(24px,3vmin,40px);color:#fff;border-radius:5px;padding:.08em .35em;
+  text-align:center;font-size:clamp(0.688em,1.6vmin,1.188em);flex:0 0 auto;}
+.group-label.writing{background:var(--blue);}
+.group-label.reading{background:var(--gold);color:var(--ink);}
+.group-instr{font-weight:700;color:var(--ink);flex:1;outline:none;border-radius:4px;min-width:0;}
+body:not(.locked) .group-instr:hover{background:rgba(31,111,178,.07);}
+body:not(.locked) .group-instr:focus{background:rgba(31,111,178,.10);box-shadow:inset 0 0 0 2px rgba(31,111,178,.4);}
+.groups-off-msg{flex:1;display:flex;align-items:center;justify-content:center;
+  color:#555;font-style:italic;font-size:clamp(0.625em,1.4vmin,1.0em);text-align:center;
+  padding:.3em;line-height:1.45;}
+
+@media(max-width:760px){
+  body{overflow:auto;}
+  .stage{height:auto;min-height:100vh;}
+  .board{height:auto;}
+  .cards{grid-template-columns:1fr;}
+  .body{grid-template-columns:1fr;}
+  .left-col{grid-template-columns:1fr;}
+}
 </style>
 </head>
-<body>
-<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+<body class="editing">
 
-<div class="stage">
-  <div class="topbar">
-    <div class="brand">
-      <div class="logo" id="brandLogo">📚</div>
-      <div>
-        <h1 id="brandTitle">Literacy Centers</h1>
-        <div class="tag" id="brandSub">Skillful · Self-managed · Routines</div>
-      </div>
-    </div>
-    <div class="controls">
-      <button class="iconbtn" id="prevBtn" title="Previous (←)" aria-label="Previous">‹</button>
-      <button class="iconbtn play" id="playBtn" title="Start / Pause (Space)" aria-label="Play or pause">▶</button>
-      <button class="iconbtn" id="nextBtn" title="Next (→)" aria-label="Next">›</button>
-      <button class="iconbtn" id="soundBtn" title="Sound on/off (M)" aria-label="Toggle sound">🔔</button>
-      <button class="iconbtn" id="fsBtn" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
-      <button class="iconbtn" id="gearBtn" title="Edit" aria-label="Edit settings">⚙</button>
-    </div>
-  </div>
-
-  <div class="statusrow" id="statusRow">
-    <div class="rot-label" id="rotLabel">Get Ready</div>
-    <div class="timerwrap">
-      <button class="timebtn" id="minusMin" title="Subtract one minute" aria-label="Subtract one minute">−1m</button>
-      <div class="clock" id="clock">--:--</div>
-      <button class="timebtn" id="plusMin" title="Add one minute" aria-label="Add one minute">+1m</button>
-      <div class="bar"><i id="barFill"></i></div>
-    </div>
-  </div>
-
-  <div class="content" id="content"></div>
-
-  <div class="dots" id="dots"></div>
-
-  <div class="footer" id="footer"></div>
+<div class="toolbar">
+  <button class="b-fs" id="fsBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+    Fullscreen
+  </button>
+  <button class="b-edit" id="editBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    <span id="editLabel">Lock</span>
+  </button>
+  <button class="b-reset" id="resetBtn">Reset</button>
+  <button class="b-fs-up" id="fsUpBtn" title="Increase text size">A+</button>
+  <button class="b-fs-dn" id="fsDnBtn" title="Decrease text size">A&#8722;</button>
 </div>
 
-<div class="flash" id="flash" aria-hidden="true"></div>
+<div class="hint">Click any text to edit &nbsp;·&nbsp; use <b>Lock</b> for display mode</div>
 
-<!-- SETTINGS -->
-<div class="overlay" id="overlay">
-  <div class="sheet">
-    <div class="sheet-head">
-      <h2>⚙ Edit Centers</h2>
-      <button class="iconbtn" id="closeSheet" aria-label="Close">✕</button>
+<div class="stage"><div class="board" id="board">
+
+  <h1 class="title" data-edit contenteditable="true">Daily 5</h1>
+
+  <div class="cards">
+    <!-- Trait card 1 -->
+    <div class="card trait-card" id="traitCard1">
+      <div class="trait-header">
+        <span class="trait-cat-name" id="traitCatName1"></span>
+        <div class="trait-nav">
+          <div class="trait-dot-row" id="traitDots1"></div>
+          <button id="traitPrev1" aria-label="Previous">&#8249;</button>
+          <button id="traitNext1" aria-label="Next">&#8250;</button>
+        </div>
+      </div>
+      <div class="trait-items" id="traitItems1"></div>
     </div>
-    <div class="sheet-body">
-      <div class="sheet-section">
-        <h3>Start from a preset</h3>
-        <p>Load a ready-made setup, then tweak anything below. This replaces your current centers, groups, and wording.</p>
-        <div class="row">
-          <button class="btn ghost" id="presetBlank">🔄 Blank / start fresh</button>
-          <button class="btn ghost" id="presetLiteracy">📚 Literacy centers</button>
-          <button class="btn ghost" id="presetMath">🔢 Math centers</button>
-        </div>
-      </div>
 
-      <div class="sheet-section">
-        <h3>General</h3>
-        <div class="row"><label>Title</label><input type="text" id="setTitle" style="flex:1"></div>
-        <div class="row">
-          <label>Minutes per rotation</label>
-          <input type="number" id="setMins" min="1" max="60" style="width:90px">
-          <label style="min-width:auto">Auto-advance</label>
-          <select id="setAuto"><option value="true">On</option><option value="false">Off</option></select>
-        </div>
-        <div class="row">
-          <label>“Almost up” warning</label>
-          <input type="number" id="setWarn" min="0" max="600" style="width:90px"> <span style="font-size:13px;color:#5a6478;font-weight:600">seconds before end (0 = off)</span>
-        </div>
-        <div class="row">
-          <label>Transition length</label>
-          <input type="number" id="setTransSecs" min="2" max="120" style="width:90px"> <span style="font-size:13px;color:#5a6478;font-weight:600">seconds on the “Rotate!” screen</span>
-        </div>
-        <div class="row">
-          <label>Header icon (emoji)</label>
-          <input type="text" id="setLogo" style="width:90px;text-align:center;font-size:20px">
-          <label style="min-width:auto">Subtitle</label>
-          <input type="text" id="setSubtitle" style="flex:1;min-width:200px">
-        </div>
-        <p class="help" style="margin-top:6px">When auto-advance is on, the timer counts down each rotation, shows the transition screen, then begins the next rotation automatically.</p>
-      </div>
-
-      <div class="sheet-section">
-        <h3>Wording</h3>
-        <p>Customize all the on-screen text so this works for any kind of centers — math, science, stations, anything.</p>
-        <div class="field-lbl">Intro line (start screen)</div>
-        <input type="text" id="txtIntroLead" style="width:100%">
-        <div class="field-lbl">Start button label</div>
-        <input type="text" id="txtStartBtn" style="width:100%">
-        <div class="row" style="margin-top:10px">
-          <label>Transition icon</label>
-          <input type="text" id="txtTransEmoji" style="width:90px;text-align:center;font-size:20px">
-          <label style="min-width:auto">Transition heading</label>
-          <input type="text" id="txtTransHeading" style="flex:1;min-width:160px">
-        </div>
-        <div class="field-lbl">Transition sub-text</div>
-        <input type="text" id="txtTransSub" style="width:100%">
-        <div class="field-lbl">Finished heading (last screen)</div>
-        <input type="text" id="txtEndHeading" style="width:100%">
-        <div class="field-lbl">Finished message</div>
-        <input type="text" id="txtEndLead" style="width:100%">
-        <div class="field-lbl">Finished button label</div>
-        <input type="text" id="txtEndBtn" style="width:100%">
-        <div class="field-lbl">Footer reminders</div>
-        <div id="remindersEdit"></div>
-        <button class="btn ghost sm" id="addReminder">+ Add reminder</button>
-      </div>
-
-      <div class="sheet-section">
-        <h3>Groups / tables</h3>
-        <p>These are the columns shown on screen — one card per group. Rename them to match your room (e.g. “Red Group”, “Mrs. Lee’s Table”).</p>
-        <div id="groupsEdit"></div>
-        <div class="row" style="margin-top:6px">
-          <button class="btn ghost sm" id="addGroup">+ Add group</button>
-          <button class="btn ghost sm" id="delGroup">– Remove last group</button>
+    <!-- Trait card 2 -->
+    <div class="card trait-card" id="traitCard2">
+      <div class="trait-header">
+        <span class="trait-cat-name" id="traitCatName2"></span>
+        <div class="trait-nav">
+          <div class="trait-dot-row" id="traitDots2"></div>
+          <button id="traitPrev2" aria-label="Previous">&#8249;</button>
+          <button id="traitNext2" aria-label="Next">&#8250;</button>
         </div>
       </div>
-
-      <div class="sheet-section">
-        <h3>Centers</h3>
-        <p>Each center has an emoji, name, short description, and numbered steps (one step per line).</p>
-        <div id="centersEdit"></div>
-        <button class="btn ghost sm" id="addCenter">+ Add center</button>
-      </div>
-
-      <div class="sheet-section">
-        <h3>Rotation order</h3>
-        <p>Choose which center each group does in every rotation. Columns are your groups; rotations run top to bottom.</p>
-        <table class="seq-table" id="seqTable"></table>
-        <div class="row" style="margin-top:10px">
-          <button class="btn ghost sm" id="addRot">+ Add rotation</button>
-          <button class="btn ghost sm" id="delRot">– Remove last</button>
-          <button class="btn ghost sm" id="autoFill">↻ Auto-fill carousel</button>
-        </div>
-        <p class="help" style="margin-top:6px">“Auto-fill carousel” fills every rotation so each group shifts one center over each time — a clean way to make sure every group visits every center.</p>
-      </div>
+      <div class="trait-items" id="traitItems2"></div>
     </div>
-    <div class="sheet-foot">
-      <button class="btn ghost" id="resetBtn">Reset to default</button>
-      <button class="btn gold" id="saveBtn">Done</button>
+
+    <!-- Self-management -->
+    <div class="card grey">
+      <div class="smh" data-edit contenteditable="true">Self-Management Skills</div>
+      <div class="grid4">
+        <span class="skill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Time</span>
+        <span class="skill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5Z"/></svg>Skillful</span>
+        <span class="skill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6Z"/><path d="M9 12l2 2 4-4"/></svg>Responsible</span>
+        <span class="skill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></svg>Controlled</span>
+      </div>
     </div>
   </div>
-</div>
 
-<audio id="chime" preload="auto"></audio>
+  <div class="body">
+
+    <!-- LEFT: goals text + wheel -->
+    <div class="col left-col">
+      <div class="goals-text">
+        <h2 class="weekgoals" data-edit contenteditable="true">This Week's Goals</h2>
+        <div class="goal-head essential" data-edit contenteditable="true">Essential Goals</div>
+        <ol class="goals" data-edit contenteditable="true">
+          <li>Work on Writing<ul><li>Literacy Challenge</li></ul></li>
+          <li>Word Work<ul><li>Notebook 3 Rewrites</li><li>Unfinished Tracing</li><li>Unfinished Worksheets</li></ul></li>
+        </ol>
+        <div class="goal-head further" data-edit contenteditable="true">Further Goals</div>
+        <ol class="goals" start="3" data-edit contenteditable="true">
+          <li>Refresh Book Box</li>
+          <li>Extension work: reading+, writing+, and word work+</li>
+          <li>Read to self <span class="arrow">&#x27A4;</span> Reading Log slips for Chapter Book Challenge</li>
+          <li>Writing <span class="arrow">&#x27A4;</span> letter to a friend, research something new, start a new writing task in your writing journal</li>
+        </ol>
+      </div>
+
+      <!-- Wheel -->
+      <div class="wheel-area">
+        <div class="spinner-wrap" id="spinnerWrap">
+          <svg class="spinner-svg" id="spinnerSvg" viewBox="-1 -1 102 102" xmlns="http://www.w3.org/2000/svg">
+            <g id="wheelBody">
+              <path d="M50,50 L50,1 A49,49 0 0,1 92.44,74.5 Z" fill="#d62828"/>
+              <path d="M50,50 L92.44,74.5 A49,49 0 0,1 7.56,74.5 Z" fill="#1f6fb2"/>
+              <path d="M50,50 L7.56,74.5 A49,49 0 0,1 50,1 Z" fill="#f2a900"/>
+            </g>
+            <g id="wheelLabels">
+              <g id="wg0">
+                <text text-anchor="middle" dominant-baseline="middle" x="76" y="31" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Work on</text>
+                <text text-anchor="middle" dominant-baseline="middle" x="76" y="41" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Writing</text>
+              </g>
+              <g id="wg1">
+                <text text-anchor="middle" dominant-baseline="middle" x="50" y="78" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Groups</text>
+              </g>
+              <g id="wg2">
+                <text text-anchor="middle" dominant-baseline="middle" x="24" y="31" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Word</text>
+                <text text-anchor="middle" dominant-baseline="middle" x="24" y="41" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Work</text>
+              </g>
+            </g>
+            <circle cx="50" cy="50" r="11" fill="#fff" stroke="#ddd" stroke-width="1.5"/>
+            <text x="50" y="54" text-anchor="middle" dominant-baseline="middle" font-size="7" font-family="Fredoka,sans-serif" fill="#aaa">tap</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: priorities + groups -->
+    <div class="col right-col">
+
+      <!-- Top Priorities -->
+      <div class="priorities-section">
+        <div class="priorities-header">
+          <div class="priorities-label">Top Priorities</div>
+          <button class="check-add-btn" id="checkAddBtn" title="Add item">+</button>
+        </div>
+        <div class="checklist" id="checklist"></div>
+      </div>
+
+      <!-- Groups panel -->
+      <div class="groups-section">
+        <div class="groups-top">
+          <span class="groups-title" id="groupsPanelTitle">Writing Groups</span>
+          <div class="groups-toggle-row">
+            <button class="gtab active-writing" id="tabWriting">Writing</button>
+            <button class="gtab" id="tabReading">Reading</button>
+            <button class="gtab" id="tabOff">Off</button>
+          </div>
+        </div>
+        <div class="groups-body" id="groupsBody"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div></div>
 
 <script>
-const KEY="literacyCenters_v2";
-const COLORS=[
-  {c:"#d92d20",d:"#a01b12",soft:"#fdeceb",hex:"#d92d20"},
-  {c:"#e0a400",d:"#a87b00",soft:"#fdf5dd",hex:"#e0a400"},
-  {c:"#1e6fd9",d:"#13509f",soft:"#e6f0fc",hex:"#1e6fd9"},
-  {c:"#1f9e54",d:"#147038",soft:"#e3f6ea",hex:"#1f9e54"},
-];
+(function(){
+  // ── Traits ──
+  var TRAITS = [
+    {cat:"Organization",items:["Beginning","Middle","End","Easy to read","Clear spacing"],bg:"#ddf0fb",border:"#90cce8",accent:"#1a7ab5",pill:"rgba(26,122,181,.13)"},
+    {cat:"Voice",items:["Happy","Sad","Mad","Afraid","Loving","Calm","Scary","Funny","Serious","Imaginative","Suspenseful","Interesting","Personality","Little details"],bg:"#fde6ee",border:"#f3b4cb",accent:"#c9366a",pill:"rgba(201,54,106,.13)"},
+    {cat:"Ideas",items:["Details","Interesting","Relevant"],bg:"#fff0db",border:"#f7c87a",accent:"#c47d00",pill:"rgba(196,125,0,.13)"},
+    {cat:"Conventions",items:["Correct punctuation","Correct spelling","Proper sentence structure","Accurate grammar","Expanded vocabulary"],bg:"#e2f5e8",border:"#8fd4a4",accent:"#2a8a4a",pill:"rgba(42,138,74,.13)"},
+    {cat:"Word Choice",items:["Accurate and specific","Mixed vocabulary","Very descriptive","Creates mental picture","No repetition","Different words and phrases"],bg:"#fffbdb",border:"#edd96a",accent:"#9a7c00",pill:"rgba(154,124,0,.13)"},
+    {cat:"Sentence Fluency",items:["Flow","Different sentence types","Start differently","No repeated phrases"],bg:"#f0e8fb",border:"#c9a8e8",accent:"#7b3fbf",pill:"rgba(123,63,191,.13)"}
+  ];
+  var traitIdx = [0,1];
 
-const PRESETS={
-  literacy:{
-    title:"Literacy Centers",
-    minutes:20,
-    auto:true,
-    logo:"📚",
-    text:{
-      subtitle:"Self-management · Routine · Skillful",
-      introLead:"Get your book box & refresh your books — read to self while waiting.",
-      startBtn:"Start Rotations",
-      transHeading:"Trays Rotate!",
-      transEmoji:"🔔",
-      transSub:"Your new tray is coming.",
-      rotateWord:"moves to",
-      endHeading:"All Rotations Complete!",
-      endLead:"Clean up your space, put book boxes back, and return trays to the teacher.",
-      endBtn:"Start Over",
-      reminders:[
-        {ic:"🤫",txt:"Use quiet voices"},
-        {ic:"✅",txt:"Finished early? Read quietly or check your work"},
-        {ic:"🔔",txt:"Chime = groups rotate"}
-      ]
-    },
-    groups:["Column 1","Column 2","Back Table","Outside Table"],
-    centers:[
-      {emoji:"🔍",name:"Grammar Skills",desc:"Find the grammar mistake and fix it.",
-       steps:["Read the sentence carefully.","Underline the mistake.","Rewrite it correctly.","Check with a partner."]},
-      {emoji:"💻",name:"Computers",desc:"Work on your assigned online program.",
-       steps:["Log in with your name.","Open today's assigned program.","Wear headphones and work quietly.","Log out when the chime sounds."]},
-      {emoji:"🧩",name:"Word Work",desc:"Complete vocabulary-building activities.",
-       steps:["Complete a Mad Libs worksheet.","Finish a word search.","Finish a crossword.","Complete any unfinished word work."]},
-      {emoji:"✏️",name:"Writing Station",desc:"Respond to today's writing prompt.",
-       steps:["Read the prompt on the board.","Plan your ideas.","Write at least five sentences.","Reread and fix your work."]},
-    ],
-    rotations:[ [0,1,2,3], [3,0,1,2], [2,3,0,1], [1,2,3,0] ]
-  },
-
-  math:{
-    title:"Math Centers",
-    minutes:20,
-    auto:true,
-    logo:"🔢",
-    text:{
-      subtitle:"Self-management · Routine · Skillful",
-      introLead:"Get your math folder and pencil ready — warm up while you wait.",
-      startBtn:"Start Rotations",
-      transHeading:"Trays Rotate!",
-      transEmoji:"🔔",
-      transSub:"Your new math station is coming.",
-      rotateWord:"moves to",
-      endHeading:"All Rotations Complete!",
-      endLead:"Tidy your space, put materials back, and return trays to the teacher.",
-      endBtn:"Start Over",
-      reminders:[
-        {ic:"🤫",txt:"Use quiet voices"},
-        {ic:"✅",txt:"Finished early? Check your work or try a challenge"},
-        {ic:"🔔",txt:"Chime = groups rotate"}
-      ]
-    },
-    groups:["Column 1","Column 2","Back Table","Outside Table"],
-    centers:[
-      {emoji:"🖊️",name:"Whiteboard Work",desc:"Practice today's skill on your whiteboard.",
-       steps:["Read the problem on the card.","Solve it on your whiteboard.","Show your work, not just the answer.","Erase and try the next card."]},
-      {emoji:"🎲",name:"Math Games",desc:"Play a math game with your group.",
-       steps:["Choose a game card.","Read the rules together.","Take turns and play fairly.","Record your scores on the sheet."]},
-      {emoji:"💻",name:"Computers",desc:"Work on your assigned math program.",
-       steps:["Log in with your name.","Open today's assigned program.","Wear headphones and work quietly.","Log out when the chime sounds."]},
-      {emoji:"📓",name:"Workbook Work",desc:"Complete today's workbook pages.",
-       steps:["Open to the assigned page.","Read the directions carefully.","Complete each problem.","Check your answers when you finish."]},
-    ],
-    rotations:[ [0,1,2,3], [3,0,1,2], [2,3,0,1], [1,2,3,0] ]
-  },
-
-  blank:{
-    title:"Centers",
-    minutes:20,
-    auto:true,
-    logo:"🔄",
-    text:{
-      subtitle:"Skillful · Self-managed · Routines",
-      introLead:"Find your group and get your materials ready.",
-      startBtn:"Start Rotations",
-      transHeading:"Rotate!",
-      transEmoji:"🔔",
-      transSub:"Move to your next station.",
-      rotateWord:"moves to",
-      endHeading:"All Rotations Complete!",
-      endLead:"Tidy your space and put your materials away.",
-      endBtn:"Start Over",
-      reminders:[
-        {ic:"🤫",txt:"Use quiet voices"},
-        {ic:"✅",txt:"Finished early? Check your work or read quietly"},
-        {ic:"🔔",txt:"Chime = rotate stations"}
-      ]
-    },
-    groups:["Column 1","Column 2","Back Table","Outside Table"],
-    centers:[
-      {emoji:"📖",name:"Independent Work",desc:"Work quietly on your assigned task.",
-       steps:["Get out your materials.","Read the directions.","Complete your work.","Check it over when you finish."]},
-      {emoji:"🤝",name:"Group Activity",desc:"Work together with your group.",
-       steps:["Choose a task card.","Take turns sharing ideas.","Help each other.","Record your group's work."]},
-      {emoji:"💻",name:"Computers",desc:"Work on your assigned online program.",
-       steps:["Log in with your name.","Open today's assigned program.","Wear headphones and work quietly.","Log out when the chime sounds."]},
-      {emoji:"👩‍🏫",name:"Teacher Table",desc:"Meet with the teacher for small-group instruction.",
-       steps:["Bring your folder and pencil.","Work on today's focus skill.","Ask questions.","Try the practice on your own."]},
-    ],
-    rotations:[ [0,1,2,3], [3,0,1,2], [2,3,0,1], [1,2,3,0] ]
-  }
-};
-
-const DEFAULT=PRESETS.blank;
-
-function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
-
-const ICON_CATALOG=[
-  {cat:"Reading & writing", icons:["📖","📚","📕","📗","📘","📙","📝","✏️","✒️","🖊️","🖋️","📓","📔","📒","🔖","📑","✍️","🗒️"]},
-  {cat:"Language & words", icons:["🔍","🔤","🔡","🔠","🅰️","🆎","💬","🗣️","🧩","❓","❗","💡","🪄","📣"]},
-  {cat:"Math & numbers", icons:["🔢","➕","➖","✖️","➗","🟰","📐","📏","📊","📈","📉","🧮","💯","🎲","⏱️","🕐"]},
-  {cat:"Computers & tech", icons:["💻","🖥️","⌨️","🖱️","🎧","🎮","📱","🖨️","💾","🔌","🌐","📺","🎥","🔋"]},
-  {cat:"Science & nature", icons:["🔬","🧪","🧫","🧬","🔭","🧲","🌱","🌿","🍃","🐛","🦋","💧","🌍","🌡️","⚗️","🪐","☀️","🌙"]},
-  {cat:"Art & music", icons:["🎨","🖌️","🖍️","✂️","🧵","🧶","🎭","🎵","🎶","🎼","🎹","🥁","🎸","🎺","📷"]},
-  {cat:"People & groups", icons:["👩‍🏫","🧑‍🏫","🤝","👥","🙋","🧑‍🤝‍🧑","👋","🧑‍💻","👂","🫶","🧠"]},
-  {cat:"Activity & games", icons:["🧩","🎯","🃏","🎲","🏆","⭐","🌟","🔔","🚩","🧱","🪅","🎪","🎁","✅","🔄","⏳"]},
-];
-
-const SUGGESTED_ICONS=ICON_CATALOG.flatMap(g=>g.icons);
-
-const PRESET_META=[
-  {key:"blank",emoji:"🔄",label:"Blank"},
-  {key:"literacy",emoji:"📚",label:"Literacy"},
-  {key:"math",emoji:"🔢",label:"Math"},
-];
-let activePreset="blank"; // which preset is currently loaded (best guess)
-
-let data=load();
-function load(){
-  try{
-    const r=localStorage.getItem(KEY);
-    if(r){const d=JSON.parse(r);return migrate(d);}
-  }catch(e){}
-  return migrate(JSON.parse(JSON.stringify(DEFAULT)));
-}
-function migrate(d){
-  // older saves had no group names — derive from the widest rotation
-  if(!d.groups||!Array.isArray(d.groups)){
-    const cols=Math.max(3,...(d.rotations||[]).map(r=>r.length));
-    d.groups=Array.from({length:cols},(_,i)=>`Table ${i+1}`);
-  }
-  if(!d.logo) d.logo="📚";
-  d.text=Object.assign({},DEFAULT.text,d.text||{});
-  if(!Array.isArray(d.text.reminders)) d.text.reminders=DEFAULT.text.reminders.slice();
-  if(typeof d.transitionSecs!=="number") d.transitionSecs=8;   // auto-transition countdown
-  if(typeof d.warnSecs!=="number") d.warnSecs=60;              // "almost up" warning threshold
-  if(typeof d.chime!=="boolean") d.chime=true;                 // sound on/off
-  return d;
-}
-function persist(){try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}}
-
-/* ---- Scene model ----
- Scenes: title -> [rotation, transition] per rotation -> end
- We build a linear list of scenes. */
-let scenes=[];
-function buildScenes(){
-  scenes=[{type:"title"}];
-  data.rotations.forEach((rot,i)=>{
-    scenes.push({type:"rotation",index:i});
-    if(i<data.rotations.length-1) scenes.push({type:"transition",from:i,to:i+1});
-  });
-  scenes.push({type:"end"});
-}
-let pos=0;          // current scene
-let running=false;  // auto mode active
-let remaining=0;    // seconds left in current phase
-let tick=null;
-let endAt=0;        // timestamp (ms) when current phase ends — drift-free
-let warned=false;   // warning chime already played this rotation
-let phase="rotation"; // "rotation" | "transition" — what the timer is counting
-
-const EXTRA_COLORS=[
-  {c:"#c0392b",d:"#922b21",soft:"#fbe4e0",hex:"#c0392b"},
-  {c:"#16a085",d:"#107360",soft:"#dcf3ee",hex:"#16a085"},
-  {c:"#8e44ad",d:"#6c3483",soft:"#f0e6f6",hex:"#8e44ad"},
-  {c:"#d68910",d:"#a06a0c",soft:"#fbf0db",hex:"#d68910"},
-];
-function colorFor(ci){
-  if(ci<COLORS.length)return COLORS[ci];
-  return EXTRA_COLORS[(ci-COLORS.length)%EXTRA_COLORS.length];
-}
-
-/* ---------- RENDER ---------- */
-function render(){
-  const scene=scenes[pos];
-  const content=document.getElementById("content");
-  const rotLabel=document.getElementById("rotLabel");
-  const statusRow=document.getElementById("statusRow");
-  document.getElementById("brandTitle").textContent=data.title;
-  document.getElementById("brandLogo").textContent=data.logo||"📚";
-  document.getElementById("brandSub").textContent=data.text.subtitle||"";
-  renderFooter();
-  renderDots();
-  const footer=document.getElementById("footer");
-
-  if(scene.type==="title"){
-    statusRow.style.visibility="hidden";
-    footer.style.display="none";
-    content.innerHTML=titleHTML();
-  } else if(scene.type==="end"){
-    statusRow.style.visibility="hidden";
-    footer.style.display="none";
-    content.innerHTML=endHTML();
-  } else if(scene.type==="transition"){
-    statusRow.style.visibility="hidden";
-    footer.style.display="flex";
-    content.innerHTML=transitionHTML(scene.from,scene.to);
-    if(running && data.auto){ startTransitionCountdown(); } else { clearInterval(tick); }
-  } else { // rotation
-    statusRow.style.visibility="visible";
-    footer.style.display="flex";
-    rotLabel.textContent=`Rotation ${scene.index+1} of ${data.rotations.length}`;
-    content.innerHTML=rotationHTML(scene.index);
-    if(running){ startTimer(); } else { setClock(data.minutes*60,false); }
-  }
-  // +/- time only useful during a running rotation
-  const showTime = scene.type==="rotation" && running;
-  const pm=document.getElementById("plusMin"), mm=document.getElementById("minusMin");
-  if(pm) pm.style.visibility=showTime?"visible":"hidden";
-  if(mm) mm.style.visibility=showTime?"visible":"hidden";
-  updatePlayBtn();
-}
-
-function highlightLast(s){
-  const parts=esc(s).trim().split(/\s+/);
-  if(parts.length<=1) return `<span class="hl">${parts.join(" ")}</span>`;
-  const last=parts.pop();
-  return parts.join(" ")+' <span class="hl">'+last+'</span>';
-}
-
-function titleHTML(){
-  const pills=data.centers.map((c,i)=>{
-    const col=colorFor(i);
-    return `<div class="pill-center" style="--c:${col.c}"><span class="e">${c.emoji}</span>${esc(c.name)}</div>`;
-  }).join("");
-  const lead=data.text.introLead?`<div class="lead">${esc(data.text.introLead)}</div>`:"";
-  const toggles=PRESET_META.map(m=>
-    `<button class="preset-toggle ${activePreset===m.key?'active':''}" data-preset="${m.key}"><span class="e">${m.emoji}</span>${esc(m.label)}</button>`
-  ).join("");
-  return `<div class="splash">
-    <div class="preset-toggles"><span class="preset-lead">Choose a set:</span>${toggles}</div>
-    <div class="big">${highlightLast(data.title)}</div>
-    ${lead}
-    <div class="centers-row">${pills}</div>
-    <div class="note">${esc(data.text.subtitle)} · ${data.minutes} minutes each</div>
-    <button class="startbtn" id="startBtn">▶ ${esc(data.text.startBtn||"Start")}</button>
-  </div>`;
-}
-
-function endHTML(){
-  const lead=data.text.endLead?`<div class="lead">${esc(data.text.endLead)}</div>`:"";
-  return `<div class="splash">
-    <div class="celebrate">🎉🌟🎉</div>
-    <div class="big">${highlightLast(data.text.endHeading||"All Done!")}</div>
-    ${lead}
-    <button class="startbtn" id="restartBtn">↺ ${esc(data.text.endBtn||"Start Over")}</button>
-  </div>`;
-}
-
-function rotationHTML(ri){
-  const rot=data.rotations[ri];
-  const n=rot.length;
-  const cards=rot.map((ci,col)=>{
-    const c=data.centers[ci]; if(!c) return "";
-    const col_=colorFor(ci);
-    const groupName=data.groups[col]||`Group ${col+1}`;
-    const steps=(c.steps||[]).map((s,k)=>
-      `<div class="step"><span class="num">${k+1}</span><span class="txt">${esc(s)}</span></div>`).join("");
-    return `<div class="center-card" style="--c:${col_.c};--c-d:${col_.d};--c-soft:${col_.soft}">
-      <div class="cc-head">
-        <div class="cc-emoji">${c.emoji}</div>
-        <div class="cc-titles">
-          <div class="cc-tray">${esc(groupName)}</div>
-          <div class="cc-name">${esc(c.name)}</div>
-        </div>
-      </div>
-      <div class="cc-body">
-        <div class="cc-desc">${esc(c.desc)}</div>
-        <div class="steps">${steps}</div>
-      </div>
-    </div>`;
-  }).join("");
-  return `<div class="rotation-grid" style="grid-template-columns:repeat(${n},1fr)">${cards}</div>`;
-}
-
-function transitionHTML(fromR,toR){
-  const to=data.rotations[toR];
-  const rows=to.map((ci,col)=>{
-    const c=data.centers[ci];const col_=colorFor(ci);
-    const groupName=data.groups[col]||`Group ${col+1}`;
-    return `<div class="move" style="--c:${col_.c}">
-      <div class="from"><div class="chip"><span class="e">${c.emoji}</span>${esc(c.name)}</div></div>
-      <div class="arrow">➜</div>
-      <div class="to">${esc(groupName)}</div>
-    </div>`;
-  }).join("");
-  const emo=data.text.transEmoji?esc(data.text.transEmoji)+" ":"";
-  const secs=Math.max(2,data.transitionSecs||8);
-  const counter=(data.auto)?`<div class="trans-count">Next rotation in <span id="transCount">${secs}</span>s</div>`:"";
-  return `<div class="transition">
-    <div class="trans-badge">${emo}${esc(data.text.transHeading||"Rotate!")}</div>
-    <div class="trans-sub">${esc(data.text.transSub||"")}</div>
-    <div class="moves">${rows}</div>
-    ${counter}
-  </div>`;
-}
-
-function renderFooter(){
-  const f=document.getElementById("footer");
-  const items=(data.text.reminders||[]).filter(r=>r&&(r.txt||"").trim());
-  f.innerHTML=items.map(r=>
-    `<span class="fitem"><span class="ic">${esc(r.ic||"")}</span> ${esc(r.txt)}</span>`
-  ).join('<span class="dot"></span>');
-}
-
-function renderDots(){
-  const dots=document.getElementById("dots");
-  dots.innerHTML=scenes.map((s,i)=>`<span class="d ${i===pos?'active':''}"></span>`).join("");
-}
-
-/* ---------- TIMER ---------- */
-/* ---------- TIMER (timestamp-based, drift-free) ---------- */
-function startTimer(){
-  clearInterval(tick);
-  phase="rotation";
-  if(resuming && pausedLeft>0){
-    remaining=pausedLeft;
-    warned = remaining<=(data.warnSecs||0); // don't replay warning if already past it
-  } else {
-    remaining=data.minutes*60;
-    warned=false;
-  }
-  resuming=false; pausedLeft=0;
-  endAt=Date.now()+remaining*1000;
-  setClock(remaining,true);
-  tick=setInterval(timerStep,250);
-}
-function startTransitionCountdown(){
-  // short countdown shown on the transition screen, then advance to next rotation
-  clearInterval(tick);
-  phase="transition";
-  const secs=Math.max(2,data.transitionSecs||8);
-  endAt=Date.now()+secs*1000;
-  remaining=secs;
-  updateTransitionClock(secs);
-  tick=setInterval(timerStep,250);
-}
-function timerStep(){
-  const left=Math.max(0,Math.round((endAt-Date.now())/1000));
-  if(phase==="rotation"){
-    remaining=left;
-    setClock(left,true);
-    if(!warned && data.warnSecs>0 && left<=data.warnSecs && left>0){
-      warned=true; if(data.chime) playChime("warn");
-    }
-    if(left<=0){
-      clearInterval(tick);
-      if(data.chime) playChime("end");
-      flashScreen();
-      if(running){ setTimeout(()=>{ if(running) advance(); },600); }
-    }
-  } else { // transition
-    remaining=left;
-    updateTransitionClock(left);
-    if(left<=0){
-      clearInterval(tick);
-      if(running) advance();
-    }
-  }
-}
-function updateTransitionClock(left){
-  const el=document.getElementById("transCount");
-  if(el) el.textContent=left;
-}
-function addTime(deltaSecs){
-  if(!running || phase!=="rotation") return;
-  endAt+=deltaSecs*1000;
-  const left=Math.max(0,Math.round((endAt-Date.now())/1000));
-  if(left>data.warnSecs) warned=false; // re-arm warning if we added enough time
-  setClock(left,true);
-}
-function setClock(sec,active){
-  const clk=document.getElementById("clock");
-  const fill=document.getElementById("barFill");
-  const total=data.minutes*60;
-  const s=Math.max(0,sec);
-  const m=Math.floor(s/60), ss=s%60;
-  clk.textContent=`${m}:${String(ss).padStart(2,'0')}`;
-  const warnLevel=data.warnSecs>0?data.warnSecs:60;
-  clk.className="clock"+(s<=10&&active?" over":(s<=warnLevel&&active?" warn":""));
-  const pct=Math.max(0,Math.min(100,(s/total)*100));
-  fill.style.width=pct+"%";
-}
-function flashScreen(){
-  const f=document.getElementById("flash");
-  if(!f) return;
-  f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
-}
-
-/* ---------- NAV ---------- */
-function advance(){ if(pos<scenes.length-1){pos++;render();} else {stop();} }
-function back(){ if(pos>0){pos--;render();} }
-function jumpToFirstRotation(){ pos=scenes.findIndex(s=>s.type==="rotation"); if(pos<0)pos=0; }
-
-let pausedLeft=0;     // seconds left when paused on a rotation
-let resuming=false;   // resume current rotation instead of restarting
-function play(){
-  const scene=scenes[pos];
-  if(scene.type==="title"){ jumpToFirstRotation(); }
-  else if(scene.type==="end"){ pos=0; jumpToFirstRotation(); }
-  else if(scene.type==="rotation" && pausedLeft>0){ resuming=true; }
-  running=true; render();
-}
-function pause(){
-  running=false;
-  if(phase==="rotation"){ pausedLeft=Math.max(0,Math.round((endAt-Date.now())/1000)); }
-  clearInterval(tick);
-  updatePlayBtn();
-}
-function stop(){ running=false; pausedLeft=0; clearInterval(tick); updatePlayBtn(); }
-function togglePlay(){ running?pause():play(); }
-function updatePlayBtn(){ document.getElementById("playBtn").textContent=running?"⏸":"▶"; }
-
-/* manual next/prev */
-function manualNext(){ clearInterval(tick); pausedLeft=0; advance(); }
-function manualPrev(){ clearInterval(tick); pausedLeft=0; back(); }
-
-/* ---------- CHIME (WebAudio, no file needed) ---------- */
-let actx=null;
-function playChime(kind){
-  try{
-    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
-    if(actx.state==="suspended") actx.resume();
-    const now=actx.currentTime;
-    // warning = two gentle descending notes; end = rising three-note arpeggio
-    const notes = kind==="warn" ? [784,659] : [880,1175,1568];
-    const gap   = kind==="warn" ? 0.22 : 0.16;
-    const peak  = kind==="warn" ? 0.16 : 0.25;
-    notes.forEach((f,i)=>{
-      const o=actx.createOscillator(),g=actx.createGain();
-      o.type="sine";o.frequency.value=f;
-      o.connect(g);g.connect(actx.destination);
-      const t=now+i*gap;
-      g.gain.setValueAtTime(0,t);
-      g.gain.linearRampToValueAtTime(peak,t+0.03);
-      g.gain.exponentialRampToValueAtTime(0.001,t+0.7);
-      o.start(t);o.stop(t+0.75);
+  function renderTrait(n){
+    var idx=traitIdx[n-1], t=TRAITS[idx];
+    var card=document.getElementById('traitCard'+n);
+    card.style.background=t.bg; card.style.borderColor=t.border;
+    var nm=document.getElementById('traitCatName'+n);
+    nm.textContent=t.cat; nm.style.color=t.accent;
+    card.querySelectorAll('.trait-nav button').forEach(function(b){
+      b.style.borderColor=t.accent; b.style.color=t.accent;
+      b.onmouseenter=function(){b.style.background=t.accent;b.style.color='#fff';};
+      b.onmouseleave=function(){b.style.background='';b.style.color=t.accent;};
     });
-  }catch(e){}
-}
-
-/* ---------- SETTINGS ---------- */
-function openSheet(){
-  pause();
-  const t=data.text;
-  document.getElementById("setTitle").value=data.title;
-  document.getElementById("setMins").value=data.minutes;
-  document.getElementById("setAuto").value=String(data.auto);
-  document.getElementById("setWarn").value=data.warnSecs;
-  document.getElementById("setTransSecs").value=data.transitionSecs;
-  document.getElementById("setLogo").value=data.logo||"📚";
-  document.getElementById("setSubtitle").value=t.subtitle||"";
-  document.getElementById("txtIntroLead").value=t.introLead||"";
-  document.getElementById("txtStartBtn").value=t.startBtn||"";
-  document.getElementById("txtTransEmoji").value=t.transEmoji||"";
-  document.getElementById("txtTransHeading").value=t.transHeading||"";
-  document.getElementById("txtTransSub").value=t.transSub||"";
-  document.getElementById("txtEndHeading").value=t.endHeading||"";
-  document.getElementById("txtEndLead").value=t.endLead||"";
-  document.getElementById("txtEndBtn").value=t.endBtn||"";
-  renderRemindersEdit();
-  renderGroupsEdit();
-  renderCentersEdit();
-  renderSeqTable();
-  const ov=document.getElementById("overlay");
-  ov.classList.add("show");
-  if(!ov.dataset.liveWired){
-    const live=()=>setTimeout(applyLive,0); // run after field-specific handlers update data
-    ov.addEventListener("input",live);
-    ov.addEventListener("change",live);
-    ov.dataset.liveWired="1";
-  }
-}
-function closeSheet(){document.getElementById("overlay").classList.remove("show");}
-
-function renderRemindersEdit(){
-  const wrap=document.getElementById("remindersEdit");
-  wrap.innerHTML=data.text.reminders.map((r,i)=>
-    `<div class="row" style="margin-bottom:8px">
-      <input type="text" class="rem-ic" data-i="${i}" value="${esc(r.ic||"")}" style="width:64px;text-align:center;font-size:18px">
-      <input type="text" class="rem-tx" data-i="${i}" value="${esc(r.txt||"")}" style="flex:1;min-width:200px">
-      <button class="btn ghost sm" onclick="removeReminder(${i})">Delete</button>
-    </div>`
-  ).join("");
-  wrap.querySelectorAll(".rem-ic").forEach(el=>el.addEventListener("input",()=>{data.text.reminders[+el.dataset.i].ic=el.value;}));
-  wrap.querySelectorAll(".rem-tx").forEach(el=>el.addEventListener("input",()=>{data.text.reminders[+el.dataset.i].txt=el.value;}));
-}
-function addReminder(){ data.text.reminders.push({ic:"⭐",txt:"New reminder"}); renderRemindersEdit();applyLive(); }
-function removeReminder(i){ data.text.reminders.splice(i,1); renderRemindersEdit();applyLive(); }
-
-function renderGroupsEdit(){
-  const wrap=document.getElementById("groupsEdit");
-  wrap.innerHTML=data.groups.map((g,i)=>{
-    const col=colorFor(0);
-    return `<div class="row" style="margin-bottom:8px">
-      <span style="font-weight:800;min-width:90px">Group ${i+1}</span>
-      <input type="text" class="grp" data-i="${i}" value="${esc(g)}" style="flex:1;min-width:160px">
-      <button class="btn ghost sm" onclick="removeGroup(${i})">Delete</button>
-    </div>`;
-  }).join("");
-  wrap.querySelectorAll(".grp").forEach(el=>{
-    el.addEventListener("input",()=>{ data.groups[+el.dataset.i]=el.value; });
-  });
-}
-function addGroup(){
-  data.groups.push(`Table ${data.groups.length+1}`);
-  // every rotation gains a column; fill it with the first unused-looking center
-  data.rotations=data.rotations.map(r=>{ r.push(r.length%data.centers.length); return r; });
-  renderGroupsEdit();renderSeqTable();applyLive();
-}
-function delGroup(){
-  if(data.groups.length<=1){alert("Keep at least one group.");return;}
-  data.groups.pop();
-  data.rotations=data.rotations.map(r=>{ r.pop(); return r; });
-  renderGroupsEdit();renderSeqTable();applyLive();
-}
-function removeGroup(i){
-  if(data.groups.length<=1){alert("Keep at least one group.");return;}
-  data.groups.splice(i,1);
-  data.rotations=data.rotations.map(r=>{ r.splice(i,1); return r; });
-  renderGroupsEdit();renderSeqTable();applyLive();
-}
-
-function renderCentersEdit(){
-  const wrap=document.getElementById("centersEdit");
-  wrap.innerHTML=data.centers.map((c,i)=>{
-    const col=colorFor(i);
-    return `<div class="center-edit" style="--ce:${col.c}">
-      <div class="ce-top">
-        <div class="icon-pick">
-          <button type="button" class="icon-btn" onclick="toggleIconPop(${i})" aria-label="Choose icon">${esc(c.emoji)}<span class="car">▼</span></button>
-          <div class="icon-pop" id="iconpop-${i}" style="display:none"></div>
-        </div>
-        <input class="nm" data-i="${i}" data-f="name" value="${esc(c.name)}">
-        <button class="btn ghost sm" onclick="removeCenter(${i})">Delete</button>
-      </div>
-      <div class="field-lbl">Description</div>
-      <input type="text" data-i="${i}" data-f="desc" value="${esc(c.desc)}" style="width:100%">
-      <div class="field-lbl">Steps (one per line)</div>
-      <textarea data-i="${i}" data-f="steps">${esc((c.steps||[]).join("\n"))}</textarea>
-    </div>`;
-  }).join("");
-  wrap.querySelectorAll("[data-f]").forEach(el=>{
-    el.addEventListener("input",()=>{
-      const i=+el.dataset.i,f=el.dataset.f;
-      if(f==="steps") data.centers[i].steps=el.value.split("\n").map(s=>s.trim()).filter(Boolean);
-      else data.centers[i][f]=el.value;
+    var dots=document.getElementById('traitDots'+n);
+    dots.innerHTML='';
+    TRAITS.forEach(function(_,i){
+      var d=document.createElement('div');
+      d.className='trait-dot'+(i===idx?' active':'');
+      if(i===idx) d.style.background=t.accent;
+      dots.appendChild(d);
     });
-  });
-}
-
-let openIconPop=null;
-function toggleIconPop(i){
-  const pop=document.getElementById("iconpop-"+i);
-  if(!pop)return;
-  if(openIconPop!=null && openIconPop!==i){ const o=document.getElementById("iconpop-"+openIconPop); if(o)o.style.display="none"; }
-  if(pop.style.display==="none"){
-    pop.innerHTML=iconPopHTML(i);
-    pop.style.display="block";
-    openIconPop=i;
-    wireIconPop(i);
-  } else {
-    pop.style.display="none"; openIconPop=null;
+    var items=document.getElementById('traitItems'+n);
+    items.innerHTML=''; items.classList.remove('trait-slide');
+    void items.offsetWidth; items.classList.add('trait-slide');
+    t.items.forEach(function(it){
+      var s=document.createElement('span');
+      s.className='trait-item'; s.style.background=t.pill; s.style.color=t.accent;
+      s.textContent=it; items.appendChild(s);
+    });
   }
-}
-function iconPopHTML(i){
-  const cur=data.centers[i].emoji;
-  const cats=ICON_CATALOG.map(g=>{
-    const opts=g.icons.map(ic=>
-      `<button type="button" class="icon-opt ${ic===cur?'sel':''}" data-ic="${esc(ic)}">${esc(ic)}</button>`).join("");
-    return `<div class="cat">${esc(g.cat)}</div><div class="icon-grid">${opts}</div>`;
-  }).join("");
-  return cats+`<div class="custom"><span>Or type any:</span><input type="text" id="iconcustom-${i}" value="${esc(cur)}" maxlength="8"></div>`;
-}
-function wireIconPop(i){
-  const pop=document.getElementById("iconpop-"+i);
-  pop.querySelectorAll(".icon-opt").forEach(btn=>{
-    btn.addEventListener("click",()=>{ setCenterIcon(i,btn.dataset.ic); });
-  });
-  const custom=document.getElementById("iconcustom-"+i);
-  custom.addEventListener("input",()=>{ if(custom.value.trim()) setCenterIconLive(i,custom.value.trim()); });
-}
-function setCenterIcon(i,ic){
-  data.centers[i].emoji=ic;
-  document.getElementById("iconpop-"+i).style.display="none";
-  openIconPop=null;
-  renderCentersEdit();   // refresh button face + selected highlight
-  renderSeqTable();      // dropdowns show the new icon
-  applyLive();
-}
-function setCenterIconLive(i,ic){
-  data.centers[i].emoji=ic;
-  const btn=document.querySelector('#iconpop-'+i).previousElementSibling;
-  if(btn) btn.firstChild.textContent=ic;
-  applyLive();
-}
-document.addEventListener("click",e=>{
-  if(openIconPop==null)return;
-  if(e.target.closest(".icon-pick"))return;
-  const o=document.getElementById("iconpop-"+openIconPop);
-  if(o)o.style.display="none";
-  openIconPop=null;
-});
-function removeCenter(i){
-  if(data.centers.length<=1){alert("Keep at least one center.");return;}
-  if(!confirm("Delete this center? It will be removed from rotations."))return;
-  data.centers.splice(i,1);
-  data.rotations=data.rotations.map(r=>r.map(ci=>ci>=data.centers.length?0:(ci>i?ci-1:(ci===i?0:ci))));
-  renderCentersEdit();renderSeqTable();applyLive();
-}
-function addCenter(){
-  data.centers.push({emoji:"⭐",name:"New Center",desc:"Describe the activity.",steps:["Step one.","Step two."]});
-  renderCentersEdit();renderSeqTable();applyLive();
-}
-
-function renderSeqTable(){
-  const t=document.getElementById("seqTable");
-  const cols=data.groups.length;
-  let html="<tr><th>Rotation</th>"+data.groups.map(g=>`<th>${esc(g)}</th>`).join("")+"</tr>";
-  data.rotations.forEach((rot,ri)=>{
-    html+=`<tr><th>${ri+1}</th>`;
-    for(let col=0;col<cols;col++){
-      const cur=rot[col]==null?0:rot[col];
-      const sel=data.centers.map((c,ci)=>`<option value="${ci}" ${cur===ci?'selected':''}>${c.emoji} ${esc(c.name)}</option>`).join("");
-      html+=`<td><select data-r="${ri}" data-col="${col}">${sel}</select></td>`;
-    }
-    html+="</tr>";
-  });
-  t.innerHTML=html;
-  t.querySelectorAll("select").forEach(s=>s.addEventListener("change",()=>{
-    data.rotations[+s.dataset.r][+s.dataset.col]=+s.value;
-  }));
-}
-function addRot(){
-  const cols=data.groups.length;
-  const last=data.rotations[data.rotations.length-1]||Array.from({length:cols},(_,i)=>i%data.centers.length);
-  data.rotations.push(last.map((_,i)=>last[(i+1)%last.length]));
-  renderSeqTable();applyLive();
-}
-function delRot(){ if(data.rotations.length>1){data.rotations.pop();renderSeqTable();applyLive();} }
-function autoFillCarousel(){
-  const cols=data.groups.length, R=data.rotations.length, nC=data.centers.length;
-  // base row: group g starts on center g (wrapping if fewer centers than groups)
-  const base=Array.from({length:cols},(_,g)=>g%nC);
-  data.rotations=Array.from({length:R},(_,r)=>base.map(v=>(v+r)%nC));
-  renderSeqTable();applyLive();
-}
-
-function readSettingsFields(){
-  const g=id=>document.getElementById(id);
-  if(!g("setTitle"))return; // panel not built yet
-  data.title=g("setTitle").value;
-  data.minutes=Math.max(1,Math.min(60,+g("setMins").value||20));
-  data.auto=g("setAuto").value==="true";
-  data.warnSecs=Math.max(0,Math.min(600,+g("setWarn").value||0));
-  data.transitionSecs=Math.max(2,Math.min(120,+g("setTransSecs").value||8));
-  data.logo=g("setLogo").value;
-  const t=data.text;
-  t.subtitle=g("setSubtitle").value;
-  t.introLead=g("txtIntroLead").value;
-  t.startBtn=g("txtStartBtn").value;
-  t.transEmoji=g("txtTransEmoji").value;
-  t.transHeading=g("txtTransHeading").value;
-  t.transSub=g("txtTransSub").value;
-  t.endHeading=g("txtEndHeading").value;
-  t.endLead=g("txtEndLead").value;
-  t.endBtn=g("txtEndBtn").value;
-}
-function applyLive(){
-  readSettingsFields();
-  persist();
-  buildScenes();
-  // while editing, keep the live display on a rotation so center/group edits are visible
-  const editing=document.getElementById("overlay").classList.contains("show");
-  if(editing){
-    const cur=scenes[pos];
-    if(!cur||cur.type!=="rotation"){
-      const r=scenes.findIndex(s=>s.type==="rotation");
-      if(r>=0) pos=r;
-    }
+  function setupTrait(n){
+    renderTrait(n);
+    document.getElementById('traitPrev'+n).addEventListener('click',function(){traitIdx[n-1]=(traitIdx[n-1]-1+TRAITS.length)%TRAITS.length;renderTrait(n);});
+    document.getElementById('traitNext'+n).addEventListener('click',function(){traitIdx[n-1]=(traitIdx[n-1]+1)%TRAITS.length;renderTrait(n);});
   }
-  if(pos>=scenes.length) pos=scenes.length-1;
-  if(pos<0) pos=0;
-  render();
-}
-function saveSettings(){
-  // apply any defaults for blank required fields, then close
-  if(!data.title.trim()) data.title="Centers";
-  if(!data.logo.trim()) data.logo="📚";
-  if(!data.text.startBtn.trim()) data.text.startBtn="Start";
-  if(!data.text.transHeading.trim()) data.text.transHeading="Rotate!";
-  if(!data.text.endHeading.trim()) data.text.endHeading="All Done!";
-  if(!data.text.endBtn.trim()) data.text.endBtn="Start Over";
-  data.text.reminders=data.text.reminders.filter(r=>(r.txt||"").trim());
-  persist();buildScenes();pos=0;running=false;clearInterval(tick);
-  closeSheet();render();
-}
-function resetAll(){
-  if(!confirm("Reset everything back to the sample centers?"))return;
-  data=JSON.parse(JSON.stringify(DEFAULT));
-  persist();
-  buildScenes();pos=0;running=false;clearInterval(tick);
-  render();
-  openSheet(); // refresh fields
-}
-function applyPreset(name){
-  const p=PRESETS[name]; if(!p)return;
-  data=migrate(JSON.parse(JSON.stringify(p)));
-  activePreset=name;
-  persist();
-  buildScenes();pos=0;running=false;clearInterval(tick);
-  render(); // instantly reflects on the title/display
-}
-function loadPreset(name){
-  // called from the gear panel — switch instantly, then refresh editor fields
-  if(!PRESETS[name])return;
-  applyPreset(name);
-  openSheet();
-}
+  setupTrait(1); setupTrait(2);
 
-/* fullscreen */
-function toggleFS(){
-  if(!document.fullscreenElement){document.documentElement.requestFullscreen?.();}
-  else{document.exitFullscreen?.();}
-}
-function toggleSound(){
-  data.chime=!data.chime;
-  persist();
-  updateSoundBtn();
-  if(data.chime) playChime("warn"); // brief confirmation when turning on
-}
-function updateSoundBtn(){
-  const b=document.getElementById("soundBtn");
-  if(b){ b.textContent=data.chime?"🔔":"🔕"; b.title=(data.chime?"Sound on":"Sound off")+" (M)"; }
-}
+  // ── Checklist ──
+  var checkItems=['Unfinished work','Reading Slips','Writing task'];
+  function renderChecklist(){
+    var cl=document.getElementById('checklist');
+    cl.innerHTML='';
+    var locked=document.body.classList.contains('locked');
+    checkItems.forEach(function(txt,i){
+      var div=document.createElement('div'); div.className='check';
+      div.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 6L20 4"/></svg>';
+      var span=document.createElement('span');
+      span.textContent=txt; span.style.flex='1';
+      span.contentEditable=locked?'false':'true';
+      span.setAttribute('data-edit','');
+      span.addEventListener('input',function(){checkItems[i]=span.textContent;saveState();});
+      var del=document.createElement('button');
+      del.className='check-del-btn'; del.title='Remove'; del.innerHTML='&#x2715;';
+      del.addEventListener('click',function(){checkItems.splice(i,1);renderChecklist();saveState();});
+      div.appendChild(span); div.appendChild(del); cl.appendChild(div);
+    });
+  }
+  renderChecklist();
+  document.getElementById('checkAddBtn').addEventListener('click',function(){
+    checkItems.push('New item'); renderChecklist();
+    var spans=document.querySelectorAll('.checklist .check span');
+    if(spans.length){var s=spans[spans.length-1];s.focus();document.execCommand('selectAll',false,null);}
+    saveState();
+  });
 
-/* ---------- WIRING ---------- */
-document.getElementById("playBtn").onclick=togglePlay;
-document.getElementById("nextBtn").onclick=manualNext;
-document.getElementById("prevBtn").onclick=manualPrev;
-document.getElementById("fsBtn").onclick=toggleFS;
-document.getElementById("soundBtn").onclick=toggleSound;
-document.getElementById("plusMin").onclick=()=>addTime(60);
-document.getElementById("minusMin").onclick=()=>addTime(-60);
-document.getElementById("gearBtn").onclick=openSheet;
-document.getElementById("closeSheet").onclick=closeSheet;
-document.getElementById("saveBtn").onclick=saveSettings;
-document.getElementById("resetBtn").onclick=resetAll;
-document.getElementById("presetBlank").onclick=()=>loadPreset("blank");
-document.getElementById("presetLiteracy").onclick=()=>loadPreset("literacy");
-document.getElementById("presetMath").onclick=()=>loadPreset("math");
-document.getElementById("addCenter").onclick=addCenter;
-document.getElementById("addReminder").onclick=addReminder;
-document.getElementById("addGroup").onclick=addGroup;
-document.getElementById("delGroup").onclick=delGroup;
-document.getElementById("addRot").onclick=addRot;
-document.getElementById("delRot").onclick=delRot;
-document.getElementById("autoFill").onclick=autoFillCarousel;
-document.getElementById("content").addEventListener("click",e=>{
-  if(e.target.id==="startBtn"){play();return;}
-  if(e.target.id==="restartBtn"){pos=0;running=false;render();return;}
-  const tog=e.target.closest(".preset-toggle");
-  if(tog){ applyPreset(tog.dataset.preset); }
-});
+  // ── Wheel ──
+  var spinEl=document.getElementById('spinnerSvg');
+  var wheelLabels=document.getElementById('wheelLabels');
+  var spinning=false, currentRot=0, DURATION=420;
 
-document.addEventListener("keydown",e=>{
-  if(document.getElementById("overlay").classList.contains("show"))return;
-  if(e.key==="ArrowRight"){manualNext();}
-  else if(e.key==="ArrowLeft"){manualPrev();}
-  else if(e.key===" "){e.preventDefault();togglePlay();}
-  else if(e.key.toLowerCase()==="f"){toggleFS();}
-  else if(e.key.toLowerCase()==="m"){toggleSound();}
-  else if(e.key==="+"||e.key==="="){addTime(60);}
-  else if(e.key==="-"||e.key==="_"){addTime(-60);}
-});
+  function setWheelRot(deg){
+    wheelLabels.setAttribute('transform','rotate('+deg+',50,50)');
+    [{id:'wg0',cx:76,cy:36},{id:'wg1',cx:50,cy:78},{id:'wg2',cx:24,cy:36}].forEach(function(wg){
+      document.getElementById(wg.id).setAttribute('transform','rotate('+(-deg)+','+wg.cx+','+wg.cy+')');
+    });
+  }
+  spinEl.addEventListener('click',function(){
+    if(spinning) return;
+    spinning=true;
+    var start=currentRot, end=currentRot+120, t0=null;
+    function ease(t){return t<.5?2*t*t:-1+(4-2*t)*t;}
+    function frame(ts){
+      if(!t0) t0=ts;
+      var p=Math.min((ts-t0)/DURATION,1);
+      setWheelRot(start+(end-start)*ease(p));
+      if(p<1){requestAnimationFrame(frame);}else{currentRot=end;spinning=false;}
+    }
+    requestAnimationFrame(frame);
+  });
 
-buildScenes();updateSoundBtn();render();
+  // ── Groups ──
+  var writingGroups=[
+    {label:'A',instr:'Get your writing folder and join your group'},
+    {label:'B',instr:'Have a pencil and eraser'},
+    {label:'C',instr:'Read over and double check recent work while waiting'}
+  ];
+  var readingGroups=[
+    {label:'A',instr:'Join your reading group'},
+    {label:'B',instr:"Discuss what you know or want to know about the topic and author's possible purpose"},
+    {label:'C',instr:'Review the 3 pillars of fluency'}
+  ];
+  var groupMode='writing';
+
+  function renderGroups(){
+    var body=document.getElementById('groupsBody');
+    var title=document.getElementById('groupsPanelTitle');
+    body.innerHTML='';
+    if(groupMode==='off'){
+      title.textContent='Groups';
+      var msg=document.createElement('div'); msg.className='groups-off-msg';
+      msg.innerHTML='&#128218; Teachers are conferencing with students and checking work &mdash; please work independently on current tasks.';
+      body.appendChild(msg); return;
+    }
+    var groups=groupMode==='writing'?writingGroups:readingGroups;
+    var cls=groupMode==='writing'?'writing':'reading';
+    title.textContent=groupMode==='writing'?'Writing Groups':'Reading Groups';
+    groups.forEach(function(g){
+      var row=document.createElement('div'); row.className='group-row';
+      var lbl=document.createElement('span'); lbl.className='group-label '+cls; lbl.textContent=g.label;
+      var instr=document.createElement('span'); instr.className='group-instr';
+      instr.setAttribute('data-edit','');
+      instr.contentEditable=document.body.classList.contains('locked')?'false':'true';
+      instr.textContent=g.instr;
+      instr.addEventListener('input',function(){g.instr=instr.textContent;saveState();});
+      row.appendChild(lbl); row.appendChild(instr); body.appendChild(row);
+    });
+  }
+  function setGroupTab(m){
+    groupMode=m;
+    document.getElementById('tabWriting').className='gtab'+(m==='writing'?' active-writing':'');
+    document.getElementById('tabReading').className='gtab'+(m==='reading'?' active-reading':'');
+    document.getElementById('tabOff').className='gtab'+(m==='off'?' active-off':'');
+    renderGroups(); saveState();
+  }
+  document.getElementById('tabWriting').addEventListener('click',function(){setGroupTab('writing');});
+  document.getElementById('tabReading').addEventListener('click',function(){setGroupTab('reading');});
+  document.getElementById('tabOff').addEventListener('click',function(){setGroupTab('off');});
+  renderGroups();
+
+  // ── Edit/Lock/Save ──
+  var STORE_KEY='daily5-v3';
+  var board=document.getElementById('board');
+  var editBtn=document.getElementById('editBtn');
+  var editLabel=document.getElementById('editLabel');
+
+  function setEditable(on){
+    board.querySelectorAll('[data-edit]').forEach(function(n){n.contentEditable=on?'true':'false';});
+    document.querySelectorAll('.group-instr').forEach(function(n){n.contentEditable=on?'true':'false';});
+    document.body.classList.toggle('locked',!on);
+    document.body.classList.toggle('editing',on);
+    editLabel.textContent=on?'Lock':'Edit';
+    renderChecklist(); renderGroups();
+  }
+  setEditable(true);
+
+  function saveState(){
+    try{localStorage.setItem(STORE_KEY,JSON.stringify({
+      groupMode,writingGroups,readingGroups,traitIdx,checkItems
+    }));}catch(e){}
+  }
+
+  try{
+    var saved=JSON.parse(localStorage.getItem(STORE_KEY));
+    if(saved){
+      if(saved.writingGroups) writingGroups.splice(0,writingGroups.length,...saved.writingGroups);
+      if(saved.readingGroups) readingGroups.splice(0,readingGroups.length,...saved.readingGroups);
+      if(saved.traitIdx){traitIdx[0]=saved.traitIdx[0];traitIdx[1]=saved.traitIdx[1];}
+      if(saved.checkItems) checkItems.splice(0,checkItems.length,...saved.checkItems);
+      if(saved.groupMode) setGroupTab(saved.groupMode);
+      renderTrait(1); renderTrait(2); renderChecklist();
+    }
+  }catch(e){}
+
+  board.addEventListener('input',saveState);
+
+  editBtn.addEventListener('click',function(){setEditable(document.body.classList.contains('locked'));});
+
+  document.getElementById('resetBtn').addEventListener('click',function(){
+    if(confirm('Restore original? This clears your edits.')){
+      try{localStorage.removeItem(STORE_KEY);}catch(e){}
+      location.reload();
+    }
+  });
+
+  // ── Font size ──
+  // We control html font-size (base 16px). All clamp px values are already
+  // viewport-relative via vmin, so we additionally multiply via a data-scale
+  // class that boosts/reduces all explicit px font-sizes on the board.
+  var fsStep = 0;
+  var fsSizes = [
+    '10px','11px','12px','13px','14px','16px','18px','20px','22px','24px','26px','28px','30px','32px'
+  ];
+  var fsBase = 8; // index 8 = 22px default
+  function applyFs(){
+    var idx = Math.max(0, Math.min(fsSizes.length-1, fsBase + fsStep));
+    document.getElementById('board').style.fontSize = fsSizes[idx];
+    try{localStorage.setItem('daily5-fs', fsStep);}catch(e){}
+  }
+  try{var sfs=parseInt(localStorage.getItem('daily5-fs'));if(!isNaN(sfs)){fsStep=sfs;applyFs();}}catch(e){}
+  document.getElementById('fsUpBtn').addEventListener('click',function(){
+    fsStep=Math.min(fsSizes.length-1-fsBase, fsStep+1); applyFs();
+  });
+  document.getElementById('fsDnBtn').addEventListener('click',function(){
+    fsStep=Math.max(-fsBase, fsStep-1); applyFs();
+  });
+
+  document.getElementById('fsBtn').addEventListener('click',function(){
+    if(!document.fullscreenElement){
+      (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||function(){}).call(document.documentElement);
+    }else{
+      (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document);
+    }
+  });
+})();
 </script>
 </body>
 </html>
