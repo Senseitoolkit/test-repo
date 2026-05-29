@@ -159,8 +159,66 @@
 
   .decor{display:flex;justify-content:center;padding:.4vmin 0;}
   .goal-glyph{position:relative;display:grid;place-items:center;}
-  .goal-glyph .goal-word{font-family:'Fredoka',sans-serif;font-weight:700;color:var(--ink);font-size:clamp(13px,1.8vmin,22px);transform:rotate(-8deg);margin-bottom:-.4vmin;}
-  .decor svg{width:clamp(38px,5.5vmin,70px);height:clamp(38px,5.5vmin,70px);}
+  .goal-glyph .goal-word{font-family:'Fredoka',sans-serif;font-weight:700;color:var(--ink);font-size:clamp(16px,2.4vmin,30px);transform:rotate(-8deg);margin-bottom:-.5vmin;}
+  .decor svg{width:clamp(60px,9vmin,120px);height:clamp(60px,9vmin,120px);}
+
+
+  /* Priorities add/delete */
+  .priorities-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3vmin;}
+  .check-add-btn{
+    background:var(--red);color:#fff;border:none;border-radius:50%;
+    width:clamp(20px,2.8vmin,32px);height:clamp(20px,2.8vmin,32px);
+    font-size:clamp(14px,2vmin,22px);font-weight:900;cursor:pointer;
+    display:grid;place-items:center;line-height:1;
+    transition:transform .12s,background .15s;flex:0 0 auto;
+  }
+  .check-add-btn:hover{transform:scale(1.12);}
+  body.locked .check-add-btn,.check-del-btn{display:none;}
+  body:not(.locked) .check-del-btn{
+    display:grid;place-items:center;
+    background:none;border:none;cursor:pointer;color:#bbb;
+    font-size:clamp(12px,1.6vmin,18px);padding:0 .2em;
+    transition:color .15s;flex:0 0 auto;
+  }
+  body:not(.locked) .check-del-btn:hover{color:var(--red);}
+
+  /* Spinner */
+  .spinner-wrap{
+    position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    z-index:10;pointer-events:none;
+  }
+  body:not(.locked) .spinner-wrap{pointer-events:auto;}
+  .spinner-svg{
+    width:clamp(90px,14vmin,180px);height:clamp(90px,14vmin,180px);
+    filter:drop-shadow(0 4px 14px rgba(0,0,0,.18));
+    cursor:pointer;
+    transform-origin:center center;
+    transform-box:fill-box;
+  }
+  .spinner-svg .wedge{transition:opacity .2s;}
+  .spinner-label{
+    font-family:'Fredoka',sans-serif;font-weight:700;
+    font-size:clamp(9px,1.3vmin,16px);
+    fill:#fff;text-anchor:middle;dominant-baseline:middle;
+    pointer-events:none;
+  }
+  .spinner-center-ring{fill:#fff;stroke:#fff;stroke-width:2;}
+  .spin-anim{animation:spinwheel 1.2s cubic-bezier(.22,1,.36,1) forwards;}
+  @keyframes spinwheel{
+    0%{transform:rotate(0deg);}
+    100%{transform:rotate(var(--spin-deg));}
+  }
+  .spinner-result{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,calc(-50% + clamp(55px,8.5vmin,110px)));
+    font-family:'Fredoka',sans-serif;font-weight:700;
+    font-size:clamp(12px,1.8vmin,22px);
+    background:#fff;border-radius:8px;padding:.2em .7em;
+    box-shadow:0 3px 12px rgba(0,0,0,.15);
+    white-space:nowrap;opacity:0;transition:opacity .3s;
+    pointer-events:none;border:2px solid #eee;
+  }
+  .spinner-result.show{opacity:1;}
 
   @media(max-width:760px){body{overflow:auto;}.stage{height:auto;min-height:100vh;}.board{height:auto;}.cards{grid-template-columns:1fr;}.body{grid-template-columns:1fr;}}
 </style>
@@ -227,7 +285,38 @@
 
   </div>
 
-  <div class="body">
+  <div class="body" style="position:relative;">
+
+    <!-- Spinner -->
+    <div class="spinner-wrap" id="spinnerWrap">
+      <svg class="spinner-svg" id="spinnerSvg" viewBox="-1 -1 102 102" xmlns="http://www.w3.org/2000/svg">
+        <!-- Wedge paths spin together -->
+        <g id="wheelBody">
+          <path d="M50,50 L50,1 A49,49 0 0,1 92.44,74.5 Z" fill="#d62828"/>
+          <path d="M50,50 L92.44,74.5 A49,49 0 0,1 7.56,74.5 Z" fill="#1f6fb2"/>
+          <path d="M50,50 L7.56,74.5 A49,49 0 0,1 50,1 Z" fill="#f2a900"/>
+        </g>
+        <!-- Labels counter-rotate to stay upright -->
+        <g id="wheelLabels">
+          <!-- Each label is positioned at its wedge center; JS counter-rotates around (50,50) -->
+          <g id="wg0">
+            <text text-anchor="middle" dominant-baseline="middle" x="76" y="31" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Work on</text>
+            <text text-anchor="middle" dominant-baseline="middle" x="76" y="41" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Writing</text>
+          </g>
+          <g id="wg1">
+            <text text-anchor="middle" dominant-baseline="middle" x="50" y="78" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Groups</text>
+          </g>
+          <g id="wg2">
+            <text text-anchor="middle" dominant-baseline="middle" x="24" y="31" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Word</text>
+            <text text-anchor="middle" dominant-baseline="middle" x="24" y="41" font-family="Fredoka,sans-serif" font-weight="700" font-size="8.5" fill="#fff">Work</text>
+          </g>
+        </g>
+        <!-- Center hub (always on top) -->
+        <circle cx="50" cy="50" r="11" fill="#fff" stroke="#ddd" stroke-width="1.5"/>
+        <text x="50" y="54" text-anchor="middle" dominant-baseline="middle" font-size="7.5" font-family="Fredoka,sans-serif" fill="#999">spin</text>
+      </svg>
+      <div class="spinner-result" id="spinnerResult"></div>
+    </div>
 
     <!-- LEFT: goals -->
     <div class="col">
@@ -259,21 +348,11 @@
 
       <!-- Top Priorities -->
       <div class="priorities-section">
-        <div class="priorities-label">Top Priorities</div>
-        <div class="checklist" id="checklist">
-          <div class="check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 6L20 4"/></svg>
-            <span data-edit contenteditable="true">Unfinished work</span>
-          </div>
-          <div class="check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 6L20 4"/></svg>
-            <span data-edit contenteditable="true">Reading Slips</span>
-          </div>
-          <div class="check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 6L20 4"/></svg>
-            <span data-edit contenteditable="true">Writing task</span>
-          </div>
+        <div class="priorities-header">
+          <div class="priorities-label">Top Priorities</div>
+          <button class="check-add-btn" id="checkAddBtn" title="Add item">+</button>
         </div>
+        <div class="checklist" id="checklist"></div>
       </div>
 
       <!-- Groups panel -->
@@ -367,6 +446,94 @@
   setupTraitCard(1);
   setupTraitCard(2);
 
+  // ── Checklist ──
+  var checkItems = ['Unfinished work', 'Reading Slips', 'Writing task'];
+
+  function renderChecklist() {
+    var cl = document.getElementById('checklist');
+    cl.innerHTML = '';
+    var isLocked = document.body.classList.contains('locked');
+    checkItems.forEach(function(txt, i) {
+      var div = document.createElement('div');
+      div.className = 'check';
+      div.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l5 6L20 4"/></svg>';
+      var span = document.createElement('span');
+      span.textContent = txt;
+      span.style.flex = '1';
+      span.contentEditable = isLocked ? 'false' : 'true';
+      span.setAttribute('data-edit','');
+      span.addEventListener('input', function(){ checkItems[i] = span.textContent; saveState(); });
+      var del = document.createElement('button');
+      del.className = 'check-del-btn';
+      del.title = 'Remove';
+      del.innerHTML = '&#x2715;';
+      del.addEventListener('click', function(){ checkItems.splice(i,1); renderChecklist(); saveState(); });
+      div.appendChild(span);
+      div.appendChild(del);
+      cl.appendChild(div);
+    });
+  }
+  renderChecklist();
+
+  document.getElementById('checkAddBtn').addEventListener('click', function(){
+    checkItems.push('New item');
+    renderChecklist();
+    // focus last span
+    var spans = document.querySelectorAll('.checklist .check span');
+    if(spans.length) { var s = spans[spans.length-1]; s.focus(); document.execCommand('selectAll',false,null); }
+    saveState();
+  });
+
+  // ── Spinner ──
+  var SECTIONS = ['Work on Writing','Groups','Word Work'];
+  var SPIN_COLORS = ['#d62828','#1f6fb2','#f2a900'];
+  var spinEl = document.getElementById('spinnerSvg');
+  var resultEl = document.getElementById('spinnerResult');
+  var spinning = false;
+  var currentRot = 0;
+
+  var wheelBody = document.getElementById('wheelBody');
+  var wheelLabels = document.getElementById('wheelLabels');
+  var DURATION = 400;
+
+  function setWheelRot(deg) {
+    // Wedges never move
+    wheelBody.setAttribute('transform', '');
+    // Labels orbit clockwise around center (50,50), staying upright via counter-rotate
+    wheelLabels.setAttribute('transform', 'rotate(' + deg + ',50,50)');
+    // Each label counter-rotates around its own center so text stays upright
+    [
+      {id:'wg0', cx:76, cy:36},
+      {id:'wg1', cx:50, cy:78},
+      {id:'wg2', cx:24, cy:36}
+    ].forEach(function(wg){
+      document.getElementById(wg.id).setAttribute('transform',
+        'rotate(' + (-deg) + ',' + wg.cx + ',' + wg.cy + ')');
+    });
+  }
+
+  spinEl.addEventListener('click', function(){
+    if(spinning) return;
+    spinning = true;
+    resultEl.classList.remove('show');
+    var startRot = currentRot;
+    var endRot = currentRot + 120; // one third clockwise
+    var startTime = null;
+    function easeInOut(t){ return t<0.5 ? 2*t*t : -1+(4-2*t)*t; }
+    function animate(ts){
+      if(!startTime) startTime = ts;
+      var progress = Math.min((ts - startTime) / DURATION, 1);
+      setWheelRot(startRot + (endRot - startRot) * easeInOut(progress));
+      if(progress < 1){
+        requestAnimationFrame(animate);
+      } else {
+        currentRot = endRot;
+        spinning = false;
+      }
+    }
+    requestAnimationFrame(animate);
+  });
+
   // Groups
   var writingGroups = [
     {label:'A', instr:'Get your writing folder and join your group'},
@@ -442,6 +609,8 @@
     document.body.classList.toggle("locked", !on);
     document.body.classList.toggle("editing", on);
     editLabel.textContent = on ? "Lock" : "Edit";
+    renderChecklist();
+    renderGroups();
   }
   setEditable(true);
 
@@ -452,7 +621,8 @@
         groupMode: groupMode,
         writingGroups: writingGroups,
         readingGroups: readingGroups,
-        traitIdx: traitIdx
+        traitIdx: traitIdx,
+        checkItems: checkItems
       }));
     } catch(e){}
   }
@@ -463,8 +633,10 @@
       if (saved.writingGroups) writingGroups.splice(0, writingGroups.length, ...saved.writingGroups);
       if (saved.readingGroups) readingGroups.splice(0, readingGroups.length, ...saved.readingGroups);
       if (saved.traitIdx) { traitIdx[0]=saved.traitIdx[0]; traitIdx[1]=saved.traitIdx[1]; }
+      if (saved.checkItems) checkItems.splice(0, checkItems.length, ...saved.checkItems);
       if (saved.groupMode) setGroupTab(saved.groupMode);
       renderTrait(1); renderTrait(2);
+      renderChecklist();
     }
   } catch(e){}
 
