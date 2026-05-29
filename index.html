@@ -428,6 +428,22 @@
             color: var(--rose-500); font-size: 0.8rem; font-weight: 600;
             margin-top: 0.5rem; min-height: 1.2em;
         }
+
+        /* ─── Teacher Unlock Toast ─── */
+        .toast {
+            position: fixed;
+            bottom: 1.5rem; left: 50%;
+            transform: translateX(-50%) translateY(120%);
+            background: var(--slate-900); color: var(--white);
+            padding: 0.85rem 1.4rem; border-radius: 12px;
+            font-family: 'DM Sans', sans-serif; font-size: 0.9rem; font-weight: 600;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+            z-index: 2000; opacity: 0;
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast .toast-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--teal-500); flex-shrink: 0; }
     </style>
 </head>
 <body>
@@ -785,6 +801,9 @@
         </div>
     </div>
 
+    <!-- Teacher Unlock Toast -->
+    <div class="toast" id="toast"><span class="toast-dot"></span><span id="toastMsg">All sections unlocked</span></div>
+
     <footer>
         <div class="footer-content">
             <p><strong>Teacher Toolkit</strong> — Empowering Educators Worldwide</p>
@@ -925,6 +944,45 @@
 
         document.getElementById('modal').addEventListener('click', function(e) {
             if (e.target === this) closeModal();
+        });
+
+        /* ─── Teacher Unlock Shortcut (Ctrl+U) ─── */
+        // Unlocks every gated section for this browser session at once, so the
+        // teacher doesn't have to click through each modal. Students still hit
+        // the normal gates because they won't use this shortcut.
+        function unlockAll() {
+            // Unique set of session keys across every gate type.
+            const keys = Array.from(new Set(Object.values(sessionKey)));
+            keys.forEach(k => {
+                try { sessionStorage.setItem(k, '1'); } catch (e) { /* ignore */ }
+            });
+            // If a modal is currently open and waiting on a destination, follow it.
+            if (pendingHref) {
+                const href = pendingHref;
+                closeModal();
+                showToast('All sections unlocked');
+                window.location.href = href;
+            } else {
+                closeModal();
+                showToast('All sections unlocked');
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = text;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+        }
+
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+U (or Cmd+U on Mac) unlocks all sections.
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'u' || e.key === 'U')) {
+                e.preventDefault();
+                unlockAll();
+            }
         });
     </script>
 </body>
