@@ -130,7 +130,7 @@
   ol.steps{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:1.3vh;}
   ol.steps li{
     counter-increment:s;display:flex;gap:.8em;align-items:baseline;
-    font-size:clamp(1.05rem,2vw,1.7rem);line-height:1.2;
+    font-size:calc(clamp(1.05rem,2vw,1.7rem) * var(--txt,1));line-height:1.2;
   }
   ol.steps li::before{
     content:counter(s);font-family:'Space Mono',monospace;font-weight:700;
@@ -141,29 +141,32 @@
 
   .challenge{background:var(--chal);color:var(--chal-ink);}
   .challenge h2{color:var(--rust);justify-content:flex-start;}
-  .challenge .q{font-size:clamp(1.3rem,2.5vw,2.15rem);line-height:1.25;margin:1.2vh 0 auto;font-weight:500;color:var(--chal-ink);}
-  .challenge .hint{font-family:'Space Mono',monospace;font-size:.82rem;color:var(--chal-soft);margin-top:1vh;}
+  .challenge .q{font-size:calc(clamp(1.3rem,2.5vw,2.15rem) * var(--txt,1));line-height:1.25;margin:1.2vh 0 auto;font-weight:500;color:var(--chal-ink);}
+  .challenge .hint{font-family:'Space Mono',monospace;font-size:calc(.82rem * var(--txt,1));color:var(--chal-soft);margin-top:1vh;}
   .reveal-btn{
     align-self:flex-start;margin-top:1.2vh;font-family:'Space Mono',monospace;
     background:var(--ink);color:var(--paper);border:none;padding:.6em 1.1em;border-radius:9px;
     cursor:pointer;font-size:.85rem;letter-spacing:.05em;
   }
-  .answer{display:none;margin-top:1vh;font-weight:700;color:var(--chal-ink);font-size:clamp(1.05rem,2.1vw,1.7rem);}
+  .nsent{display:none;margin-top:1vh;font-family:'Space Mono',monospace;font-weight:700;
+    color:var(--chal-ink);font-size:calc(clamp(1.05rem,2.1vw,1.7rem) * var(--txt,1));letter-spacing:.01em;}
+  .nsent.show{display:block;}
+  .nsent::before{content:"= ";opacity:.45;}
+  .answer{display:none;margin-top:.6vh;font-weight:700;color:var(--rust);font-size:calc(clamp(1.05rem,2.1vw,1.7rem) * var(--txt,1));}
   .answer.show{display:block;}
+  .answer::before{content:"✓ ";opacity:.8;}
+  .editing .answer,.editing .nsent{display:block;opacity:.85;}
 
-  /* year toggle */
-  .yeartabs{display:flex;flex-wrap:wrap;gap:.4vw;align-items:center;margin-top:.4vh;}
-  .yeartabs .yl{
-    font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--chal-soft);margin-right:.3em;
+  /* year picker (lives inside the settings cog, hidden from students) */
+  .yearpick{display:flex;gap:.35em;flex-wrap:wrap;}
+  .yearpick button{
+    font-family:'Space Mono',monospace;font-weight:700;font-size:.85rem;
+    width:2em;height:2em;display:grid;place-items:center;line-height:1;
+    border:2px solid var(--card-ink);background:transparent;color:var(--card-ink);
+    border-radius:7px;cursor:pointer;transition:.12s;
   }
-  .yeartabs button{
-    font-family:'Space Mono',monospace;font-weight:700;font-size:clamp(.8rem,1.3vw,1.05rem);
-    border:2px solid var(--chal-ink);background:transparent;color:var(--chal-ink);
-    border-radius:9px;padding:.35em .65em;cursor:pointer;transition:.12s;line-height:1;
-  }
-  .yeartabs button:hover{background:var(--chal-ink);color:var(--chal);}
-  .yeartabs button.active{background:var(--rust);border-color:var(--rust);color:#fff;transform:translateY(-1px);}
+  .yearpick button:hover{background:var(--sun);border-color:var(--sun);color:#1a1a1a;}
+  .yearpick button.active{background:var(--rust);border-color:var(--rust);color:#fff;}
 
   .cnum{font-family:'Space Mono',monospace;font-size:.8em;color:var(--chal-soft);letter-spacing:.04em;}
 
@@ -232,29 +235,46 @@
   #timer.flash{animation:flash .6s steps(2) infinite;}
   @keyframes flash{50%{opacity:.25}}
 
-  .fsbtn{
-    position:fixed;bottom:14px;right:16px;z-index:30;font-family:'Space Mono',monospace;
-    background:var(--ink);color:var(--paper);border:none;border-radius:9px;padding:.55em .9em;
-    cursor:pointer;font-size:.75rem;letter-spacing:.05em;opacity:.6;transition:.2s;
+  /* settings cog + popover panel (bottom-right) */
+  .cog{
+    position:fixed;bottom:14px;right:16px;z-index:40;width:46px;height:46px;border-radius:50%;
+    background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-size:1.35rem;line-height:1;
+    display:grid;place-items:center;opacity:.55;transition:.2s;box-shadow:3px 3px 0 var(--rust);
   }
-  .fsbtn:hover{opacity:1;}
+  .cog:hover{opacity:1;transform:rotate(35deg);}
+  .cog.open{opacity:1;transform:rotate(90deg);}
 
-  .themebar{
-    position:fixed;bottom:14px;left:16px;z-index:30;display:flex;align-items:center;gap:.5em;
-    background:color-mix(in srgb,var(--ink) 88%,transparent);padding:.4em .7em;border-radius:11px;
-    opacity:.55;transition:.2s;backdrop-filter:blur(4px);
+  .settings-panel{
+    position:fixed;bottom:70px;right:16px;z-index:40;width:min(280px,80vw);
+    background:var(--card);color:var(--card-ink);border:2px solid var(--ink);border-radius:16px;
+    box-shadow:6px 6px 0 var(--ink);padding:1em 1.1em;display:flex;flex-direction:column;gap:.9em;
+    opacity:0;transform:translateY(10px) scale(.97);pointer-events:none;transition:.18s ease;
   }
-  .themebar:hover{opacity:1;}
-  .themebar .tlab{
-    font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
-    color:var(--paper);margin-right:.2em;
+  .settings-panel.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}
+  .settings-panel .ph{
+    font-family:'Space Mono',monospace;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--rust);margin-bottom:.2em;display:flex;align-items:center;gap:.5em;
   }
+  .settings-panel .ph::before{content:"";width:11px;height:11px;border-radius:50%;background:var(--sun);}
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:.6em;}
+  .set-lab{font-family:'Space Mono',monospace;font-size:.78rem;letter-spacing:.06em;color:var(--card-ink);text-transform:uppercase;opacity:.8;}
+  .set-btns{display:flex;gap:.4em;align-items:center;}
+  .set-btns button,.set-full{
+    font-family:'Space Mono',monospace;border:2px solid var(--card-ink);background:transparent;color:var(--card-ink);
+    border-radius:8px;cursor:pointer;transition:.12s;font-weight:700;
+  }
+  .set-btns button{width:2.2em;height:2.2em;display:grid;place-items:center;font-size:1rem;}
+  .set-btns .az{font-size:.78rem;}.set-btns .az-big{font-size:1.15rem;}
+  .set-btns button:hover,.set-full:hover{background:var(--sun);border-color:var(--sun);color:#1a1a1a;}
+  .txt-now{font-family:'Space Mono',monospace;font-size:.72rem;color:var(--leaf);min-width:3.2em;text-align:center;}
+  .set-full{padding:.5em .9em;font-size:.8rem;letter-spacing:.04em;}
+  .swatches{display:flex;gap:.45em;}
   .swatch{
-    width:24px;height:24px;border-radius:50%;cursor:pointer;padding:0;
-    border:2px solid rgba(255,255,255,.5);transition:.15s;position:relative;overflow:hidden;
+    width:26px;height:26px;border-radius:50%;cursor:pointer;padding:0;
+    border:2px solid var(--card-ink);transition:.15s;position:relative;overflow:hidden;
   }
   .swatch:hover{transform:scale(1.15);}
-  .swatch.active{border-color:#fff;transform:scale(1.2);box-shadow:0 0 0 2px var(--sun);}
+  .swatch.active{border-color:var(--rust);transform:scale(1.2);box-shadow:0 0 0 2px var(--sun);}
   .swatch[data-set="1"]{background:linear-gradient(135deg,#f4efe1 50%,#e8a13a 50%);}
   .swatch[data-set="2"]{background:linear-gradient(135deg,#161a23 50%,#f2b134 50%);}
   .swatch[data-set="3"]{background:linear-gradient(135deg,#fff0f3 50%,#ff5d8f 50%);}
@@ -293,23 +313,14 @@
 
       <div class="card challenge">
         <h2>Challenge Problem
-          <span id="cnum" class="cnum">Year 3 · #1</span>
+          <span id="cnum" class="cnum">#1</span>
           <button class="edit-toggle" id="editbtn" onclick="toggleEdit()">✎ Edit</button>
         </h2>
 
-        <div class="yeartabs" id="yeartabs">
-          <span class="yl">Year</span>
-          <button data-y="1" onclick="setYear(1)">Y1</button>
-          <button data-y="2" onclick="setYear(2)">Y2</button>
-          <button data-y="3" onclick="setYear(3)">Y3</button>
-          <button data-y="4" onclick="setYear(4)">Y4</button>
-          <button data-y="5" onclick="setYear(5)">Y5</button>
-          <button data-y="6" onclick="setYear(6)">Y6</button>
-        </div>
-
         <p class="q" id="cq"></p>
         <p class="hint" id="chint"></p>
-        <button class="reveal-btn" onclick="document.getElementById('ans').classList.toggle('show')">Reveal answer</button>
+        <button class="reveal-btn" id="revealbtn" onclick="cycleReveal()">Reveal number sentence</button>
+        <p class="nsent" id="nsent"></p>
         <p class="answer" id="ans"></p>
 
         <div class="dots" id="dots">
@@ -339,15 +350,43 @@
     </div>
   </div>
 
-  <div class="themebar">
-    <span class="tlab">Theme</span>
-    <button class="swatch" data-set="1" onclick="setTheme('1')" title="Sunrise Meadow"></button>
-    <button class="swatch" data-set="2" onclick="setTheme('2')" title="Midnight Focus"></button>
-    <button class="swatch" data-set="3" onclick="setTheme('3')" title="Berry Pop"></button>
-    <button class="swatch" data-set="4" onclick="setTheme('4')" title="Ocean Calm"></button>
-    <button class="swatch" data-set="5" onclick="setTheme('5')" title="Chalkboard"></button>
+  <button class="cog" id="cogbtn" onclick="toggleSettings(event)" title="Settings" aria-label="Settings">⚙</button>
+  <div class="settings-panel" id="settings">
+    <div class="ph">Settings</div>
+    <div class="set-row">
+      <span class="set-lab">Year</span>
+      <div class="yearpick" id="yearpick">
+        <button data-y="1" onclick="setYear(1)">1</button>
+        <button data-y="2" onclick="setYear(2)">2</button>
+        <button data-y="3" onclick="setYear(3)">3</button>
+        <button data-y="4" onclick="setYear(4)">4</button>
+        <button data-y="5" onclick="setYear(5)">5</button>
+        <button data-y="6" onclick="setYear(6)">6</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span class="set-lab">Text size</span>
+      <div class="set-btns">
+        <button class="az" onclick="bumpText(-1)" title="Smaller text">A−</button>
+        <span class="txt-now" id="txtnow">100%</span>
+        <button class="az-big" onclick="bumpText(1)" title="Bigger text">A+</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span class="set-lab">Theme</span>
+      <div class="swatches">
+        <button class="swatch" data-set="1" onclick="setTheme('1')" title="Sunrise Meadow"></button>
+        <button class="swatch" data-set="2" onclick="setTheme('2')" title="Midnight Focus"></button>
+        <button class="swatch" data-set="3" onclick="setTheme('3')" title="Berry Pop"></button>
+        <button class="swatch" data-set="4" onclick="setTheme('4')" title="Ocean Calm"></button>
+        <button class="swatch" data-set="5" onclick="setTheme('5')" title="Chalkboard"></button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span class="set-lab">Display</span>
+      <button class="set-full" onclick="fs()">⛶ Full screen</button>
+    </div>
   </div>
-  <button class="fsbtn" onclick="fs()">⛶ Full screen</button>
 
 <script>
   /* =========================================================
@@ -417,6 +456,11 @@
   const gbp = p=>'£'+(p/100).toFixed(2);          // p in pence -> £x.xx
   function clockStr(H,M){let ap=H<12?'am':'pm';let h=H%12||12;return `${h}:${String(M).padStart(2,'0')} ${ap}`;}
   function addMins(H,M,add){let t=(H*60+M+add)%(24*60);return clockStr(Math.floor(t/60),t%60);}
+  function diffMins(H1,M1,H2,M2){let d=(H2*60+M2)-(H1*60+M1);if(d<0)d+=24*60;return d;}
+  const gcd=(a,b)=>b?gcd(b,a%b):a;
+  function simp(n,d){const g=gcd(Math.abs(n),Math.abs(d))||1;return[n/g,d/g];}
+  function fracStr(n,d){[n,d]=simp(n,d);if(d===1)return`${n}`;if(Math.abs(n)>d){const w=Math.floor(n/d),r=n-w*d;return r?`${w} ${r}/${d}`:`${w}`;}return`${n}/${d}`;}
+  function toRoman(n){const m=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];let r='';for(const[v,s]of m){while(n>=v){r+=s;n-=v;}}return r;}
 
   const GEN = {
     /* ---------------- YEAR 1 ---------------- *
@@ -425,26 +469,65 @@
     1:[
       ()=>{const o=pick(OBJ),n=pick(NM),a=R(2,9),b=R(2,9);
         return{q:`${n} has ${a} ${o}. They are given ${b} more. How many ${o} does ${n} have now?`,
-        hint:'count on from the bigger number',a:`${a+b} ${o}`};},
+        hint:'count on from the bigger number',ns:`${a} + ${b} = ${a+b}`,a:`${a+b} ${o}`};},
       ()=>{const o=pick(OBJ),n=pick(NM),a=R(6,18),b=R(2,a-1);
         return{q:`${n} had ${a} ${o}. They gave ${b} away. How many ${o} are left?`,
-        hint:'count back, or find the difference',a:`${a-b} ${o}`};},
+        hint:'count back, or find the difference',ns:`${a} − ${b} = ${a-b}`,a:`${a-b} ${o}`};},
       ()=>{const step=pick([2,5,10]),s=step*R(1,3);
         return{q:`Carry on counting in ${step}s:  ${s},  ${s+step},  ${s+2*step},  ___ ?`,
-        hint:`each number goes up by ${step}`,a:`${s+3*step}`};},
+        hint:`each number goes up by ${step}`,ns:`${s+2*step} + ${step} = ${s+3*step}`,a:`${s+3*step}`};},
       ()=>{const n=R(5,18),more=Math.random()<.5;
         return{q:`What is one ${more?'more':'less'} than ${n}?`,
-        hint:'picture a number line',a:`${more?n+1:n-1}`};},
+        hint:'picture a number line',ns:`${n} ${more?'+':'−'} 1 = ${more?n+1:n-1}`,a:`${more?n+1:n-1}`};},
       ()=>{const step=pick([2,5,10]),n=step===10?R(2,3):R(2,4),[cp,cs]=pick(CON),o=pick(OBJ);
         return{q:`There are ${n} ${cp}. Each ${cs} holds ${step} ${o}. How many ${o} altogether?`,
-        hint:`count in ${step}s`,a:`${step*n} ${o}`};},
+        hint:`count in ${step}s`,ns:`${step} × ${n} = ${step*n}`,a:`${step*n} ${o}`};},
       ()=>{const o=pick(OBJ),n=pick(NM),a=2*R(2,9);
         return{q:`${n} shares ${a} ${o} equally between 2 friends. How many ${o} does each friend get?`,
-        hint:`half of ${a}`,a:`${a/2} ${o}`};},
+        hint:`half of ${a}`,ns:`${a} ÷ 2 = ${a/2}`,a:`${a/2} ${o}`};},
       ()=>{const o=pick(OBJ),n=pick(NM),m=name2(n);let a=R(4,18),b=R(4,18);if(a===b)b++;
         const w=a>b?n:m,d=Math.abs(a-b);
         return{q:`${n} has ${a} ${o} and ${m} has ${b} ${o}. Who has more, and how many more?`,
-        hint:'find the difference',a:`${w} has more, by ${d} ${o}`};}
+        hint:'find the difference',ns:`${Math.max(a,b)} − ${Math.min(a,b)} = ${d}`,a:`${w} has more, by ${d} ${o}`};},
+      ()=>{const n=pick(NM),a=R(1,9),o=pick(OBJ);
+        return{q:`${n} has ${a} ${o}. How many more ${o} are needed to make 10?`,
+        hint:'number bonds to 10',ns:`10 − ${a} = ${10-a}`,a:`${10-a} more`};},
+      ()=>{const a=R(11,19),o=pick(OBJ);
+        return{q:`There are ${a} ${o}. How many more are needed to make 20?`,
+        hint:'number bonds to 20',ns:`20 − ${a} = ${20-a}`,a:`${20-a} more`};},
+      ()=>{const a=R(2,10),o=pick(OBJ),n=pick(NM),m=name2(n);
+        return{q:`${n} has ${a} ${o} and ${m} has the same. How many ${o} do they have altogether?`,
+        hint:`double ${a}`,ns:`${a} + ${a} = ${2*a}`,a:`${2*a} ${o}`};},
+      ()=>{const s=R(10,20),b=R(2,5);
+        return{q:`Start at ${s} and count back ${b}. What number do you reach?`,
+        hint:'count backwards',ns:`${s} − ${b} = ${s-b}`,a:`${s-b}`};},
+      ()=>{const t=R(1,9),o=R(1,9);
+        return{q:`A number is made of ${t} ten${t>1?'s':''} and ${o} one${o>1?'s':''}. What is the number?`,
+        hint:'tens and ones',ns:`${t*10} + ${o} = ${t*10+o}`,a:`${t*10+o}`};},
+      ()=>{const tot=R(5,9),pos=R(2,tot-1),n=pick(NM),suf=['','st','nd','rd'][pos]||'th';
+        return{q:`${tot} children stand in a line. ${n} is ${pos}${suf} from the front. How many children are behind ${n}?`,
+        hint:'take the position off the total',ns:`${tot} − ${pos} = ${tot-pos}`,a:`${tot-pos}`};},
+      ()=>{const c=R(2,5),n=R(2,4),it=pick(['sweet','sticker','badge','rubber']);
+        return{q:`A ${it} costs ${c}p. How much do ${n} ${it}s cost?`,
+        hint:`count in ${c}s`,ns:`${c} × ${n} = ${c*n}`,a:`${c*n}p`};},
+      ()=>{const a=R(2,5),b=R(2,5),c=R(2,5);
+        return{q:`${pick(NM)} picks ${a} apples, ${b} pears and ${c} plums. How many pieces of fruit in total?`,
+        hint:'add them one at a time',ns:`${a} + ${b} + ${c} = ${a+b+c}`,a:`${a+b+c} pieces`};},
+      ()=>{let a=R(3,19),b=R(3,19);if(a===b)b++;
+        return{q:`Which number is smaller: ${a} or ${b}?`,
+        hint:'which is closer to zero?',ns:`${Math.min(a,b)} < ${Math.max(a,b)}`,a:`${Math.min(a,b)}`};},
+      ()=>{const a=R(6,12),b=R(2,a-1);
+        return{q:`A pencil is ${a} cm long and a crayon is ${b} cm long. How much longer is the pencil?`,
+        hint:'find the difference',ns:`${a} − ${b} = ${a-b}`,a:`${a-b} cm`};},
+      ()=>{const g=pick([2,5]),n=R(2,4),tot=g*n,o=pick(OBJ);
+        return{q:`${tot} ${o} are shared equally between ${g} children. How many ${o} does each child get?`,
+        hint:`${tot} ÷ ${g}`,ns:`${tot} ÷ ${g} = ${n}`,a:`${n} ${o} each`};},
+      ()=>{const a=4*R(1,5),o=pick(OBJ);
+        return{q:`${pick(NM)} has ${a} ${o} and gives a quarter of them away. How many ${o} is that?`,
+        hint:'a quarter means ÷ 4',ns:`${a} ÷ 4 = ${a/4}`,a:`${a/4} ${o}`};},
+      ()=>{const n=10*R(2,8),more=Math.random()<.5;
+        return{q:`What is 10 ${more?'more':'less'} than ${n}?`,
+        hint:'the tens digit changes by 1',ns:`${n} ${more?'+':'−'} 10 = ${more?n+10:n-10}`,a:`${more?n+10:n-10}`};}
     ],
 
     /* ---------------- YEAR 2 ---------------- *
@@ -453,25 +536,64 @@
     2:[
       ()=>{const o=pick(OBJ),n=pick(NM),a=R(21,60),b=R(11,39);
         return{q:`${n} collects ${a} ${o} in the morning and ${b} more in the afternoon. How many ${o} did ${n} collect in total?`,
-        hint:'add the tens, then the ones',a:`${a+b} ${o}`};},
+        hint:'add the tens, then the ones',ns:`${a} + ${b} = ${a+b}`,a:`${a+b} ${o}`};},
       ()=>{const o=pick(OBJ),n=pick(NM),a=R(45,99),b=R(13,a-10);
         return{q:`There were ${a} ${o} in the tin. ${n} took out ${b}. How many ${o} are left?`,
-        hint:'subtract carefully',a:`${a-b} ${o}`};},
+        hint:'subtract carefully',ns:`${a} − ${b} = ${a-b}`,a:`${a-b} ${o}`};},
       ()=>{const step=pick([2,3,5,10]),n=R(3,8),[cp,cs]=pick(CON),o=pick(OBJ);
         return{q:`A shop has ${n} ${cp} of ${o}. Each ${cs} holds ${step} ${o}. How many ${o} in total?`,
-        hint:`${step} × ${n}`,a:`${step*n} ${o}`};},
+        hint:`${step} × ${n}`,ns:`${step} × ${n} = ${step*n}`,a:`${step*n} ${o}`};},
       ()=>{const step=pick([2,5,10]),n=R(2,6),tot=step*n,o=pick(OBJ);
         return{q:`${tot} ${o} are shared equally between ${step} children. How many ${o} does each child get?`,
-        hint:`${tot} ÷ ${step}`,a:`${n} ${o} each`};},
+        hint:`${tot} ÷ ${step}`,ns:`${tot} ÷ ${step} = ${n}`,a:`${n} ${o} each`};},
       ()=>{const cost=R(15,95),n=pick(NM),it=pick(['rubber','pencil','sticker','badge','apple','toy car']);
         return{q:`A ${it} costs ${cost}p. ${n} pays with a £1 coin. How much change should ${n} get?`,
-        hint:'change from 100p',a:`${100-cost}p`};},
+        hint:'change from 100p',ns:`100p − ${cost}p = ${100-cost}p`,a:`${100-cost}p`};},
       ()=>{const fr=pick([[1,2],[1,4],[1,3]]),[nu,de]=fr,amt=de*R(2,8),o=pick(OBJ);
         return{q:`${pick(NM)} has ${amt} ${o} and gives ${nu}/${de} of them away. How many ${o} is that?`,
-        hint:`first find 1/${de} of ${amt}`,a:`${amt/de*nu} ${o}`};},
+        hint:`first find 1/${de} of ${amt}`,ns:`${amt} ÷ ${de} = ${amt/de}`,a:`${amt/de*nu} ${o}`};},
       ()=>{const a=R(12,40),tot=a+R(10,40);
         return{q:`${pick(NM)} has ${a} stickers and wants ${tot} altogether. How many more stickers do they need?`,
-        hint:`${a} + ___ = ${tot}`,a:`${tot-a} more`};}
+        hint:`${a} + ___ = ${tot}`,ns:`${tot} − ${a} = ${tot-a}`,a:`${tot-a} more`};},
+      ()=>{const t=R(2,9),o=R(1,9);
+        return{q:`A number has ${t} tens and ${o} ones. What is the number?`,
+        hint:'tens and ones',ns:`${t*10} + ${o} = ${t*10+o}`,a:`${t*10+o}`};},
+      ()=>{const a=R(10,30),b=R(5,20),c=R(5,20);
+        return{q:`${pick(NM)} reads ${a} pages on Monday, ${b} on Tuesday and ${c} on Wednesday. How many pages in total?`,
+        hint:'add them one at a time',ns:`${a} + ${b} + ${c} = ${a+b+c}`,a:`${a+b+c} pages`};},
+      ()=>{const a=R(11,40);
+        return{q:`${pick(NM)} scores ${a} points, then doubles their score. What is the new score?`,
+        hint:`double ${a}`,ns:`${a} + ${a} = ${2*a}`,a:`${2*a} points`};},
+      ()=>{const opts=[1,2,5,10,20,50],coins=[];let sum=0;const k=R(3,4);for(let i=0;i<k;i++){const c=pick(opts);coins.push(c);sum+=c;}
+        return{q:`${pick(NM)} has these coins: ${coins.map(c=>c+'p').join(', ')}. How much money is that altogether?`,
+        hint:'add the coins',ns:`${coins.join(' + ')} = ${sum}`,a:`${sum}p`};},
+      ()=>{const cost=R(10,45),n=pick(NM),it=pick(['lolly','sticker','pencil','badge']);
+        return{q:`A ${it} costs ${cost}p. ${n} pays with a 50p coin. How much change?`,
+        hint:'change from 50p',ns:`50p − ${cost}p = ${50-cost}p`,a:`${50-cost}p`};},
+      ()=>{const s=3*R(1,4);
+        return{q:`Carry on the pattern:  ${s},  ${s+3},  ${s+6},  ___ ?`,
+        hint:'count in 3s',ns:`${s+6} + 3 = ${s+9}`,a:`${s+9}`};},
+      ()=>{const r=R(2,6),c=R(2,6);
+        return{q:`A tray has ${r} rows of ${c} cakes. How many cakes are there in total?`,
+        hint:`${r} × ${c}`,ns:`${r} × ${c} = ${r*c}`,a:`${r*c} cakes`};},
+      ()=>{let a=R(20,99),b=R(20,99);if(a===b)b++;
+        return{q:`Which number is greater: ${a} or ${b}?`,
+        hint:'compare the tens first',ns:`${Math.max(a,b)} > ${Math.min(a,b)}`,a:`${Math.max(a,b)}`};},
+      ()=>{const amt=4*R(2,8),o=pick(OBJ);
+        return{q:`${pick(NM)} has ${amt} ${o} and eats 3/4 of them. How many ${o} did they eat?`,
+        hint:'÷ 4 then × 3',ns:`${amt} ÷ 4 × 3 = ${amt/4*3}`,a:`${amt/4*3} ${o}`};},
+      ()=>{const n=R(20,89),more=Math.random()<.5;
+        return{q:`What is 10 ${more?'more':'less'} than ${n}?`,
+        hint:'the tens digit changes',ns:`${n} ${more?'+':'−'} 10 = ${more?n+10:n-10}`,a:`${more?n+10:n-10}`};},
+      ()=>{const a=R(30,90),b=R(10,a-10);
+        return{q:`A ribbon is ${a} cm long. ${pick(NM)} cuts off ${b} cm. How much ribbon is left?`,
+        hint:'subtract',ns:`${a} − ${b} = ${a-b}`,a:`${a-b} cm`};},
+      ()=>{const H=R(1,11),M=pick([0,30]),add=pick([15,30,45,60]);
+        return{q:`It is ${clockStr(H,M)}. What time will it be in ${add} minutes?`,
+        hint:'count on the minutes',ns:`${clockStr(H,M)} + ${add} min = ${addMins(H,M,add)}`,a:`${addMins(H,M,add)}`};},
+      ()=>{const a=R(20,60),b=R(20,60);
+        return{q:`One jug holds ${a} ml and another holds ${b} ml. How much do they hold altogether?`,
+        hint:'add the amounts',ns:`${a} + ${b} = ${a+b}`,a:`${a+b} ml`};}
     ],
 
     /* ---------------- YEAR 3 ---------------- *
@@ -481,28 +603,64 @@
     3:[
       ()=>{const o=pick(OBJ),a=R(120,640),b=R(110,330);
         return{q:`A library has ${a} ${o} on one shelf and ${b} on another. How many ${o} are there altogether?`,
-        hint:'column addition',a:`${a+b} ${o}`};},
+        hint:'column addition',ns:`${a} + ${b} = ${a+b}`,a:`${a+b} ${o}`};},
       ()=>{const o=pick(OBJ),a=R(420,980),b=R(120,a-100);
         return{q:`There were ${a} ${o} in a warehouse and ${b} were sold. How many ${o} are left?`,
-        hint:'column subtraction',a:`${a-b} ${o}`};},
+        hint:'column subtraction',ns:`${a} − ${b} = ${a-b}`,a:`${a-b} ${o}`};},
       ()=>{const step=pick([3,4,6,8]),n=R(4,9),[cp,cs]=pick(CON),o=pick(OBJ);
         return{q:`${n} ${cp} each hold ${step} ${o}. How many ${o} altogether?`,
-        hint:`${step} × ${n}`,a:`${step*n} ${o}`};},
+        hint:`${step} × ${n}`,ns:`${step} × ${n} = ${step*n}`,a:`${step*n} ${o}`};},
       ()=>{const d=R(3,6),qn=R(8,16),rem=R(1,d-1),tot=d*qn+rem,o=pick(OBJ);
         return{q:`${tot} ${o} are shared equally between ${d} children. How many does each get, and how many are left over?`,
-        hint:`${tot} ÷ ${d}`,a:`${qn} each, ${rem} left over`};},
+        hint:`${tot} ÷ ${d}`,ns:`${tot} ÷ ${d} = ${qn} r ${rem}`,a:`${qn} each, ${rem} left over`};},
       ()=>{const cost=R(120,460),pay=pick([500,1000]),n=pick(NM),it=pick(['book','toy','game','plant','mug','cap']);
         return{q:`${n} buys a ${it} for ${gbp(cost)} and pays with a ${gbp(pay)} note. How much change do they get?`,
-        hint:`${gbp(pay)} − ${gbp(cost)}`,a:`${gbp(pay-cost)}`};},
+        hint:`${gbp(pay)} − ${gbp(cost)}`,ns:`${gbp(pay)} − ${gbp(cost)} = ${gbp(pay-cost)}`,a:`${gbp(pay-cost)}`};},
       ()=>{const fr=pick([[1,3],[1,4],[1,5],[2,3],[3,4],[2,5]]),[nu,de]=fr,amt=de*R(3,9),o=pick(OBJ);
         return{q:`A class of ${pick(NM)}'s friends shared ${amt} ${o}. They ate ${nu}/${de} of them. How many ${o} did they eat?`,
-        hint:`${amt} ÷ ${de} × ${nu}`,a:`${amt/de*nu} ${o}`};},
+        hint:`${amt} ÷ ${de} × ${nu}`,ns:`${amt} ÷ ${de} × ${nu} = ${amt/de*nu}`,a:`${amt/de*nu} ${o}`};},
       ()=>{const m=R(1,4),cm=R(1,99),tot=m*100+cm;
         return{q:`A rope is ${m} m and ${cm} cm long. How long is it in centimetres?`,
-        hint:'1 m = 100 cm',a:`${tot} cm`};},
+        hint:'1 m = 100 cm',ns:`${m} × 100 + ${cm} = ${tot}`,a:`${tot} cm`};},
       ()=>{const H=R(9,11),M=pick([0,15,30,45]),dur=pick([20,25,30,40,45,50]);
         return{q:`Assembly starts at ${clockStr(H,M)} and lasts ${dur} minutes. What time does it finish?`,
-        hint:'count on the minutes',a:`${addMins(H,M,dur)}`};}
+        hint:'count on the minutes',ns:`${clockStr(H,M)} + ${dur} min = ${addMins(H,M,dur)}`,a:`${addMins(H,M,dur)}`};},
+      ()=>{const h=R(1,9),t=R(0,9),o=R(0,9),v=h*100+t*10+o;
+        return{q:`A number has ${h} hundreds, ${t} tens and ${o} ones. What is the number?`,
+        hint:'hundreds, tens, ones',ns:`${h*100} + ${t*10} + ${o} = ${v}`,a:`${v}`};},
+      ()=>{const de=pick([5,6,7,8,9,10]),x=R(1,de-2),y=R(1,de-1-x);
+        return{q:`${pick(NM)} eats ${x}/${de} of a pie and ${pick(NM)} eats ${y}/${de}. How much of the pie did they eat altogether?`,
+        hint:'same denominator — add the tops',ns:`${x}/${de} + ${y}/${de} = ${x+y}/${de}`,a:`${x+y}/${de}`};},
+      ()=>{const de=pick([5,6,7,8,9,10]),a=R(2,de-1),b=R(1,a-1);
+        return{q:`There is ${a}/${de} of a cake left. ${pick(NM)} eats ${b}/${de} of the whole cake. How much cake is now left?`,
+        hint:'subtract the tops',ns:`${a}/${de} − ${b}/${de} = ${a-b}/${de}`,a:`${a-b}/${de}`};},
+      ()=>{const amt=10*R(2,9),o=pick(OBJ);
+        return{q:`${pick(NM)} has ${amt} ${o} and gives one tenth of them away. How many is that?`,
+        hint:'÷ 10',ns:`${amt} ÷ 10 = ${amt/10}`,a:`${amt/10} ${o}`};},
+      ()=>{const a=R(13,29),b=pick([3,4,6,8]),o=pick(OBJ);
+        return{q:`Each box holds ${a} ${o}. How many ${o} are in ${b} boxes?`,
+        hint:`${a} × ${b}`,ns:`${a} × ${b} = ${a*b}`,a:`${a*b} ${o}`};},
+      ()=>{const l=R(5,15),w=R(3,12);
+        return{q:`A rectangle is ${l} cm long and ${w} cm wide. What is its perimeter?`,
+        hint:'add all four sides',ns:`2 × (${l} + ${w}) = ${2*(l+w)}`,a:`${2*(l+w)} cm`};},
+      ()=>{const a=R(150,600),b=R(150,600);
+        return{q:`A bag of flour weighs ${a} g and a bag of sugar weighs ${b} g. What is their total mass?`,
+        hint:'add the masses',ns:`${a} + ${b} = ${a+b}`,a:`${a+b} g`};},
+      ()=>{const cap=pick([100,200,250,500]);
+        return{q:`A bottle holds ${cap} ml. How many bottles are needed to fill a 1 litre (1000 ml) jug?`,
+        hint:`1000 ÷ ${cap}`,ns:`1000 ÷ ${cap} = ${1000/cap}`,a:`${1000/cap} bottles`};},
+      ()=>{const p=R(110,330),n=R(2,5);
+        return{q:`${pick(NM)} buys ${n} pens that cost ${gbp(p)} each. How much do they spend?`,
+        hint:`${gbp(p)} × ${n}`,ns:`${gbp(p)} × ${n} = ${gbp(p*n)}`,a:`${gbp(p*n)}`};},
+      ()=>{let arr=[];while(arr.length<3){const v=R(105,499);if(!arr.includes(v))arr.push(v);}const mx=Math.max(...arr);
+        return{q:`Which is the largest number: ${arr.join(', ')}?`,
+        hint:'compare the hundreds first',ns:`largest = ${mx}`,a:`${mx}`};},
+      ()=>{const per=pick([2,5,10]),stars=R(3,7);
+        return{q:`On a pictogram, each ★ stands for ${per} books. ${pick(NM)} has ${stars} stars. How many books is that?`,
+        hint:`${stars} × ${per}`,ns:`${stars} × ${per} = ${stars*per}`,a:`${stars*per} books`};},
+      ()=>{const H=R(9,11),M=pick([0,15,30,45]),dur=pick([15,30,45,60,75]);let t=H*60+M+dur;const EH=Math.floor(t/60),EM=t%60;
+        return{q:`A lesson starts at ${clockStr(H,M)} and ends at ${clockStr(EH,EM)}. How many minutes long is it?`,
+        hint:'count on from the start',ns:`${clockStr(EH,EM)} − ${clockStr(H,M)} = ${dur} min`,a:`${dur} minutes`};}
     ],
 
     /* ---------------- YEAR 4 ---------------- *
@@ -513,27 +671,66 @@
     4:[
       ()=>{const o=pick(OBJ),a=R(1200,4800),b=R(900,3200);
         return{q:`A stadium sold ${a} ${o} on Saturday and ${b} on Sunday. How many ${o} were sold in total?`,
-        hint:'line up the columns',a:`${a+b} ${o}`};},
+        hint:'line up the columns',ns:`${a} + ${b} = ${a+b}`,a:`${a+b} ${o}`};},
       ()=>{const a=R(132,899),b=R(3,9),o=pick(OBJ);
         return{q:`A factory makes ${a} ${o} every day. How many ${o} does it make in ${b} days?`,
-        hint:`${a} × ${b}`,a:`${a*b} ${o}`};},
+        hint:`${a} × ${b}`,ns:`${a} × ${b} = ${a*b}`,a:`${a*b} ${o}`};},
       ()=>{const d=R(3,8),qn=R(15,60),rem=R(1,d-1),tot=d*qn+rem,[cp,cs]=pick(CON),o=pick(OBJ);
         return{q:`${tot} ${o} are packed into ${cp} of ${d}. How many full ${cp}, and how many ${o} left over?`,
-        hint:`${tot} ÷ ${d}`,a:`${qn} full ${cp}, ${rem} left over`};},
+        hint:`${tot} ÷ ${d}`,ns:`${tot} ÷ ${d} = ${qn} r ${rem}`,a:`${qn} full ${cp}, ${rem} left over`};},
       ()=>{const de=pick([5,6,8,10]),x=R(1,de-2),y=R(1,de-1-x);
         return{q:`${pick(NM)} ate ${x}/${de} of a pizza and ${name2('')||pick(NM)} ate ${y}/${de}. What fraction of the pizza did they eat altogether?`,
-        hint:'same denominator — add the tops',a:`${x+y}/${de}`};},
+        hint:'same denominator — add the tops',ns:`${x}/${de} + ${y}/${de} = ${x+y}/${de}`,a:`${x+y}/${de}`};},
       ()=>{const l=R(5,14),w=R(3,9),mode=pick(['area','perimeter']);
         if(mode==='area')return{q:`A garden is ${l} m long and ${w} m wide. What is its area?`,
-          hint:'length × width',a:`${l*w} m²`};
+          hint:'length × width',ns:`${l} × ${w} = ${l*w}`,a:`${l*w} m²`};
         return{q:`A garden is ${l} m long and ${w} m wide. What is its perimeter?`,
-          hint:'add all four sides',a:`${2*(l+w)} m`};},
+          hint:'add all four sides',ns:`2 × (${l} + ${w}) = ${2*(l+w)}`,a:`${2*(l+w)} m`};},
       ()=>{const p=R(125,985),n=pick(NM),it=pick(['notebook','torch','plant','frisbee','kite','mug']);
         return{q:`${n} buys 2 of the same ${it}, each costing ${gbp(p)}. How much do they spend in total?`,
-        hint:`${gbp(p)} × 2`,a:`${gbp(p*2)}`};},
+        hint:`${gbp(p)} × 2`,ns:`${gbp(p)} × 2 = ${gbp(p*2)}`,a:`${gbp(p*2)}`};},
       ()=>{const min=R(2,9),sec=min*60;
         return{q:`A song lasts ${min} minutes. How many seconds is that?`,
-        hint:'1 minute = 60 seconds',a:`${sec} seconds`};}
+        hint:'1 minute = 60 seconds',ns:`${min} × 60 = ${sec}`,a:`${sec} seconds`};},
+      ()=>{const a=R(4200,9800),b=R(1200,a-1000),o=pick(OBJ);
+        return{q:`A shop had ${a} ${o} and sold ${b} of them. How many ${o} are left?`,
+        hint:'column subtraction',ns:`${a} − ${b} = ${a-b}`,a:`${a-b} ${o}`};},
+      ()=>{const th=R(1,9),h=R(0,9),t=R(0,9),o=R(0,9),v=th*1000+h*100+t*10+o;
+        return{q:`A number has ${th} thousands, ${h} hundreds, ${t} tens and ${o} ones. What is the number?`,
+        hint:'thousands, hundreds, tens, ones',ns:`${th*1000} + ${h*100} + ${t*10} + ${o} = ${v}`,a:`${v.toLocaleString()}`};},
+      ()=>{const start=R(1,6),drop=R(start+1,start+9);
+        return{q:`The temperature is ${start}°C. It falls by ${drop}°C overnight. What is the new temperature?`,
+        hint:'count back through zero',ns:`${start} − ${drop} = ${start-drop}`,a:`${start-drop}°C`};},
+      ()=>{const n=pick([4,6,9,11,14,16,19,24,29,34,40,44,49]);
+        return{q:`Write the number ${n} using Roman numerals.`,
+        hint:'I, V, X, L …',ns:`${n} = ${toRoman(n)}`,a:`${toRoman(n)}`};},
+      ()=>{const a=R(12,99),m=pick([10,100]),o=pick(OBJ);
+        return{q:`A box holds ${a} ${o}. How many are in ${m} boxes?`,
+        hint:`× ${m}`,ns:`${a} × ${m} = ${a*m}`,a:`${(a*m).toLocaleString()}`};},
+      ()=>{const a=R(10,90)/10,b=R(10,90)/10,s=Math.round((a+b)*10)/10;
+        return{q:`${pick(NM)} runs ${a.toFixed(1)} km then ${b.toFixed(1)} km. How far in total?`,
+        hint:'add the decimals',ns:`${a.toFixed(1)} + ${b.toFixed(1)} = ${s.toFixed(1)}`,a:`${s.toFixed(1)} km`};},
+      ()=>{const d=R(3,6),qn=R(20,99),tot=d*qn,o=pick(OBJ);
+        return{q:`${tot} ${o} are shared equally between ${d} groups. How many ${o} in each group?`,
+        hint:`${tot} ÷ ${d}`,ns:`${tot} ÷ ${d} = ${qn}`,a:`${qn} ${o}`};},
+      ()=>{const de=pick([3,4,5,6]),nu=R(2,de-1),amt=de*R(4,12),o=pick(OBJ);
+        return{q:`There are ${amt} ${o} in a jar. ${nu}/${de} of them are red. How many are red?`,
+        hint:`÷ ${de} then × ${nu}`,ns:`${amt} ÷ ${de} × ${nu} = ${amt/de*nu}`,a:`${amt/de*nu} ${o}`};},
+      ()=>{const cost=R(245,1850),pay=cost<1000?1000:2000,n=pick(NM);
+        return{q:`${n} spends ${gbp(cost)} and pays with a ${gbp(pay)} note. How much change do they get?`,
+        hint:`${gbp(pay)} − ${gbp(cost)}`,ns:`${gbp(pay)} − ${gbp(cost)} = ${gbp(pay-cost)}`,a:`${gbp(pay-cost)}`};},
+      ()=>{const s=R(4,12);
+        return{q:`A square tile has sides of ${s} cm. What is the area of the tile?`,
+        hint:'side × side',ns:`${s} × ${s} = ${s*s}`,a:`${s*s} cm²`};},
+      ()=>{const b=pick([3,4,6,7,8,9]),q1=R(3,9),tot=b*q1;
+        return{q:`How many ${b}s are there in ${tot}?`,
+        hint:`${tot} ÷ ${b}`,ns:`${tot} ÷ ${b} = ${q1}`,a:`${q1}`};},
+      ()=>{const h=R(2,6),m=h*60;
+        return{q:`A film lasts ${h} hours. How many minutes is that?`,
+        hint:'1 hour = 60 minutes',ns:`${h} × 60 = ${m}`,a:`${m} minutes`};},
+      ()=>{const a=R(8,20),b=R(8,20),c=R(8,20);
+        return{q:`A bar chart shows ${a} books read in week 1, ${b} in week 2 and ${c} in week 3. How many books in total?`,
+        hint:'add the bars',ns:`${a} + ${b} + ${c} = ${a+b+c}`,a:`${a+b+c} books`};}
     ],
 
     /* ---------------- YEAR 5 ---------------- *
@@ -543,30 +740,65 @@
     5:[
       ()=>{const a=R(1100,4800),b=R(11,29),o=pick(OBJ);
         return{q:`A printer makes ${a} ${o} each hour. How many ${o} does it make in ${b} hours?`,
-        hint:'long multiplication',a:`${a*b} ${o}`};},
+        hint:'long multiplication',ns:`${a} × ${b} = ${(a*b).toLocaleString()}`,a:`${(a*b).toLocaleString()} ${o}`};},
       ()=>{const d=R(3,9),qn=R(120,900),rem=R(1,d-1),tot=d*qn+rem,o=pick(OBJ);
         return{q:`${tot} ${o} are shared equally into ${d} groups. How many in each group, and how many left over?`,
-        hint:`${tot} ÷ ${d}`,a:`${qn} each, remainder ${rem}`};},
-      ()=>{const pct=pick([10,20,25,50,75]);let tot;do{tot=10*R(4,60);}while((tot*pct)%100!==0);
-        const val=tot*pct/100,it=pick(SHOP);
+        hint:`${tot} ÷ ${d}`,ns:`${tot} ÷ ${d} = ${qn} r ${rem}`,a:`${qn} each, remainder ${rem}`};},
+      ()=>{const pct=pick([10,20,25,50,75]);let tot;do{tot=10*R(4,60);}while((tot*pct)%100!==0);const val=tot*pct/100,it=pick(SHOP);
         return{q:`A ${it} costs £${tot}. In a sale it is reduced by ${pct}%. How much money do you save?`,
-        hint:`find ${pct}% of £${tot}`,a:`£${val}`};},
+        hint:`find ${pct}% of £${tot}`,ns:`${pct}% of £${tot} = £${val}`,a:`£${val}`};},
       ()=>{const start=R(2,9),drop=R(start+2,start+12);
         return{q:`At noon it was ${start}°C. By midnight the temperature had fallen by ${drop}°C. What was the temperature at midnight?`,
-        hint:'count down past zero',a:`${start-drop}°C`};},
+        hint:'count down past zero',ns:`${start} − ${drop} = ${start-drop}`,a:`${start-drop}°C`};},
       ()=>{const a=R(2,9),b=R(2,9),c=R(2,9);
         return{q:`A box measures ${a} cm × ${b} cm × ${c} cm. What is its volume?`,
-        hint:'length × width × height',a:`${a*b*c} cm³`};},
+        hint:'length × width × height',ns:`${a} × ${b} × ${c} = ${a*b*c}`,a:`${a*b*c} cm³`};},
       ()=>{const fr=pick([[2,5],[3,4],[3,8],[5,6],[2,3]]),[nu,de]=fr,amt=de*R(6,18),o=pick(OBJ);
         return{q:`There are ${amt} ${o} in a box. ${nu}/${de} of them are red. How many ${o} are red?`,
-        hint:`${amt} ÷ ${de} × ${nu}`,a:`${amt/de*nu} ${o}`};},
-      ()=>{const n=R(12000,889000),to=pick([1000,10000]);
-        const r=Math.round(n/to)*to;
+        hint:`${amt} ÷ ${de} × ${nu}`,ns:`${amt} ÷ ${de} × ${nu} = ${amt/de*nu}`,a:`${amt/de*nu} ${o}`};},
+      ()=>{const n=R(12000,889000),to=pick([1000,10000]),r=Math.round(n/to)*to;
         return{q:`A festival had ${n.toLocaleString()} visitors. Round this to the nearest ${to.toLocaleString()}.`,
-        hint:`look at the ${to===1000?'hundreds':'thousands'} digit`,a:`${r.toLocaleString()}`};},
+        hint:`look at the ${to===1000?'hundreds':'thousands'} digit`,ns:`${n.toLocaleString()} ≈ ${r.toLocaleString()}`,a:`${r.toLocaleString()}`};},
       ()=>{const p=R(245,985),n=pick(NM);
         return{q:`${n} buys 3 cinema tickets at ${gbp(p)} each and pays with a £20 note. How much change do they get?`,
-        hint:`${gbp(p)} × 3, then £20 −`,a:`${gbp(2000-p*3)}`};}
+        hint:`${gbp(p)} × 3, then £20 −`,ns:`£20 − (${gbp(p)} × 3) = ${gbp(2000-p*3)}`,a:`${gbp(2000-p*3)}`};},
+      ()=>{const a=R(120000,640000),b=R(80000,320000),o=pick(OBJ);
+        return{q:`A city recycled ${a.toLocaleString()} ${o} last year and ${b.toLocaleString()} more this year. How many ${o} in total?`,
+        hint:'column addition',ns:`${a.toLocaleString()} + ${b.toLocaleString()} = ${(a+b).toLocaleString()}`,a:`${(a+b).toLocaleString()} ${o}`};},
+      ()=>{const a=R(420000,980000),b=R(120000,a-100000);
+        return{q:`A stadium can hold ${a.toLocaleString()} fans. ${b.toLocaleString()} tickets have been sold. How many seats are left?`,
+        hint:'column subtraction',ns:`${a.toLocaleString()} − ${b.toLocaleString()} = ${(a-b).toLocaleString()}`,a:`${(a-b).toLocaleString()} seats`};},
+      ()=>{const a=R(12,99),m=pick([10,100,1000]),o=pick(OBJ);
+        return{q:`A crate holds ${a} ${o}. How many ${o} are in ${m} crates?`,
+        hint:'shift the digits',ns:`${a} × ${m} = ${(a*m).toLocaleString()}`,a:`${(a*m).toLocaleString()} ${o}`};},
+      ()=>{const a=R(4,12);
+        return{q:`A square garden has sides of ${a} m. What is its area (${a} squared)?`,
+        hint:`${a} × ${a}`,ns:`${a}² = ${a} × ${a} = ${a*a}`,a:`${a*a} m²`};},
+      ()=>{const a=R(2,6);
+        return{q:`A cube has edges of ${a} cm. What is its volume (${a} cubed)?`,
+        hint:`${a} × ${a} × ${a}`,ns:`${a}³ = ${a} × ${a} × ${a} = ${a*a*a}`,a:`${a*a*a} cm³`};},
+      ()=>{let a,b;do{a=R(8,40);b=R(8,40);}while(gcd(a,b)<3||a===b);const g=gcd(a,b);
+        return{q:`What is the highest common factor of ${a} and ${b}?`,
+        hint:'the biggest number that divides both',ns:`HCF(${a}, ${b}) = ${g}`,a:`${g}`};},
+      ()=>{const pct=pick([10,20,25,50]);let tot;do{tot=10*R(4,40);}while((tot*pct)%100!==0);const val=tot*pct/100,it=pick(SHOP);
+        return{q:`A ${it} costs £${tot}. It is reduced by ${pct}% in a sale. What is the new price?`,
+        hint:`take ${pct}% off £${tot}`,ns:`£${tot} − £${val} = £${tot-val}`,a:`£${tot-val}`};},
+      ()=>{const pairs=[[1,2,1,4],[1,2,1,8],[1,4,1,8],[1,3,1,6],[2,3,1,6],[1,2,1,6],[3,4,1,8]];
+        const [n1,d1,n2,d2]=pick(pairs),L=d1>d2?d1:d2,sn=n1*(L/d1)+n2*(L/d2);
+        return{q:`${pick(NM)} eats ${n1}/${d1} of a bar and ${n2}/${d2} more. How much of the bar is that?`,
+        hint:'use a common denominator',ns:`${n1}/${d1} + ${n2}/${d2} = ${fracStr(sn,L)}`,a:`${fracStr(sn,L)}`};},
+      ()=>{const a=R(120,680)/100,b=R(120,680)/100,s=Math.round((a+b)*100)/100;
+        return{q:`${pick(NM)} buys items costing £${a.toFixed(2)} and £${b.toFixed(2)}. What is the total?`,
+        hint:'line up the decimal points',ns:`£${a.toFixed(2)} + £${b.toFixed(2)} = £${s.toFixed(2)}`,a:`£${s.toFixed(2)}`};},
+      ()=>{const l=R(11,25),w=R(6,15);
+        return{q:`A hall floor is ${l} m long and ${w} m wide. What is its area?`,
+        hint:'length × width',ns:`${l} × ${w} = ${l*w}`,a:`${l*w} m²`};},
+      ()=>{const kg=R(2,9),half=Math.random()<.5?0.5:0,total=kg+half,g=total*1000;
+        return{q:`A parcel weighs ${total} kg. How many grams is that?`,
+        hint:'1 kg = 1000 g',ns:`${total} × 1000 = ${g.toLocaleString()}`,a:`${g.toLocaleString()} g`};},
+      ()=>{const H=R(8,16),M=pick([0,5,10,15,20,25,30,40,45,50]),dur=pick([35,40,50,55,70,80,95]);let t=H*60+M+dur;const EH=Math.floor(t/60)%24,EM=t%60;
+        return{q:`A train leaves at ${clockStr(H,M)} and the journey takes ${dur} minutes. What time does it arrive?`,
+        hint:'add the minutes, bridge the hour',ns:`${clockStr(H,M)} + ${dur} min = ${clockStr(EH,EM)}`,a:`${clockStr(EH,EM)}`};}
     ],
 
     /* ---------------- YEAR 6 ---------------- *
@@ -578,30 +810,30 @@
     6:[
       ()=>{const a=R(1124,8975),b=R(12,39),o=pick(OBJ);
         return{q:`A warehouse holds ${b} pallets and each pallet has ${a} ${o}. How many ${o} are there altogether?`,
-        hint:'long multiplication',a:`${(a*b).toLocaleString()} ${o}`};},
+        hint:'long multiplication',ns:`${a} × ${b} = ${(a*b).toLocaleString()}`,a:`${(a*b).toLocaleString()} ${o}`};},
       ()=>{const d=R(13,28),qn=R(40,260),rem=R(0,d-1),tot=d*qn+rem;
         return{q:`${tot.toLocaleString()} eggs are packed into boxes of ${d}. How many full boxes are filled, and how many eggs are left over?`,
-        hint:`${tot} ÷ ${d}`,a:`${qn} full boxes, ${rem} left over`};},
+        hint:`${tot} ÷ ${d}`,ns:`${tot.toLocaleString()} ÷ ${d} = ${qn} r ${rem}`,a:`${qn} full boxes, ${rem} left over`};},
       ()=>{const r1=pick([2,3,4,5]);let r2;do{r2=pick([2,3,4,5]);}while(r2===r1);
         const parts=r1+r2,mult=R(3,12),tot=parts*mult;
         return{q:`Blue and yellow paint are mixed in the ratio ${r1}:${r2}. There are ${tot} litres in total. How many litres are yellow?`,
-        hint:`${parts} equal parts; each part = ${tot} ÷ ${parts}`,a:`${r2*mult} litres yellow`};},
+        hint:`${parts} equal parts; each part = ${tot} ÷ ${parts}`,ns:`${tot} ÷ ${parts} × ${r2} = ${r2*mult}`,a:`${r2*mult} litres yellow`};},
       ()=>{const it=pick(SHOP);let orig,pct,disc;
         do{orig=10*R(4,40);pct=pick([10,15,20,25,30,50]);disc=orig*pct/100;}while(!Number.isInteger(disc));
         return{q:`A ${it} costs £${orig}. In a sale it is reduced by ${pct}%. What is the new price?`,
-        hint:`find ${pct}% of £${orig}, then subtract`,a:`£${orig-disc}`};},
+        hint:`find ${pct}% of £${orig}, then subtract`,ns:`£${orig} − (${pct}% × £${orig}) = £${orig-disc}`,a:`£${orig-disc}`};},
       ()=>{const a=R(3,8),b=R(2,6),c=pick([2,3,4]);
         return{q:`Work out, using the correct order of operations:  ${a} + ${b} × ${c}`,
-        hint:'multiply before adding (BODMAS)',a:`${a+b*c}  (${b}×${c}=${b*c}, +${a})`};},
+        hint:'multiply before adding (BODMAS)',ns:`${a} + ${b} × ${c} = ${a} + ${b*c} = ${a+b*c}`,a:`${a+b*c}  (${b}×${c}=${b*c}, +${a})`};},
       ()=>{const base=2*R(3,9),h=R(4,12),area=base*h/2;
         return{q:`A triangular flag has a base of ${base} cm and a height of ${h} cm. What is its area?`,
-        hint:'½ × base × height',a:`${area} cm²`};},
+        hint:'½ × base × height',ns:`½ × ${base} × ${h} = ${area}`,a:`${area} cm²`};},
       ()=>{const base=R(5,15),h=R(4,12);
         return{q:`A parallelogram has a base of ${base} cm and a perpendicular height of ${h} cm. What is its area?`,
-        hint:'base × height',a:`${base*h} cm²`};},
+        hint:'base × height',ns:`${base} × ${h} = ${base*h}`,a:`${base*h} cm²`};},
       ()=>{const a=R(4,12),b=R(3,9),c=R(2,8);
         return{q:`A fish tank measures ${a} cm × ${b} cm × ${c} cm. What is its volume?`,
-        hint:'length × width × height',a:`${(a*b*c).toLocaleString()} cm³`};},
+        hint:'length × width × height',ns:`${a} × ${b} × ${c} = ${(a*b*c).toLocaleString()}`,a:`${(a*b*c).toLocaleString()} cm³`};},
       ()=>{const n=pick([4,5,6]);let vals=[],mean=null;
         for(let t=0;t<60;t++){let s=0;vals=[];
           for(let i=0;i<n-1;i++){const v=R(2,10);vals.push(v);s+=v;}
@@ -609,13 +841,41 @@
           if((s+last)%n===0){vals.push(last);mean=(s+last)/n;break;}}
         if(mean===null){const base=R(3,9);vals=Array(n).fill(base);mean=base;}
         return{q:`${pick(NM)} scored these goals across ${n} matches: ${vals.join(', ')}. What is the mean (average) number of goals?`,
-        hint:`add them all, then divide by ${n}`,a:`${mean} goals`};},
+        hint:`add them all, then divide by ${n}`,ns:`(${vals.join(' + ')}) ÷ ${n} = ${mean}`,a:`${mean} goals`};},
       ()=>{const sf=pick([3,4,5,10,20]),model=R(4,18),real=model*sf;
         return{q:`A model aeroplane is built to a scale of 1:${sf}. The model is ${model} cm long. How long is the real aeroplane?`,
-        hint:`real length = model × ${sf}`,a:`${(real).toLocaleString()} cm`};},
+        hint:`real length = model × ${sf}`,ns:`${model} × ${sf} = ${(real).toLocaleString()}`,a:`${(real).toLocaleString()} cm`};},
       ()=>{const de=pick([2,3,4,5,6]),ppl=pick([2,3,4]);
         return{q:`${pick(NM)} has 1/${de} of a cake left and shares it equally between ${ppl} people. What fraction of the whole cake does each person get?`,
-        hint:`1/${de} ÷ ${ppl}`,a:`1/${de*ppl}`};}
+        hint:`1/${de} ÷ ${ppl}`,ns:`1/${de} ÷ ${ppl} = 1/${de*ppl}`,a:`1/${de*ppl}`};},
+      ()=>{const d1=pick([2,3,4,5]),n1=R(1,d1-1),d2=pick([2,3,4,5]),n2=R(1,d2-1);
+        return{q:`Work out ${n1}/${d1} × ${n2}/${d2}, giving your answer in its simplest form.`,
+        hint:'multiply tops, multiply bottoms',ns:`${n1}/${d1} × ${n2}/${d2} = ${n1*n2}/${d1*d2} = ${fracStr(n1*n2,d1*d2)}`,a:`${fracStr(n1*n2,d1*d2)}`};},
+      ()=>{const de=pick([3,4,5,6,8]),nu=R(2,de-1),w=R(2,6),tot=nu*w;
+        return{q:`${pick(NM)} eats ${nu}/${de} of a pizza at each of ${w} parties. How many pizzas is that in total?`,
+        hint:`${w} × ${nu}/${de}`,ns:`${w} × ${nu}/${de} = ${tot}/${de} = ${fracStr(tot,de)}`,a:`${fracStr(tot,de)} pizzas`};},
+      ()=>{const ds=[[2,3],[2,5],[3,4],[3,5],[4,5],[2,6],[3,6]],[d1,d2]=pick(ds),n1=R(1,d1-1),n2=R(1,d2-1),L=d1*d2/gcd(d1,d2),sn=n1*(L/d1)+n2*(L/d2);
+        return{q:`Work out ${n1}/${d1} + ${n2}/${d2}, giving your answer in its simplest form.`,
+        hint:'find a common denominator first',ns:`${n1}/${d1} + ${n2}/${d2} = ${sn}/${L} = ${fracStr(sn,L)}`,a:`${fracStr(sn,L)}`};},
+      ()=>{const pct=pick([5,10,15,20,25,30,40,50,75]);let amt;do{amt=10*R(4,60);}while((amt*pct)%100!==0);const val=amt*pct/100;
+        return{q:`There are ${amt} children in a school. ${pct}% of them walk to school. How many children is that?`,
+        hint:`${pct}% of ${amt}`,ns:`${pct}% of ${amt} = ${val}`,a:`${val} children`};},
+      ()=>{const opt=pick([[0.5,'1/2',50],[0.25,'1/4',25],[0.75,'3/4',75],[0.1,'1/10',10],[0.2,'1/5',20],[0.3,'3/10',30],[0.4,'2/5',40]]),[dec,frac,pc]=opt,mode=pick(['dec','frac']);
+        if(mode==='dec')return{q:`Write the decimal ${dec} as a percentage.`,hint:'× 100',ns:`${dec} = ${pc}%`,a:`${pc}%`};
+        return{q:`Write the fraction ${frac} as a percentage.`,hint:'an equivalent fraction out of 100',ns:`${frac} = ${pc}%`,a:`${pc}%`};},
+      ()=>{const a=R(1,9),b=R(1,9);
+        return{q:`What is the difference in temperature between −${a}°C and ${b}°C?`,
+        hint:'count across zero',ns:`${b} − (−${a}) = ${a+b}`,a:`${a+b}°C`};},
+      ()=>{if(Math.random()<0.5){const a=R(2,9),b=R(2,9),c=R(5,20);
+          return{q:`Work out:  (${a} × ${b}) + ${c}`,hint:'brackets first',ns:`(${a} × ${b}) + ${c} = ${a*b} + ${c} = ${a*b+c}`,a:`${a*b+c}`};}
+        const c=pick([2,3,4]),q1=R(2,8),b=c*q1,a=R(q1+2,30);
+        return{q:`Work out:  ${a} − ${b} ÷ ${c}`,hint:'divide before subtracting',ns:`${a} − ${b} ÷ ${c} = ${a} − ${b/c} = ${a-b/c}`,a:`${a-b/c}`};},
+      ()=>{const w=R(4,12),l=R(5,15),area=w*l;
+        return{q:`A rectangle has an area of ${area} cm² and a width of ${w} cm. What is its length?`,
+        hint:'area ÷ width',ns:`${area} ÷ ${w} = ${l}`,a:`${l} cm`};},
+      ()=>{const k=R(3,12),m=pick([3,4,5,6]),prod=k*m;
+        return{q:`Solve for n:  ${m} × n = ${prod}`,
+        hint:`n = ${prod} ÷ ${m}`,ns:`n = ${prod} ÷ ${m} = ${k}`,a:`n = ${k}`};}
     ]
   };
 
@@ -630,10 +890,13 @@
   const cq=document.getElementById('cq'),
         chint=document.getElementById('chint'),
         ans=document.getElementById('ans'),
+        nsent=document.getElementById('nsent'),
+        revealbtn=document.getElementById('revealbtn'),
         cnum=document.getElementById('cnum'),
         card=document.querySelector('.challenge'),
         prevbtn=document.getElementById('prevbtn'),
         nextbtn=document.getElementById('nextbtn');
+  let revealStage=0;   // 0 = hidden · 1 = number sentence shown · 2 = answer shown
 
   function generate(y){
     const bank=GEN[y];
@@ -645,13 +908,22 @@
     const p=history[hi];
     cq.textContent=p.q;
     chint.textContent='// '+p.hint;
+    nsent.textContent=p.ns||'';
     ans.textContent=p.a;
-    if(!editing)ans.classList.remove('show');
-    cnum.textContent=`Year ${p.year} · #${hi+1}`;
+    setReveal(editing?2:0);
+    cnum.textContent=`#${hi+1}`;
     prevbtn.disabled=(hi<=0);
-    // highlight active year tab to match the displayed problem
-    [...document.querySelectorAll('#yeartabs button')].forEach(b=>b.classList.toggle('active',+b.dataset.y===p.year));
+    // highlight the active year in the settings picker (hidden from students)
+    [...document.querySelectorAll('#yearpick button')].forEach(b=>b.classList.toggle('active',+b.dataset.y===p.year));
   }
+  // Two-stage reveal: 1st click → number sentence, 2nd click → answer, 3rd → hide
+  function setReveal(stage){
+    revealStage=stage;
+    nsent.classList.toggle('show',stage>=1);
+    ans.classList.toggle('show',stage>=2);
+    revealbtn.textContent = stage===0?'Reveal number sentence' : (stage===1?'Reveal answer':'Hide');
+  }
+  function cycleReveal(){ setReveal((revealStage+1)%3); }
   function newProblem(){
     saveCurrentFields();
     history.push(generate(year));
@@ -674,16 +946,17 @@
     if(!editing||hi<0)return;
     history[hi].q=cq.textContent.trim();
     history[hi].hint=chint.textContent.replace(/^\/\/\s*/,'').trim();
+    history[hi].ns=nsent.textContent.trim();
     history[hi].a=ans.textContent.trim();
   }
   function toggleEdit(){
     editing=!editing;
     const b=document.getElementById('editbtn');
-    [cq,chint,ans].forEach(el=>el.setAttribute('contenteditable',editing));
+    [cq,chint,nsent,ans].forEach(el=>el.setAttribute('contenteditable',editing));
     card.classList.toggle('editing',editing);
     b.classList.toggle('on',editing);
     b.textContent=editing?'✓ Done':'✎ Edit';
-    if(editing){ans.classList.add('show');cq.focus();}
+    if(editing){setReveal(2);cq.focus();}
     else{saveCurrentFields();paint();}
   }
 
@@ -694,7 +967,18 @@
      Editable "This Morning" steps
   ========================================================= */
   const stepsEl=document.getElementById('steps');
-  let stepsData=load('mm_steps',null)||[...stepsEl.querySelectorAll('li')].map(li=>li.innerHTML);
+  const STEPS_VERSION=2;   // bump this whenever the default routine below changes
+  const DEFAULT_STEPS=[...stepsEl.querySelectorAll('li')].map(li=>li.innerHTML);
+  let stepsData;
+  if(load('mm_steps_v',0)===STEPS_VERSION){
+    // same routine version as last time → respect any edits the teacher saved
+    stepsData=load('mm_steps',null)||DEFAULT_STEPS;
+  }else{
+    // a new default routine has been shipped → show it and clear stale saved steps
+    stepsData=DEFAULT_STEPS;
+    save('mm_steps_v',STEPS_VERSION);
+    try{localStorage.removeItem('mm_steps');}catch(e){}
+  }
   let editingSteps=false;
   function renderSteps(){
     stepsEl.innerHTML='';
@@ -750,11 +1034,41 @@
 
   function fs(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
 
-  /* keyboard: space = start/pause · N = new problem (ignored while editing text) */
+  /* =========================================================
+     Text size (applies to morning steps + challenge problems)
+  ========================================================= */
+  let txt=load('mm_txt',1);
+  function applyText(){
+    txt=Math.max(0.8,Math.min(1.8,Math.round(txt*100)/100));
+    document.documentElement.style.setProperty('--txt',txt);
+    const el=document.getElementById('txtnow');if(el)el.textContent=Math.round(txt*100)+'%';
+    save('mm_txt',txt);
+  }
+  function bumpText(dir){txt+=dir*0.1;applyText();}
+  applyText();
+
+  /* =========================================================
+     Settings cog popover
+  ========================================================= */
+  const cogbtn=document.getElementById('cogbtn'),settings=document.getElementById('settings');
+  function toggleSettings(e){
+    if(e)e.stopPropagation();
+    const open=settings.classList.toggle('open');
+    cogbtn.classList.toggle('open',open);
+  }
+  document.addEventListener('click',e=>{
+    if(settings.classList.contains('open')&&!settings.contains(e.target)&&!cogbtn.contains(e.target)){
+      settings.classList.remove('open');cogbtn.classList.remove('open');
+    }
+  });
+
+  /* keyboard: space = start/pause · N = new problem · R = reveal step (ignored while editing text) */
   document.addEventListener('keydown',e=>{
     const typing=/^(INPUT|TEXTAREA)$/.test(e.target.tagName)||e.target.getAttribute('contenteditable')==='true';
-    if(e.code==='Space'&&!typing){e.preventDefault();toggle();}
-    if((e.key==='n'||e.key==='N')&&!typing){e.preventDefault();newProblem();}
+    if(typing)return;
+    if(e.code==='Space'){e.preventDefault();toggle();}
+    if(e.key==='n'||e.key==='N'){e.preventDefault();newProblem();}
+    if(e.key==='r'||e.key==='R'){e.preventDefault();cycleReveal();}
   });
 </script>
 </body>
