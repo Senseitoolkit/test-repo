@@ -16,13 +16,12 @@
     --leaf:#5b7553;
     --rust:#c8643f;
     --sky:#a8c4c0;
-    --card:#fffdf6;       /* card surface */
-    --card-ink:#1a2b1f;   /* text on cards */
-    --chal:#a8c4c0;       /* challenge card surface */
-    --chal-ink:#152b22;   /* text on challenge card */
-    --chal-soft:#3a5247;  /* hints/secondary on challenge */
+    --card:#fffdf6;
+    --card-ink:#1a2b1f;
+    --chal:#a8c4c0;
+    --chal-ink:#152b22;
+    --chal-soft:#3a5247;
   }
-  /* Theme 2 — Midnight Focus (dark) */
   [data-theme="2"]{
     --ink:#e8e4d8;
     --paper:#161a23;
@@ -36,7 +35,6 @@
     --chal-ink:#f1eee4;
     --chal-soft:#9fb3cc;
   }
-  /* Theme 3 — Berry Pop (playful) */
   [data-theme="3"]{
     --ink:#3a1130;
     --paper:#fff0f3;
@@ -50,7 +48,6 @@
     --chal-ink:#ffffff;
     --chal-soft:#e6d9ff;
   }
-  /* Theme 4 — Ocean Calm (cool) */
   [data-theme="4"]{
     --ink:#0d2b34;
     --paper:#eef7f7;
@@ -64,7 +61,6 @@
     --chal-ink:#0d2b34;
     --chal-soft:#2d6b78;
   }
-  /* Theme 5 — Chalkboard (classroom) */
   [data-theme="5"]{
     --ink:#f5f3ec;
     --paper:#2b3a30;
@@ -79,15 +75,13 @@
     --chal-soft:#bcd4bf;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{height:100%}
+  html,body{height:100%;overflow:hidden}
   body{
     font-family:'Fraunces',serif;
     background:var(--paper);
     color:var(--ink);
-    overflow:hidden;
     position:relative;
   }
-  /* grain */
   body::after{
     content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.05;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -103,9 +97,10 @@
     position:relative;z-index:2;height:100vh;
     display:grid;grid-template-rows:auto 1fr auto;
     padding:3vh 4vw;gap:2vh;
+    overflow:hidden; /* belt-and-braces: nothing escapes the viewport */
   }
 
-  header{display:flex;justify-content:space-between;align-items:flex-start;}
+  header{display:flex;justify-content:space-between;align-items:flex-start;flex-shrink:0;}
   .greeting{font-size:clamp(2.4rem,6vw,5.2rem);line-height:.95;font-weight:600;letter-spacing:-.02em;}
   .greeting em{color:var(--rust);font-weight:500;}
   .datebox{text-align:right;}
@@ -113,24 +108,53 @@
   .date{font-family:'Space Mono',monospace;font-size:clamp(1.4rem,2.6vw,2rem);letter-spacing:.08em;color:var(--leaf);text-transform:uppercase;margin-top:.3em;}
   .clock{font-family:'Space Mono',monospace;font-size:clamp(2rem,4vw,3.4rem);font-weight:700;margin-top:.3em;line-height:1;}
 
-  .main{display:grid;grid-template-columns:1.15fr .85fr;gap:2vw;min-height:0;}
+  /* ── MAIN GRID: two cards side by side, filling all remaining height ── */
+  .main{
+    display:grid;grid-template-columns:1.15fr .85fr;gap:2vw;
+    min-height:0; /* critical: lets the row shrink and not overflow */
+    overflow:hidden;
+  }
+
+  /* ── CARD base: flex column, clips everything inside ── */
   .card{
     background:var(--card);color:var(--card-ink);border:2px solid var(--ink);border-radius:18px;
     padding:2.2vh 1.8vw;box-shadow:7px 7px 0 var(--ink);
-    display:flex;flex-direction:column;min-height:0;
+    display:flex;flex-direction:column;
+    min-height:0;      /* allows card itself to shrink within the grid row */
+    overflow:hidden;   /* ← KEY FIX: nothing can escape the card box */
   }
   .card h2{
     font-family:'Space Mono',monospace;font-size:clamp(.8rem,1.4vw,1rem);
     text-transform:uppercase;letter-spacing:.18em;color:var(--rust);margin-bottom:1vh;
     display:flex;align-items:center;gap:.5em;
+    flex-shrink:0; /* header never shrinks away */
   }
   .card h2::before{content:"";width:14px;height:14px;border-radius:50%;background:var(--sun);}
 
+  /* ── LEFT CARD (steps) ── */
   .left{justify-content:space-between;}
-  ol.steps{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:1.3vh;}
+
+  /* The inner wrapper that holds h2 + ol needs to shrink and scroll */
+  .left > div:first-child{
+    display:flex;flex-direction:column;
+    min-height:0;
+    flex:1 1 0;
+    overflow:hidden;
+  }
+
+  ol.steps{
+    list-style:none;counter-reset:s;
+    display:flex;flex-direction:column;gap:1.3vh;
+    /* ← KEY FIX: scrolls internally instead of bursting out */
+    overflow-y:auto;
+    min-height:0;
+    flex:1 1 0;
+    padding-right:.3em; /* room for scrollbar */
+  }
   ol.steps li{
     counter-increment:s;display:flex;gap:.8em;align-items:baseline;
     font-size:calc(clamp(1.05rem,2vw,1.7rem) * var(--txt,1));line-height:1.2;
+    flex-shrink:0; /* individual items don't squish — list scrolls instead */
   }
   ol.steps li::before{
     content:counter(s);font-family:'Space Mono',monospace;font-weight:700;
@@ -139,26 +163,41 @@
   }
   ol.steps li.done{opacity:.35;text-decoration:line-through;}
 
+  /* tip line at bottom of left card */
+  .left > p:last-of-type{
+    flex-shrink:0;
+    font-family:'Space Mono',monospace;font-size:.75rem;color:var(--leaf);margin-top:1vh;
+  }
+
+  /* ── CHALLENGE CARD ── */
   .challenge{background:var(--chal);color:var(--chal-ink);}
   .challenge h2{color:var(--rust);justify-content:flex-start;}
-  .challenge .q{font-size:calc(clamp(1.3rem,2.5vw,2.15rem) * var(--txt,1));line-height:1.25;margin:1.2vh 0 auto;font-weight:500;color:var(--chal-ink);}
-  .challenge .hint{display:none;font-family:'Space Mono',monospace;font-size:calc(.82rem * var(--txt,1));color:var(--chal-soft);margin-top:1vh;}
+
+  /* Question text: grows to fill space, clips if over-large, scrolls smoothly */
+  .challenge .q{
+    font-size:calc(clamp(1.3rem,2.5vw,2.15rem) * var(--txt,1));
+    line-height:1.25;margin:1.2vh 0;font-weight:500;color:var(--chal-ink);
+    overflow-y:auto;   /* ← KEY FIX: scrolls inside the card */
+    min-height:0;
+    flex-shrink:1;     /* allowed to shrink before other elements */
+  }
+
+  .challenge .hint{display:none;font-family:'Space Mono',monospace;font-size:calc(.82rem * var(--txt,1));color:var(--chal-soft);margin-top:1vh;flex-shrink:0;}
   .challenge .hint.show{display:block;}
   .reveal-btn{
-    align-self:flex-start;margin-top:1.2vh;font-family:'Space Mono',monospace;
+    align-self:flex-start;margin-top:1.2vh;font-family:'Space Mono',monospace;flex-shrink:0;
     background:var(--ink);color:var(--paper);border:none;padding:.6em 1.1em;border-radius:9px;
     cursor:pointer;font-size:.85rem;letter-spacing:.05em;
   }
   .nsent{display:none;margin-top:1vh;font-family:'Space Mono',monospace;font-weight:700;
-    color:var(--chal-ink);font-size:calc(clamp(1.05rem,2.1vw,1.7rem) * var(--txt,1));letter-spacing:.01em;}
+    color:var(--chal-ink);font-size:calc(clamp(1.05rem,2.1vw,1.7rem) * var(--txt,1));letter-spacing:.01em;flex-shrink:0;}
   .nsent.show{display:block;}
   .nsent::before{content:"= ";opacity:.45;}
-  .answer{display:none;margin-top:.6vh;font-weight:700;color:var(--rust);font-size:calc(clamp(1.05rem,2.1vw,1.7rem) * var(--txt,1));}
+  .answer{display:none;margin-top:.6vh;font-weight:700;color:var(--rust);font-size:calc(clamp(1.05rem,2.1vw,1.7rem) * var(--txt,1));flex-shrink:0;}
   .answer.show{display:block;}
   .answer::before{content:"✓ ";opacity:.8;}
   .editing .answer,.editing .nsent,.editing .hint{display:block;opacity:.85;}
 
-  /* year picker (lives inside the settings cog, hidden from students) */
   .yearpick{display:flex;gap:.35em;flex-wrap:wrap;}
   .yearpick button{
     font-family:'Space Mono',monospace;font-weight:700;font-size:.85rem;
@@ -171,7 +210,7 @@
 
   .cnum{font-family:'Space Mono',monospace;font-size:.8em;color:var(--chal-soft);letter-spacing:.04em;}
 
-  .dots{display:flex;gap:.6em;margin-top:auto;padding-top:1.4vh;align-items:center;}
+  .dots{display:flex;gap:.6em;margin-top:auto;padding-top:1.4vh;align-items:center;flex-shrink:0;}
   .dots .nav{
     border:none;background:var(--chal-ink);color:var(--chal);border-radius:8px;cursor:pointer;
     font-family:'Space Mono',monospace;font-size:1.05rem;line-height:1;padding:.4em .7em;transition:.12s;
@@ -186,7 +225,7 @@
   .dots .newbtn:hover{transform:translateY(-1px);filter:brightness(1.05);}
   .dots .spacer{flex:1;}
 
-  /* edit mode */
+  /* edit toggle buttons */
   .edit-toggle{
     margin-left:auto;font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.05em;
     border:2px solid var(--card-ink);background:transparent;color:var(--card-ink);border-radius:7px;
@@ -211,8 +250,8 @@
   }
   .pcontrol button:hover{background:var(--sun);color:#1a1a1a;}
 
-  /* timer */
-  .timerbar{display:flex;align-items:center;gap:2vw;}
+  /* ── TIMER BAR ── */
+  .timerbar{display:flex;align-items:center;gap:2vw;flex-shrink:0;}
   .timer-card{
     flex:0 0 auto;background:var(--ink);color:var(--paper);border-radius:18px;
     padding:1.6vh 2vw;display:flex;align-items:center;gap:1.5vw;box-shadow:7px 7px 0 var(--rust);
@@ -236,7 +275,7 @@
   #timer.flash{animation:flash .6s steps(2) infinite;}
   @keyframes flash{50%{opacity:.25}}
 
-  /* settings cog + popover panel (bottom-right) */
+  /* ── SETTINGS COG ── */
   .cog{
     position:fixed;bottom:14px;right:16px;z-index:40;width:46px;height:46px;border-radius:50%;
     background:var(--ink);color:var(--paper);border:none;cursor:pointer;font-size:1.35rem;line-height:1;
@@ -281,6 +320,11 @@
   .swatch[data-set="3"]{background:linear-gradient(135deg,#fff0f3 50%,#ff5d8f 50%);}
   .swatch[data-set="4"]{background:linear-gradient(135deg,#eef7f7 50%,#1fb5c9 50%);}
   .swatch[data-set="5"]{background:linear-gradient(135deg,#2b3a30 50%,#f6d56b 50%);}
+
+  /* scrollbar styling — subtle */
+  ol.steps::-webkit-scrollbar,.challenge .q::-webkit-scrollbar{width:4px;}
+  ol.steps::-webkit-scrollbar-track,.challenge .q::-webkit-scrollbar-track{background:transparent;}
+  ol.steps::-webkit-scrollbar-thumb,.challenge .q::-webkit-scrollbar-thumb{background:var(--leaf);border-radius:4px;opacity:.5;}
 </style>
 </head>
 <body>
@@ -298,6 +342,7 @@
     </header>
 
     <div class="main">
+      <!-- LEFT CARD -->
       <div class="card left">
         <div>
           <h2>This Morning <button class="edit-toggle" id="editbtn2" onclick="toggleEditSteps()">✎ Edit</button></h2>
@@ -309,9 +354,10 @@
             <li onclick="this.classList.toggle('done')">Wait quietly for more instructions</li>
           </ol>
         </div>
-        <p style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--leaf);margin-top:1vh;">tap a step to check it off</p>
+        <p style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--leaf);margin-top:1vh;flex-shrink:0;">tap a step to check it off</p>
       </div>
 
+      <!-- CHALLENGE CARD -->
       <div class="card challenge">
         <h2>Challenge Problem
           <span id="cnum" class="cnum">#1</span>
@@ -429,18 +475,13 @@
   render();
 
   /* =========================================================
-     Persistence helpers (localStorage; degrades gracefully)
+     Persistence helpers
   ========================================================= */
   function save(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch(e){}}
   function load(key,fallback){try{const v=localStorage.getItem(key);return v?JSON.parse(v):fallback;}catch(e){return fallback;}}
 
   /* =========================================================
      RANDOM MATHS WORD-PROBLEM GENERATORS  (Year 1 → Year 6)
-     Built on the England National Curriculum maths progression.
-     Year 6 mirrors the uploaded progression chart (long multiplication
-     & division, ratio, percentages, area of triangles/parallelograms,
-     volume of cuboids, order of operations, fraction operations,
-     mean average, scale factor). Each generator returns {q, hint, a}.
   ========================================================= */
   const R   = (min,max)=>Math.floor(Math.random()*(max-min+1))+min;
   const pick= a=>a[Math.floor(Math.random()*a.length)];
@@ -454,7 +495,7 @@
   const SHOP= ['bike','tent','jacket','game console','scooter','watch','desk','speaker','camera','kayak'];
   const TREAT=['cookies','grapes','sweets','raisins','strawberries','sandwiches'];
   const name2=(a)=>{let b;do{b=pick(NM);}while(b===a);return b;}
-  const gbp = p=>'£'+(p/100).toFixed(2);          // p in pence -> £x.xx
+  const gbp = p=>'£'+(p/100).toFixed(2);
   function clockStr(H,M){let ap=H<12?'am':'pm';let h=H%12||12;return `${h}:${String(M).padStart(2,'0')} ${ap}`;}
   function addMins(H,M,add){let t=(H*60+M+add)%(24*60);return clockStr(Math.floor(t/60),t%60);}
   function diffMins(H1,M1,H2,M2){let d=(H2*60+M2)-(H1*60+M1);if(d<0)d+=24*60;return d;}
@@ -464,9 +505,6 @@
   function toRoman(n){const m=[[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];let r='';for(const[v,s]of m){while(n>=v){r+=s;n-=v;}}return r;}
 
   const GEN = {
-    /* ---------------- YEAR 1 ---------------- *
-     * numbers to 20, counting in 2s/5s/10s, add/subtract within 20,
-     * one more/less, halves, simple grouping, comparison.            */
     1:[
       ()=>{const o=pick(OBJ),n=pick(NM),a=R(2,9),b=R(2,9);
         return{q:`${n} has ${a} ${o}. They are given ${b} more. How many ${o} does ${n} have now?`,
@@ -530,10 +568,6 @@
         return{q:`What is 10 ${more?'more':'less'} than ${n}?`,
         hint:'the tens digit changes by 1',ns:`${n} ${more?'+':'−'} 10 = ${more?n+10:n-10}`,a:`${more?n+10:n-10}`};}
     ],
-
-    /* ---------------- YEAR 2 ---------------- *
-     * numbers to 100, add/subtract within 100, 2/5/10 tables,
-     * fractions of amounts (1/2,1/3,1/4), money & change, missing number. */
     2:[
       ()=>{const o=pick(OBJ),n=pick(NM),a=R(21,60),b=R(11,39);
         return{q:`${n} collects ${a} ${o} in the morning and ${b} more in the afternoon. How many ${o} did ${n} collect in total?`,
@@ -596,11 +630,6 @@
         return{q:`One jug holds ${a} ml and another holds ${b} ml. How much do they hold altogether?`,
         hint:'add the amounts',ns:`${a} + ${b} = ${a+b}`,a:`${a+b} ml`};}
     ],
-
-    /* ---------------- YEAR 3 ---------------- *
-     * numbers to 1000, 3-digit add/subtract, 3/4/8 (+2/5/10) tables,
-     * division w/ remainder, money in £ & change, fractions of amounts,
-     * length cm/m, time intervals.                                    */
     3:[
       ()=>{const o=pick(OBJ),a=R(120,640),b=R(110,330);
         return{q:`A library has ${a} ${o} on one shelf and ${b} on another. How many ${o} are there altogether?`,
@@ -663,12 +692,6 @@
         return{q:`A lesson starts at ${clockStr(H,M)} and ends at ${clockStr(EH,EM)}. How many minutes long is it?`,
         hint:'count on from the start',ns:`${clockStr(EH,EM)} − ${clockStr(H,M)} = ${dur} min`,a:`${dur} minutes`};}
     ],
-
-    /* ---------------- YEAR 4 ---------------- *
-     * numbers to 10 000, 4-digit add/subtract, tables to 12,
-     * multiply 2–3 digit × 1 digit, division w/ remainder,
-     * fractions (same denominator) & of amounts, decimals/money,
-     * area & perimeter, time conversions.                            */
     4:[
       ()=>{const o=pick(OBJ),a=R(1200,4800),b=R(900,3200);
         return{q:`A stadium sold ${a} ${o} on Saturday and ${b} on Sunday. How many ${o} were sold in total?`,
@@ -733,11 +756,6 @@
         return{q:`A bar chart shows ${a} books read in week 1, ${b} in week 2 and ${c} in week 3. How many books in total?`,
         hint:'add the bars',ns:`${a} + ${b} + ${c} = ${a+b+c}`,a:`${a+b+c} books`};}
     ],
-
-    /* ---------------- YEAR 5 ---------------- *
-     * numbers to 1 000 000, multiply up to 4-digit × 1–2 digit,
-     * short division, percentages of amounts, fractions/decimals,
-     * negative numbers, area & volume, rounding/place value, money.  */
     5:[
       ()=>{const a=R(1100,4800),b=R(11,29),o=pick(OBJ);
         return{q:`A printer makes ${a} ${o} each hour. How many ${o} does it make in ${b} hours?`,
@@ -801,13 +819,6 @@
         return{q:`A train leaves at ${clockStr(H,M)} and the journey takes ${dur} minutes. What time does it arrive?`,
         hint:'add the minutes, bridge the hour',ns:`${clockStr(H,M)} + ${dur} min = ${clockStr(EH,EM)}`,a:`${clockStr(EH,EM)}`};}
     ],
-
-    /* ---------------- YEAR 6 ---------------- *
-     * Directly from the uploaded progression chart:
-     * long multiplication, long division (interpret remainders),
-     * ratio sharing, percentages incl. discount, order of operations,
-     * fraction × whole & ÷ whole, area of triangle/parallelogram,
-     * volume of cuboid, mean average, scale factor.                  */
     6:[
       ()=>{const a=R(1124,8975),b=R(12,39),o=pick(OBJ);
         return{q:`A warehouse holds ${b} pallets and each pallet has ${a} ${o}. How many ${o} are there altogether?`,
@@ -883,9 +894,9 @@
   /* =========================================================
      Challenge problem controller
   ========================================================= */
-  let year   = load('mm_year',3);          // selected year band (1..6)
-  let history= [];                          // session list of generated problems
-  let hi     = -1;                          // current index in history
+  let year   = load('mm_year',3);
+  let history= [];
+  let hi     = -1;
   let editing= false;
 
   const cq=document.getElementById('cq'),
@@ -897,7 +908,7 @@
         card=document.querySelector('.challenge'),
         prevbtn=document.getElementById('prevbtn'),
         nextbtn=document.getElementById('nextbtn');
-  let revealStage=0;   // 0 = all hidden · 1 = hint · 2 = number sentence · 3 = answer
+  let revealStage=0;
 
   function generate(y){
     const bank=GEN[y];
@@ -914,10 +925,8 @@
     setReveal(editing?3:0);
     cnum.textContent=`#${hi+1}`;
     prevbtn.disabled=(hi<=0);
-    // highlight the active year in the settings picker (hidden from students)
     [...document.querySelectorAll('#yearpick button')].forEach(b=>b.classList.toggle('active',+b.dataset.y===p.year));
   }
-  // Staged reveal: 1st click → hint, 2nd → number sentence, 3rd → answer, 4th → hide
   function setReveal(stage){
     revealStage=stage;
     chint.classList.toggle('show',stage>=1);
@@ -936,14 +945,13 @@
   function goNext(){
     saveCurrentFields();
     if(hi<history.length-1){hi++;paint();}
-    else newProblem();            // at the end → make a fresh one
+    else newProblem();
   }
   function setYear(y){
     year=y;save('mm_year',y);
-    newProblem();                 // generate a fresh problem in the new band
+    newProblem();
   }
 
-  /* ---- edit mode: tweak the current generated problem ---- */
   function saveCurrentFields(){
     if(!editing||hi<0)return;
     history[hi].q=cq.textContent.trim();
@@ -962,21 +970,18 @@
     else{saveCurrentFields();paint();}
   }
 
-  /* ---- initial fill ---- */
   newProblem();
 
   /* =========================================================
      Editable "This Morning" steps
   ========================================================= */
   const stepsEl=document.getElementById('steps');
-  const STEPS_VERSION=2;   // bump this whenever the default routine below changes
+  const STEPS_VERSION=2;
   const DEFAULT_STEPS=[...stepsEl.querySelectorAll('li')].map(li=>li.innerHTML);
   let stepsData;
   if(load('mm_steps_v',0)===STEPS_VERSION){
-    // same routine version as last time → respect any edits the teacher saved
     stepsData=load('mm_steps',null)||DEFAULT_STEPS;
   }else{
-    // a new default routine has been shipped → show it and clear stale saved steps
     stepsData=DEFAULT_STEPS;
     save('mm_steps_v',STEPS_VERSION);
     try{localStorage.removeItem('mm_steps');}catch(e){}
@@ -1037,11 +1042,11 @@
   function fs(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
 
   /* =========================================================
-     Text size (applies to morning steps + challenge problems)
+     Text size — capped at 1.5× so text always stays inside cards
   ========================================================= */
   let txt=load('mm_txt',1);
   function applyText(){
-    txt=Math.max(0.8,Math.min(1.8,Math.round(txt*100)/100));
+    txt=Math.max(0.8,Math.min(1.5,Math.round(txt*100)/100)); /* max 1.5 (was 1.8) */
     document.documentElement.style.setProperty('--txt',txt);
     const el=document.getElementById('txtnow');if(el)el.textContent=Math.round(txt*100)+'%';
     save('mm_txt',txt);
@@ -1064,7 +1069,7 @@
     }
   });
 
-  /* keyboard: space = start/pause · N = new problem · R = reveal step (ignored while editing text) */
+  /* keyboard shortcuts */
   document.addEventListener('keydown',e=>{
     const typing=/^(INPUT|TEXTAREA)$/.test(e.target.tagName)||e.target.getAttribute('contenteditable')==='true';
     if(typing)return;
