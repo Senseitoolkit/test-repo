@@ -1,0 +1,1946 @@
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+
+/* ============================================================================
+   1. CONFIG
+   Tunable constants live here so behaviour is changed in one place.
+============================================================================ */
+const CONFIG = {
+  TEST_DURATION_SECONDS: 10 * 60, // 10 minutes per test
+  PASSAGES_PER_TEST: 2,           // each run draws this many passages from the year's bank
+  YEARS: [1, 2, 3, 4, 5, 6],
+  GAP_RE: /@(\d+)@/g,             // marker inside passage text becomes a numbered blank
+};
+
+/* ============================================================================
+   2. PASSAGE BANK  (PURE DATA LAYER)
+   ---------------------------------------------------------------------------
+   Each year holds an array of passages. Each passage:
+     { title, kind, text (contains @1@…@10@ markers), gaps: [{ options, answer }] }
+   gaps[0] is the marker @1@, gaps[1] is @2@, etc. (1-indexed in the text,
+   0-indexed in the array). Year 1 uses 3-option gaps; Years 2-6 use 4.
+   Replace, extend or re-order freely — logic never assumes specific content.
+============================================================================ */
+const PASSAGE_BANK = {
+  1: [
+    {
+      title: "The Red Hat",
+      kind: "Story",
+      text: "Sam has a @1@ hat. The hat is @2@. Sam likes his hat very @3@. He wears it in the @4@. The hat keeps him @5@. One day the @6@ blew hard. The hat went up in the @7@! Sam ran @8@. He got his hat @9@. Sam was @10@.",
+      gaps: [
+        { options: ["red", "blue", "green"], answer: "red" },
+        { options: ["big", "small", "wet"], answer: "big" },
+        { options: ["much", "soon", "late"], answer: "much" },
+        { options: ["sun", "rain", "dark"], answer: "sun" },
+        { options: ["cool", "wet", "sad"], answer: "cool" },
+        { options: ["wind", "cat", "boy"], answer: "wind" },
+        { options: ["sky", "sea", "box"], answer: "sky" },
+        { options: ["fast", "slow", "cold"], answer: "fast" },
+        { options: ["back", "down", "off"], answer: "back" },
+        { options: ["happy", "cross", "cold"], answer: "happy" },
+      ],
+    },
+    {
+      title: "The Big Dog",
+      kind: "Story",
+      text: "Meg has a @1@ dog. The dog is called @2@. Bob is @3@ and white. He has a long @4@. Bob likes to run in the @5@. He runs after a @6@. Meg @7@ the ball. Bob brings it @8@. They play all @9@. Then they go home for @10@.",
+      gaps: [
+        { options: ["big", "wet", "sad"], answer: "big" },
+        { options: ["Bob", "Tim", "Sam"], answer: "Bob" },
+        { options: ["brown", "red", "blue"], answer: "brown" },
+        { options: ["tail", "nose", "paw"], answer: "tail" },
+        { options: ["park", "shop", "sea"], answer: "park" },
+        { options: ["ball", "cat", "stick"], answer: "ball" },
+        { options: ["throws", "eats", "sees"], answer: "throws" },
+        { options: ["back", "down", "up"], answer: "back" },
+        { options: ["day", "week", "time"], answer: "day" },
+        { options: ["tea", "bed", "school"], answer: "tea" },
+      ],
+    },
+    {
+      title: "At the Park",
+      kind: "Story",
+      text: "It is a @1@ day. Tim and @2@ go to the park. They go on the @3@. Tim swings up @4@. Anna goes down the @5@. It is @6@! They see a @7@ in the pond. The duck is @8@. They give the duck some @9@. Then they sit on the grass and eat their @10@.",
+      gaps: [
+        { options: ["sunny", "rainy", "cold"], answer: "sunny" },
+        { options: ["Anna", "Mum", "Bob"], answer: "Anna" },
+        { options: ["swings", "steps", "cars"], answer: "swings" },
+        { options: ["high", "low", "fast"], answer: "high" },
+        { options: ["slide", "hill", "road"], answer: "slide" },
+        { options: ["fun", "sad", "wet"], answer: "fun" },
+        { options: ["duck", "cat", "car"], answer: "duck" },
+        { options: ["white", "red", "blue"], answer: "white" },
+        { options: ["bread", "chips", "soup"], answer: "bread" },
+        { options: ["lunch", "boots", "cars"], answer: "lunch" },
+      ],
+    },
+    {
+      title: "My Cat",
+      kind: "Story",
+      text: "I have a @1@ cat. Her @2@ is Fluff. Fluff is grey and @3@. She has @4@ eyes. Fluff likes to sleep in the @5@. She drinks @6@ from a bowl. At night she catches @7@. Fluff sleeps on my @8@. I @9@ my cat very @10@.",
+      gaps: [
+        { options: ["little", "huge", "wet"], answer: "little" },
+        { options: ["name", "food", "car"], answer: "name" },
+        { options: ["soft", "hard", "red"], answer: "soft" },
+        { options: ["green", "blue", "yellow"], answer: "green" },
+        { options: ["sun", "rain", "car"], answer: "sun" },
+        { options: ["milk", "juice", "soup"], answer: "milk" },
+        { options: ["mice", "cars", "ships"], answer: "mice" },
+        { options: ["bed", "hat", "book"], answer: "bed" },
+        { options: ["love", "hate", "cook"], answer: "love" },
+        { options: ["much", "cold", "fast"], answer: "much" },
+      ],
+    },
+    {
+      title: "Rain Day",
+      kind: "Story",
+      text: "It is @1@ today. The sky is @2@. Ben puts on his @3@. He puts on his coat @4@. Ben jumps in a big @5@. @6@! The water goes @7@. His dog Spot jumps @8@. They both get @9@. Mum calls them @10@. She gives them a warm towel.",
+      gaps: [
+        { options: ["raining", "sunny", "snowing"], answer: "raining" },
+        { options: ["grey", "pink", "red"], answer: "grey" },
+        { options: ["boots", "shoes", "socks"], answer: "boots" },
+        { options: ["too", "now", "soon"], answer: "too" },
+        { options: ["puddle", "box", "chair"], answer: "puddle" },
+        { options: ["Splash", "Bang", "Pop"], answer: "Splash" },
+        { options: ["everywhere", "nowhere", "quietly"], answer: "everywhere" },
+        { options: ["too", "soon", "late"], answer: "too" },
+        { options: ["wet", "dry", "hot"], answer: "wet" },
+        { options: ["in", "out", "up"], answer: "in" },
+      ],
+    },
+    {
+      title: "The Birthday Cake",
+      kind: "Story",
+      text: "Today is Lily's @1@. She is @2@ years old. Mum makes a big @3@. The cake is @4@. It has six @5@ on top. Lily's friends come to the @6@. They sing a @7@. Lily blows out the @8@. Everyone @9@. Then they eat the cake. It tastes of @10@.",
+      gaps: [
+        { options: ["birthday", "breakfast", "bedtime"], answer: "birthday" },
+        { options: ["six", "two", "ten"], answer: "six" },
+        { options: ["cake", "box", "shop"], answer: "cake" },
+        { options: ["pink", "blue", "yellow"], answer: "pink" },
+        { options: ["candles", "hats", "books"], answer: "candles" },
+        { options: ["party", "shop", "sea"], answer: "party" },
+        { options: ["song", "book", "lunch"], answer: "song" },
+        { options: ["candles", "lights", "windows"], answer: "candles" },
+        { options: ["claps", "cries", "sleeps"], answer: "claps" },
+        { options: ["strawberry", "mud", "fish"], answer: "strawberry" },
+      ],
+    },
+    {
+      title: "The Farm",
+      kind: "Story",
+      text: "Old Mac has a @1@. On the farm there are many @2@. There are five @3@ in the field. The cows eat green @4@. There are @5@ in the mud. The pigs are pink and @6@. A red @7@ lays eggs. A brown @8@ runs fast. Old Mac feeds them all every @9@ in the @10@.",
+      gaps: [
+        { options: ["farm", "shop", "car"], answer: "farm" },
+        { options: ["animals", "books", "cars"], answer: "animals" },
+        { options: ["cows", "cars", "cats"], answer: "cows" },
+        { options: ["grass", "meat", "hats"], answer: "grass" },
+        { options: ["pigs", "fish", "cats"], answer: "pigs" },
+        { options: ["fat", "thin", "cold"], answer: "fat" },
+        { options: ["hen", "fox", "dog"], answer: "hen" },
+        { options: ["horse", "boat", "chair"], answer: "horse" },
+        { options: ["day", "cake", "bus"], answer: "day" },
+        { options: ["morning", "sea", "shop"], answer: "morning" },
+      ],
+    },
+    {
+      title: "At the Beach",
+      kind: "Story",
+      text: "We went to the @1@ in summer. The sun was @2@. The sand was soft and @3@. My brother made a big @4@. I found three pink @5@. We ran into the blue @6@. The water was @7@! A wave @8@ us. We laughed. Then we ate @9@ cream. It was a very good @10@.",
+      gaps: [
+        { options: ["beach", "school", "shop"], answer: "beach" },
+        { options: ["hot", "cold", "wet"], answer: "hot" },
+        { options: ["yellow", "red", "blue"], answer: "yellow" },
+        { options: ["sandcastle", "sandwich", "song"], answer: "sandcastle" },
+        { options: ["shells", "cars", "boats"], answer: "shells" },
+        { options: ["sea", "sky", "sand"], answer: "sea" },
+        { options: ["cold", "hot", "dry"], answer: "cold" },
+        { options: ["splashed", "found", "sang"], answer: "splashed" },
+        { options: ["ice", "hot", "bird"], answer: "ice" },
+        { options: ["day", "road", "book"], answer: "day" },
+      ],
+    },
+    {
+      title: "The Lost Toy",
+      kind: "Story",
+      text: "Max could not find his toy @1@. He looked under the @2@. The bear was not @3@. He looked in the toy @4@. The bear was not there. He looked behind the @5@. The bear was not there. Max felt @6@. Then his @7@ came in. She had the bear! She was @8@. Max gave her a big @9@. He was so @10@.",
+      gaps: [
+        { options: ["bear", "boat", "pen"], answer: "bear" },
+        { options: ["bed", "sky", "shop"], answer: "bed" },
+        { options: ["there", "fast", "blue"], answer: "there" },
+        { options: ["box", "sea", "cake"], answer: "box" },
+        { options: ["door", "dog", "drum"], answer: "door" },
+        { options: ["sad", "glad", "cold"], answer: "sad" },
+        { options: ["sister", "friend", "cat"], answer: "sister" },
+        { options: ["sorry", "loud", "wet"], answer: "sorry" },
+        { options: ["hug", "bed", "book"], answer: "hug" },
+        { options: ["happy", "cross", "late"], answer: "happy" },
+      ],
+    },
+    {
+      title: "The Seed",
+      kind: "Story",
+      text: "Anna planted a little @1@ in a pot. She put it on the @2@. Every day she gave it @3@. The sun was @4@. After a week, a small green @5@ came up. The shoot grew @6@. Soon it had two green @7@. Then a yellow @8@ opened. Anna was so @9@. She had grown her first @10@.",
+      gaps: [
+        { options: ["seed", "car", "boy"], answer: "seed" },
+        { options: ["windowsill", "road", "sea"], answer: "windowsill" },
+        { options: ["water", "chips", "wood"], answer: "water" },
+        { options: ["warm", "cold", "wet"], answer: "warm" },
+        { options: ["shoot", "dog", "cake"], answer: "shoot" },
+        { options: ["tall", "small", "sad"], answer: "tall" },
+        { options: ["leaves", "cars", "books"], answer: "leaves" },
+        { options: ["flower", "car", "mat"], answer: "flower" },
+        { options: ["proud", "sad", "cold"], answer: "proud" },
+        { options: ["flower", "shoe", "hat"], answer: "flower" },
+      ],
+    },
+  ],
+  2: [
+    {
+      title: "The New Bike",
+      kind: "Story",
+      text: "On Saturday @1@, Jack got a @2@. His dad called him to the @3@. There, standing on the grass, was a shiny new @4@ bike! Jack could not @5@ it. His birthday was not until next @6@. 'It is an @7@ present,' said Dad with a smile. The bike had silver bells and @8@ handles. Jack climbed on. He @9@ a little at first. Then he rode around the garden three times. By lunchtime, he could ride without holding on. Jack felt very @10@.",
+      gaps: [
+        { options: ["morning", "evening", "night", "song"], answer: "morning" },
+        { options: ["surprise", "sandwich", "fight", "cold"], answer: "surprise" },
+        { options: ["garden", "shop", "kitchen", "bedroom"], answer: "garden" },
+        { options: ["blue", "wet", "heavy", "loud"], answer: "blue" },
+        { options: ["believe", "catch", "climb", "sell"], answer: "believe" },
+        { options: ["week", "minute", "hour", "second"], answer: "week" },
+        { options: ["early", "wet", "strange", "broken"], answer: "early" },
+        { options: ["black", "soft", "tiny", "hungry"], answer: "black" },
+        { options: ["wobbled", "shouted", "cooked", "slept"], answer: "wobbled" },
+        { options: ["proud", "sleepy", "wet", "cross"], answer: "proud" },
+      ],
+    },
+    {
+      title: "The School Trip",
+      kind: "Story",
+      text: "Year 2 went to the @1@ on Tuesday. They got on the @2@ at nine o'clock. The bus took an @3@ to get there. First they saw the @4@. The big elephant was washing itself with its @5@. Next they walked to the monkey house. The monkeys were eating @6@ and swinging from ropes. After @7@, they saw the penguins splash in the @8@ water. Miss Brown gave each child a @9@. On the way home, most of the children fell @10@ on the bus.",
+      gaps: [
+        { options: ["zoo", "shop", "park", "sea"], answer: "zoo" },
+        { options: ["bus", "boat", "plane", "train"], answer: "bus" },
+        { options: ["hour", "week", "year", "minute"], answer: "hour" },
+        { options: ["elephants", "sharks", "pigs", "mice"], answer: "elephants" },
+        { options: ["trunk", "tail", "teeth", "wings"], answer: "trunk" },
+        { options: ["bananas", "books", "hats", "fish"], answer: "bananas" },
+        { options: ["lunch", "dinner", "breakfast", "school"], answer: "lunch" },
+        { options: ["cold", "hot", "red", "sweet"], answer: "cold" },
+        { options: ["sticker", "coat", "phone", "bike"], answer: "sticker" },
+        { options: ["asleep", "over", "down", "behind"], answer: "asleep" },
+      ],
+    },
+    {
+      title: "The Lost Puppy",
+      kind: "Story",
+      text: "Mia was walking home from the shop when she heard a small @1@. She looked behind a @2@ and saw a tiny brown @3@. He had no @4@ and his fur was @5@. Mia gently picked him up. The puppy @6@ her hand. She carried him @7@ and showed her mum. Mum said they must try to @8@ his owner. They put a picture on the door of the shop. The next day, a @9@ old man came. He had been looking for his puppy for @10@ days.",
+      gaps: [
+        { options: ["whimper", "song", "bell", "boat"], answer: "whimper" },
+        { options: ["bush", "car", "fence", "mountain"], answer: "bush" },
+        { options: ["puppy", "book", "cat", "mouse"], answer: "puppy" },
+        { options: ["collar", "hat", "coat", "ticket"], answer: "collar" },
+        { options: ["dirty", "clean", "golden", "silver"], answer: "dirty" },
+        { options: ["licked", "bit", "kicked", "sang"], answer: "licked" },
+        { options: ["home", "down", "under", "over"], answer: "home" },
+        { options: ["find", "hide", "sell", "catch"], answer: "find" },
+        { options: ["kind", "wet", "loud", "wild"], answer: "kind" },
+        { options: ["two", "ten", "fifty", "a hundred"], answer: "two" },
+      ],
+    },
+    {
+      title: "A Day on the Boat",
+      kind: "Story",
+      text: "Last @1@, my family went on a small boat. The sea was @2@ and blue. My uncle is a @3@ and he taught me how to hold a @4@. I sat very still for a long @5@. Then, suddenly, my rod began to @6@! I pulled hard. After a few minutes, I caught a silver @7@. It was as long as my @8@. My little sister was so excited that she @9@ her hands. We took the fish home for dinner. It tasted @10@ with lemon.",
+      gaps: [
+        { options: ["summer", "weekend", "hour", "minute"], answer: "summer" },
+        { options: ["calm", "loud", "hot", "sweet"], answer: "calm" },
+        { options: ["fisherman", "teacher", "farmer", "driver"], answer: "fisherman" },
+        { options: ["rod", "cup", "phone", "spoon"], answer: "rod" },
+        { options: ["time", "book", "song", "road"], answer: "time" },
+        { options: ["bend", "sing", "shout", "dance"], answer: "bend" },
+        { options: ["fish", "bird", "cat", "hat"], answer: "fish" },
+        { options: ["arm", "nose", "shoe", "hat"], answer: "arm" },
+        { options: ["clapped", "kicked", "dropped", "sold"], answer: "clapped" },
+        { options: ["delicious", "awful", "cold", "wet"], answer: "delicious" },
+      ],
+    },
+    {
+      title: "The Magic Pebble",
+      kind: "Story",
+      text: "Tom found a strange @1@ on the path. It was smooth and @2@ in his hand. When he closed his fingers around it, a tiny @3@ spoke. 'I can grant you one @4@,' said the pebble. Tom thought hard. He did not wish for sweets or @5@. Instead, he wished that his old dog, Rusty, would feel @6@ again. When he got home, Rusty was waiting at the @7@. The old dog ran and jumped like a @8@! Tom @9@ Rusty and put the pebble back on the path for someone else to @10@.",
+      gaps: [
+        { options: ["pebble", "cake", "fish", "coat"], answer: "pebble" },
+        { options: ["warm", "sharp", "loud", "wet"], answer: "warm" },
+        { options: ["voice", "cat", "cloud", "book"], answer: "voice" },
+        { options: ["wish", "fight", "dinner", "week"], answer: "wish" },
+        { options: ["toys", "homework", "pebbles", "paths"], answer: "toys" },
+        { options: ["young", "old", "sad", "wet"], answer: "young" },
+        { options: ["door", "sea", "tree", "hat"], answer: "door" },
+        { options: ["puppy", "lion", "fish", "pebble"], answer: "puppy" },
+        { options: ["hugged", "kicked", "sold", "lost"], answer: "hugged" },
+        { options: ["find", "cook", "break", "sell"], answer: "find" },
+      ],
+    },
+    {
+      title: "The Cooking Lesson",
+      kind: "Story",
+      text: "On Sunday, Grandma showed me how to bake @1@. First, we washed our @2@ very carefully. Then she gave me flour, water, @3@, and a tiny packet of yeast. I mixed everything in a big @4@ until it became sticky @5@. Grandma showed me how to push the dough with my hands. This is called @6@. We left the dough in a @7@ place for one hour and it grew much @8@! After baking, the kitchen smelled @9@. We ate the warm bread with butter and @10@.",
+      gaps: [
+        { options: ["bread", "cars", "shoes", "songs"], answer: "bread" },
+        { options: ["hands", "cars", "dogs", "boots"], answer: "hands" },
+        { options: ["salt", "mud", "soap", "paint"], answer: "salt" },
+        { options: ["bowl", "hat", "box", "chair"], answer: "bowl" },
+        { options: ["dough", "soup", "ice", "paint"], answer: "dough" },
+        { options: ["kneading", "kicking", "cleaning", "cutting"], answer: "kneading" },
+        { options: ["warm", "cold", "dark", "wet"], answer: "warm" },
+        { options: ["bigger", "smaller", "harder", "colder"], answer: "bigger" },
+        { options: ["wonderful", "awful", "boring", "quiet"], answer: "wonderful" },
+        { options: ["honey", "mud", "paint", "paper"], answer: "honey" },
+      ],
+    },
+    {
+      title: "The Football Match",
+      kind: "Story",
+      text: "Our team was playing the final @1@ of the year. We were three @2@ to two down at half-time. Coach Lee told us not to give @3@. He said, 'You must work together as a @4@.' In the second half, I passed the ball to Sam. Sam shot, but the @5@ saved it. With only one @6@ left, my friend Aya got the ball. She kicked it hard and the ball flew into the top @7@ of the net! The score was three @8@. Then the @9@ blew and the match was a @10@.",
+      gaps: [
+        { options: ["match", "school", "song", "cake"], answer: "match" },
+        { options: ["goals", "cars", "hats", "fish"], answer: "goals" },
+        { options: ["up", "down", "out", "off"], answer: "up" },
+        { options: ["team", "cat", "town", "coat"], answer: "team" },
+        { options: ["goalkeeper", "shopkeeper", "driver", "farmer"], answer: "goalkeeper" },
+        { options: ["minute", "hour", "day", "year"], answer: "minute" },
+        { options: ["corner", "floor", "roof", "pond"], answer: "corner" },
+        { options: ["all", "down", "out", "off"], answer: "all" },
+        { options: ["whistle", "bell", "car", "song"], answer: "whistle" },
+        { options: ["draw", "cake", "cup", "song"], answer: "draw" },
+      ],
+    },
+    {
+      title: "The Storm",
+      kind: "Story",
+      text: "The dark @1@ rolled in just after lunch. Soon the wind began to @2@ and the trees bent over. Big drops of @3@ hit the window. CRASH! A loud noise made Lucy @4@. It was @5@. A flash of @6@ lit up the room. Lucy was a little bit @7@, so her brother brought her a torch and a soft @8@. They sat under the @9@ and read a book together. After an hour, the storm passed. The sun came out, and outside they could see a beautiful @10@.",
+      gaps: [
+        { options: ["clouds", "shoes", "fish", "cars"], answer: "clouds" },
+        { options: ["howl", "sleep", "cook", "sing"], answer: "howl" },
+        { options: ["rain", "honey", "sand", "soup"], answer: "rain" },
+        { options: ["jump", "sing", "sleep", "smile"], answer: "jump" },
+        { options: ["thunder", "sun", "paint", "soup"], answer: "thunder" },
+        { options: ["lightning", "cake", "bread", "paint"], answer: "lightning" },
+        { options: ["frightened", "hungry", "sleepy", "wet"], answer: "frightened" },
+        { options: ["blanket", "hat", "boot", "book"], answer: "blanket" },
+        { options: ["table", "car", "sea", "sky"], answer: "table" },
+        { options: ["rainbow", "shop", "song", "cake"], answer: "rainbow" },
+      ],
+    },
+    {
+      title: "The Library",
+      kind: "Story",
+      text: "Our school library is at the end of the long @1@. The walls inside are painted pale @2@ and there are soft @3@ on the floor. Mrs Singh, the @4@, knows the name of every child in the school. She @5@ when she sees us and helps us find books. On Wednesdays, she @6@ a story to Year 2. Last week, she read a story about a @7@ who was afraid of fire. It was so @8@ that we all laughed. We can take one book home each week if we @9@ to @10@ it.",
+      gaps: [
+        { options: ["corridor", "sea", "forest", "road"], answer: "corridor" },
+        { options: ["yellow", "cold", "wet", "sharp"], answer: "yellow" },
+        { options: ["cushions", "cars", "bricks", "nails"], answer: "cushions" },
+        { options: ["librarian", "driver", "cook", "farmer"], answer: "librarian" },
+        { options: ["smiles", "cries", "shouts", "sleeps"], answer: "smiles" },
+        { options: ["reads", "sings", "cooks", "sells"], answer: "reads" },
+        { options: ["dragon", "shop", "song", "cake"], answer: "dragon" },
+        { options: ["funny", "wet", "boring", "quiet"], answer: "funny" },
+        { options: ["promise", "forget", "sell", "lose"], answer: "promise" },
+        { options: ["return", "sell", "hide", "eat"], answer: "return" },
+      ],
+    },
+    {
+      title: "The Camping Trip",
+      kind: "Story",
+      text: "Dad packed the car early on Saturday @1@. We were going camping in the @2@. After a two-@3@ drive, we arrived at a quiet spot beside a clear @4@. First, we put up the green @5@. It was much @6@ than I expected. Then Dad built a @7@ from small sticks and we cooked sausages for @8@. At night the sky was full of bright @9@. We even heard an owl @10@ in the trees. I was nervous at first, but inside the tent I felt safe and warm.",
+      gaps: [
+        { options: ["morning", "night", "week", "song"], answer: "morning" },
+        { options: ["mountains", "shops", "kitchens", "books"], answer: "mountains" },
+        { options: ["hour", "week", "month", "year"], answer: "hour" },
+        { options: ["stream", "desert", "shop", "road"], answer: "stream" },
+        { options: ["tent", "cake", "book", "song"], answer: "tent" },
+        { options: ["harder", "softer", "colder", "easier"], answer: "harder" },
+        { options: ["fire", "chair", "boat", "shop"], answer: "fire" },
+        { options: ["dinner", "breakfast", "school", "bed"], answer: "dinner" },
+        { options: ["stars", "boats", "cakes", "songs"], answer: "stars" },
+        { options: ["hooting", "barking", "mooing", "singing"], answer: "hooting" },
+      ],
+    },
+  ],
+  3: [
+    {
+      title: "The Treehouse",
+      kind: "Narrative",
+      text: "Last summer, my older brother Sam and I decided to @1@ a treehouse in the apple tree at the bottom of the garden. We had no @2@ what we were doing. Dad gave us some old planks of wood, a hammer and a small box of nails. He smiled and said, 'Good luck \u2014 try not to @3@ any fingers.'\n\nIt took us two whole weeks. On the first day, we @4@ a plan on a sheet of paper. The plan was very @5@ \u2014 it even included a balcony and a rope ladder. By the end of week one, we had only managed to @6@ four planks together. Sam said the plan was probably 'a bit too @7@ for us'.\n\nIn the end, our treehouse was much @8@ than we had hoped, and the floor was a little wobbly. But when we @9@ up and sat inside on the very first night, watching the stars through the leaves, it felt like the best @10@ in the whole world.",
+      gaps: [
+        { options: ["build", "find", "climb", "paint"], answer: "build" },
+        { options: ["idea", "time", "friend", "book"], answer: "idea" },
+        { options: ["lose", "break", "cut", "wash"], answer: "lose" },
+        { options: ["drew", "wrote", "read", "threw"], answer: "drew" },
+        { options: ["ambitious", "quick", "heavy", "silent"], answer: "ambitious" },
+        { options: ["nail", "kick", "wash", "cook"], answer: "nail" },
+        { options: ["clever", "cheap", "loud", "small"], answer: "clever" },
+        { options: ["smaller", "better", "faster", "older"], answer: "smaller" },
+        { options: ["climbed", "fell", "swam", "drove"], answer: "climbed" },
+        { options: ["place", "time", "friend", "dream"], answer: "place" },
+      ],
+    },
+    {
+      title: "All About Owls",
+      kind: "Information text",
+      text: "Owls are @1@ birds of prey that live on every continent except Antarctica. There are around 200 different @2@ of owl, ranging from the tiny elf owl, which is only 13 centimetres tall, to the huge Eurasian eagle owl, which has a wingspan of nearly two metres.\n\nMost owls are @3@, which means they are awake at night and sleep during the day. Their large, round eyes are perfectly designed for seeing in the @4@. However, owls cannot move their eyes from side to side like humans can. @5@, they turn their whole head \u2014 sometimes almost all the way round!\n\nOwls have another remarkable skill: silent flight. Special soft edges on their feathers stop the air from making a @6@ as they fly. This means a mouse or a vole on the ground below has very little @7@ before the owl swoops down to catch it.\n\nA @8@ owl is called an owlet. Owlets are usually born @9@ in soft, fluffy white feathers @10@ down.",
+      gaps: [
+        { options: ["fascinating", "clean", "loud", "boring"], answer: "fascinating" },
+        { options: ["species", "colours", "sizes", "songs"], answer: "species" },
+        { options: ["nocturnal", "friendly", "wild", "wet"], answer: "nocturnal" },
+        { options: ["dark", "sky", "grass", "water"], answer: "dark" },
+        { options: ["Instead", "Above", "Before", "Quickly"], answer: "Instead" },
+        { options: ["noise", "hole", "mess", "nest"], answer: "noise" },
+        { options: ["warning", "food", "time", "hope"], answer: "warning" },
+        { options: ["baby", "wild", "sleepy", "clever"], answer: "baby" },
+        { options: ["covered", "cooked", "lost", "painted"], answer: "covered" },
+        { options: ["called", "before", "under", "with"], answer: "called" },
+      ],
+    },
+    {
+      title: "My First Sleepover",
+      kind: "First-person narrative",
+      text: "I had been looking @1@ to my first sleepover for weeks. My best friend, Priya, had invited four of us to her house for the night. I @2@ my bag two days early, just to make sure I had everything.\n\nWhen the day finally came, my stomach felt @3@ \u2014 a mix of excited and nervous. Mum hugged me at the front door of Priya's house. 'You'll have a wonderful time,' she said. But as soon as she @4@ away, I suddenly wanted to run after her car.\n\nThe evening was fine. We ate pizza and watched a film about a magical bakery. But at @5@, lying on my camping mat in Priya's room, I started to feel very @6@. The room was dark and full of strange @7@. I missed my own bed. I missed Mum. I almost @8@.\n\nThen Priya whispered, 'Are you OK?' I told her the truth. To my @9@, she said she had felt exactly the same at her first sleepover. After that, I felt much better, and soon I @10@ asleep.",
+      gaps: [
+        { options: ["forward", "down", "up", "over"], answer: "forward" },
+        { options: ["packed", "sold", "lost", "cleaned"], answer: "packed" },
+        { options: ["strange", "hungry", "heavy", "cold"], answer: "strange" },
+        { options: ["drove", "walked", "ran", "sang"], answer: "drove" },
+        { options: ["bedtime", "breakfast", "school", "lunchtime"], answer: "bedtime" },
+        { options: ["small", "tall", "loud", "hungry"], answer: "small" },
+        { options: ["shadows", "friends", "pets", "toys"], answer: "shadows" },
+        { options: ["cried", "smiled", "laughed", "shouted"], answer: "cried" },
+        { options: ["surprise", "sadness", "anger", "luck"], answer: "surprise" },
+        { options: ["fell", "went", "stayed", "kept"], answer: "fell" },
+      ],
+    },
+    {
+      title: "Banana Bread",
+      kind: "Recipe / instructional",
+      text: "Banana bread is a sweet, soft cake that tastes @1@ with butter on top. It is also a clever way to use up bananas that have gone a bit too soft to eat. Always ask an adult to help you, @2@ when using the oven.\n\n<b>Ingredients:</b> 3 very @3@ bananas, 100g of soft butter, 150g of sugar, 2 eggs, 200g of plain flour, 1 teaspoon of baking powder.\n\n<b>Method:</b> First, @4@ the oven to 180\u00b0C. Grease a loaf tin with a little butter. Next, mash the bananas in a large bowl until they are @5@. Add the butter and sugar, and @6@ well. Then crack in the eggs, one at a time, and stir. Finally, add the flour and baking powder. Mix until you have a thick, @7@ batter. @8@ the mixture into the tin and bake for about 50 minutes.\n\nYour banana bread is ready when a skewer pushed into the @9@ comes out clean. Let it @10@ before slicing.",
+      gaps: [
+        { options: ["amazing", "strange", "wet", "tiny"], answer: "amazing" },
+        { options: ["especially", "quickly", "sadly", "above"], answer: "especially" },
+        { options: ["ripe", "cold", "clean", "large"], answer: "ripe" },
+        { options: ["heat", "freeze", "open", "clean"], answer: "heat" },
+        { options: ["smooth", "hard", "yellow", "sharp"], answer: "smooth" },
+        { options: ["mix", "drink", "weigh", "cool"], answer: "mix" },
+        { options: ["sticky", "dry", "thin", "cold"], answer: "sticky" },
+        { options: ["Pour", "Throw", "Cut", "Eat"], answer: "Pour" },
+        { options: ["middle", "colour", "smell", "weight"], answer: "middle" },
+        { options: ["cool", "shake", "wash", "bake"], answer: "cool" },
+      ],
+    },
+    {
+      title: "A Letter from Camp",
+      kind: "Letter",
+      text: "Dear Mum and Dad,\n\nI have been at Camp Pinewood for three days now and I want to tell you @1@. Our cabin is called Squirrel Lodge. There are six of us in the cabin and our @2@ leader is called Mia. She is from Canada and very funny.\n\nOn the first day, it @3@ from morning until evening, so we played board games and made friendship bracelets in the hall. I @4@ a blue and yellow one for my sister. I hope she likes it.\n\nYesterday was much better. We went canoeing on the lake! I was @5@ at first because I had never been in a canoe before, but my partner was a girl called Sara and she had done it lots of times. She @6@ me how to hold the paddle properly. Now I love it.\n\n@7@ we are going to have a campfire and toast marshmallows. Mia says some children always burn theirs because they don't have any @8@.\n\nPlease write back soon. @9@ Buster I miss him.\n\n@10@,\nTheo",
+      gaps: [
+        { options: ["everything", "something", "nothing", "anything"], answer: "everything" },
+        { options: ["group", "school", "family", "sports"], answer: "group" },
+        { options: ["rained", "shone", "snowed", "blew"], answer: "rained" },
+        { options: ["made", "ate", "sold", "broke"], answer: "made" },
+        { options: ["nervous", "hungry", "cold", "lazy"], answer: "nervous" },
+        { options: ["taught", "fed", "hit", "bought"], answer: "taught" },
+        { options: ["Tonight", "Yesterday", "Last week", "Forever"], answer: "Tonight" },
+        { options: ["patience", "money", "shoes", "sugar"], answer: "patience" },
+        { options: ["Tell", "Sell", "Forget", "Drop"], answer: "Tell" },
+        { options: ["Love", "Hello", "Sorry", "Quickly"], answer: "Love" },
+      ],
+    },
+    {
+      title: "The Old Lighthouse",
+      kind: "Descriptive",
+      text: "At the very end of the cliffs @1@ the old lighthouse. It had been painted red and white once, but the salty wind and the lashing rain had @2@ away most of the colour. Now it looked grey and tired, like an old man @3@ against the rocks.\n\nNo one had lived in the lighthouse for many years. The door was locked with a heavy iron @4@. The windows were dark and dusty. Sometimes, on stormy nights, the villagers said you could still hear footsteps @5@, climbing slowly up the spiral staircase. Most people thought it was just the @6@ of the wind in the empty tower.\n\nA little girl called Eliza did not @7@ them. Every Saturday, she walked up the cliff path with her grandfather, and they sat on a bench and watched the lighthouse together. 'One day,' she would say, 'someone will @8@ that lamp again, and ships will see it from the sea.' Her grandfather would smile and @9@ her hand, but he would never say a @10@.",
+      gaps: [
+        { options: ["stood", "ran", "sang", "hid"], answer: "stood" },
+        { options: ["stripped", "added", "pulled", "painted"], answer: "stripped" },
+        { options: ["leaning", "running", "sitting", "laughing"], answer: "leaning" },
+        { options: ["padlock", "nail", "wheel", "pole"], answer: "padlock" },
+        { options: ["inside", "outside", "above", "behind"], answer: "inside" },
+        { options: ["sound", "colour", "smell", "size"], answer: "sound" },
+        { options: ["believe", "hear", "find", "leave"], answer: "believe" },
+        { options: ["light", "open", "sell", "paint"], answer: "light" },
+        { options: ["squeeze", "sell", "drop", "kick"], answer: "squeeze" },
+        { options: ["word", "song", "poem", "book"], answer: "word" },
+      ],
+    },
+    {
+      title: "How to Look After a Goldfish",
+      kind: "Care guide",
+      text: "Goldfish are popular pets, but they need more @1@ than many people think. A goldfish can live for over ten years if it is looked after properly.\n\nFirst, @2@ the right tank. A goldfish needs at least 75 litres of water \u2014 small round bowls are not @3@, even though shops still sell them. Goldfish produce a lot of @4@, so a bowl quickly becomes dirty and unhealthy.\n\nSecond, feed your fish a small @5@ of food twice a day. Many goldfish die because their owners feed them too @6@. If there is uneaten food at the bottom of the tank after a few minutes, you have given them too much.\n\nThird, change about a @7@ of the water every week. Use a clean bucket and add water that is the same @8@ as the water in the tank. If the new water is too cold or too warm, it can @9@ the fish.\n\nFinally, keep the tank away from direct sunlight and noisy areas. Goldfish @10@ a calm, quiet environment, just like many of us.",
+      gaps: [
+        { options: ["care", "time", "money", "luck"], answer: "care" },
+        { options: ["choose", "break", "wash", "sell"], answer: "choose" },
+        { options: ["suitable", "quick", "cold", "cheap"], answer: "suitable" },
+        { options: ["waste", "noise", "colour", "oil"], answer: "waste" },
+        { options: ["pinch", "bag", "pound", "bucket"], answer: "pinch" },
+        { options: ["much", "little", "fast", "sweet"], answer: "much" },
+        { options: ["third", "half", "week", "metre"], answer: "third" },
+        { options: ["temperature", "colour", "smell", "weight"], answer: "temperature" },
+        { options: ["shock", "clean", "feed", "hide"], answer: "shock" },
+        { options: ["prefer", "hate", "fear", "catch"], answer: "prefer" },
+      ],
+    },
+    {
+      title: "The Mystery of the Missing Lunch",
+      kind: "Mystery / narrative",
+      text: "Every Tuesday, Mr Park's class went outside for an hour of forest school. They would leave their lunch boxes neatly @1@ in the cloakroom and head out into the school woods.\n\nOne Tuesday in April, Lily came back @2@ after running around all morning. But when she opened her lunch box, her cheese sandwich and her apple were @3@. In their place was a single crumb and a strange muddy paw @4@.\n\nThe same thing happened the next week to Daniel \u2014 and the week after that, to two more children. Mr Park said it must be 'a @5@ fox'. The school caretaker, Mr Roy, was not so sure. 'A fox would knock over the bin,' he said, scratching his head, 'not @6@ a lunch box neatly.'\n\nThe @7@ was solved on the fourth Tuesday. Lily went back inside early because she had hurt her @8@. She @9@ to the cloakroom and there, sitting in the middle of the floor with a sandwich in his paws, was the caretaker's small ginger @10@, Biscuit. He had crept in through the open window.",
+      gaps: [
+        { options: ["stacked", "cooked", "sold", "hidden"], answer: "stacked" },
+        { options: ["ravenous", "sleepy", "clean", "wet"], answer: "ravenous" },
+        { options: ["gone", "hot", "yellow", "new"], answer: "gone" },
+        { options: ["print", "box", "animal", "bowl"], answer: "print" },
+        { options: ["thieving", "dancing", "sleepy", "tiny"], answer: "thieving" },
+        { options: ["open", "cook", "freeze", "draw"], answer: "open" },
+        { options: ["mystery", "sandwich", "wood", "classroom"], answer: "mystery" },
+        { options: ["knee", "book", "sister", "paint"], answer: "knee" },
+        { options: ["tiptoed", "shouted", "drove", "swam"], answer: "tiptoed" },
+        { options: ["cat", "dog", "bird", "boy"], answer: "cat" },
+      ],
+    },
+    {
+      title: "Volcanoes",
+      kind: "Information / science",
+      text: "A volcano is an @1@ in the Earth's surface through which hot, melted rock \u2014 called magma \u2014 can escape. When magma reaches the surface and flows out, it is called @2@. Lava can be @3@ than 1,000\u00b0C, which is hot enough to set wood on fire just by being near it.\n\nThere are more than 1,500 @4@ volcanoes on Earth. 'Active' means a volcano that has erupted recently or might @5@ again soon. Many of them are found around the edges of the Pacific Ocean, in a curved area known as the Ring of Fire.\n\nNot all eruptions are the same. Some volcanoes @6@ suddenly with huge clouds of ash and rock. Others ooze lava more gently, @7@ thick honey running down a hill. Scientists who study volcanoes are called volcanologists. They use special equipment to listen to the ground and try to @8@ when an eruption might happen, but it is not always easy.\n\nAlthough volcanoes can be @9@, the ash they release makes the surrounding soil very rich, and farmers often grow @10@ crops nearby.",
+      gaps: [
+        { options: ["opening", "animal", "colour", "village"], answer: "opening" },
+        { options: ["lava", "water", "smoke", "fire"], answer: "lava" },
+        { options: ["hotter", "colder", "lighter", "quieter"], answer: "hotter" },
+        { options: ["active", "dead", "new", "large"], answer: "active" },
+        { options: ["erupt", "sleep", "move", "sing"], answer: "erupt" },
+        { options: ["explode", "freeze", "float", "sing"], answer: "explode" },
+        { options: ["like", "under", "before", "since"], answer: "like" },
+        { options: ["predict", "cook", "sell", "hide"], answer: "predict" },
+        { options: ["dangerous", "cheap", "quiet", "friendly"], answer: "dangerous" },
+        { options: ["excellent", "dead", "strange", "cold"], answer: "excellent" },
+      ],
+    },
+    {
+      title: "The Best Day of the Holiday",
+      kind: "Descriptive personal narrative",
+      text: "If you asked me to @1@ the best day of our whole summer holiday, I would not even have to think about it. It was the day we went to the floating market.\n\nWe took a tiny wooden boat down a brown, slow river. The sun was so @2@ that I had to keep one hand over my eyes. All around us, other boats @3@ past \u2014 hundreds of them, all painted in different colours. Some were piled high with @4@ of fruit: scarlet dragon fruit, golden mangoes, and bunches of green bananas tied with string. Others sold steaming bowls of noodles, which the seller passed across the water on a long bamboo @5@.\n\nA woman in a wide straw @6@ smiled at my little brother and gave him a slice of pineapple. He grinned with juice all down his @7@. I bought a pink lotus @8@ for fifty pence to give to Grandma when we got home.\n\nThat night, falling @9@, I could still hear the river, the splashing paddles, and the bright, happy @10@ of the sellers in my head.",
+      gaps: [
+        { options: ["choose", "cook", "wash", "drop"], answer: "choose" },
+        { options: ["bright", "dark", "cold", "wet"], answer: "bright" },
+        { options: ["glided", "crashed", "sank", "barked"], answer: "glided" },
+        { options: ["mountains", "drops", "pieces", "pictures"], answer: "mountains" },
+        { options: ["pole", "bowl", "hat", "song"], answer: "pole" },
+        { options: ["hat", "shop", "boat", "cup"], answer: "hat" },
+        { options: ["chin", "book", "ear", "shoe"], answer: "chin" },
+        { options: ["flower", "cake", "shoe", "book"], answer: "flower" },
+        { options: ["asleep", "down", "awake", "over"], answer: "asleep" },
+        { options: ["voices", "colours", "smells", "clouds"], answer: "voices" },
+      ],
+    },
+  ],
+  4: [
+    {
+      title: "The Magic Telescope",
+      kind: "Narrative",
+      text: "My grandfather's attic was always @1@ off-limits. So when Mum gave me the key on my tenth birthday, I climbed the wooden ladder with a feeling somewhere @2@ excitement and fear. Dust danced in the slanting light from the single round window.\n\nIn the far corner, @3@ behind a tattered curtain, stood a brass telescope on three slender legs. It was almost as tall as me. I @4@ it carefully towards the window, breathed on the lens, and looked up at the afternoon sky.\n\nWhat I saw made me @5@ in disbelief. The sun was not where it should have been. Strange ringed planets hung where, only seconds before, there had been @6@ cloud. Through the eyepiece I could see oceans, mountains, and tiny lights that might have been cities.\n\nI lowered the telescope slowly. Through the window, the sky was perfectly @7@: blue, with a few harmless clouds. I raised it again. The strange world @8@.\n\nFor an hour I stood there, looking from one impossible sky to another, my breath @9@. I knew, somehow, that I must not tell anyone \u2014 not yet. Some discoveries are too @10@ to share.",
+      gaps: [
+        { options: ["strictly", "quickly", "sadly", "loudly"], answer: "strictly" },
+        { options: ["between", "under", "before", "inside"], answer: "between" },
+        { options: ["half-hidden", "coloured", "shouted", "opened"], answer: "half-hidden" },
+        { options: ["turned", "threw", "drank", "forgot"], answer: "turned" },
+        { options: ["gasp", "sing", "sleep", "smile"], answer: "gasp" },
+        { options: ["only", "never", "heavy", "loud"], answer: "only" },
+        { options: ["ordinary", "strange", "golden", "windy"], answer: "ordinary" },
+        { options: ["returned", "disappeared", "sang", "melted"], answer: "returned" },
+        { options: ["quickening", "sleeping", "boiling", "falling"], answer: "quickening" },
+        { options: ["precious", "boring", "wet", "loud"], answer: "precious" },
+      ],
+    },
+    {
+      title: "Honey Bees",
+      kind: "Information text",
+      text: "Honey bees are @1@ social insects that live in large groups called colonies. A single colony can @2@ tens of thousands of bees, and every member has a particular job to do.\n\nAt the heart of every colony is the queen, the only bee in the hive who lays eggs. She can produce up to two thousand eggs in a single day. Worker bees, all female, do almost everything else: they collect nectar, look after the young, and @3@ the hive. Male bees, called drones, have just one @4@ \u2014 to mate with a new queen.\n\nWhen a worker bee finds a good source of flowers, she returns home and @5@ a special 'waggle dance'. The angle and speed of the dance tell the other bees the @6@ and distance of the food. It is one of the most remarkable communication systems in the animal kingdom.\n\nBees are not only fascinating; they are @7@ to our world. About one in every three mouthfuls of food we eat @8@ on a bee for pollination. @9@, bee populations have been falling for years, partly because of pesticides and lost habitats. Many scientists are now trying to find ways to @10@ them.",
+      gaps: [
+        { options: ["highly", "quietly", "never", "loudly"], answer: "highly" },
+        { options: ["contain", "cook", "break", "drink"], answer: "contain" },
+        { options: ["defend", "sell", "paint", "forget"], answer: "defend" },
+        { options: ["role", "cake", "song", "arm"], answer: "role" },
+        { options: ["performs", "breaks", "eats", "sells"], answer: "performs" },
+        { options: ["direction", "weight", "colour", "age"], answer: "direction" },
+        { options: ["essential", "cheap", "strange", "loud"], answer: "essential" },
+        { options: ["depends", "sleeps", "sings", "cooks"], answer: "depends" },
+        { options: ["Unfortunately", "Quickly", "Above", "Below"], answer: "Unfortunately" },
+        { options: ["protect", "sell", "break", "forget"], answer: "protect" },
+      ],
+    },
+    {
+      title: "Moving House",
+      kind: "First-person",
+      text: "On the morning we left our old house, I stood for a long time in my empty bedroom, trying to @1@ every detail. The little scratch on the door where I had once dragged a chair. The patch on the carpet where my paint pot had @2@. The view from the window: the same cherry tree I had watched bloom every year for as long as I could @3@.\n\nDad's voice called up the stairs. 'Sasha, we have to go!' His tone was kind, but I could hear the edge of @4@ in it. We had a long drive ahead.\n\nIn the car, I @5@ my forehead against the cool window. Houses I had passed every day slid by for the last time: the corner shop, my old primary school, the funny green house with the @6@ gate. None of them noticed I was leaving.\n\nThe new house, when we arrived, was @7@ to be honest. The garden was huge and there was a tiny wood at the end of it. My room was bigger than my old one. But I could not @8@ smiling, not yet. I needed time.\n\nThat night, I sat by the new window and watched a moon I did not @9@. It rose over rooftops I had never seen. Slowly, I started to feel that, perhaps, one day, this place might also feel like a @10@.",
+      gaps: [
+        { options: ["remember", "cook", "break", "lose"], answer: "remember" },
+        { options: ["spilled", "sung", "drunk", "cooked"], answer: "spilled" },
+        { options: ["recall", "cook", "break", "sell"], answer: "recall" },
+        { options: ["impatience", "laughter", "colour", "sound"], answer: "impatience" },
+        { options: ["pressed", "sang", "cooked", "sold"], answer: "pressed" },
+        { options: ["crooked", "quiet", "blue", "new"], answer: "crooked" },
+        { options: ["lovely", "boring", "wet", "loud"], answer: "lovely" },
+        { options: ["manage", "hide", "sell", "break"], answer: "manage" },
+        { options: ["recognise", "sell", "break", "forget"], answer: "recognise" },
+        { options: ["home", "shop", "road", "hat"], answer: "home" },
+      ],
+    },
+    {
+      title: "How to Make a Paper Aeroplane",
+      kind: "Instructional",
+      text: "With @1@ and practice, you can make a paper aeroplane that flies surprisingly far. All you need is a single sheet of A4 paper.\n\nFirst, place the paper on a flat @2@ in front of you, with the short edge nearest. Fold it exactly in half lengthways, then @3@ it again so you can see a clear crease running down the middle.\n\nNext, take the two top corners and fold them inwards, so that they meet neatly at the centre line. You should now have a @4@ point at the top of the paper. This will become the nose of your aeroplane.\n\nNow fold the slanted edges in towards the middle once more. The nose should become @5@, narrower and sharper. @6@ the whole shape in half, with the points pointing outwards.\n\nFinally, create the wings by folding each side down so that the lower edge of the wing is parallel to the bottom of the aeroplane's body. Make sure both wings are exactly the same @7@; otherwise, your plane will spin or @8@ to one side.\n\nTo throw, hold the body firmly between your thumb and forefinger. Aim slightly upwards and release with a @9@, smooth flick. With a little adjustment, you should soon be able to make your aeroplane glide gracefully across the @10@.",
+      gaps: [
+        { options: ["patience", "mud", "paint", "wood"], answer: "patience" },
+        { options: ["surface", "fish", "song", "cup"], answer: "surface" },
+        { options: ["open", "sell", "break", "sing"], answer: "open" },
+        { options: ["triangular", "round", "red", "hot"], answer: "triangular" },
+        { options: ["longer", "shorter", "yellow", "wet"], answer: "longer" },
+        { options: ["Fold", "Sell", "Break", "Sing"], answer: "Fold" },
+        { options: ["size", "colour", "smell", "song"], answer: "size" },
+        { options: ["tilt", "sing", "sleep", "cook"], answer: "tilt" },
+        { options: ["gentle", "loud", "cold", "sweet"], answer: "gentle" },
+        { options: ["room", "sea", "kitchen", "forest"], answer: "room" },
+      ],
+    },
+    {
+      title: "Letter to a Penpal",
+      kind: "Letter",
+      text: "Dear Yuki,\n\nThank you so much for your last letter and the beautiful @1@ of cherry blossoms. They are now stuck above my desk where I can see them every day. It is hard to believe we have been writing to each other for nearly a @2@ already!\n\nI am pleased to hear that you are still enjoying the violin. Six lessons a week sounds @3@, but I can tell you really love it. I have started learning the guitar this term, but I am afraid I am not as @4@ as you. My fingers keep getting @5@ on the strings.\n\nThings are going well at school. Last week our class went on a trip to a Roman @6@, where we saw real mosaics that were almost two thousand years old. It is strange to think that the people who lived there ate, laughed and @7@ over their homework, just like we do.\n\nYou asked about my summer plans. My family and I are going to visit my grandmother in Scotland. I will try to @8@ some photos of the lochs and @9@ them in my next letter.\n\nPlease write soon and tell me all about your school festival. I cannot wait to hear what @10@ your class is performing.\n\nYour friend,\nOlivia",
+      gaps: [
+        { options: ["photograph", "song", "cake", "shoe"], answer: "photograph" },
+        { options: ["year", "minute", "hour", "second"], answer: "year" },
+        { options: ["exhausting", "boring", "wet", "silent"], answer: "exhausting" },
+        { options: ["talented", "wet", "sad", "loud"], answer: "talented" },
+        { options: ["tangled", "cooked", "sung", "sold"], answer: "tangled" },
+        { options: ["villa", "shop", "song", "boat"], answer: "villa" },
+        { options: ["argued", "sang", "cooked", "sold"], answer: "argued" },
+        { options: ["take", "sell", "break", "forget"], answer: "take" },
+        { options: ["include", "sell", "forget", "drop"], answer: "include" },
+        { options: ["play", "cake", "road", "shoe"], answer: "play" },
+      ],
+    },
+    {
+      title: "The Abandoned Garden",
+      kind: "Descriptive",
+      text: "At the end of our road stood a tall iron gate, half-eaten by rust. Beyond it lay a garden no one had touched for @1@. The path that had once led to the house was now @2@ in moss and brambles, so thick that I could only just make out the shape of the front door beneath the @3@ ivy.\n\nI had walked past this garden hundreds of times, but I had never @4@ to look inside properly. That afternoon, with the long summer @5@ before me and no one waiting for me at home, curiosity got the better of me.\n\nThe gate gave way with a @6@ creak. Inside, the air was somehow cooler and stranger, as if I had stepped through a curtain into a different world. A stone fountain stood in the middle, its bowl filled not with water but with @7@ leaves and a single, perfect spider's web. To one side, a wooden bench had been @8@ painted blue, but the colour had now faded to a soft greyish-white.\n\nI sat down very @9@ on the bench. A robin landed on the rim of the fountain, watched me for a moment with its black, beadlike eye, and then flew away. The whole garden seemed to be @10@ its breath, waiting to see what I would do next.",
+      gaps: [
+        { options: ["decades", "minutes", "seconds", "cars"], answer: "decades" },
+        { options: ["buried", "sold", "sung", "cooked"], answer: "buried" },
+        { options: ["tangled", "yellow", "quiet", "sweet"], answer: "tangled" },
+        { options: ["dared", "cooked", "sung", "sold"], answer: "dared" },
+        { options: ["holiday", "shop", "minute", "song"], answer: "holiday" },
+        { options: ["mournful", "loud", "sweet", "fast"], answer: "mournful" },
+        { options: ["dead", "boiling", "golden", "strange"], answer: "dead" },
+        { options: ["once", "never", "quickly", "sweetly"], answer: "once" },
+        { options: ["carefully", "loudly", "sweetly", "coldly"], answer: "carefully" },
+        { options: ["holding", "selling", "breaking", "cooking"], answer: "holding" },
+      ],
+    },
+    {
+      title: "Why We Should Recycle More",
+      kind: "Persuasive",
+      text: "Every day, the average British family throws away enough rubbish to fill a wheelie bin, and @1@ of that rubbish could have been recycled. This matters more than many people realise. @2@ we change our habits, mountains of plastic, paper and metal will continue to fill up our landfill sites and poison our oceans.\n\nRecycling is not @3@ as some claim. Most councils now provide separate bins for paper, plastic, glass and food waste. Sorting your rubbish takes only a few extra @4@ a day, yet the impact is enormous.\n\n@5@, consider plastic. A plastic bottle thrown into a normal bin may take up to 450 years to break down. The same bottle, placed in the recycling, can be turned into clothing, garden furniture or even a new bottle within a few weeks. That is a @6@ difference.\n\nThere are those who argue that recycling does not matter because the problem is too big for one person to @7@. This is simply not true. If every household in the country recycled just one extra item per day, the savings would be @8@.\n\nThe real question is not whether recycling helps. The real question is why we @9@ choose to do less when doing more is so easy. The Earth is the only home we have, and it is high time we started treating it with the @10@ it deserves.",
+      gaps: [
+        { options: ["most", "few", "none", "parts"], answer: "most" },
+        { options: ["Unless", "Because", "Although", "Since"], answer: "Unless" },
+        { options: ["difficult", "cheap", "quiet", "silver"], answer: "difficult" },
+        { options: ["seconds", "hours", "weeks", "years"], answer: "seconds" },
+        { options: ["Firstly", "Lastly", "Never", "Yesterday"], answer: "Firstly" },
+        { options: ["remarkable", "boring", "wet", "quiet"], answer: "remarkable" },
+        { options: ["solve", "cook", "sing", "sell"], answer: "solve" },
+        { options: ["enormous", "tiny", "boring", "wet"], answer: "enormous" },
+        { options: ["would", "never", "cannot", "must"], answer: "would" },
+        { options: ["respect", "fear", "hatred", "colour"], answer: "respect" },
+      ],
+    },
+    {
+      title: "The Strange Footprints in the Snow",
+      kind: "Mystery",
+      text: "It had snowed all night. When I @1@ back the curtains at seven o'clock, the world had been @2@ in a perfect white blanket. My little sister, Clara, ran into my room in her pyjamas, half-crying with excitement.\n\n'Look! Sledging!' she shouted. But I was already looking at something else.\n\nThere, in our front garden, was a single line of footprints. They came from the road, walked straight up to our front door, and then \u2014 and this is the part that I still do not @3@ \u2014 they stopped. They did not turn around. They did not go back. They simply @4@, as if whoever had made them had been @5@ up into the sky.\n\nI checked the snow on the doorstep itself. It was @6@ \u2014 no one had stood on it. I went outside in my slippers and walked all around the house. There were no other prints anywhere. Not a single @7@.\n\nDad came down and laughed, of course. 'A bird,' he said. 'Or a cat. The wind has covered the rest.' But there had been no @8@ in the night, and these prints were clearly made by something on two feet. Something that had walked up to our door, paused, and then @9@.\n\nFor weeks afterwards, I would wake up in the middle of the night and listen, half-expecting to hear a knock that never came. To this day, I do not know what walked up to our house that morning. But I do know one thing: I am certain that I will @10@ forget those footprints in the snow.",
+      gaps: [
+        { options: ["drew", "cooked", "sang", "sold"], answer: "drew" },
+        { options: ["wrapped", "cooked", "sold", "sung"], answer: "wrapped" },
+        { options: ["understand", "sell", "sing", "cook"], answer: "understand" },
+        { options: ["ended", "began", "shouted", "opened"], answer: "ended" },
+        { options: ["lifted", "cooked", "sold", "sung"], answer: "lifted" },
+        { options: ["untouched", "sold", "sweet", "boiling"], answer: "untouched" },
+        { options: ["mark", "song", "shoe", "cup"], answer: "mark" },
+        { options: ["wind", "cake", "song", "shoe"], answer: "wind" },
+        { options: ["vanished", "cooked", "sold", "sung"], answer: "vanished" },
+        { options: ["never", "always", "often", "sometimes"], answer: "never" },
+      ],
+    },
+    {
+      title: "Inside a Tornado",
+      kind: "Science",
+      text: "A tornado is one of the most @1@ phenomena in nature: a violent, spinning column of air that reaches from a thundercloud all the way down to the ground. The wind speeds inside the worst tornadoes can @2@ 300 miles per hour \u2014 more than three times faster than a Formula 1 car at top speed.\n\nTornadoes form when warm, moist air near the ground meets cold, dry air from above. The two layers begin to @3@, and the spinning motion creates a funnel. If this funnel reaches the surface, it becomes a tornado. The whole @4@ can take less than half an hour, which is why tornadoes are so hard to predict.\n\nThe damage a tornado can cause is @5@. Roofs are ripped from houses, cars are tossed like toys, and entire forests are flattened in @6@. Yet, in the centre of every tornado, there is a strange area called the 'eye' where the wind drops and the air becomes @7@ calm. People who have survived being in the eye have described an eerie silence and even, in some cases, a @8@ of blue sky visible directly overhead.\n\nScientists called storm chasers @9@ tornadoes deliberately, driving towards them in specially built vehicles in order to take measurements. Thanks to their bravery, we now know far more about how tornadoes work than we did even twenty years @10@.",
+      gaps: [
+        { options: ["dramatic", "boring", "wet", "quiet"], answer: "dramatic" },
+        { options: ["exceed", "sleep", "sing", "cook"], answer: "exceed" },
+        { options: ["rotate", "freeze", "sing", "sell"], answer: "rotate" },
+        { options: ["process", "song", "cake", "hat"], answer: "process" },
+        { options: ["devastating", "cheap", "sweet", "quiet"], answer: "devastating" },
+        { options: ["seconds", "hours", "years", "decades"], answer: "seconds" },
+        { options: ["strangely", "loudly", "sweetly", "coldly"], answer: "strangely" },
+        { options: ["patch", "cake", "song", "shoe"], answer: "patch" },
+        { options: ["pursue", "sell", "cook", "sing"], answer: "pursue" },
+        { options: ["ago", "now", "soon", "quickly"], answer: "ago" },
+      ],
+    },
+    {
+      title: "Sports Day",
+      kind: "Recount",
+      text: "Sports Day is, without a doubt, the @1@ event of the school year \u2014 at least, it is for me. I had been training for the long-distance race for months, getting up early in the @2@ to run laps of the local park before school.\n\nThe morning of the race was @3@ and warm. As I lined up at the start, butterflies were @4@ in my stomach. To my right was Maya, last year's winner; to my left, Daniel, who had been @5@ across the field that I would 'lose by a mile'. I tried to ignore him.\n\nThe whistle blew. Maya shot off like a @6@, with Daniel close behind. For the first lap, I forced myself to stay calm and keep my @7@ steady. I could hear my parents shouting somewhere on the sidelines, but I did not dare look up. By the third lap, Daniel had fallen behind, his face red and his breathing @8@. Maya was still ahead, but only just.\n\nOn the final straight, with the finish line in sight, I @9@ deep and pushed harder than I ever had in my life. My lungs were burning. My legs felt like jelly. But somehow, in the last few metres, I overtook Maya by a single step.\n\nWhen the medal was placed around my neck, I could barely @10@. All those early mornings had been worth it.",
+      gaps: [
+        { options: ["greatest", "dullest", "wettest", "quietest"], answer: "greatest" },
+        { options: ["dark", "song", "cake", "hat"], answer: "dark" },
+        { options: ["bright", "cold", "wet", "quiet"], answer: "bright" },
+        { options: ["fluttering", "cooking", "singing", "selling"], answer: "fluttering" },
+        { options: ["boasting", "cooking", "sleeping", "paying"], answer: "boasting" },
+        { options: ["rocket", "cake", "shoe", "fish"], answer: "rocket" },
+        { options: ["pace", "cake", "song", "shoe"], answer: "pace" },
+        { options: ["ragged", "sweet", "golden", "cold"], answer: "ragged" },
+        { options: ["breathed", "cooked", "sang", "sold"], answer: "breathed" },
+        { options: ["speak", "cook", "drive", "sell"], answer: "speak" },
+      ],
+    },
+  ],
+  5: [
+    {
+      title: "The Mountain Hike",
+      kind: "Narrative",
+      text: "By the time we reached the halfway point, my legs were @1@ and my water bottle was almost empty. Dad, ten metres ahead of me on the rocky path, turned round and grinned. 'Still alive back there?' he called. I forced myself to nod, although I had been @2@ to suggest turning back for the past hour.\n\nWe had set off from the village at dawn, climbing through silent pine forests on a path that grew steeper with every step. Now, above the tree line, the wind was sharper and the view was @3@. To one side, the valley dropped away into a sea of mist; to the other, the mountain itself rose like an enormous, jagged tooth.\n\nAfter a brief rest, we pressed on. Dad's pace was, as ever, @4@. Mine was less so. Twice I slipped on loose stones, and once I had to @5@ on a small boulder to recover my breath. Dad did not @6@ me. He simply waited, patient as the mountain itself.\n\nThe last hour was the hardest. The path almost vanished, and we had to @7@ our way upwards using both hands. My fingers grew numb. My nose ran. I started to wonder, @8@, whether the summit would ever actually arrive.\n\nAnd then, suddenly, it did. One moment I was scrambling over a rock; the next, there was nothing above me but sky. I stood, panting, while Dad clapped me on the shoulder. He did not say a word. He did not need to. From up there, the world looked @9@, fragile and beautiful, and I felt that I could see it @10@ for the first time in my life.",
+      gaps: [
+        { options: ["trembling", "cooking", "singing", "selling"], answer: "trembling" },
+        { options: ["tempted", "sold", "sung", "cooked"], answer: "tempted" },
+        { options: ["spectacular", "boring", "wet", "quiet"], answer: "spectacular" },
+        { options: ["relentless", "sweet", "golden", "quiet"], answer: "relentless" },
+        { options: ["perch", "sell", "cook", "sing"], answer: "perch" },
+        { options: ["rush", "sell", "sing", "cook"], answer: "rush" },
+        { options: ["haul", "sell", "sing", "cook"], answer: "haul" },
+        { options: ["seriously", "sweetly", "coldly", "loudly"], answer: "seriously" },
+        { options: ["enormous", "tiny", "cheap", "quiet"], answer: "enormous" },
+        { options: ["properly", "sweetly", "coldly", "loudly"], answer: "properly" },
+      ],
+    },
+    {
+      title: "The Coral Reef",
+      kind: "Information",
+      text: "Coral reefs are sometimes called the rainforests of the sea \u2014 and with good reason. Although they cover less than one per cent of the @1@ floor, they are home to nearly a quarter of all marine species. From clownfish hiding among waving sea anemones to giant turtles cruising lazily overhead, the @2@ of life on a coral reef is breathtaking.\n\nCoral itself is not a plant, though it might @3@ one. It is, in fact, made up of thousands of tiny creatures called polyps. Each polyp is barely the size of a pinhead, but together they can build @4@ that stretch for hundreds of miles. The Great Barrier Reef off the coast of Australia, the largest reef on Earth, is so vast it can be seen from @5@.\n\nThe bright colours of healthy coral come from a special kind of algae that lives inside the polyps. The two are partners: the algae make food using sunlight, and the polyps provide shelter. @6@, this delicate balance is now under serious threat. When the sea becomes too warm, the corals get rid of their algae and lose their colour \u2014 a process called 'bleaching'. @7@ the algae do not return quickly, the coral will die.\n\nRising sea temperatures, pollution and overfishing have already @8@ huge sections of reef around the world. Some scientists fear that, without urgent action, most coral reefs may @9@ from the planet within a single generation. Saving them will require enormous international @10@ \u2014 but the cost of failing to act, both for marine life and for the millions of people who depend on the reefs, would be even higher.",
+      gaps: [
+        { options: ["ocean", "cake", "song", "shoe"], answer: "ocean" },
+        { options: ["variety", "cake", "song", "shoe"], answer: "variety" },
+        { options: ["resemble", "sell", "sing", "cook"], answer: "resemble" },
+        { options: ["structures", "cakes", "songs", "hats"], answer: "structures" },
+        { options: ["space", "cake", "song", "shoe"], answer: "space" },
+        { options: ["Unfortunately", "Quickly", "Above", "Sweetly"], answer: "Unfortunately" },
+        { options: ["If", "But", "Because", "However"], answer: "If" },
+        { options: ["damaged", "sold", "sung", "cooked"], answer: "damaged" },
+        { options: ["disappear", "sell", "sing", "cook"], answer: "disappear" },
+        { options: ["cooperation", "coldness", "silence", "paint"], answer: "cooperation" },
+      ],
+    },
+    {
+      title: "Starting at a New School",
+      kind: "First-person",
+      text: "For the first three days at my new school, I did not say a single word. Not to the boy with the freckles who sat next to me in maths, not to the friendly girl who tried to @1@ me at break, not even to the teachers. I think people must have decided I was rude, or very @2@, but the truth was that I simply could not @3@ myself to speak.\n\nIt was not that I was shy. At my old school, I had been the loud one, the one who made everyone laugh. But everything here was different. The corridors were longer. The lessons were harder. Even the way the other children spoke seemed faster and somehow @4@ than I was used to.\n\nOn the fourth day, something small but important happened. We had been told to find a partner for a science experiment. While everyone else @5@ a friend, I stood alone, my heart sinking. Then a girl I had not noticed before \u2014 small, dark-haired, with a quiet smile \u2014 walked over to me and said, simply, 'Want to work together?'\n\nHer name was Hana. She was new too. Within an hour, we were laughing about the strange smell coming from another group's beaker. By the end of the lesson, I had spoken more words than in the @6@ of the week @7@.\n\nI think back to that moment often. Hana could @8@ have asked anyone else. She did not have to choose me. But that one small act of @9@ \u2014 of crossing the room and saying hello \u2014 completely changed the way I felt about my new school. Now, two years @10@, we are still best friends, and I try, whenever I can, to do the same thing for someone else.",
+      gaps: [
+        { options: ["include", "cook", "sell", "sing"], answer: "include" },
+        { options: ["unfriendly", "sweet", "golden", "loud"], answer: "unfriendly" },
+        { options: ["bring", "cook", "sell", "sing"], answer: "bring" },
+        { options: ["sharper", "sweeter", "softer", "colder"], answer: "sharper" },
+        { options: ["claimed", "cooked", "sang", "sold"], answer: "claimed" },
+        { options: ["rest", "cake", "song", "shoe"], answer: "rest" },
+        { options: ["combined", "sold", "sung", "cooked"], answer: "combined" },
+        { options: ["easily", "coldly", "sweetly", "quietly"], answer: "easily" },
+        { options: ["kindness", "coldness", "silence", "paint"], answer: "kindness" },
+        { options: ["later", "sooner", "quickly", "sweetly"], answer: "later" },
+      ],
+    },
+    {
+      title: "Looking After a Bonsai Tree",
+      kind: "Instructional",
+      text: "A bonsai tree is not a @1@ of plant. It is, in fact, an ordinary tree \u2014 most often a juniper, pine or maple \u2014 that has been kept small through years, sometimes decades, of careful pruning and shaping. Owning one is a long-term commitment, and it requires @2@ as much as enthusiasm.\n\nPosition your bonsai where it will receive plenty of indirect light, but not the harsh sunlight of a south-facing windowsill, which can scorch the @3@ leaves. Most varieties do well in a cool, well-ventilated room. Avoid radiators and draughts.\n\nWatering is perhaps the most @4@ part of bonsai care. Because the pot is so small, the soil can dry out quickly \u2014 especially in summer \u2014 but it can also @5@ waterlogged with surprising ease. A simple test is to push your finger about a centimetre into the soil. If it feels dry, water generously, allowing the excess to drain away through the holes in the base. If it feels damp, @6@ a day or two.\n\nPruning is what gives a bonsai its @7@ shape. Using a small, sharp pair of scissors, snip away any new shoots that grow longer than the surrounding ones. Aim for a balanced silhouette: many beginners prune too much and weaken the tree.\n\nFinally, be patient. A bonsai cannot be @8@. Its beauty develops gradually, over many years, as the trunk thickens, the bark roughens, and the branches take on the natural-looking curves of a tree in @9@. Treated well, your bonsai may @10@ you, becoming a treasured object that passes from one generation to the next.",
+      gaps: [
+        { options: ["species", "cake", "song", "shoe"], answer: "species" },
+        { options: ["patience", "coldness", "silence", "paint"], answer: "patience" },
+        { options: ["delicate", "sweet", "loud", "golden"], answer: "delicate" },
+        { options: ["crucial", "sweet", "silent", "boring"], answer: "crucial" },
+        { options: ["become", "sell", "sing", "cook"], answer: "become" },
+        { options: ["wait", "sell", "sing", "cook"], answer: "wait" },
+        { options: ["distinctive", "sweet", "boring", "loud"], answer: "distinctive" },
+        { options: ["rushed", "sold", "sung", "cooked"], answer: "rushed" },
+        { options: ["miniature", "sweet", "loud", "golden"], answer: "miniature" },
+        { options: ["outlive", "sell", "cook", "sing"], answer: "outlive" },
+      ],
+    },
+    {
+      title: "A Letter from 1912",
+      kind: "Historical letter",
+      text: "My dearest Edith,\n\nI write to you from on board the great ship, where the @1@ excitement of our passengers is matched only by my own. We sailed from Southampton at noon on Wednesday, and although it is now Friday, I still cannot quite believe that I am crossing the ocean towards a new life in @2@.\n\nThis ship is unlike anything I have ever seen. The dining room would not look out of place in a London hotel: chandeliers, white linen, silverware polished until it @3@. The library, where I am writing to you now, is panelled in dark oak and almost @4@ \u2014 perhaps because most of the other passengers are out on deck, taking advantage of the surprisingly @5@ weather.\n\nFather has been busy, as usual. He speaks of nothing but business, business, business. Mother, I am pleased to say, seems @6@ herself again. The fresh sea air has done her good. She has even been heard to laugh once or twice.\n\nI must tell you about the band, who play in the lounge every evening after dinner. Last night, they played a waltz so beautiful that I quite @7@ that I had once promised myself not to dance. I should add that the young gentleman with whom I @8@ was perfectly respectable \u2014 a Mr H., from Manchester, travelling alone to take up a post in Boston.\n\nI shall post this letter when we reach New York on Wednesday morning. @9@ luck, you should receive it before the end of the month. Until then, I remain, as always,\n\nYour loving cousin,\nCharlotte\n\nP.S. The captain says we are making excellent @10@. We may even arrive a few hours early!",
+      gaps: [
+        { options: ["visible", "sweet", "boring", "loud"], answer: "visible" },
+        { options: ["America", "Africa", "Antarctica", "Australia"], answer: "America" },
+        { options: ["gleams", "sells", "sings", "cooks"], answer: "gleams" },
+        { options: ["deserted", "sweet", "loud", "golden"], answer: "deserted" },
+        { options: ["mild", "sweet", "boring", "loud"], answer: "mild" },
+        { options: ["quite", "cooked", "sold", "sung"], answer: "quite" },
+        { options: ["forgot", "sold", "sang", "cooked"], answer: "forgot" },
+        { options: ["danced", "sold", "sang", "cooked"], answer: "danced" },
+        { options: ["With", "Under", "Beside", "Without"], answer: "With" },
+        { options: ["progress", "cake", "song", "shoe"], answer: "progress" },
+      ],
+    },
+    {
+      title: "The City at Night",
+      kind: "Descriptive",
+      text: "After midnight, the city becomes a different @1@. The crowds of office workers, tourists and shoppers who fill its streets during the day have all gone home, and a strange, expectant quietness settles in their place. The traffic lights continue to change \u2014 red, amber, green, red \u2014 but they instruct no one. They flicker on and off like @2@ of silent conversations no one is listening to.\n\nI love walking through the city at this hour. The shops, which by day are full of noise and movement, now stand still behind their dark windows. A single mannequin in a dress shop stares out at the empty pavement with a @3@ expression on her painted face. Outside the bakery, a thin line of warm light leaks from beneath the door, and the smell of @4@ bread already drifts out into the air \u2014 a @5@ of the day to come.\n\nAbove me, most of the offices are dark, but here and there a single window glows. I always wonder, when I see one of these solitary lights, who is up there, working so late, and what @6@ keeps them at their desk while the rest of the city sleeps.\n\nAt the corner of an empty square, a black cat slips silently across the @7@, glances once in my direction, and disappears into a doorway. From somewhere far away comes the @8@ wail of a siren, soon swallowed up again by the silence.\n\nI sometimes feel, walking like this, that I have been @9@ the privilege of seeing the city as it really is \u2014 not the busy stage where everyone performs their daily roles, but the quiet, patient @10@ behind, where the next day waits to begin.",
+      gaps: [
+        { options: ["place", "cake", "song", "shoe"], answer: "place" },
+        { options: ["fragments", "cakes", "songs", "shoes"], answer: "fragments" },
+        { options: ["blank", "sweet", "loud", "golden"], answer: "blank" },
+        { options: ["baking", "sweet", "golden", "loud"], answer: "baking" },
+        { options: ["promise", "cake", "song", "shoe"], answer: "promise" },
+        { options: ["urgency", "silence", "paint", "coldness"], answer: "urgency" },
+        { options: ["cobbles", "cakes", "songs", "shoes"], answer: "cobbles" },
+        { options: ["distant", "sweet", "golden", "loud"], answer: "distant" },
+        { options: ["granted", "sold", "sung", "cooked"], answer: "granted" },
+        { options: ["backstage", "sweet", "golden", "loud"], answer: "backstage" },
+      ],
+    },
+    {
+      title: "Should Children Have Smartphones?",
+      kind: "Persuasive",
+      text: "Walk into any classroom today, peek into any bedroom, glance around any restaurant, and you will see the same @1@ image: a child, head bowed, eyes fixed on the glowing screen of a smartphone. Many parents have come to accept this as normal \u2014 perhaps even inevitable. @2@, we should think much more carefully before placing one of these powerful devices in the hands of a young child.\n\nThe arguments in favour of children having smartphones are well known. They allow parents to keep in @3@, to track where their children are, and to call for help in an emergency. They give access to educational tools, dictionaries, calculators and translation apps. Used wisely, a smartphone can be a @4@ to learning.\n\n@5@, the case against is becoming impossible to ignore. Study after study has shown that heavy smartphone use is linked with lower attention spans, poorer sleep and, most worryingly, rising rates of anxiety in young people. Social media in particular exposes children to comparison, bullying and content far beyond what they are @6@ prepared for. A child of nine or ten is not yet equipped to deal with the relentless judgements of strangers online.\n\nOf course, we cannot \u2014 and should not \u2014 ban smartphones @7@. Children need to learn to live in a digital world. But there is a vast difference between a basic phone that allows calls and texts, and a smartphone that gives unlimited access to everything the internet has to offer.\n\n@8@ we hand a child a smartphone, we should pause and ask ourselves a @9@ question: are we doing this because it is genuinely the best thing for the child? Or are we doing it because it is easier than the alternative? The @10@ matters.",
+      gaps: [
+        { options: ["familiar", "sweet", "golden", "loud"], answer: "familiar" },
+        { options: ["However", "Therefore", "Because", "Although"], answer: "However" },
+        { options: ["touch", "cake", "song", "shoe"], answer: "touch" },
+        { options: ["boost", "cake", "song", "shoe"], answer: "boost" },
+        { options: ["Nevertheless", "Quickly", "Below", "Beside"], answer: "Nevertheless" },
+        { options: ["emotionally", "coldly", "sweetly", "loudly"], answer: "emotionally" },
+        { options: ["outright", "sweetly", "coldly", "quietly"], answer: "outright" },
+        { options: ["Before", "After", "Because", "However"], answer: "Before" },
+        { options: ["simple", "sweet", "golden", "loud"], answer: "simple" },
+        { options: ["answer", "cake", "song", "shoe"], answer: "answer" },
+      ],
+    },
+    {
+      title: "The Missing Manuscript",
+      kind: "Mystery",
+      text: "The manuscript had been in the locked glass case in the centre of the library for as long as anyone could @1@. It was the prize of the entire collection: a 600-year-old book of poems, copied out by hand in @2@ red and gold ink, on parchment so thin you could almost see through it.\n\nI had worked at the library for nine years, and like everyone on the staff, I checked the case at the start of every shift. The manuscript was always there, lying open at whichever page our @3@, Dr Morley, had selected for that week's display.\n\nOn the morning of October the third, the case was @4@.\n\nI will never forget the moment I noticed. I was halfway through my usual tour of the reading rooms, mug of tea in hand, when something seemed @5@. I walked back, slowly. The glass was intact. The lock had not been forced. And yet, where the manuscript should have been, there was nothing but an undisturbed velvet cushion.\n\nDr Morley arrived twenty minutes later, his face the @6@ of thunder. The police were called. Detectives interviewed every member of staff. Cameras were checked. Visitor logs were examined. Nothing.\n\nFor three months, the case in the centre of the library stood empty, the velvet cushion strangely @7@ in its emptiness. The newspapers stopped reporting on the story. Most of us, I think, began to @8@ that we would ever see the manuscript again.\n\n@9@, on a cold morning in January, I unlocked the library doors as usual and walked through to the centre. There, lying neatly in the case, was the manuscript \u2014 exactly as it had always been, exactly as it had been @10@. The glass case was still locked. There was no note, no explanation. To this day, no one knows where it had been, or how it returned.",
+      gaps: [
+        { options: ["remember", "cook", "sell", "sing"], answer: "remember" },
+        { options: ["faded", "sweet", "golden", "loud"], answer: "faded" },
+        { options: ["director", "cake", "song", "shoe"], answer: "director" },
+        { options: ["empty", "sweet", "golden", "loud"], answer: "empty" },
+        { options: ["wrong", "sweet", "golden", "loud"], answer: "wrong" },
+        { options: ["colour", "cake", "song", "shoe"], answer: "colour" },
+        { options: ["accusing", "sweet", "golden", "loud"], answer: "accusing" },
+        { options: ["doubt", "sell", "sing", "cook"], answer: "doubt" },
+        { options: ["Then", "Because", "Although", "Quickly"], answer: "Then" },
+        { options: ["taken", "sold", "sung", "cooked"], answer: "taken" },
+      ],
+    },
+    {
+      title: "The Solar System",
+      kind: "Science",
+      text: "For most of human history, people believed that the Earth lay at the @1@ of the universe and that the Sun, Moon and stars all moved around it. It is, perhaps, an understandable mistake. Stand outside on a clear evening and watch the sky: the Sun does indeed appear to rise, cross the heavens, and set, while the Earth beneath our feet feels @2@ still.\n\nWe now know, of course, that the reverse is true. It is the Earth \u2014 together with the seven other planets of the Solar System \u2014 that orbits the Sun. The Sun itself is a @3@, an enormous ball of hot, glowing gas, around four-and-a-half billion years old. It is by far the largest object in the Solar System: you could fit more than a million Earths inside it.\n\nThe eight planets vary @4@ in size and character. The four nearest the Sun \u2014 Mercury, Venus, Earth and Mars \u2014 are small, rocky worlds. The four @5@ planets \u2014 Jupiter, Saturn, Uranus and Neptune \u2014 are gigantic balls of gas and ice. Jupiter alone is so massive that it @6@ more than twice as much as all the other planets combined.\n\nBetween the rocky planets and the gas giants lies the asteroid belt: a @7@ of rocky debris left over from the formation of the Solar System. Beyond Neptune, in a vast region called the Kuiper Belt, lie countless smaller bodies, including the @8@ planet Pluto, which was once considered a full planet itself.\n\n@9@, our knowledge of the Solar System is constantly expanding. Telescopes, satellites and robotic missions are sending back astonishing images and data from worlds that, only a generation ago, were no more than points of light. Each new discovery @10@ us that, however much we already know, the universe still has plenty of surprises in store.",
+      gaps: [
+        { options: ["centre", "cake", "song", "shoe"], answer: "centre" },
+        { options: ["perfectly", "sweetly", "coldly", "loudly"], answer: "perfectly" },
+        { options: ["star", "cake", "song", "shoe"], answer: "star" },
+        { options: ["enormously", "sweetly", "coldly", "loudly"], answer: "enormously" },
+        { options: ["outer", "sweet", "golden", "loud"], answer: "outer" },
+        { options: ["weighs", "sells", "sings", "cooks"], answer: "weighs" },
+        { options: ["ring", "cake", "song", "shoe"], answer: "ring" },
+        { options: ["dwarf", "sweet", "golden", "loud"], answer: "dwarf" },
+        { options: ["Fortunately", "Sweetly", "Below", "Beside"], answer: "Fortunately" },
+        { options: ["reminds", "sells", "sings", "cooks"], answer: "reminds" },
+      ],
+    },
+    {
+      title: "My Grandfather's War",
+      kind: "Memoir",
+      text: "My grandfather rarely spoke about the war. For most of his @1@, the war was something other men talked about \u2014 the men in pubs, the men on television documentaries \u2014 but never him. He would change the subject the moment it was mentioned, with a quiet @2@ that none of us dared to challenge.\n\nIt was only in the final year of his life, when he was already very ill, that he began, @3@ and at unexpected moments, to share fragments of what he had seen.\n\nHe had been nineteen when he was called up in 1944. A farm boy from Yorkshire, he had never travelled further than the nearest market town. Within weeks, he found himself on a @4@ bound for Italy, where he served in the Royal Engineers. His job, he told me one quiet afternoon, was to find and @5@ landmines.\n\n'You learned not to think about it,' he said, looking past me at the wall. 'You thought about the next mine, and the one after that, and the one after that. You did not think about your hands. You did not think about your friends.'\n\nHe paused for a long moment. I did not @6@ him.\n\n'Some men,' he went on at last, 'did not come home. We had a lad called Robert. From Leeds. Bright @7@ hair. He was twenty-one. Three days before the end of the war, I lost him.'\n\nThat was the only time, in fifty years, that I ever heard my grandfather speak Robert's name aloud.\n\nHe died the following spring, on a quiet Wednesday morning, with my grandmother @8@ his hand. At his funeral, the church was packed with people I had never met \u2014 old men, mostly, who had travelled long distances. One of them, a tall man with a polished walking stick, came up to me afterwards.\n\n'Your grandfather,' he said, 'was the @9@ man I ever knew.'\n\nI have never forgotten those words. I never will. They are the @10@ thing I have of his that he himself could never have given me.",
+      gaps: [
+        { options: ["life", "cake", "song", "shoe"], answer: "life" },
+        { options: ["firmness", "sweetness", "coldness", "paint"], answer: "firmness" },
+        { options: ["reluctantly", "sweetly", "coldly", "loudly"], answer: "reluctantly" },
+        { options: ["troopship", "aeroplane", "lorry", "bicycle"], answer: "troopship" },
+        { options: ["defuse", "cook", "sing", "sell"], answer: "defuse" },
+        { options: ["interrupt", "sell", "cook", "sing"], answer: "interrupt" },
+        { options: ["ginger", "sweet", "silent", "golden"], answer: "ginger" },
+        { options: ["holding", "selling", "singing", "cooking"], answer: "holding" },
+        { options: ["bravest", "sweetest", "coldest", "loudest"], answer: "bravest" },
+        { options: ["greatest", "sweetest", "coldest", "loudest"], answer: "greatest" },
+      ],
+    },
+  ],
+  6: [
+    {
+      title: "The Lighthouse Keeper's Daughter",
+      kind: "Literary fiction",
+      text: "Long before dawn, while the rest of the village still slept beneath their @1@ eiderdowns, my father would rise from his bed, dress in silence, and climb the narrow spiral staircase to the lamp. From my own bedroom window, I could see the great beam of light begin to @2@ across the cliffs, sweeping out to sea in its long, patient circles. It was the first sound of every morning of my childhood: the click of the mechanism, my father's footsteps on the iron stairs, the answering @3@ of waves below.\n\nWe lived, my father and I, in the little stone cottage at the foot of the lighthouse. After my mother died \u2014 I had been only four \u2014 my father had quietly @4@ all suggestions that I be sent to live with relations on the mainland. 'A girl,' he said, 'belongs with her father.' And so I grew up among the @5@ of seabirds, the smell of salt and oil, and the long, slow rhythms of the tides.\n\nMy father was not a @6@ man. He spoke seldom, and when he did, his voice was soft and slightly hoarse, as though he had spent too many years shouting against the wind. @7@, in his own way, he taught me a great deal: how to read the weather from the colour of the morning sky; how to mend a net; how to recognise a ship in @8@ from its angle in the water.\n\nI sometimes wonder, now that I am grown and live far from the sea, whether he understood how much I @9@ those years. I am not sure that I told him. We were not a family for speeches. But every time I see a beam of light moving steadily through the @10@, I think of him, and of the lighthouse, and of the small girl I once was.",
+      gaps: [
+        { options: ["heavy", "sweet", "golden", "loud"], answer: "heavy" },
+        { options: ["revolve", "sell", "sing", "cook"], answer: "revolve" },
+        { options: ["roar", "cake", "song", "shoe"], answer: "roar" },
+        { options: ["dismissed", "sold", "sung", "cooked"], answer: "dismissed" },
+        { options: ["cries", "cakes", "songs", "shoes"], answer: "cries" },
+        { options: ["talkative", "sweet", "golden", "loud"], answer: "talkative" },
+        { options: ["Yet", "Because", "Quickly", "Sweetly"], answer: "Yet" },
+        { options: ["distress", "sweet", "golden", "loud"], answer: "distress" },
+        { options: ["treasured", "sold", "sang", "cooked"], answer: "treasured" },
+        { options: ["darkness", "sweetness", "silence", "paint"], answer: "darkness" },
+      ],
+    },
+    {
+      title: "The Great Pyramid",
+      kind: "Information",
+      text: "The Great Pyramid of Giza, the only one of the Seven Wonders of the Ancient World still standing today, was built around 2,560 BC as a tomb for the pharaoh Khufu. Even by modern standards, the @1@ are extraordinary: 146 metres tall in its original form, made of more than two million blocks of stone, each weighing on average two-and-a-half tonnes.\n\nFor nearly four thousand years after its construction, the Great Pyramid remained the tallest @2@ structure on Earth. It was only surpassed in the fourteenth century, when the central spire of Lincoln Cathedral was completed.\n\nHow exactly the pyramid was built remains a matter of @3@. The ancient Egyptians left no written instructions, and the techniques they used can only be guessed at. We do know, however, that the work involved tens of thousands of @4@ over a period of perhaps twenty years. Far from being slaves, as Hollywood films often suggest, the builders were probably skilled craftsmen who were paid in bread, beer and lodging.\n\nThe precision of the construction is, perhaps, the most @5@ thing of all. The sides of the pyramid are aligned almost exactly with the four points of the compass, with an error of less than a tenth of a degree. The four base lines differ in length by only a few centimetres. To achieve such accuracy on such a @6@ scale, without any of the tools or technology we now take for granted, was a @7@ extraordinary feat of engineering.\n\nThe interior of the pyramid is at least as remarkable as the exterior. Deep within, three chambers \u2014 the Queen's Chamber, the King's Chamber, and an unfinished one below ground \u2014 are linked by a series of corridors and the @8@ Grand Gallery, a passage 47 metres long with a corbelled ceiling. The purpose of some of these spaces is still not fully @9@; even in 2017, a previously unknown void as large as an aeroplane was discovered using cosmic-ray scanning.\n\nThe Great Pyramid, in other words, has not yet given up all its secrets. After four-and-a-half millennia, it remains one of the most @10@ buildings ever raised by human hands.",
+      gaps: [
+        { options: ["statistics", "cakes", "songs", "shoes"], answer: "statistics" },
+        { options: ["man-made", "sweet", "golden", "loud"], answer: "man-made" },
+        { options: ["debate", "cake", "song", "shoe"], answer: "debate" },
+        { options: ["workers", "cakes", "songs", "shoes"], answer: "workers" },
+        { options: ["astonishing", "sweet", "silent", "loud"], answer: "astonishing" },
+        { options: ["colossal", "sweet", "silent", "loud"], answer: "colossal" },
+        { options: ["truly", "sweetly", "coldly", "loudly"], answer: "truly" },
+        { options: ["soaring", "sweet", "silent", "loud"], answer: "soaring" },
+        { options: ["understood", "sold", "sung", "cooked"], answer: "understood" },
+        { options: ["mysterious", "sweet", "silent", "loud"], answer: "mysterious" },
+      ],
+    },
+    {
+      title: "The Audition",
+      kind: "First-person reflection",
+      text: "The audition was at five o'clock, and by four-thirty I had reached that particular state of nervousness in which time itself seems to lose its @1@. I had been pacing the corridor outside the practice rooms for so long that I had begun to recognise the patterns in the carpet.\n\nA woman with kind eyes appeared at the door and @2@ me by name. I followed her into a high-ceilinged room with three people seated behind a long table. They smiled. I attempted to smile back. My violin, when I lifted it from its case, felt heavier than I @3@.\n\nThe piece was one I had played a thousand times. I had played it in my bedroom, at school, at family parties, in front of my teacher. I could, I had often thought, play it in my sleep. @4@, the moment I drew the bow across the first string, every confidence I had ever felt seemed to evaporate. The notes came out, but they were not @5@ mine. They sounded thin, hesitant, as though produced by a @6@ I had never met.\n\nHalfway through the slow movement, I made a small mistake \u2014 a single wrong note that, in any other performance, I would have brushed aside without a @7@ thought. This time, I @8@. For perhaps two seconds, I was aware of nothing but the sound of my own heartbeat and the unbearable silence of the room.\n\nThen, somehow, I made myself continue. I am not entirely sure how. The next phrase came out a little @9@ than I had intended, but it came out. And the next. And the next. By the end of the piece, my hands had stopped shaking.\n\nI do not know whether I will get the place. I will not hear for several weeks. But what I @10@ now, in a way that I did not before, is that the worst moment of a performance is not, in fact, the end of the world. You can keep playing. And sometimes that is enough.",
+      gaps: [
+        { options: ["shape", "cake", "song", "shoe"], answer: "shape" },
+        { options: ["summoned", "sold", "sang", "cooked"], answer: "summoned" },
+        { options: ["remembered", "sold", "sang", "cooked"], answer: "remembered" },
+        { options: ["Yet", "Because", "Quickly", "Sweetly"], answer: "Yet" },
+        { options: ["quite", "sweetly", "coldly", "loudly"], answer: "quite" },
+        { options: ["stranger", "cake", "song", "shoe"], answer: "stranger" },
+        { options: ["second", "cake", "song", "shoe"], answer: "second" },
+        { options: ["froze", "sold", "sang", "cooked"], answer: "froze" },
+        { options: ["shakier", "sweeter", "colder", "louder"], answer: "shakier" },
+        { options: ["know", "cook", "sell", "sing"], answer: "know" },
+      ],
+    },
+    {
+      title: "How a Camera Works",
+      kind: "Instructional / explanatory",
+      text: "At its @1@, a camera is a remarkably simple device. A lens, a light-sensitive surface, and a small dark box to keep stray light from interfering with the picture: that is, in essence, all there is to it. The earliest cameras, built in the nineteenth century, contained no electronics whatsoever, and yet they could already capture images that, in good conditions, would still be recognisable today.\n\nLight is the @2@ ingredient. When you press the shutter button, a thin opening at the front of the camera briefly lets light through the lens. The lens, a curved piece of glass, @3@ that light, focusing it sharply onto the surface inside the camera. In an old film camera, that surface was coated in chemicals that reacted to light. In a modern digital camera, it is a microchip called the sensor.\n\nThe sensor is divided into millions of tiny squares, called pixels. Each pixel records how much light has hit it, and what @4@ that light is. Together, the millions of pixels build up a complete image, which can then be stored, viewed and edited.\n\nThree controls @5@ the appearance of the final photograph. The first, the aperture, decides how wide the opening at the front of the lens becomes. A wide aperture lets in more light and creates a soft, @6@ background. The second, the shutter speed, decides how long the opening stays open. A fast shutter speed freezes movement; a slow shutter speed allows it to @7@, creating motion blur. The third, the ISO setting, decides how @8@ the sensor is to light.\n\nMastering a camera is a question of learning how these three controls work together. The @9@ photographs are almost always the result not of luck, but of a photographer who has understood, and learned to manipulate, the physics of light. With practice, and patience, that understanding is well within the reach of any @10@ amateur.",
+      gaps: [
+        { options: ["heart", "cake", "song", "shoe"], answer: "heart" },
+        { options: ["essential", "sweet", "golden", "loud"], answer: "essential" },
+        { options: ["bends", "sells", "sings", "cooks"], answer: "bends" },
+        { options: ["colour", "cake", "song", "shoe"], answer: "colour" },
+        { options: ["govern", "sell", "sing", "cook"], answer: "govern" },
+        { options: ["blurred", "sweet", "golden", "loud"], answer: "blurred" },
+        { options: ["register", "sell", "sing", "cook"], answer: "register" },
+        { options: ["sensitive", "sweet", "golden", "loud"], answer: "sensitive" },
+        { options: ["finest", "sweetest", "coldest", "loudest"], answer: "finest" },
+        { options: ["dedicated", "sweet", "golden", "loud"], answer: "dedicated" },
+      ],
+    },
+    {
+      title: "Diary of a Young Pilot, 1940",
+      kind: "Historical diary",
+      text: "<b>7th August.</b> Up at four. Cold for August. Toast and tea in the mess. Nobody said much. We have been on standby for forty hours now, and the @1@ in the room is unmistakable, although none of us would dream of speaking it.\n\nTook off at half past six in 'B for Bertie'. The morning was glorious \u2014 a high, pale sky, a few wisps of cloud, the patchwork of the Kent countryside as @2@ as a postcard beneath us. It is sometimes difficult to @3@ that anything terrible is happening, on such mornings.\n\nThen the radio crackled, and within minutes everything had changed. A formation of forty enemy aircraft was approaching the coast at fifteen thousand feet. We were vectored to intercept.\n\nI had been in combat twice before. Neither time prepares you for the third. The sky, which a moment ago was empty, suddenly fills with machines \u2014 dozens of them \u2014 banking, diving, climbing in @4@ directions. The air around the cockpit is full of tracer fire, like very fast @5@ falling sideways.\n\nI hit one of the bombers. I think. I cannot be certain. It dropped out of the formation, smoke pouring from its starboard engine, and disappeared into a cloud below us. Whether it @6@ home, or did not, I shall probably never know.\n\nJ. did not come back. He had been with the squadron only six weeks. He was twenty-two.\n\n<b>8th August.</b> Standby again from dawn. The @7@ chair in the mess \u2014 the chair in which J. always sat \u2014 is empty this morning, but no one has moved it, and no one will. By tomorrow it will be filled by some other young man, and a week later he will be one of us, and we will @8@ where the others went.\n\nI have written all this down because I want, one day, to remember exactly how it was. Not the @9@ version that the newspapers will print, but the truth. If I am still alive when this war ends, I think I will not @10@ to read it again. But I should like, perhaps, for someone else to.",
+      gaps: [
+        { options: ["tension", "sweetness", "coldness", "paint"], answer: "tension" },
+        { options: ["neat", "sweet", "golden", "loud"], answer: "neat" },
+        { options: ["believe", "cook", "sell", "sing"], answer: "believe" },
+        { options: ["all", "never", "sweetly", "coldly"], answer: "all" },
+        { options: ["rain", "cake", "song", "shoe"], answer: "rain" },
+        { options: ["limped", "sold", "sang", "cooked"], answer: "limped" },
+        { options: ["wicker", "sweet", "golden", "loud"], answer: "wicker" },
+        { options: ["forget", "sell", "sing", "cook"], answer: "forget" },
+        { options: ["tidy", "sweet", "golden", "loud"], answer: "tidy" },
+        { options: ["want", "cook", "sell", "sing"], answer: "want" },
+      ],
+    },
+    {
+      title: "The Wreck on the Shore",
+      kind: "Atmospheric description",
+      text: "For as long as anyone in the village could remember, the wreck had lain on the shore at low tide, half-buried in the wet, dark sand. At high tide, only the upper part of the ribs was visible, jutting out of the green water like the @1@ skeleton of some immense, half-imagined animal.\n\nWhat ship she had once been, and how she had come to lie there, no one was entirely @2@. The oldest fishermen in the village remembered hearing, when they were boys, that she had gone aground on a winter night in the time of their grandfathers, but the @3@ were always slightly different in each telling. Some said she had been carrying tea from India; others, a load of @4@ timber from Norway. Whatever cargo she had once held was, by now, long since @5@ on the floor of the bay.\n\nI used to walk down to her at low tide, when I was a child. The wood of her sides, where it had not been @6@ away by the sea, was dark, smooth and curiously warm, as though it had absorbed centuries of sunlight. Limpets clung to it. In the deepest part of her belly, where the sand pooled even at low water, a small @7@ community of crabs had taken up residence. They would scuttle sideways with alarming speed if you peered too closely.\n\nI sometimes imagined the men who had been aboard her on the night she sank. I imagined them shouting orders, hauling on @8@ ropes in a wind that ripped the words from their mouths. I imagined the sudden, awful @9@ as she struck the sandbank; the long, sickening list to one side; the realisation, perhaps, that the lights of the village were just close enough to see, and yet impossibly far away.\n\nBut that was a long time ago, and the wreck is silent now. She is no longer really a ship; she is a part of the shore. The village has, in a sense, @10@ her, and she has accepted us. Together we wait, the village and the wreck, for whatever the next tide will bring.",
+      gaps: [
+        { options: ["blackened", "sweet", "golden", "loud"], answer: "blackened" },
+        { options: ["sure", "cook", "sell", "sing"], answer: "sure" },
+        { options: ["details", "cakes", "songs", "shoes"], answer: "details" },
+        { options: ["seasoned", "sweet", "golden", "loud"], answer: "seasoned" },
+        { options: ["scattered", "sold", "sung", "cooked"], answer: "scattered" },
+        { options: ["worn", "sold", "sung", "cooked"], answer: "worn" },
+        { options: ["thriving", "sweet", "golden", "loud"], answer: "thriving" },
+        { options: ["frozen", "sweet", "golden", "loud"], answer: "frozen" },
+        { options: ["impact", "cake", "song", "shoe"], answer: "impact" },
+        { options: ["adopted", "sold", "sung", "cooked"], answer: "adopted" },
+      ],
+    },
+    {
+      title: "In Defence of Reading Fiction",
+      kind: "Persuasive essay",
+      text: "It is @1@ surprisingly common today to hear people argue that reading novels is a waste of time. Why, they ask, would any sensible adult spend their evenings on stories about people who never @2@, in places that do not exist, doing things that never happened, when there are so many useful books in the world \u2014 histories, biographies, manuals, textbooks \u2014 full of real information about the real world?\n\nThe argument has a certain logic to it. @3@, it misses something fundamental about how human beings actually understand each other. To read a good novel is, in the deepest possible sense, to inhabit, however @4@, the mind of another person. We see what they see. We feel what they feel. We are invited, for a few hours, to share their fears, their joys, their misunderstandings, their hopes. No other activity that I know of does this quite so completely.\n\nThe result, I would argue, is not @5@ at all. It is one of the most powerful ways human beings have ever @6@ for building what psychologists now call 'empathy' \u2014 the ability to imagine the inner lives of people unlike ourselves. A child who has read about a refugee, however fictional, will encounter a real one with a different kind of attention. An adult who has spent a hundred pages inside the mind of someone of another race, another century, another culture, finds that the rest of the world has @7@ grown a little larger.\n\nThis is not, I should add, a matter of grand literary novels alone. A thriller, a fantasy, a comic novel \u2014 even a children's adventure story \u2014 can do the work just as well, provided it is written with care and read with attention. What @8@ is not the genre; it is the quality of attention given on both sides.\n\nSo the next time someone tells you that reading fiction is frivolous, smile politely, and @9@ disagree. Reading fiction is among the most serious things a person can do. It is how we @10@ to understand each other; and without that understanding, very little else of importance is possible at all.",
+      gaps: [
+        { options: ["not", "sweetly", "coldly", "loudly"], answer: "not" },
+        { options: ["existed", "sold", "sang", "cooked"], answer: "existed" },
+        { options: ["However", "Because", "Quickly", "Sweetly"], answer: "However" },
+        { options: ["briefly", "sweetly", "coldly", "loudly"], answer: "briefly" },
+        { options: ["trivial", "sweet", "golden", "loud"], answer: "trivial" },
+        { options: ["discovered", "sold", "sang", "cooked"], answer: "discovered" },
+        { options: ["quietly", "sweetly", "coldly", "loudly"], answer: "quietly" },
+        { options: ["matters", "sells", "sings", "cooks"], answer: "matters" },
+        { options: ["firmly", "sweetly", "coldly", "loudly"], answer: "firmly" },
+        { options: ["learn", "cook", "sell", "sing"], answer: "learn" },
+      ],
+    },
+    {
+      title: "The Locked Drawer",
+      kind: "Literary mystery",
+      text: "Of all the things my great-aunt had left me in her will, only one truly @1@ me. It was a small writing desk, dark, plain, made of an unfamiliar wood, with a single @2@ drawer in the middle. The drawer was locked. The key was nowhere to be found.\n\nI had spent three Sundays searching the house. I had emptied every pot in the kitchen, lifted every cushion in the drawing room, unscrewed the back of the grandfather clock, climbed into the attic and gone @3@ through three trunks of yellowing letters. There was no key. I began, finally, to @4@ that it had been lost \u2014 or, more likely, deliberately destroyed \u2014 long before my great-aunt's death.\n\nI am, I should explain, a respectable woman. I do not, as a @5@, force open locked drawers in furniture that has come to me through legitimate inheritance. @6@, by the end of the fourth Sunday, I had reached a point at which respectability no longer seemed quite sufficient. I fetched a thin metal file from the kitchen and set to work on the lock.\n\nThe drawer @7@ surprisingly easily. Inside, there was no jewellery, no money, no scandalous letters \u2014 none of the things one half-imagines when forcing open such a drawer. Inside there was only a small, soft @8@ of brown human hair, tied at one end with a strip of faded blue ribbon. Nothing else. No name. No date. No explanation.\n\nI sat at the desk for a long time, holding the lock in one hand and the lock of hair in the other. Whose hair it was, I shall never know. Whether it belonged to a child, a lover, a sister, a friend, my great-aunt herself in her youth \u2014 there is no longer any way to @9@. The only person who could have told me has been dead for nearly two years.\n\nI have put it back in the drawer. I shall not @10@ it again. Some questions, I have come to believe, are better not answered. Some drawers are better left closed.",
+      gaps: [
+        { options: ["puzzled", "sold", "sang", "cooked"], answer: "puzzled" },
+        { options: ["shallow", "sweet", "golden", "loud"], answer: "shallow" },
+        { options: ["carefully", "sweetly", "coldly", "loudly"], answer: "carefully" },
+        { options: ["suspect", "cook", "sell", "sing"], answer: "suspect" },
+        { options: ["rule", "cake", "song", "shoe"], answer: "rule" },
+        { options: ["However", "Because", "Quickly", "Sweetly"], answer: "However" },
+        { options: ["yielded", "sold", "sang", "cooked"], answer: "yielded" },
+        { options: ["lock", "cake", "song", "shoe"], answer: "lock" },
+        { options: ["tell", "cook", "sell", "sing"], answer: "tell" },
+        { options: ["open", "cook", "sell", "sing"], answer: "open" },
+      ],
+    },
+    {
+      title: "Black Holes",
+      kind: "Science",
+      text: "A black hole is, perhaps, the strangest object the universe is known to @1@. It is a region of space where gravity has become so unimaginably powerful that nothing \u2014 not even light, the fastest thing there is \u2014 can @2@ pulled inwards once it has crossed a certain boundary.\n\nThat boundary is called the event horizon. Beyond it, the laws of physics as we currently understand them appear to @3@ down. Time itself, according to Einstein's general theory of relativity, would slow for any object falling in, eventually coming to a complete @4@. A spaceship venturing too close would, from the perspective of distant observers, appear to hang motionless on the edge forever, while the crew themselves would experience their final seconds in @5@ time. Both descriptions are equally true. The disagreement is one of perspective, not of fact.\n\nBlack holes are not, despite their name, holes in any ordinary sense. They are, in fact, the @6@ remains of massive stars: stars that have used up their fuel, collapsed under their own enormous weight, and crushed themselves into objects so dense that a @7@ the size of a sugar cube might weigh more than an entire mountain range.\n\nFor most of the twentieth century, black holes were a purely mathematical curiosity. Many physicists, including Einstein himself, doubted whether they could actually @8@ in reality. We now know that they do. In 2019, a global network of telescopes succeeded in producing the first real photograph of a black hole, at the centre of the galaxy M87. Three years @9@, an even more famous image revealed the black hole at the centre of our own galaxy.\n\nThere are, scientists now believe, supermassive black holes at the heart of almost every large galaxy in the universe. What role they play in the way galaxies form, and how exactly they grew to be so vast, remains among the @10@ unsolved questions in modern astronomy.",
+      gaps: [
+        { options: ["contain", "cook", "sell", "sing"], answer: "contain" },
+        { options: ["escape", "cook", "sell", "sing"], answer: "escape" },
+        { options: ["break", "cook", "sell", "sing"], answer: "break" },
+        { options: ["halt", "cake", "song", "shoe"], answer: "halt" },
+        { options: ["normal", "sweet", "golden", "loud"], answer: "normal" },
+        { options: ["collapsed", "sold", "sung", "cooked"], answer: "collapsed" },
+        { options: ["piece", "cake", "song", "shoe"], answer: "piece" },
+        { options: ["exist", "cook", "sell", "sing"], answer: "exist" },
+        { options: ["later", "sweetly", "coldly", "loudly"], answer: "later" },
+        { options: ["greatest", "sweetest", "coldest", "loudest"], answer: "greatest" },
+      ],
+    },
+    {
+      title: "The Marathon",
+      kind: "Memoir / recount",
+      text: "On the morning of the marathon I woke at four o'clock with the @1@ certainty that I had made a terrible mistake. It was, I should explain, the first marathon I had ever attempted, and I had spent the past nine months training for it with a @2@ that bordered on the obsessive. Now, however, in the grey half-light of my bedroom, all of that preparation seemed suddenly @3@ to the task I had set myself. Twenty-six miles. Of running. By me.\n\nI dressed in silence, ate the breakfast I had laid out the night before, and walked, alone, to the @4@ point. The streets were already filling with other runners: thin people, fit-looking people, people in club vests who appeared to have done this kind of thing many times before. I felt, among them, like an imposter.\n\nThe first ten miles were almost @5@. The crowd was generous, the morning was cool, the music from the loudspeakers along the route was unexpectedly cheerful. I found a steady @6@ and held it. I began, very @7@, to allow myself to think that I might, just possibly, finish.\n\nMiles fifteen to twenty were the worst. I do not remember much about them, beyond a @8@ awareness of how heavy my legs had become, and a vague conviction that the road surface had developed a slight upward gradient that no one else seemed to have noticed. People I had passed earlier began to pass me back. I tried not to mind.\n\nAt mile twenty-two I hit what runners call 'the wall'. My pace dropped. My vision narrowed. The cheerful music seemed, all at once, to be playing at the wrong @9@. I thought, with a curious clarity, about stopping; about sitting down on the kerb and waiting for someone to bring me a taxi.\n\nI did not stop. I am not sure why. Some stubborn part of me, which I had not previously known existed, simply @10@ to allow it. I shuffled, more than ran, the final four miles. When I finally crossed the finish line, four hours and forty-one minutes after I had started, I burst into tears. People I had never met before took photographs of me, hugged me, and pressed bottles of water into my hands.\n\nThat was three years ago. I have not, since then, attempted a second marathon. But I think about that first one almost every day.",
+      gaps: [
+        { options: ["absolute", "sweet", "golden", "loud"], answer: "absolute" },
+        { options: ["dedication", "sweetness", "silence", "paint"], answer: "dedication" },
+        { options: ["inadequate", "sweet", "golden", "loud"], answer: "inadequate" },
+        { options: ["starting", "sweet", "golden", "loud"], answer: "starting" },
+        { options: ["enjoyable", "sweet", "golden", "loud"], answer: "enjoyable" },
+        { options: ["rhythm", "cake", "song", "shoe"], answer: "rhythm" },
+        { options: ["cautiously", "sweetly", "coldly", "loudly"], answer: "cautiously" },
+        { options: ["dim", "sweet", "golden", "loud"], answer: "dim" },
+        { options: ["speed", "cake", "song", "shoe"], answer: "speed" },
+        { options: ["refused", "sold", "sung", "cooked"], answer: "refused" },
+      ],
+    },
+  ],
+};
+
+/* ============================================================================
+   3. RANDOMISATION LAYER  (PURE FUNCTIONS)
+   ---------------------------------------------------------------------------
+   Fresh shuffle on every test build: which passages get picked, the order
+   they appear, and the order of options within every gap. So each refresh
+   yields a new test.
+============================================================================ */
+function shuffle(array) {
+  const a = [...array];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * Build a randomised test for a given year.
+ * Picks N passages at random from the year's bank, then shuffles option order
+ * within each gap. The correct answer string is kept on each gap so scoring
+ * doesn't depend on option position.
+ */
+function buildTest(year) {
+  const source = PASSAGE_BANK[year] || [];
+  const picked = shuffle(source).slice(0, CONFIG.PASSAGES_PER_TEST);
+  const passages = picked.map((p, pi) => ({
+    id: `y${year}-p${pi}-${p.title.replace(/[^A-Za-z0-9]/g, "")}`,
+    title: p.title,
+    kind: p.kind,
+    text: p.text,
+    gaps: p.gaps.map((g, gi) => ({
+      n: gi + 1,
+      options: shuffle(g.options),
+      answer: g.answer,
+    })),
+  }));
+  return { year, passages };
+}
+
+/* ============================================================================
+   4. SCORING  (PURE FUNCTION)
+   answers: { [`${passageId}-${gapN}`]: selectedOption }
+============================================================================ */
+function scoreTest(passages, answers) {
+  let total = 0;
+  let correct = 0;
+  for (const p of passages) {
+    for (const g of p.gaps) {
+      total++;
+      if (answers[`${p.id}-${g.n}`] === g.answer) correct++;
+    }
+  }
+  const percentage = total === 0 ? 0 : Math.round((correct / total) * 100);
+  return { correct, total, percentage };
+}
+
+/* ============================================================================
+   5. TIMER HOOK
+   Counts down from a starting value; fires onExpire exactly once at zero.
+============================================================================ */
+function useCountdown(startSeconds, isRunning, onExpire) {
+  const [remaining, setRemaining] = useState(startSeconds);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    if (isRunning) {
+      setRemaining(startSeconds);
+      firedRef.current = false;
+    }
+  }, [isRunning, startSeconds]);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const id = setInterval(() => {
+      setRemaining((r) => {
+        if (r <= 1) {
+          clearInterval(id);
+          if (!firedRef.current) {
+            firedRef.current = true;
+            onExpire();
+          }
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isRunning, onExpire]);
+
+  return remaining;
+}
+
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+/* ============================================================================
+   6. PASSAGE RENDERING
+   Splits the passage text first on paragraph breaks (\n\n), then on @N@
+   markers within each paragraph. Each marker becomes either a styled
+   "( N ) ______" placeholder or, once the gap has been answered, the
+   chosen word in the accent colour so the student can reread the passage
+   with their answers filled in.
+============================================================================ */
+function renderPassage(passage, answers) {
+  const paragraphs = passage.text.split(/\n\n+/);
+  return paragraphs.map((para, pi) => {
+    const parts = para.split(CONFIG.GAP_RE);
+    const nodes = [];
+    for (let i = 0; i < parts.length; i++) {
+      if (i % 2 === 0) {
+        // Preserve single \n inside a paragraph as a soft line break.
+        const text = parts[i];
+        if (text.includes("\n")) {
+          const lines = text.split("\n");
+          lines.forEach((line, li) => {
+            nodes.push(
+              <React.Fragment key={`t-${i}-${li}`}>
+                {li > 0 && <br />}
+                {line}
+              </React.Fragment>
+            );
+          });
+        } else {
+          nodes.push(<React.Fragment key={`t-${i}`}>{text}</React.Fragment>);
+        }
+      } else {
+        const n = parseInt(parts[i], 10);
+        const userAnswer = answers[`${passage.id}-${n}`];
+        nodes.push(
+          <span key={`g-${i}`} style={styles.inlineGap}>
+            <span style={styles.inlineGapNum}>({n})</span>
+            {userAnswer ? (
+              <span style={styles.inlineGapWord}>{userAnswer}</span>
+            ) : (
+              <span style={styles.inlineGapBlank} />
+            )}
+          </span>
+        );
+      }
+    }
+    return (
+      <p
+        key={pi}
+        style={{
+          ...styles.passageText,
+          marginBottom: pi < paragraphs.length - 1 ? 14 : 0,
+        }}
+      >
+        {nodes}
+      </p>
+    );
+  });
+}
+
+/* ============================================================================
+   7. PRESENTATION
+============================================================================ */
+export default function App() {
+  // ---- top-level state machine: 'setup' | 'active' | 'finished'
+  const [phase, setPhase] = useState("setup");
+  const [year, setYear] = useState(3);
+  const [test, setTest] = useState(null);
+  const [answers, setAnswers] = useState({});
+  const [passageIndex, setPassageIndex] = useState(0);
+  const [result, setResult] = useState(null);
+  const scrollRef = useRef(null);
+
+  const finishTest = useCallback(() => {
+    setTest((currentTest) => {
+      setAnswers((currentAnswers) => {
+        if (currentTest) {
+          setResult(scoreTest(currentTest.passages, currentAnswers));
+        }
+        return currentAnswers;
+      });
+      return currentTest;
+    });
+    setPhase("finished");
+  }, []);
+
+  const remaining = useCountdown(
+    CONFIG.TEST_DURATION_SECONDS,
+    phase === "active",
+    finishTest
+  );
+
+  const startTest = useCallback(() => {
+    setTest(buildTest(year));
+    setAnswers({});
+    setPassageIndex(0);
+    setResult(null);
+    setPhase("active");
+  }, [year]);
+
+  const selectOption = (passageId, gapN, option) => {
+    setAnswers((a) => ({ ...a, [`${passageId}-${gapN}`]: option }));
+  };
+
+  const currentPassage = test?.passages[passageIndex];
+  const totalGaps = useMemo(
+    () => (test ? test.passages.reduce((s, p) => s + p.gaps.length, 0) : 0),
+    [test]
+  );
+  const answeredCount = useMemo(() => {
+    if (!test) return 0;
+    let n = 0;
+    for (const p of test.passages) {
+      for (const g of p.gaps) {
+        if (answers[`${p.id}-${g.n}`]) n++;
+      }
+    }
+    return n;
+  }, [test, answers]);
+
+  const passageAnsweredCount = useMemo(() => {
+    if (!currentPassage) return 0;
+    return currentPassage.gaps.filter(
+      (g) => answers[`${currentPassage.id}-${g.n}`]
+    ).length;
+  }, [currentPassage, answers]);
+
+  // Scroll back to top on passage change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [passageIndex]);
+
+  const timeLow = remaining <= 60;
+
+  return (
+    <div style={styles.shell}>
+      <style>{globalCss}</style>
+      <div style={styles.frame}>
+        {/* ---------- HEADER ---------- */}
+        <header style={styles.header}>
+          <div>
+            <div style={styles.kicker}>Reading Practice</div>
+            <h1 style={styles.title}>Passage Completion</h1>
+          </div>
+          {phase === "active" && (
+            <div style={{ ...styles.timer, ...(timeLow ? styles.timerLow : {}) }}>
+              <span style={styles.timerLabel}>TIME</span>
+              <span style={styles.timerValue}>{formatTime(remaining)}</span>
+            </div>
+          )}
+        </header>
+
+        {/* ---------- SETUP ---------- */}
+        {phase === "setup" && (
+          <section style={styles.panel}>
+            <p style={styles.lede}>
+              Choose a year group. You will be given{" "}
+              <strong>{CONFIG.PASSAGES_PER_TEST} short passages</strong>, each
+              with ten blanks. Read each passage carefully, then pick the word
+              that best fits in every blank.
+            </p>
+            <div style={styles.yearLabel}>Year group</div>
+            <div style={styles.yearGrid}>
+              {CONFIG.YEARS.map((y) => (
+                <button
+                  key={y}
+                  onClick={() => setYear(y)}
+                  style={{
+                    ...styles.yearChip,
+                    ...(year === y ? styles.yearChipActive : {}),
+                  }}
+                >
+                  {y}
+                  <span style={styles.yearChipSub}>
+                    {PASSAGE_BANK[y]?.length || 0} passages
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div style={styles.metaRow}>
+              <span style={styles.meta}>
+                {CONFIG.PASSAGES_PER_TEST} passages
+              </span>
+              <span style={styles.metaDot}>·</span>
+              <span style={styles.meta}>20 blanks</span>
+              <span style={styles.metaDot}>·</span>
+              <span style={styles.meta}>{CONFIG.TEST_DURATION_SECONDS / 60} minutes</span>
+            </div>
+            <button style={styles.primaryBtn} onClick={startTest}>
+              Begin test →
+            </button>
+          </section>
+        )}
+
+        {/* ---------- ACTIVE ---------- */}
+        {phase === "active" && currentPassage && (
+          <section style={styles.panel} ref={scrollRef}>
+            <div style={styles.progressRow}>
+              <span>
+                Passage {passageIndex + 1} of {test.passages.length}
+              </span>
+              <span>
+                {passageAnsweredCount}/{currentPassage.gaps.length} answered
+              </span>
+            </div>
+            <div style={styles.progressTrack}>
+              <div
+                style={{
+                  ...styles.progressFill,
+                  width: `${(answeredCount / totalGaps) * 100}%`,
+                }}
+              />
+            </div>
+
+            {/* Two-column layout: passage on the left (sticky on desktop), gaps on the right */}
+            <div className="two-col">
+              <div className="two-col-left">
+                {/* Passage banner */}
+                <div style={styles.passageBanner}>
+                  <div style={styles.passageKind}>{currentPassage.kind}</div>
+                  <h2 style={styles.passageTitle}>{currentPassage.title}</h2>
+                </div>
+
+                {/* Passage text */}
+                <div style={styles.passageBody}>
+                  {renderPassage(currentPassage, answers)}
+                </div>
+              </div>
+
+              <div className="two-col-right">
+                <div style={styles.chooseHead}>
+                  Choose the best word for each blank
+                </div>
+
+                {/* Gaps + options */}
+                <div style={styles.gapList}>
+                  {currentPassage.gaps.map((g) => {
+                    const key = `${currentPassage.id}-${g.n}`;
+                    const selected = answers[key];
+                    return (
+                      <div key={g.n} style={styles.gapRow}>
+                        <div style={styles.gapRowNum}>({g.n})</div>
+                        <div style={styles.gapRowOpts}>
+                          {g.options.map((opt) => {
+                            const isSel = selected === opt;
+                            return (
+                              <button
+                                key={opt}
+                                onClick={() => selectOption(currentPassage.id, g.n, opt)}
+                                style={{
+                                  ...styles.gapOpt,
+                                  ...(isSel ? styles.gapOptSelected : {}),
+                                }}
+                              >
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.navRow}>
+              <button
+                style={styles.ghostBtn}
+                disabled={passageIndex === 0}
+                onClick={() => setPassageIndex((i) => Math.max(0, i - 1))}
+              >
+                ← Previous passage
+              </button>
+              {passageIndex < test.passages.length - 1 ? (
+                <button
+                  style={styles.primaryBtn}
+                  onClick={() => setPassageIndex((i) => i + 1)}
+                >
+                  Next passage →
+                </button>
+              ) : (
+                <button style={styles.finishBtn} onClick={finishTest}>
+                  Finish test
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ---------- FINISHED ---------- */}
+        {phase === "finished" && result && (
+          <section style={styles.panel}>
+            <div style={styles.scoreWrap}>
+              <div
+                style={{
+                  ...styles.scoreRing,
+                  ["--p"]: `${result.percentage}%`,
+                }}
+              >
+                <span style={styles.scorePct}>{result.percentage}%</span>
+              </div>
+              <p style={styles.scoreLine}>
+                {result.correct} out of {result.total} correct
+              </p>
+              {remaining === 0 && (
+                <p style={styles.timeUp}>Time ran out — test auto-submitted.</p>
+              )}
+            </div>
+
+            {/* Per-passage breakdown */}
+            {test && (
+              <div style={styles.breakdown}>
+                {test.passages.map((p) => {
+                  const got = p.gaps.filter(
+                    (g) => answers[`${p.id}-${g.n}`] === g.answer
+                  ).length;
+                  return (
+                    <details key={p.id} style={styles.breakdownItem}>
+                      <summary style={styles.breakdownSummary}>
+                        <span style={styles.breakdownTitle}>
+                          <span style={styles.breakdownKind}>{p.kind}</span>
+                          {p.title}
+                        </span>
+                        <span style={styles.breakdownScore}>
+                          {got}/{p.gaps.length}
+                        </span>
+                      </summary>
+                      <div style={styles.breakdownGaps}>
+                        {p.gaps.map((g) => {
+                          const ua = answers[`${p.id}-${g.n}`];
+                          const ok = ua === g.answer;
+                          return (
+                            <div key={g.n} style={styles.breakdownGap}>
+                              <span style={styles.breakdownGapN}>({g.n})</span>
+                              {ok ? (
+                                <span style={styles.breakdownOk}>✓ {ua}</span>
+                              ) : (
+                                <span>
+                                  <span style={styles.breakdownBad}>
+                                    {ua || "—"}
+                                  </span>
+                                  <span style={styles.breakdownArrow}> → </span>
+                                  <span style={styles.breakdownOk}>{g.answer}</span>
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            )}
+
+            <div style={styles.navRow}>
+              <button style={styles.ghostBtn} onClick={() => setPhase("setup")}>
+                Change year
+              </button>
+              <button style={styles.primaryBtn} onClick={startTest}>
+                Try again
+              </button>
+            </div>
+          </section>
+        )}
+      </div>
+      <p style={styles.footnote}>
+        Practice tool · passage completion (cloze) · modelled on the NGRT
+        Sentence Completion format · vocabulary pitched to UK National
+        Curriculum Years 1–6
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================================
+   STYLES
+============================================================================ */
+const ink = "#1d2433";
+const paper = "#f4efe6";
+const accent = "#c8553d";
+const accent2 = "#2e5e4e";
+
+const globalCss = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap');
+  * { box-sizing: border-box; }
+  button { font-family: inherit; cursor: pointer; transition: all .15s ease; }
+  button:disabled { opacity: .35; cursor: default; }
+  details summary { cursor: pointer; list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+  /* Side-by-side layout on wide screens: passage left (sticky), gaps right */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-bottom: 26px;
+  }
+  @media (min-width: 900px) {
+    .two-col {
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+    }
+    .two-col-left {
+      position: sticky;
+      top: 20px;
+    }
+  }
+`;
+
+const styles = {
+  shell: {
+    minHeight: "100vh",
+    background: `radial-gradient(circle at 20% 10%, #fbf7ef, ${paper})`,
+    fontFamily: "'Newsreader', Georgia, serif",
+    color: ink,
+    padding: "32px 16px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  },
+  frame: {
+    width: "100%",
+    maxWidth: 1080,
+    background: "#fffdf8",
+    border: `1px solid ${ink}1a`,
+    borderRadius: 18,
+    boxShadow: "0 24px 60px -30px rgba(29,36,51,.35)",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    padding: "28px 32px 20px",
+    borderBottom: `1px solid ${ink}14`,
+  },
+  kicker: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 12,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    color: accent,
+    fontWeight: 600,
+  },
+  title: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 600,
+    fontSize: 30,
+    margin: "4px 0 0",
+    letterSpacing: -0.5,
+  },
+  timer: {
+    textAlign: "right",
+    background: ink,
+    color: paper,
+    padding: "8px 14px",
+    borderRadius: 10,
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 78,
+  },
+  timerLow: { background: accent },
+  timerLabel: { fontSize: 9, letterSpacing: 2, opacity: 0.7 },
+  timerValue: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 22,
+    fontVariantNumeric: "tabular-nums",
+    lineHeight: 1.1,
+  },
+  panel: { padding: "28px 32px 34px" },
+  lede: { fontSize: 18, lineHeight: 1.55, margin: "0 0 24px", color: `${ink}cc` },
+  yearLabel: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 13,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: `${ink}99`,
+    marginBottom: 10,
+  },
+  yearGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(6, 1fr)",
+    gap: 8,
+    marginBottom: 20,
+  },
+  yearChip: {
+    border: `1.5px solid ${ink}22`,
+    background: "transparent",
+    borderRadius: 12,
+    padding: "12px 0 8px",
+    fontFamily: "'Fraunces', serif",
+    fontSize: 22,
+    fontWeight: 600,
+    color: ink,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    lineHeight: 1,
+  },
+  yearChipActive: {
+    background: accent2,
+    color: "#fff",
+    borderColor: accent2,
+    transform: "translateY(-2px)",
+  },
+  yearChipSub: { fontSize: 9, fontWeight: 400, marginTop: 5, opacity: 0.65, fontFamily: "'Newsreader', serif" },
+  metaRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    fontSize: 13,
+    color: `${ink}80`,
+    marginBottom: 22,
+    fontFamily: "'Fraunces', serif",
+    letterSpacing: 0.6,
+  },
+  meta: { textTransform: "uppercase" },
+  metaDot: { opacity: 0.4 },
+  primaryBtn: {
+    background: ink,
+    color: paper,
+    border: "none",
+    borderRadius: 12,
+    padding: "14px 24px",
+    fontSize: 17,
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 500,
+  },
+  finishBtn: {
+    background: accent,
+    color: "#fff",
+    border: "none",
+    borderRadius: 12,
+    padding: "14px 24px",
+    fontSize: 17,
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 500,
+  },
+  ghostBtn: {
+    background: "transparent",
+    color: ink,
+    border: `1.5px solid ${ink}22`,
+    borderRadius: 12,
+    padding: "14px 24px",
+    fontSize: 16,
+    fontFamily: "'Fraunces', serif",
+  },
+  progressRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: 13,
+    color: `${ink}99`,
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  progressTrack: {
+    height: 5,
+    background: `${ink}12`,
+    borderRadius: 99,
+    overflow: "hidden",
+    marginBottom: 26,
+  },
+  progressFill: {
+    height: "100%",
+    background: accent2,
+    borderRadius: 99,
+    transition: "width .3s ease",
+  },
+  passageBanner: {
+    padding: "12px 18px",
+    background: ink,
+    color: paper,
+    borderRadius: "12px 12px 0 0",
+  },
+  passageKind: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 11,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    color: accent,
+    fontWeight: 600,
+    marginBottom: 2,
+  },
+  passageTitle: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 22,
+    fontWeight: 600,
+    margin: 0,
+    letterSpacing: -0.3,
+  },
+  passageBody: {
+    background: paper,
+    border: `1px solid ${ink}10`,
+    borderTop: "none",
+    borderRadius: "0 0 12px 12px",
+    padding: "22px 24px",
+    marginBottom: 26,
+  },
+  passageText: {
+    fontSize: 18,
+    lineHeight: 1.7,
+    margin: 0,
+  },
+  inlineGap: {
+    display: "inline-flex",
+    alignItems: "baseline",
+    gap: 4,
+    margin: "0 2px",
+    whiteSpace: "nowrap",
+  },
+  inlineGapNum: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 14,
+    color: accent,
+    fontWeight: 600,
+    verticalAlign: "baseline",
+  },
+  inlineGapBlank: {
+    display: "inline-block",
+    width: 70,
+    height: 2,
+    borderBottom: `2.5px solid ${accent}`,
+    verticalAlign: "middle",
+    transform: "translateY(-3px)",
+  },
+  inlineGapWord: {
+    color: accent2,
+    fontWeight: 500,
+    fontStyle: "italic",
+    borderBottom: `1.5px dotted ${accent2}80`,
+  },
+  chooseHead: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 13,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    color: accent,
+    fontWeight: 600,
+    marginBottom: 12,
+  },
+  gapList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginBottom: 26,
+  },
+  gapRow: {
+    display: "grid",
+    gridTemplateColumns: "36px 1fr",
+    gap: 10,
+    alignItems: "center",
+    padding: "6px 0",
+    borderBottom: `1px dashed ${ink}14`,
+  },
+  gapRowNum: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 16,
+    fontWeight: 600,
+    color: accent,
+    textAlign: "right",
+    paddingRight: 4,
+  },
+  gapRowOpts: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  gapOpt: {
+    background: "#fff",
+    border: `1.5px solid ${ink}20`,
+    borderRadius: 9,
+    padding: "8px 14px",
+    fontSize: 15,
+    fontFamily: "'Newsreader', serif",
+    color: ink,
+    minWidth: 70,
+    textAlign: "center",
+  },
+  gapOptSelected: {
+    borderColor: accent2,
+    background: `${accent2}14`,
+    boxShadow: `inset 0 0 0 1px ${accent2}`,
+    color: accent2,
+    fontWeight: 500,
+  },
+  navRow: { display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" },
+  scoreWrap: { textAlign: "center", padding: "10px 0 24px" },
+  scoreRing: {
+    width: 150,
+    height: 150,
+    borderRadius: "50%",
+    margin: "0 auto 18px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: `conic-gradient(${accent2} var(--p,0%), ${ink}12 0)`,
+    border: `1px solid ${ink}10`,
+  },
+  scorePct: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 44,
+    fontWeight: 600,
+    background: "#fffdf8",
+    width: 116,
+    height: 116,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scoreLine: { fontSize: 20, margin: "0 0 6px" },
+  timeUp: { fontSize: 14, color: accent, fontStyle: "italic", margin: 0 },
+  breakdown: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginBottom: 24,
+  },
+  breakdownItem: {
+    background: paper,
+    border: `1px solid ${ink}10`,
+    borderRadius: 11,
+    overflow: "hidden",
+  },
+  breakdownSummary: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "12px 16px",
+    fontSize: 15,
+  },
+  breakdownTitle: {
+    fontFamily: "'Fraunces', serif",
+    fontWeight: 500,
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+  breakdownKind: {
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    color: accent,
+    fontWeight: 600,
+  },
+  breakdownScore: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 16,
+    fontWeight: 600,
+    color: accent2,
+    fontVariantNumeric: "tabular-nums",
+  },
+  breakdownGaps: {
+    padding: "8px 16px 14px",
+    borderTop: `1px solid ${ink}10`,
+    background: "#fffdf8",
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "6px 18px",
+    fontSize: 14,
+  },
+  breakdownGap: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: 6,
+    paddingTop: 4,
+  },
+  breakdownGapN: {
+    fontFamily: "'Fraunces', serif",
+    fontSize: 13,
+    color: `${ink}80`,
+    fontWeight: 600,
+    minWidth: 26,
+  },
+  breakdownOk: { color: accent2, fontWeight: 500 },
+  breakdownBad: { color: accent, textDecoration: "line-through" },
+  breakdownArrow: { color: `${ink}60`, fontSize: 12 },
+  footnote: {
+    fontSize: 12,
+    color: `${ink}80`,
+    marginTop: 22,
+    textAlign: "center",
+    maxWidth: 580,
+    lineHeight: 1.5,
+  },
+};
