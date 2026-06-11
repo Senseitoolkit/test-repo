@@ -73,7 +73,10 @@ header{display:flex;align-items:center;justify-content:space-between;gap:14px;fl
 .meta b{color:var(--ink)}
 .progress{height:12px;border:2px solid var(--ink);border-radius:999px;background:#fff;overflow:hidden;margin:10px 0 22px}
 .progress span{display:block;height:100%;background:var(--gold);transition:width .35s ease}
-.qtext{font-family:'Fredoka';font-weight:500;font-size:1.5rem;line-height:1.35;margin:6px 0 20px}
+.qtext{font-family:'Fredoka';font-weight:500;font-size:1.5rem;line-height:1.35;margin:6px 0 14px}
+.pic{display:flex;justify-content:center;margin:2px 0 18px}
+.pic:empty{display:none}
+.pic svg{max-width:100%;height:auto;background:#fffdf7;border:1.5px solid var(--line);border-radius:14px;padding:10px}
 .opts{display:grid;gap:12px}
 .opt{
   cursor:pointer;text-align:left;border:2px solid var(--ink);border-radius:14px;
@@ -162,6 +165,7 @@ footer{text-align:center;color:var(--ink-soft);font-size:.76rem;margin-top:28px;
       </div>
       <div class="progress"><span id="bar" style="width:0%"></span></div>
       <div class="qtext" id="qtext"></div>
+      <div class="pic" id="pic"></div>
       <div class="opts" id="opts"></div>
       <div class="fb" id="fb"></div>
       <div class="actions">
@@ -239,6 +243,239 @@ function startYear(year){
 }
 
 const LETTERS=["A","B","C","D"];
+// ---------- diagram engine ----------
+const INK="#22324f", GOLD="#e9a800", REDC="#d1452b", SOFT="#5c6c86", GRN="#1f8a52";
+function S(w,h,inner){return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg" font-family="Lexend,sans-serif" font-size="13">${inner}</svg>`;}
+function rad(d){return d*Math.PI/180;}
+function pt(cx,cy,r,ang){return [cx+r*Math.cos(rad(ang)), cy-r*Math.sin(rad(ang))];}
+function ngon(cx,cy,r,n,rot){let p=[];for(let i=0;i<n;i++){const a=rot+360*i/n;p.push(pt(cx,cy,r,a));}return p;}
+function poly(p,fill){return `<polygon points="${p.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="${fill||'none'}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;}
+function txt(x,y,s,col,sz,anchor){return `<text x="${x}" y="${y}" fill="${col||INK}" font-size="${sz||13}" text-anchor="${anchor||'middle'}" font-weight="600">${s}</text>`;}
+function line(x1,y1,x2,y2,col,w,dash){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col||INK}" stroke-width="${w||2}" ${dash?'stroke-dasharray="5 4"':''} stroke-linecap="round"/>`;}
+
+function shape2d(name){
+  const cx=90,cy=80,r=52, fill="rgba(233,168,0,.16)";
+  if(/circle/.test(name)) return S(180,160,`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${INK}" stroke-width="2"/>`);
+  if(/rectangle/.test(name)) return S(180,160,`<rect x="32" y="44" width="116" height="72" rx="3" fill="${fill}" stroke="${INK}" stroke-width="2"/>`);
+  if(/^square$/.test(name)||/\bsquare\b/.test(name)) return S(180,160,`<rect x="44" y="34" width="92" height="92" rx="3" fill="${fill}" stroke="${INK}" stroke-width="2"/>`);
+  if(/isosceles triangle/.test(name)) return S(180,160,poly([[90,28],[140,128],[40,128]],fill));
+  if(/triangle/.test(name)) return S(180,160,poly(ngon(cx,cy+6,58,3,90),fill));
+  const map={pentagon:5,hexagon:6,heptagon:7,octagon:8,decagon:10};
+  for(const k in map){ if(name.indexOf(k)>=0) return S(180,160,poly(ngon(cx,cy,r,map[k],90),fill)); }
+  return "";
+}
+function shape3d(name){
+  const f="rgba(34,50,79,.06)";
+  if(/sphere/.test(name)) return S(180,150,`<circle cx="90" cy="75" r="48" fill="${f}" stroke="${INK}" stroke-width="2"/><ellipse cx="90" cy="75" rx="48" ry="16" fill="none" stroke="${SOFT}" stroke-width="1.5" stroke-dasharray="4 3"/>`);
+  if(/cylinder/.test(name)) return S(180,150,`<path d="M52 40 H128 V110 A38 12 0 0 1 52 110 Z" fill="${f}" stroke="${INK}" stroke-width="2"/><ellipse cx="90" cy="40" rx="38" ry="12" fill="#fffdf7" stroke="${INK}" stroke-width="2"/>`);
+  if(/cone/.test(name)) return S(180,150,`<path d="M90 26 L130 112 A40 12 0 0 1 50 112 Z" fill="${f}" stroke="${INK}" stroke-width="2"/><path d="M50 112 A40 12 0 0 0 130 112" fill="none" stroke="${INK}" stroke-width="2"/>`);
+  if(/triangular prism/.test(name)){
+    const A=[44,116],B=[104,116],C=[74,52],dx=42,dy=-16;
+    const A2=[A[0]+dx,A[1]+dy],B2=[B[0]+dx,B[1]+dy],C2=[C[0]+dx,C[1]+dy];
+    return S(190,150, poly([A,B,C],f)+
+      line(A[0],A[1],A2[0],A2[1])+line(B[0],B[1],B2[0],B2[1])+line(C[0],C[1],C2[0],C2[1])+
+      line(A2[0],A2[1],B2[0],B2[1])+line(B2[0],B2[1],C2[0],C2[1])+
+      `<line x1="${C2[0]}" y1="${C2[1]}" x2="${A2[0]}" y2="${A2[1]}" stroke="${SOFT}" stroke-width="1.4" stroke-dasharray="4 3"/>`);
+  }
+  if(/square-based pyramid|triangular-based pyramid|pyramid/.test(name)) return S(180,150,`<polygon points="45,108 110,108 135,86 70,86" fill="${f}" stroke="${INK}" stroke-width="2"/><line x1="45" y1="108" x2="92" y2="30" stroke="${INK}" stroke-width="2"/><line x1="110" y1="108" x2="92" y2="30" stroke="${INK}" stroke-width="2"/><line x1="135" y1="86" x2="92" y2="30" stroke="${INK}" stroke-width="2"/><line x1="70" y1="86" x2="92" y2="30" stroke="${INK}" stroke-width="2" stroke-dasharray="4 3"/>`);
+  // cube / cuboid generic
+  const wdt=/cuboid/.test(name)?96:70;
+  const x=40,y=52,dx=26,dy=-22,w=wdt,h=66;
+  return S(180,150,
+    `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" stroke="${INK}" stroke-width="2"/>`+
+    line(x,y,x+dx,y+dy)+line(x+w,y,x+w+dx,y+dy)+line(x+w,y+h,x+w+dx,y+h+dy)+
+    line(x+dx,y+dy,x+w+dx,y+dy)+line(x+w+dx,y+dy,x+w+dx,y+h+dy)+
+    `<line x1="${x+dx}" y1="${y+dy}" x2="${x+dx}" y2="${y+h+dy}" stroke="${SOFT}" stroke-width="1.5" stroke-dasharray="4 3"/>`+
+    `<line x1="${x}" y1="${y+h}" x2="${x+dx}" y2="${y+h+dy}" stroke="${SOFT}" stroke-width="1.5" stroke-dasharray="4 3"/>`+
+    `<line x1="${x+dx}" y1="${y+h+dy}" x2="${x+w+dx}" y2="${y+h+dy}" stroke="${SOFT}" stroke-width="1.5" stroke-dasharray="4 3"/>`);
+}
+function rectDiag(l,w,unit,mode){
+  const W=200,H=150, rw=130, rh=Math.max(48,Math.min(96, rw*w/l)); const x=(W-rw)/2,y=(H-rh)/2+4;
+  return S(W,H,`<rect x="${x}" y="${y}" width="${rw}" height="${rh}" fill="rgba(233,168,0,.14)" stroke="${INK}" stroke-width="2"/>`+
+    txt(x+rw/2,y-8,l+' '+unit,INK,13)+txt(x-10,y+rh/2+4,w+' '+unit,INK,13,'end'));
+}
+function squareDiag(s,unit){
+  const W=170,H=160, sd=104,x=(W-sd)/2,y=(H-sd)/2+2;
+  return S(W,H,`<rect x="${x}" y="${y}" width="${sd}" height="${sd}" fill="rgba(233,168,0,.14)" stroke="${INK}" stroke-width="2"/>`+txt(x+sd/2,y-8,s+' '+unit,INK,13));
+}
+function triDiag(b,h){
+  const W=210,H=160, x0=40,y0=124,bw=130; const apex=[x0+bw*0.42,y0-92];
+  return S(W,H, poly([[x0,y0],[x0+bw,y0],apex],"rgba(233,168,0,.14)")+
+    line(apex[0],apex[1],apex[0],y0,SOFT,1.5,true)+
+    `<rect x="${apex[0]}" y="${y0-12}" width="12" height="12" fill="none" stroke="${SOFT}" stroke-width="1"/>`+
+    txt((x0+x0+bw)/2,y0+18,'base '+b+' cm',INK,13)+txt(apex[0]+8,(apex[1]+y0)/2,'h '+h+' cm',SOFT,12,'start'));
+}
+function paraDiag(b,h){
+  const W=220,H=150, x=46,y=116,bw=120,sk=34;
+  return S(W,H, poly([[x,y],[x+bw,y],[x+bw-sk,y-78],[x-sk,y-78]],"rgba(233,168,0,.14)")+
+    line(x+bw-sk,y-78,x+bw-sk,y,SOFT,1.5,true)+
+    txt(x+bw/2,y+18,'base '+b+' cm',INK,13)+txt(x+bw-sk+8,y-40,'h '+h+' cm',SOFT,12,'start'));
+}
+function cuboidDiag(l,w,h){
+  const x=44,y=58,dx=30,dy=-26,W=130,H=64;
+  return S(210,150,
+    `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="rgba(34,50,79,.05)" stroke="${INK}" stroke-width="2"/>`+
+    line(x,y,x+dx,y+dy)+line(x+W,y,x+W+dx,y+dy)+line(x+W,y+H,x+W+dx,y+H+dy)+
+    line(x+dx,y+dy,x+W+dx,y+dy)+line(x+W+dx,y+dy,x+W+dx,y+H+dy)+
+    `<line x1="${x+dx}" y1="${y+dy}" x2="${x+dx}" y2="${y+H+dy}" stroke="${SOFT}" stroke-width="1.4" stroke-dasharray="4 3"/>`+
+    `<line x1="${x}" y1="${y+H}" x2="${x+dx}" y2="${y+H+dy}" stroke="${SOFT}" stroke-width="1.4" stroke-dasharray="4 3"/>`+
+    `<line x1="${x+dx}" y1="${y+H+dy}" x2="${x+W+dx}" y2="${y+H+dy}" stroke="${SOFT}" stroke-width="1.4" stroke-dasharray="4 3"/>`+
+    txt(x+W/2,y+H+18,l+' cm',INK,12)+txt(x-8,y+H/2+4,w+' cm',INK,12,'end')+txt(x+W+dx+6,y+dy+H/2,h+' cm',INK,12,'start'));
+}
+function cubeDiag(s){
+  const x=52,y=54,dx=28,dy=-24,W=78,H=78;
+  return S(190,150,
+    `<rect x="${x}" y="${y}" width="${W}" height="${H}" fill="rgba(34,50,79,.05)" stroke="${INK}" stroke-width="2"/>`+
+    line(x,y,x+dx,y+dy)+line(x+W,y,x+W+dx,y+dy)+line(x+W,y+H,x+W+dx,y+H+dy)+
+    line(x+dx,y+dy,x+W+dx,y+dy)+line(x+W+dx,y+dy,x+W+dx,y+H+dy)+
+    `<line x1="${x+dx}" y1="${y+dy}" x2="${x+dx}" y2="${y+H+dy}" stroke="${SOFT}" stroke-width="1.4" stroke-dasharray="4 3"/>`+
+    `<line x1="${x}" y1="${y+H}" x2="${x+dx}" y2="${y+H+dy}" stroke="${SOFT}" stroke-width="1.4" stroke-dasharray="4 3"/>`+
+    `<line x1="${x+dx}" y1="${y+H+dy}" x2="${x+W+dx}" y2="${y+H+dy}" stroke="${SOFT}" stroke-width="1.4" stroke-dasharray="4 3"/>`+
+    txt(x+W/2,y+H+18,s+' cm',INK,12));
+}
+function circleDiag(val,kind){
+  const cx=95,cy=78,r=58;
+  let inner=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(233,168,0,.12)" stroke="${INK}" stroke-width="2"/><circle cx="${cx}" cy="${cy}" r="2.5" fill="${INK}"/>`;
+  if(kind==='radius'){ inner+=line(cx,cy,cx+r,cy,REDC,2)+txt(cx+r/2,cy-6,'r = '+val+' cm',REDC,12); }
+  else { inner+=line(cx-r,cy,cx+r,cy,REDC,2)+txt(cx,cy-8,'d = '+val+' cm',REDC,12); }
+  return S(190,156,inner);
+}
+function angleDiag(deg){
+  const vx=44,vy=120,L=120; const e1=[vx+L,vy]; const e2=pt(vx,vy,L,deg);
+  const a1=pt(vx,vy,34,0), a2=pt(vx,vy,34,deg);
+  const arc=`<path d="M ${a1[0]} ${a1[1]} A 34 34 0 0 0 ${a2[0].toFixed(1)} ${a2[1].toFixed(1)}" fill="none" stroke="${GOLD}" stroke-width="2.5"/>`;
+  const lp=pt(vx,vy,52,deg/2);
+  return S(210,150, line(vx,vy,e1[0],e1[1])+line(vx,vy,e2[0],e2[1])+arc+txt(lp[0]+6,lp[1],deg+'°',REDC,13,'start'));
+}
+function straightLineDiag(a){
+  const vx=110,vy=110,L=92; const e2=pt(vx,vy,L,a);
+  const arcR=pt(vx,vy,30,0),arcL=pt(vx,vy,30,a);
+  return S(220,140,
+    line(vx-L,vy,vx+L,vy)+line(vx,vy,e2[0],e2[1])+
+    `<path d="M ${arcR[0]} ${arcR[1]} A 30 30 0 0 0 ${arcL[0].toFixed(1)} ${arcL[1].toFixed(1)}" fill="none" stroke="${GOLD}" stroke-width="2.5"/>`+
+    txt(vx+38,vy-12,a+'°',INK,13)+txt(vx-40,vy-16,'?',REDC,16));
+}
+function vertOppDiag(a){
+  const cx=110,cy=70,L=78;
+  return S(220,150,
+    line(cx-L,cy-42,cx+L,cy+42)+line(cx-L,cy+42,cx+L,cy-42)+
+    txt(cx,cy-26,a+'°',INK,13)+txt(cx,cy+34,'?',REDC,16));
+}
+function triAngleDiag(a,b){
+  const A=[35,120],B=[185,120],C=[96,34];
+  return S(220,150, poly([A,B,C],"rgba(233,168,0,.10)")+
+    txt(A[0]+20,A[1]-8,a+'°',INK,12,'start')+txt(B[0]-20,B[1]-8,b+'°',INK,12,'end')+txt(C[0],C[1]+22,'?',REDC,15));
+}
+function quadAngleDiag(a,b,c){
+  const P=[40,40],Q=[180,52],R=[166,124],T=[54,118];
+  return S(220,150, poly([P,Q,R,T],"rgba(233,168,0,.10)")+
+    txt(P[0]+14,P[1]+18,a+'°',INK,12,'start')+txt(Q[0]-12,Q[1]+18,b+'°',INK,12,'end')+
+    txt(R[0]-12,R[1]-8,c+'°',INK,12,'end')+txt(T[0]+12,T[1]-8,'?',REDC,15,'start'));
+}
+function pointAngleDiag(a,b){
+  const cx=110,cy=85; const dirs=[20,20+a,20+a+b];
+  let s=''; const labs=[a+'°',b+'°','?']; const cols=[INK,INK,REDC];
+  let prev=20; const segs=[a,b,360-a-b];
+  let acc=20;
+  for(let i=0;i<3;i++){ const e=pt(cx,cy,72,acc); s+=line(cx,cy,e[0],e[1]); const mid=pt(cx,cy,48,acc+segs[i]/2); s+=txt(mid[0],mid[1],labs[i],cols[i],13); acc+=segs[i]; }
+  const e=pt(cx,cy,72,acc); s+=line(cx,cy,e[0],e[1]);
+  return S(220,170,s+`<circle cx="${cx}" cy="${cy}" r="2.5" fill="${INK}"/>`);
+}
+function gridDiag(pts,opts){
+  // pts: [{x,y,c,lab}] ; opts {min,max,arrow:[x1,y1,x2,y2], axis:'x'|'y'}
+  const min=opts.min,max=opts.max,n=max-min,W=210,H=210,pad=22,sp=(W-2*pad)/n;
+  const X=v=>pad+(v-min)*sp, Y=v=>H-pad-(v-min)*sp;
+  let g='';
+  for(let i=0;i<=n;i++){const c=min+i; g+=line(X(min),Y(c),X(max),Y(c),'#dbe7f3',1)+line(X(c),Y(min),X(c),Y(max),'#dbe7f3',1);}
+  // axes
+  const x0=min<=0&&max>=0?X(0):X(min), y0=min<=0&&max>=0?Y(0):Y(min);
+  g+=line(X(min),y0,X(max),y0,SOFT,1.6)+line(x0,Y(min),x0,Y(max),SOFT,1.6);
+  if(opts.axis==='x') g+=line(X(min),y0,X(max),y0,REDC,2.4);
+  if(opts.axis==='y') g+=line(x0,Y(min),x0,Y(max),REDC,2.4);
+  if(opts.arrow){const[ax,ay,bx,by]=opts.arrow; g+=line(X(ax),Y(ay),X(bx),Y(by),GOLD,2.2);}
+  pts.forEach(p=>{ g+=`<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4.5" fill="${p.c||INK}"/>`+txt(X(p.x)+8,Y(p.y)-6,p.lab||('('+p.x+', '+p.y+')'),p.c||INK,12,'start'); });
+  return S(W,H,g);
+}
+function compassDiag(face){
+  const cx=85,cy=85,r=58;
+  const D={North:[0,-1,'N'],East:[1,0,'E'],South:[0,1,'S'],West:[-1,0,'W']};
+  let s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(34,50,79,.04)" stroke="${INK}" stroke-width="2"/>`;
+  s+=txt(cx,cy-r-4,'N',SOFT,12)+txt(cx,cy+r+14,'S',SOFT,12)+txt(cx+r+8,cy+4,'E',SOFT,12,'start')+txt(cx-r-8,cy+4,'W',SOFT,12,'end');
+  const d=D[face]; const ex=cx+d[0]*(r-12), ey=cy+d[1]*(r-12);
+  s+=`<line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="${REDC}" stroke-width="3"/><circle cx="${ex}" cy="${ey}" r="4" fill="${REDC}"/>`;
+  s+=txt(cx,cy+r+30,'facing '+face,REDC,12);
+  return S(170,150,s);
+}
+function clockDiag(h,m){
+  const cx=80,cy=80,r=62; let s=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fffdf7" stroke="${INK}" stroke-width="2.5"/>`;
+  for(let i=1;i<=12;i++){const p=pt(cx,cy,r-14,90-i*30); s+=txt(p[0],p[1]+4,String(i),SOFT,11);}
+  for(let i=0;i<12;i++){const o=pt(cx,cy,r,i*30),ii=pt(cx,cy,r-6,i*30); s+=line(o[0],o[1],ii[0],ii[1],SOFT,1.5);}
+  const ha=90-(h%12+m/60)*30, ma=90-m*6;
+  const he=pt(cx,cy,r-26,ha), me=pt(cx,cy,r-12,ma);
+  s+=line(cx,cy,he[0],he[1],INK,4)+line(cx,cy,me[0],me[1],INK,2.5)+`<circle cx="${cx}" cy="${cy}" r="3.5" fill="${REDC}"/>`;
+  return S(160,160,s);
+}
+
+function pic(q){
+  const t=q.text, st=q.strand; let m;
+  try{
+    // Clocks (telling the time only)
+    if(/Telling the time/.test(st)){
+      if((m=t.match(/half past (\d+)/))) return clockDiag(+m[1],30);
+      if((m=t.match(/quarter past (\d+)/))) return clockDiag(+m[1],15);
+      if((m=t.match(/quarter to (\d+)/))){let h=+m[1]-1; if(h===0)h=12; return clockDiag(h,45);}
+      if((m=t.match(/(\d+) minutes past (\d+)/))) return clockDiag(+m[2],+m[1]);
+      if((m=t.match(/(\d+) o'clock/))) return clockDiag(+m[1],0);
+    }
+    // Rectangle perimeter/area
+    if((m=t.match(/rectangle (\d+) (cm|m) by (\d+) (?:cm|m)/))) return rectDiag(+m[1],+m[3],m[2],0);
+    if((m=t.match(/square with sides of (\d+) cm/))) return squareDiag(+m[1],'cm');
+    if((m=t.match(/triangle with base (\d+) cm and height (\d+) cm/))) return triDiag(+m[1],+m[2]);
+    if((m=t.match(/parallelogram with base (\d+) cm and height (\d+) cm/))) return paraDiag(+m[1],+m[2]);
+    if((m=t.match(/L-shape is made of a (\d+)×(\d+) cm rectangle joined to a (\d+)×(\d+) cm/))){
+      const a=+m[1],b=+m[2],c=+m[3],e=+m[4],x=40,y=40,u=Math.min(10,90/Math.max(a+c,b));
+      return S(220,160,`<path d="M${x} ${y} h${a*u} v${b*u} h${c*u} v${e*u} h${-(a+c)*u} Z" fill="rgba(233,168,0,.14)" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`+
+        txt(x+a*u/2,y-6,a+'×'+b,SOFT,11)+txt(x+(a+c)*u/2,y+(b+e)*u+16,c+'×'+e,SOFT,11));
+    }
+    if((m=t.match(/cuboid (\d+) cm (?:by|×) (\d+) cm (?:by|×) (\d+) cm/))) return cuboidDiag(+m[1],+m[2],+m[3]);
+    if((m=t.match(/cube with edges of (\d+) cm/))) return cubeDiag(+m[1]);
+    if((m=t.match(/radius of (\d+) cm/))) return circleDiag(+m[1],'radius');
+    if((m=t.match(/diameter of (\d+) cm/))) return circleDiag(+m[1],'diameter');
+    // Angles
+    if((m=t.match(/straight line\. One is (\d+)°/))) return straightLineDiag(+m[1]);
+    if((m=t.match(/angles of a triangle are (\d+)° and (\d+)°/))) return triAngleDiag(+m[1],+m[2]);
+    if((m=t.match(/quadrilateral are (\d+)°, (\d+)° and (\d+)°/))) return quadAngleDiag(+m[1],+m[2],+m[3]);
+    if((m=t.match(/lines cross\. One angle is (\d+)°/))) return vertOppDiag(+m[1]);
+    if((m=t.match(/at a point(?: are|:) (\d+)°, (\d+)° and one more/))) return pointAngleDiag(+m[1],+m[2]);
+    if((m=t.match(/angle of (\d+)°/))) return angleDiag(+m[1]);
+    if((m=t.match(/interior angle of a regular (pentagon|hexagon|octagon|decagon)/))) return shape2d(m[1]);
+    // Coordinates
+    if((m=t.match(/point is at \((\d+), (\d+)\)\. Move it (\d+) right and (\d+) up/))){
+      const x=+m[1],y=+m[2],nx=x+ +m[3],ny=y+ +m[4],mx=Math.max(nx,ny)+1;
+      return gridDiag([{x,y,c:INK,lab:'start'}],{min:0,max:mx,arrow:[x,y,nx,ny]});
+    }
+    if((m=t.match(/Translate the point \((-?\d+), (-?\d+)\) by (\d+) right and (\d+) down/))){
+      const x=+m[1],y=+m[2],nx=x+ +m[3],ny=y- +m[4]; const lo=Math.min(0,x,nx,y,ny)-1,hi=Math.max(x,nx,y,ny)+1;
+      return gridDiag([{x,y,c:INK,lab:'start'}],{min:lo,max:hi,arrow:[x,y,nx,ny]});
+    }
+    if((m=t.match(/Reflect the point \((-?\d+), (-?\d+)\) in the (x|y)-axis/))){
+      const x=+m[1],y=+m[2]; const lim=Math.max(Math.abs(x),Math.abs(y))+1;
+      return gridDiag([{x,y,c:INK}],{min:-lim,max:lim,axis:m[3]});
+    }
+    // Compass / direction
+    if((m=t.match(/Facing (North|East|South|West)/))) return compassDiag(m[1]);
+    // Shape property (named shape is given in the question, not the answer)
+    {
+      const d3=t.match(/how many (?:faces|edges|vertices) does a (cube|cuboid|sphere|cylinder|cone|square-based pyramid|triangular prism|triangular-based pyramid)/i);
+      if(d3) return shape3d(d3[1].toLowerCase());
+      const d2=t.match(/how many (?:straight )?(?:sides|corners|vertices|lines of symmetry) does a (regular pentagon|regular hexagon|regular octagon|equilateral triangle|isosceles triangle|triangle|square|rectangle|pentagon|hexagon|heptagon|octagon|decagon)/i);
+      if(d2) return shape2d(d2[1].toLowerCase());
+    }
+  }catch(e){ return ""; }
+  return "";
+}
+
+
 function render(){
   const q=state.qs[state.i];
   const s=STRANDS[q.strand]||{c:"#5c6c86"};
@@ -253,6 +490,7 @@ function render(){
   $("score").textContent=state.score;
   $("bar").style.width=((state.i)/state.qs.length*100)+"%";
   $("qtext").textContent=q.text;
+  $("pic").innerHTML=pic(q);
 
   const opts=$("opts");opts.innerHTML="";
   q.opts.forEach((val,idx)=>{
