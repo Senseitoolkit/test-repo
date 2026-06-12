@@ -16,9 +16,20 @@
   .container { max-width: 640px; margin: 0 auto; }
 
   /* Header */
-  .header { text-align: center; margin-bottom: 28px; }
+  .header { text-align: center; margin-bottom: 20px; }
   .header h1 { font-family: 'Fredoka', sans-serif; font-size: 32px; font-weight: 700; color: #f8fafc; }
   .header p { color: #94a3b8; font-size: 15px; margin-top: 8px; }
+
+  /* Difficulty */
+  .difficulty { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 26px; }
+  .difficulty .diff-label { color: #64748b; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; margin-right: 4px; }
+  .diff-btn {
+    padding: 9px 24px; border-radius: 12px; font-family: 'DM Sans', sans-serif;
+    font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.3s ease;
+  }
+  .diff-btn.active-easy { border: 2px solid #22c55e; background: rgba(34,197,94,0.15); color: #86efac; }
+  .diff-btn.active-hard { border: 2px solid #f43f5e; background: rgba(244,63,94,0.15); color: #fda4af; }
+  .diff-btn.inactive { border: 2px solid #475569; background: transparent; color: #64748b; }
 
   /* Clue Cards */
   .clues { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
@@ -125,6 +136,7 @@
     <p>Reveal clues one at a time. Eliminate numbers that don't fit!</p>
   </div>
 
+  <div class="difficulty" id="difficulty"></div>
   <div class="clues" id="clues"></div>
   <div class="btn-row" id="btn-row"></div>
   <div class="stats" id="stats"></div>
@@ -136,8 +148,18 @@
 const ALL_NUMBERS = Array.from({ length: 50 }, (_, i) => i + 1);
 
 let puzzle, revealedCount, eliminated, animating, showAnswer, showGrid;
+let difficulty = 'easy';
 
-function generatePuzzle() {
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/* ---------- EASY (original behaviour, unchanged) ---------- */
+function generateEasyPuzzle() {
   const target = Math.floor(Math.random() * 50) + 1;
   const clues = [];
 
@@ -190,13 +212,129 @@ function generatePuzzle() {
   return { target, clues };
 }
 
+/* ---------- HARD (wider range, more varied clue types) ---------- */
+const isPrime = n => { if (n < 2) return false; for (let i = 2; i * i <= n; i++) if (n % i === 0) return false; return true; };
+const isSquare = n => { const s = Math.sqrt(n); return s === Math.floor(s); };
+const FIBS = new Set([1, 2, 3, 5, 8, 13, 21, 34]);
+const TRIS = new Set([1, 3, 6, 10, 15, 21, 28, 36, 45]);
+
+function generateHardPuzzle() {
+  const target = Math.floor(Math.random() * 50) + 1;
+  const clues = [];
+
+  // Wider, less generous bounds so more numbers survive at the start.
+  const lowerBound = Math.max(0, target - (Math.floor(Math.random() * 13) + 8));
+  clues.push({ text: `It is greater than ${lowerBound}.`, filter: n => n > lowerBound });
+  const upperBound = Math.min(51, target + (Math.floor(Math.random() * 13) + 8));
+  clues.push({ text: `It is less than ${upperBound}.`, filter: n => n < upperBound });
+
+  const candidates = [];
+
+  // Parity
+  const isOdd = target % 2 !== 0;
+  candidates.push({ text: isOdd ? "It is an odd number." : "It is an even number.", filter: isOdd ? n => n % 2 !== 0 : n => n % 2 === 0 });
+
+  // Prime / not prime
+  if (isPrime(target)) candidates.push({ text: "It is a prime number.", filter: isPrime });
+  else candidates.push({ text: "It is not a prime number.", filter: n => !isPrime(n) });
+
+  // Multiples and non-multiples
+  for (const d of [3, 4, 5, 6, 7]) {
+    if (target % d === 0) candidates.push({ text: `It is a multiple of ${d}.`, filter: n => n % d === 0 });
+    else candidates.push({ text: `It is not a multiple of ${d}.`, filter: n => n % d !== 0 });
+  }
+
+  // Remainder clues
+  for (const d of [3, 4, 5, 6, 7]) {
+    const r = target % d;
+    if (r !== 0) candidates.push({ text: `When divided by ${d}, it leaves a remainder of ${r}.`, filter: n => n % d === r });
+  }
+
+  // Perfect square
+  if (isSquare(target)) candidates.push({ text: "It is a perfect square.", filter: isSquare });
+  else candidates.push({ text: "It is not a perfect square.", filter: n => !isSquare(n) });
+
+  // Special sequences
+  if (FIBS.has(target)) candidates.push({ text: "It is a Fibonacci number.", filter: n => FIBS.has(n) });
+  if (TRIS.has(target)) candidates.push({ text: "It is a triangular number.", filter: n => TRIS.has(n) });
+
+  // Digit sum + its parity
+  const digitSum = String(target).split("").reduce((s, d) => s + Number(d), 0);
+  candidates.push({ text: `Its digits add up to ${digitSum}.`, filter: n => String(n).split("").reduce((s, d) => s + Number(d), 0) === digitSum });
+  const dsOdd = digitSum % 2 !== 0;
+  candidates.push({
+    text: dsOdd ? "The sum of its digits is odd." : "The sum of its digits is even.",
+    filter: n => { const ds = String(n).split("").reduce((s, d) => s + Number(d), 0); return dsOdd ? ds % 2 !== 0 : ds % 2 === 0; }
+  });
+
+  // Digit identities
+  candidates.push({ text: `Its ones digit is ${target % 10}.`, filter: n => n % 10 === target % 10 });
+  candidates.push({ text: `Its tens digit is ${Math.floor(target / 10)}.`, filter: n => Math.floor(n / 10) === Math.floor(target / 10) });
+
+  // Digit comparison
+  const td = Math.floor(target / 10), od = target % 10;
+  if (td > od) candidates.push({ text: "Its tens digit is greater than its ones digit.", filter: n => Math.floor(n / 10) > n % 10 });
+  else if (td < od) candidates.push({ text: "Its tens digit is less than its ones digit.", filter: n => Math.floor(n / 10) < n % 10 });
+  else candidates.push({ text: "Its tens and ones digits are equal.", filter: n => Math.floor(n / 10) === n % 10 });
+
+  // Products
+  for (let a = 2; a <= 9; a++) {
+    for (let b = a; b <= 9; b++) {
+      if (a * b === target) candidates.push({ text: `It is the product of ${a} and ${b}.`, filter: n => n === a * b });
+    }
+  }
+
+  shuffle(candidates);
+  const used = new Set();
+  let remaining = ALL_NUMBERS.filter(n => clues.every(c => c.filter(n)));
+
+  // Phase 1: build variety — add any clue that keeps the target and trims the field.
+  for (let i = 0; i < candidates.length && remaining.length > 1 && clues.length < 7; i++) {
+    const after = remaining.filter(n => candidates[i].filter(n));
+    if (after.includes(target) && after.length < remaining.length) {
+      clues.push(candidates[i]);
+      used.add(i);
+      remaining = after;
+    }
+  }
+
+  // Phase 2: if still ambiguous, force a unique answer with the strongest remaining clues.
+  while (remaining.length > 1) {
+    let bestIdx = -1, bestCount = Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      if (used.has(i)) continue;
+      const after = remaining.filter(n => candidates[i].filter(n));
+      if (after.includes(target) && after.length >= 1 && after.length < bestCount) {
+        bestCount = after.length;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx === -1) break;
+    used.add(bestIdx);
+    clues.push(candidates[bestIdx]);
+    remaining = remaining.filter(n => candidates[bestIdx].filter(n));
+  }
+
+  return { target, clues };
+}
+
+function generatePuzzle() {
+  return difficulty === 'hard' ? generateHardPuzzle() : generateEasyPuzzle();
+}
+
+function setDifficulty(d) {
+  if (difficulty === d) return;
+  difficulty = d;
+  init();
+}
+
 function init() {
   puzzle = generatePuzzle();
   revealedCount = 0;
   eliminated = new Set();
   animating = false;
   showAnswer = false;
-  showGrid = true;
+  showGrid = false; // grid starts collapsed every time
   render();
 }
 
@@ -226,6 +364,16 @@ function toggleGrid() {
 function render() {
   const isFinished = revealedCount === puzzle.clues.length;
   const remaining = ALL_NUMBERS.filter(n => !eliminated.has(n)).length;
+
+  // Difficulty
+  const diffEl = document.getElementById('difficulty');
+  const easyCls = difficulty === 'easy' ? 'active-easy' : 'inactive';
+  const hardCls = difficulty === 'hard' ? 'active-hard' : 'inactive';
+  diffEl.innerHTML = `
+    <span class="diff-label">DIFFICULTY</span>
+    <button class="diff-btn ${easyCls}" onclick="setDifficulty('easy')">😊 Easy</button>
+    <button class="diff-btn ${hardCls}" onclick="setDifficulty('hard')">🔥 Hard</button>
+  `;
 
   // Clues
   const cluesEl = document.getElementById('clues');
