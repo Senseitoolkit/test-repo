@@ -63,13 +63,12 @@
   rt{font-family:var(--ff-ui);font-weight:500;color:var(--shu-soft);font-size:.5em;transition:opacity .2s}
   .jpx{font-family:var(--ff-jp);line-height:2}
 
-  /* learn card */
   .card{background:var(--washi);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--washi-dim);
     padding:26px 24px;position:relative;margin-bottom:14px}
   .card::before{content:"";position:absolute;inset:9px;border-radius:11px;border:1px solid var(--washi-line);pointer-events:none}
   .lvl-pill{position:absolute;top:14px;right:16px;font-size:11px;font-weight:800;color:var(--washi);background:var(--indigo-soft);padding:4px 11px;border-radius:999px}
-  .g-form{font-family:var(--ff-jp);font-weight:800;font-size:clamp(34px,8vw,52px);color:var(--ink);line-height:1.1;position:relative;z-index:1}
-  .g-mean{font-size:clamp(17px,4vw,21px);font-weight:700;color:var(--shu);margin-top:6px;position:relative;z-index:1}
+  .g-form{font-family:var(--ff-jp);font-weight:800;font-size:clamp(30px,7vw,48px);color:var(--ink);line-height:1.1;position:relative;z-index:1;max-width:88%}
+  .g-mean{font-size:clamp(16px,4vw,20px);font-weight:700;color:var(--shu);margin-top:6px;position:relative;z-index:1}
   .g-note{font-size:15px;line-height:1.65;color:#43464f;margin-top:14px;position:relative;z-index:1}
   .ex-wrap{margin-top:18px;position:relative;z-index:1}
   .ex-label{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--ink-soft);margin-bottom:8px}
@@ -84,7 +83,6 @@
   .nav button:hover{background:rgba(255,255,255,.14)}
   .nav .counter{flex:0 0 auto;color:#c4d2e8;font-size:14px;font-weight:700;min-width:80px;text-align:center;font-variant-numeric:tabular-nums}
 
-  /* quiz */
   .score-bar{display:flex;gap:10px;margin-bottom:16px}
   .stat{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:13px;padding:11px 8px;text-align:center;backdrop-filter:blur(4px)}
   .stat b{display:block;font-size:23px;color:var(--washi);font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -188,96 +186,563 @@
 </div>
 
 <script>
-/* ===== Grammar data =====
-   Each point: lv level; f the pattern; m short meaning; note explanation;
-   ex example sentences as segment arrays ([base] or [base,ruby]); the target
-   pattern token is marked with a 3rd value `1` so it can be highlighted/blanked.
-   q: distractor forms for the drill. The drill blanks the marked token of ex[0]. */
 const G = [
-  {lv:"N5",f:"は",m:"topic marker — \u201cas for\u2026\u201d",note:"Marks the topic of the sentence: what you're talking about. The comment then follows.",
-   ex:[[["\u308f\u305f\u3057","watashi"],["\u306f","",1],["\u5b66\u751f","\u304c\u304f\u305b\u3044"],["\u3067\u3059"]]],q:["\u304c","\u3092","\u306b"]},
-  {lv:"N5",f:"\u304c",m:"subject marker",note:"Marks the grammatical subject \u2014 often new information, or the thing liked / able / existing. Used with \u3059\u304d, \u4e0a\u624b, \u3042\u308b/\u3044\u308b.",
-   ex:[[["\u732b","\u306d\u3053"],["\u304c","",1],["\u597d\u304d","\u3059\u304d"],["\u3067\u3059"]]],q:["\u306f","\u3092","\u3078"]},
-  {lv:"N5",f:"\u3092",m:"direct-object marker",note:"Marks the direct object \u2014 the thing the action is done to.",
-   ex:[[["\u30d1\u30f3",""],["\u3092","",1],["\u98df","\u305f"],["\u3079\u307e\u3059"]]],q:["\u304c","\u306b","\u3067"]},
-  {lv:"N5",f:"\u306b",m:"time / destination / location of existence",note:"Marks a point in time (\u4e03\u6642\u306b), a destination (\u5b66\u6821\u306b), or where something exists (\u3044\u3059\u306b).",
-   ex:[[["\u4e03\u6642","\u3057\u3061\u3058"],["\u306b","",1],["\u8d77","\u304a"],["\u304d\u307e\u3059"]]],q:["\u3092","\u3067","\u3068"]},
-  {lv:"N5",f:"\u3067",m:"place of action / means",note:"Marks where an action happens (\u5bb6\u3067) or the means/tool used (\u30d0\u30b9\u3067, \u7bb8\u3067).",
-   ex:[[["\u30d0\u30b9",""],["\u3067","",1],["\u884c","\u3044"],["\u304d\u307e\u3059"]]],q:["\u306b","\u3092","\u3078"]},
-  {lv:"N5",f:"\u3078",m:"direction (to / toward)",note:"Marks the direction of movement. Interchangeable with destination \u306b in many cases; \u3078 stresses the direction.",
-   ex:[[["\u5b66\u6821","\u304c\u3063\u3053\u3046"],["\u3078","",1],["\u884c","\u3044"],["\u304d\u307e\u3059"]]],q:["\u3067","\u3092","\u304c"]},
-  {lv:"N5",f:"\u3068",m:"and / with (noun)",note:"Joins nouns exhaustively (A\u3068B = A and B) or marks the person you do something with.",
-   ex:[[["\u53cb\u9054","\u3068\u3082\u3060\u3061"],["\u3068","",1],["\u884c","\u3044"],["\u304d\u307e\u3059"]]],q:["\u3082","\u3092","\u306b"]},
-  {lv:"N5",f:"\u3082",m:"also / too",note:"Replaces \u306f or \u304c to mean \u201calso / too.\u201d \u308f\u305f\u3057\u3082 = me too.",
-   ex:[[["\u308f\u305f\u3057","watashi"],["\u3082","",1],["\u884c","\u3044"],["\u304d\u307e\u3059"]]],q:["\u306f","\u304c","\u3092"]},
-  {lv:"N5",f:"\u306e",m:"possessive / noun link",note:"Links two nouns: A\u306eB = B of A. \u308f\u305f\u3057\u306e\u672c = my book.",
-   ex:[[["\u308f\u305f\u3057","watashi"],["\u306e","",1],["\u672c","\u307b\u3093"]]],q:["\u304c","\u3092","\u3068"]},
-  {lv:"N5",f:"\u304b\u3089\u301c\u307e\u3067",m:"from \u2026 to \u2026",note:"\u304b\u3089 marks a start point (time or place), \u307e\u3067 the end point.",
-   ex:[[["\u4e5d\u6642","\u304f\u3058"],["\u304b\u3089","",1],["\u4e94\u6642","\u3054\u3058"],["\u307e\u3067"]]],q:["\u307e\u3067","\u3088\u308a","\u3060\u3051"]},
-  {lv:"N5",f:"\u301c\u305f\u3044",m:"want to (do)",note:"Verb stem + \u305f\u3044 expresses the speaker's desire to do something. \u884c\u304d\u307e\u3059 \u2192 \u884c\u304d\u305f\u3044.",
-   ex:[[["\u65e5\u672c","\u306b\u307b\u3093"],["\u3078"],["\u884c","\u3044"],["\u304d\u305f\u3044","",1],["\u3067\u3059"]]],q:["\u305f\u304f\u306a\u3044","\u305f","\u3066"]},
-  {lv:"N5",f:"\u301c\u3066\u304f\u3060\u3055\u3044",m:"please do \u2026",note:"Te-form + \u304f\u3060\u3055\u3044 makes a polite request.",
-   ex:[[["\u898b","\u307f"],["\u3066\u304f\u3060\u3055\u3044","",1]]],q:["\u305f\u3044\u3067\u3059","\u307e\u3059","\u306a\u3044"]},
-  {lv:"N5",f:"\u301c\u3066\u3082\u3044\u3044\u3067\u3059",m:"may \u2026 / it's okay to \u2026",note:"Te-form + \u3082\u3044\u3044\u3067\u3059 gives or asks permission.",
-   ex:[[["\u5165","\u306f\u3044"],["\u3063\u3066\u3082\u3044\u3044\u3067\u3059","",1],["\u304b"]]],q:["\u3066\u304f\u3060\u3055\u3044","\u305f\u3044","\u306a\u3044\u3067"]},
-  {lv:"N5",f:"\u301c\u3066\u3044\u307e\u3059",m:"ongoing action / state",note:"Te-form + \u3044\u307e\u3059 = an action in progress (\u98df\u3079\u3066\u3044\u307e\u3059) or a continuing state (\u4f4f\u3093\u3067\u3044\u307e\u3059).",
-   ex:[[["\u4eca","\u3044\u307e"],["\u98df","\u305f"],["\u3079\u3066\u3044\u307e\u3059","",1]]],q:["\u307e\u3057\u305f","\u305f\u3044","\u307e\u3059"]},
-  {lv:"N5",f:"\u301c\u304b\u3089 (\u7406\u7531)",m:"because (subjective)",note:"Plain or polite clause + \u304b\u3089 gives a reason. Speaker-centred; common for opinions and requests.",
-   ex:[[["\u5bd2","\u3055\u3080"],["\u3044","",0],["\u304b\u3089","",1],["\u3001"],["\u4f11","\u3084\u3059"],["\u307f\u307e\u3059"]]],q:["\u306e\u306b","\u307e\u3067","\u3068"]},
-  {lv:"N5",f:"\u301c\u304c\u3001",m:"but / although",note:"Connects two clauses with a soft contrast: A but B.",
-   ex:[[["\u9ad8","\u305f\u304b"],["\u3044\u3067\u3059"],["\u304c","",1],["\u3001"],["\u3044\u3044\u3067\u3059"]]],q:["\u304b\u3089","\u306e\u3067","\u3057"]},
-  {lv:"N5",f:"\u301c\u307e\u3057\u3087\u3046 / \u307e\u305b\u3093\u304b",m:"let's \u2026 / shall we \u2026?",note:"\u307e\u3057\u3087\u3046 proposes doing something together; \u307e\u305b\u3093\u304b invites more softly.",
-   ex:[[["\u4e00\u7dd2","\u3044\u3063\u3057\u3087"],["\u306b"],["\u884c","\u3044"],["\u304d\u307e\u3057\u3087\u3046","",1]]],q:["\u307e\u305b\u3093","\u305f\u3044","\u307e\u3057\u305f"]},
-
-  {lv:"N4",f:"\u301c\u3066\u5f62 (\u7d9a\u304d)",m:"te-form: linking actions",note:"The te-form chains actions in sequence (\u8d77\u304d\u3066\u3001\u98df\u3079\u3066\u3001\u884c\u304d\u307e\u3059) or links reasons and states.",
-   ex:[[["\u8d77","\u304a"],["\u304d\u3066","",1],["\u3001"],["\u671d","\u3042\u3055"],["\u3054\u306f\u3093\u3092"],["\u98df","\u305f"],["\u3079\u307e\u3059"]]],q:["\u305f\u308a","\u306a\u304c\u3089","\u3066\u304b\u3089"]},
-  {lv:"N4",f:"\u301c\u305f\u3053\u3068\u304c\u3042\u308b",m:"have done before (experience)",note:"Past plain verb + \u3053\u3068\u304c\u3042\u308b states that you have the experience of doing something.",
-   ex:[[["\u65e5\u672c","\u306b\u307b\u3093"],["\u3078"],["\u884c","\u3044"],["\u3063\u305f\u3053\u3068\u304c\u3042\u308a\u307e\u3059","",1]]],q:["\u305f\u3044\u3067\u3059","\u3066\u3044\u307e\u3059","\u3066\u304f\u3060\u3055\u3044"]},
-  {lv:"N4",f:"\u301c\u305f\u308a\u301c\u305f\u308a\u3059\u308b",m:"do things like A and B",note:"Lists representative actions (not exhaustive): \u8aad\u3093\u3060\u308a\u5bdd\u305f\u308a\u3057\u307e\u3059 = read, sleep, and so on.",
-   ex:[[["\u8aad","\u3088"],["\u3093\u3060\u308a","",1],["\u3001"],["\u5bdd","\u306d"],["\u305f\u308a\u3057\u307e\u3059"]]],q:["\u3066","\u306a\u304c\u3089","\u305f\u3089"]},
-  {lv:"N4",f:"\u301c\u306a\u304c\u3089",m:"while doing (two actions at once)",note:"Verb stem + \u306a\u304c\u3089 = doing one action while doing another. The main action is the second clause.",
-   ex:[[["\u97f3\u697d","\u304a\u3093\u304c\u304f"],["\u3092"],["\u8074","\u304d"],["\u306a\u304c\u3089","",1],["\u52c9\u5f37","\u3079\u3093\u304d\u3087\u3046"],["\u3057\u307e\u3059"]]],q:["\u3066\u304b\u3089","\u305f\u308a","\u306e\u3067"]},
-  {lv:"N4",f:"\u301c\u306e\u3067",m:"because (objective, softer)",note:"Plain clause + \u306e\u3067 gives a reason that feels factual and polite \u2014 softer than \u304b\u3089. Good for excuses and explanations.",
-   ex:[[["\u5fd9","\u3044\u305d\u304c"],["\u3057\u3044","",0],["\u306e\u3067","",1],["\u3001"],["\u884c","\u3044"],["\u3051\u307e\u305b\u3093"]]],q:["\u306e\u306b","\u304b\u3089","\u3068"]},
-  {lv:"N4",f:"\u301c\u306e\u306b",m:"even though / despite",note:"Plain clause + \u306e\u306b marks an unexpected, often frustrating contrast: A, even though B.",
-   ex:[[["\u52c9\u5f37","\u3079\u3093\u304d\u3087\u3046"],["\u3057\u305f","",0],["\u306e\u306b","",1],["\u3001"],["\u8a66\u9a13","\u3057\u3051\u3093"],["\u304c\u3060\u3081\u3067\u3057\u305f"]]],q:["\u306e\u3067","\u304b\u3089","\u3057"]},
-  {lv:"N4",f:"\u301c\u3070 (\u6761\u4ef6)",m:"if \u2026 (general condition)",note:"Conditional \u3070-form states a general or hypothetical condition: \u5b89\u3051\u308c\u3070 = if it's cheap.",
-   ex:[[["\u5b89","\u3084\u3059"],["\u3051\u308c\u3070","",1],["\u3001"],["\u8cb7","\u304b"],["\u3044\u307e\u3059"]]],q:["\u3044\u3068","\u3044\u306e\u3067","\u304f\u3066"]},
-  {lv:"N4",f:"\u301c\u305f\u3089",m:"if / when (then\u2026)",note:"Past plain + \u3089 sets up \u201conce/if X happens, then Y.\u201d The most flexible conditional.",
-   ex:[[["\u7740","\u3064"],["\u3044\u305f\u3089","",1],["\u3001"],["\u96fb\u8a71","\u3067\u3093\u308f"],["\u3057\u307e\u3059"]]],q:["\u3066\u3082","\u306a\u304c\u3089","\u3070"]},
-  {lv:"N4",f:"\u301c\u3068 (\u81ea\u7136\u7d50\u679c)",m:"whenever / and then (natural result)",note:"Plain nonpast + \u3068 = whenever A happens, B naturally follows. Used for rules, directions, habits.",
-   ex:[[["\u6625","\u306f\u308b"],["\u306b"],["\u306a\u308b","",1],["\u3068"],["\u3001"],["\u6691","\u3042\u305f\u305f"],["\u304b\u304f\u306a\u308a\u307e\u3059"]]],q:["\u305f\u3089","\u3070","\u306e\u3067"]},
-  {lv:"N4",f:"\u301c\u306a\u3051\u308c\u3070\u306a\u3089\u306a\u3044",m:"must / have to",note:"Negative \u306a\u3044-stem + \u3051\u308c\u3070\u306a\u3089\u306a\u3044 = obligation. Casual: \u301c\u306a\u304d\u3083.",
-   ex:[[["\u884c","\u3044"],["\u304b\u306a\u3051\u308c\u3070\u306a\u308a\u307e\u305b\u3093","",1]]],q:["\u3066\u3082\u3044\u3044\u3067\u3059","\u305f\u3044\u3067\u3059","\u3066\u304f\u3060\u3055\u3044"]},
-  {lv:"N4",f:"\u301c\u306a\u304f\u3066\u3082\u3044\u3044",m:"don't have to",note:"Negative \u306a\u3044-stem \u2192 \u306a\u304f\u3066\u3082\u3044\u3044 = it's fine not to do it.",
-   ex:[[["\u6025","\u3044\u305d"],["\u304c\u306a\u304f\u3066\u3082\u3044\u3044\u3067\u3059","",1]]],q:["\u306a\u3051\u308c\u3070","\u305f\u3044","\u3066\u304f\u3060\u3055\u3044"]},
-  {lv:"N4",f:"\u301c\u3088\u3046\u3068\u601d\u3046",m:"intend to / be thinking of \u2026ing",note:"Volitional + \u3068\u601d\u3046 expresses a decision or intention the speaker just/currently holds.",
-   ex:[[["\u96fb\u8eca","\u3067\u3093\u3057\u3083"],["\u3067"],["\u884c","\u3044"],["\u3053\u3046\u3068\u601d\u3044\u307e\u3059","",1]]],q:["\u305f\u3044\u3067\u3059","\u3064\u3082\u308a","\u305d\u3046\u3067\u3059"]},
-  {lv:"N4",f:"\u301c\u3064\u3082\u308a\u3060",m:"intend to / plan to",note:"Plain verb + \u3064\u3082\u308a\u3060 = a settled intention or plan.",
-   ex:[[["\u9031\u672b","\u3057\u3085\u3046\u307e\u3064"],["\u306b"],["\u4f1a","\u3042"],["\u3046\u3064\u3082\u308a\u3067\u3059","",1]]],q:["\u3088\u3046\u3060","\u305d\u3046\u3060","\u306f\u305a\u3060"]},
-  {lv:"N4",f:"\u53ef\u80fd\u5f62 (can)",m:"potential form \u2014 be able to",note:"Verbs change to show ability: \u98df\u3079\u308b\u2192\u98df\u3079\u3089\u308c\u308b, \u8aad\u3080\u2192\u8aad\u3081\u308b, \u3059\u308b\u2192\u3067\u304d\u308b.",
-   ex:[[["\u6f22\u5b57","\u304b\u3093\u3058"],["\u304c"],["\u8aad","\u3088"],["\u3081\u307e\u3059","",1]]],q:["\u307f\u307e\u3059","\u307e\u305b\u3093","\u3060\u3067\u3059"]},
-  {lv:"N4",f:"\u301c\u3055\u3046\u3060 (\u69d8\u614b)",m:"looks like / seems (about to)",note:"Stem of \u3044-adj / verb + \u305d\u3046 = a judgement from appearance. \u304a\u3044\u3057\u305d\u3046 = looks tasty.",
-   ex:[[["\u3053\u306e"],["\u30b1\u30fc\u30ad",""],["\u306f"],["\u304a\u3044\u3057\u305d\u3046","",1],["\u3067\u3059"]]],q:["\u305d\u3046\u3060","\u3089\u3057\u3044","\u307f\u305f\u3044"]},
-  {lv:"N4",f:"\u301c\u3093\u3067\u3059",m:"explanatory \u2014 \u201cit's that\u2026\u201d",note:"\u306e\u3093\u3067\u3059/\u3093\u3067\u3059 adds explanation, reason, or emphasis to a statement or question.",
-   ex:[[["\u982d","\u3042\u305f\u307e"],["\u304c"],["\u75db","\u3044\u305f"],["\u3044\u3093\u3067\u3059","",1]]],q:["\u305d\u3046\u3067\u3059","\u3067\u3057\u305f","\u305f\u3044"]},
-
-  {lv:"N3",f:"\u301c\u3066\u3082",m:"even if / even though",note:"Te-form + \u3082 = no matter whether / even if A, B still holds.",
-   ex:[[["\u96e8","\u3042\u3081"],["\u304c"],["\u964d","\u3075"],["\u3063\u3066\u3082","",1],["\u3001"],["\u884c","\u3044"],["\u304d\u307e\u3059"]]],q:["\u306e\u3067","\u305f\u3089","\u306a\u304c\u3089"]},
-  {lv:"N3",f:"\u301c\u3088\u3046\u306b\u306a\u308b",m:"come to / reach the point of",note:"Potential/plain verb + \u3088\u3046\u306b\u306a\u308b marks a gradual change reaching a new ability or state.",
-   ex:[[["\u8a71","\u306f\u306a"],["\u305b\u308b"],["\u3088\u3046\u306b\u306a\u308a\u307e\u3057\u305f","",1]]],q:["\u3053\u3068\u306b\u3059\u308b","\u305f\u3081\u306b","\u306f\u305a\u3060"]},
-  {lv:"N3",f:"\u301c\u3053\u3068\u306b\u3059\u308b",m:"decide to \u2026",note:"Plain verb + \u3053\u3068\u306b\u3059\u308b = the speaker decides to do something.",
-   ex:[[["\u6bce\u671d","\u307e\u3044\u3042\u3055"],["\u8d70","\u306f\u3057"],["\u308b\u3053\u3068\u306b\u3057\u307e\u3057\u305f","",1]]],q:["\u3088\u3046\u306b\u306a\u308b","\u3064\u3082\u308a","\u306f\u305a\u3060"]},
-  {lv:"N3",f:"\u301c\u306f\u305a\u3060",m:"should be / ought to (expectation)",note:"Plain form + \u306f\u305a\u3060 = a logical expectation: it should be the case that\u2026",
-   ex:[[["\u5f7c","\u304b\u308c"],["\u306f"],["\u3082\u3046"],["\u7740","\u3064"],["\u3044\u3066\u3044\u308b\u306f\u305a\u3060","",1]]],q:["\u3088\u3046\u3060","\u305d\u3046\u3060","\u3064\u3082\u308a"]},
-  {lv:"N3",f:"\u301c\u3089\u3057\u3044",m:"seems / I hear (hearsay)",note:"Plain form + \u3089\u3057\u3044 reports information from an outside source, or describes typical character.",
-   ex:[[["\u660e\u65e5","\u3042\u3057\u305f"],["\u306f"],["\u96e8","\u3042\u3081"],["\u3089\u3057\u3044\u3067\u3059","",1]]],q:["\u305d\u3046\u3060","\u3088\u3046\u3060","\u306f\u305a\u3060"]},
-  {lv:"N3",f:"\u301c\u305f\u3081\u306b",m:"in order to / for the sake of",note:"Plain verb or noun+\u306e + \u305f\u3081\u306b expresses purpose or benefit.",
-   ex:[[["\u5065\u5eb7","\u3051\u3093\u3053\u3046"],["\u306e"],["\u305f\u3081\u306b","",1],["\u3001"],["\u6bce\u65e5","\u307e\u3044\u306b\u3061"],["\u904b\u52d5","\u3046\u3093\u3069\u3046"],["\u3057\u307e\u3059"]]],q:["\u306e\u3067","\u3088\u3046\u306b","\u3093\u3067\u3059"]},
-  {lv:"N3",f:"\u301c\u3070\u301c\u307b\u3069",m:"the more \u2026, the more \u2026",note:"\u3070-form + same verb's \u308b-form + \u307b\u3069 = as one increases, so does the other.",
-   ex:[[["\u8003","\u304b\u3093\u304c"],["\u3048\u308c\u3070","",1],["\u8003","\u304b\u3093\u304c"],["\u3048\u308b\u307b\u3069\u3001"],["\u96e3","\u3080\u305a\u304b"],["\u3057\u3044\u3067\u3059"]]],q:["\u305f\u3089","\u3066\u3082","\u306e\u3067"]},
-  {lv:"N3",f:"\u301c\u3070\u304b\u308a",m:"only / nothing but / just did",note:"Noun + \u3070\u304b\u308a = nothing but; te-form + \u3070\u304b\u308a = just did it.",
-   ex:[[["\u30b2\u30fc\u30e0",""],["\u3070\u304b\u308a","",1],["\u3057\u3066\u3044\u307e\u3059"]]],q:["\u3060\u3051","\u3057\u304b","\u307b\u3069"]}
+  /* ============================ N5 ============================ */
+  {lv:"N5",f:"は",m:'topic marker — "as for…"',
+   note:"Marks the topic of the sentence: what you're talking about. The comment about it follows.",
+   ex:[
+     {s:[["私","わたし"],["は","",1],["学生","がくせい"],["です"]],e:"I am a student."},
+     {s:[["今日","きょう"],["は","",1],["暑","あつ"],["い"],["です"]],e:"As for today, it's hot."},
+     {s:[["これ"],["は","",1],["何","なん"],["ですか"]],e:"What is this?"}
+   ],q:["が","を","に"]},
+  {lv:"N5",f:"が",m:"subject marker",
+   note:"Marks the grammatical subject — often new information, or the thing liked, wanted, able, or existing. Used with 好き, 上手, ある/いる.",
+   ex:[
+     {s:[["猫","ねこ"],["が","",1],["好","す"],["き"],["です"]],e:"I like cats."},
+     {s:[["雨","あめ"],["が","",1],["降","ふ"],["っています"]],e:"It's raining."},
+     {s:[["誰","だれ"],["が","",1],["来","き"],["ますか"]],e:"Who is coming?"}
+   ],q:["は","を","へ"]},
+  {lv:"N5",f:"を",m:"direct-object marker",
+   note:"Marks the direct object — the thing the action is done to.",
+   ex:[
+     {s:[["パン"],["を","",1],["食","た"],["べます"]],e:"I eat bread."},
+     {s:[["映画","えいが"],["を","",1],["見","み"],["ます"]],e:"I watch a movie."},
+     {s:[["水","みず"],["を","",1],["飲","の"],["みます"]],e:"I drink water."}
+   ],q:["が","に","で"]},
+  {lv:"N5",f:"に",m:"time / destination / location of existence",
+   note:"Marks a point in time (七時に), a destination (学校に), or where something exists (部屋に).",
+   ex:[
+     {s:[["七時","しちじ"],["に","",1],["起","お"],["きます"]],e:"I get up at seven."},
+     {s:[["学校","がっこう"],["に","",1],["行","い"],["きます"]],e:"I go to school."},
+     {s:[["部屋","へや"],["に","",1],["猫","ねこ"],["が"],["います"]],e:"There's a cat in the room."}
+   ],q:["を","で","と"]},
+  {lv:"N5",f:"で",m:"place of action / means",
+   note:"Marks where an action happens (図書館で) or the means/tool used (バスで, 箸で).",
+   ex:[
+     {s:[["バス"],["で","",1],["行","い"],["きます"]],e:"I go by bus."},
+     {s:[["図書館","としょかん"],["で","",1],["勉強","べんきょう"],["します"]],e:"I study at the library."},
+     {s:[["日本語","にほんご"],["で","",1],["話","はな"],["します"]],e:"I speak in Japanese."}
+   ],q:["に","を","へ"]},
+  {lv:"N5",f:"へ",m:"direction (to / toward)",
+   note:"Marks the direction of movement. Interchangeable with destination に in many cases; へ stresses the direction.",
+   ex:[
+     {s:[["学校","がっこう"],["へ","",1],["行","い"],["きます"]],e:"I go to school."},
+     {s:[["家","いえ"],["へ","",1],["帰","かえ"],["ります"]],e:"I return home."},
+     {s:[["駅","えき"],["へ","",1],["向","む"],["かいます"]],e:"I head for the station."}
+   ],q:["で","を","が"]},
+  {lv:"N5",f:"と",m:"and / with (noun)",
+   note:"Joins nouns exhaustively (A と B = A and B) or marks the person you do something with.",
+   ex:[
+     {s:[["友達","ともだち"],["と","",1],["行","い"],["きます"]],e:"I go with a friend."},
+     {s:[["パン"],["と","",1],["卵","たまご"],["を"],["買","か"],["います"]],e:"I buy bread and eggs."},
+     {s:[["先生","せんせい"],["と","",1],["話","はな"],["します"]],e:"I talk with the teacher."}
+   ],q:["も","を","に"]},
+  {lv:"N5",f:"も",m:"also / too",
+   note:"Replaces は or が to mean “also / too.” 私も = me too.",
+   ex:[
+     {s:[["私","わたし"],["も","",1],["行","い"],["きます"]],e:"I'll go too."},
+     {s:[["これ"],["も","",1],["ください"]],e:"This one too, please."},
+     {s:[["彼","かれ"],["も","",1],["学生","がくせい"],["です"]],e:"He is a student too."}
+   ],q:["は","が","を"]},
+  {lv:"N5",f:"の",m:"possessive / noun link",
+   note:"Links two nouns: A の B = B of A. 私の本 = my book.",
+   ex:[
+     {s:[["私","わたし"],["の","",1],["本","ほん"]],e:"my book"},
+     {s:[["日本語","にほんご"],["の","",1],["先生","せんせい"]],e:"a Japanese teacher"},
+     {s:[["友達","ともだち"],["の","",1],["車","くるま"]],e:"a friend's car"}
+   ],q:["が","を","と"]},
+  {lv:"N5",f:"や",m:"and (a partial list)",
+   note:"Lists representative nouns, not exhaustively: A や B = A, B, and so on.",
+   ex:[
+     {s:[["本","ほん"],["や","",1],["ペン"],["を"],["買","か"],["います"]],e:"I buy books, pens, and such."},
+     {s:[["りんご"],["や","",1],["みかん"],["が"],["あります"]],e:"There are apples, oranges, and so on."},
+     {s:[["京都","きょうと"],["や","",1],["大阪","おおさか"],["へ"],["行","い"],["きました"]],e:"I went to Kyoto, Osaka, and other places."}
+   ],q:["と","も","を"]},
+  {lv:"N5",f:"か",m:"question marker / or",
+   note:"Sentence-final か makes a question; between nouns it means “or.”",
+   ex:[
+     {s:[["学生","がくせい"],["です"],["か","",1]],e:"Are you a student?"},
+     {s:[["行","い"],["きます"],["か","",1]],e:"Will you go?"},
+     {s:[["コーヒー"],["か","",1],["お茶","おちゃ"]],e:"coffee or tea"}
+   ],q:["ね","よ","の"]},
+  {lv:"N5",f:"ね",m:"right? / isn't it? (seeking agreement)",
+   note:"Sentence-final ね seeks agreement or confirmation from the listener.",
+   ex:[
+     {s:[["いい"],["天気","てんき"],["です"],["ね","",1]],e:"Nice weather, isn't it?"},
+     {s:[["暑","あつ"],["い"],["です"],["ね","",1]],e:"It's hot, isn't it?"},
+     {s:[["そう"],["です"],["ね","",1]],e:"That's right, isn't it."}
+   ],q:["よ","か","な"]},
+  {lv:"N5",f:"よ",m:"emphasis / informing",
+   note:"Sentence-final よ tells the listener something new, or adds emphasis and assurance.",
+   ex:[
+     {s:[["これ"],["、"],["おいしい"],["です"],["よ","",1]],e:"This is tasty, you know."},
+     {s:[["危","あぶ"],["ない"],["です"],["よ","",1]],e:"It's dangerous, I'm telling you."},
+     {s:[["もう"],["時間","じかん"],["です"],["よ","",1]],e:"It's time already, you know."}
+   ],q:["ね","か","な"]},
+  {lv:"N5",f:"〜が ほしい",m:"want (a thing)",
+   note:"Noun + が ほしい expresses wanting to have something. (For wanting to do, use 〜たい.)",
+   ex:[
+     {s:[["新","あたら"],["しい"],["車","くるま"],["が"],["ほしい","",1],["です"]],e:"I want a new car."},
+     {s:[["時間","じかん"],["が"],["ほしい","",1]],e:"I want (more) time."},
+     {s:[["何","なに"],["が"],["ほしい","",1],["ですか"]],e:"What do you want?"}
+   ],q:["たい","ある","いる"]},
+  {lv:"N5",f:"〜たい",m:"want to (do)",
+   note:"Verb stem + たい expresses the speaker's desire to do something. 行きます → 行きたい.",
+   ex:[
+     {s:[["日本","にほん"],["へ"],["行","い"],["き"],["たい","",1],["です"]],e:"I want to go to Japan."},
+     {s:[["水","みず"],["が"],["飲","の"],["み"],["たい","",1]],e:"I want to drink water."},
+     {s:[["何","なに"],["が"],["食","た"],["べ"],["たい","",1],["ですか"]],e:"What do you want to eat?"}
+   ],q:["ます","た","て"]},
+  {lv:"N5",f:"〜から（から〜まで）",m:"from … (to …)",
+   note:"から marks a start point (time or place); まで marks the end point.",
+   ex:[
+     {s:[["九時","くじ"],["から","",1],["五時","ごじ"],["まで"]],e:"from nine to five"},
+     {s:[["東京","とうきょう"],["から","",1],["大阪","おおさか"],["まで"]],e:"from Tokyo to Osaka"},
+     {s:[["月曜日","げつようび"],["から","",1],["金曜日","きんようび"],["まで"]],e:"from Monday to Friday"}
+   ],q:["まで","より","だけ"]},
+  {lv:"N5",f:"〜より",m:"than (comparison)",
+   note:"A は B より … compares two things: A is more … than B.",
+   ex:[
+     {s:[["電車","でんしゃ"],["は"],["バス"],["より","",1],["速","はや"],["い"]],e:"The train is faster than the bus."},
+     {s:[["今日","きょう"],["は"],["昨日","きのう"],["より","",1],["暑","あつ"],["い"]],e:"Today is hotter than yesterday."},
+     {s:[["兄","あに"],["は"],["私","わたし"],["より","",1],["背","せ"],["が"],["高","たか"],["い"]],e:"My older brother is taller than me."}
+   ],q:["から","まで","ほど"]},
+  {lv:"N5",f:"〜てください",m:"please do …",
+   note:"Te-form + ください makes a polite request. The hard part is forming the te-form correctly.",
+   ex:[
+     {s:[["見","み"],["て","",1],["ください"]],e:"Please look."},
+     {s:[["食","た"],["べ"],["て","",1],["ください"]],e:"Please eat."},
+     {s:[["書","か"],["い"],["て","",1],["ください"]],e:"Please write."}
+   ],q:["た","ます","ない"]},
+  {lv:"N5",f:"〜てもいいです",m:"may … / it's okay to …",
+   note:"Te-form + もいいです gives or asks permission.",
+   ex:[
+     {s:[["入","はい"],["っ"],["てもいいです","",1],["か"]],e:"May I come in?"},
+     {s:[["帰","かえ"],["っ"],["てもいいです","",1],["か"]],e:"May I go home?"},
+     {s:[["写真","しゃしん"],["を"],["撮","と"],["っ"],["てもいいです","",1],["か"]],e:"May I take a photo?"}
+   ],q:["てください","たいです","ましょう"]},
+  {lv:"N5",f:"〜てはいけません",m:"must not / not allowed to",
+   note:"Te-form + はいけません forbids something.",
+   ex:[
+     {s:[["入","はい"],["っ"],["てはいけません","",1]],e:"You must not enter."},
+     {s:[["走","はし"],["っ"],["てはいけません","",1]],e:"You must not run."},
+     {s:[["ここ"],["で"],["食","た"],["べ"],["てはいけません","",1]],e:"You must not eat here."}
+   ],q:["てもいいです","てください","ましょう"]},
+  {lv:"N5",f:"〜ています",m:"ongoing action / state",
+   note:"Te-form + います = an action in progress (食べています) or a continuing state (住んでいます).",
+   ex:[
+     {s:[["今","いま"],["食","た"],["べ"],["ています","",1]],e:"I'm eating now."},
+     {s:[["雨","あめ"],["が"],["降","ふ"],["っ"],["ています","",1]],e:"It's raining."},
+     {s:[["東京","とうきょう"],["に"],["住","す"],["ん"],["でいます","",1]],e:"I live in Tokyo."}
+   ],q:["ました","たいです","ません"]},
+  {lv:"N5",f:"〜から（理由）",m:"because (subjective)",
+   note:"Plain or polite clause + から gives a reason. Speaker-centred; common for opinions and requests.",
+   ex:[
+     {s:[["寒","さむ"],["い"],["から","",1],["、"],["休","やす"],["みます"]],e:"Because it's cold, I'll rest."},
+     {s:[["高","たか"],["い"],["から","",1],["、"],["買","か"],["いません"]],e:"Because it's expensive, I won't buy it."},
+     {s:[["忙","いそが"],["しい"],["から","",1],["、"],["行","い"],["けません"]],e:"Because I'm busy, I can't go."}
+   ],q:["のに","まで","と"]},
+  {lv:"N5",f:"〜が、",m:"but / although",
+   note:"Connects two clauses with a soft contrast: A but B.",
+   ex:[
+     {s:[["高","たか"],["い"],["です"],["が","",1],["、"],["いい"],["です"]],e:"It's expensive, but it's good."},
+     {s:[["安","やす"],["い"],["です"],["が","",1],["、"],["まずい"],["です"]],e:"It's cheap, but it tastes bad."},
+     {s:[["難","むずか"],["しい"],["です"],["が","",1],["、"],["面白","おもしろ"],["い"],["です"]],e:"It's difficult, but interesting."}
+   ],q:["から","ので","し"]},
+  {lv:"N5",f:"〜ましょう / ませんか",m:"let's … / shall we …?",
+   note:"ましょう proposes doing something together; ませんか invites more softly.",
+   ex:[
+     {s:[["一緒","いっしょ"],["に"],["行","い"],["き"],["ましょう","",1]],e:"Let's go together."},
+     {s:[["少","すこ"],["し"],["休","やす"],["み"],["ましょう","",1]],e:"Let's take a short break."},
+     {s:[["お茶","おちゃ"],["を"],["飲","の"],["み"],["ませんか","",1]],e:"Won't you have some tea?"}
+   ],q:["ました","たい","ます"]},
+  {lv:"N5",f:"〜でしょう",m:"probably / right?",
+   note:"Plain form or noun + でしょう expresses probability, or invites agreement; softer than だ.",
+   ex:[
+     {s:[["明日","あした"],["は"],["雨","あめ"],["でしょう","",1]],e:"It will probably rain tomorrow."},
+     {s:[["彼","かれ"],["は"],["来","く"],["る"],["でしょう","",1]],e:"He'll probably come."},
+     {s:[["大変","たいへん"],["でしょう","",1]],e:"That must be tough, right?"}
+   ],q:["です","でした","ます"]},
+  /* ============================ N4 ============================ */
+  {lv:"N4",f:"〜て形（続き）",m:"te-form: linking actions",
+   note:"The te-form chains actions in sequence (起きて、食べて、行きます) or links reasons and states.",
+   ex:[
+     {s:[["起","お"],["き"],["て","",1],["、"],["顔","かお"],["を"],["洗","あら"],["います"]],e:"I get up and wash my face."},
+     {s:[["バス"],["に"],["乗","の"],["っ"],["て","",1],["、"],["行","い"],["きます"]],e:"I take the bus and go."},
+     {s:[["安","やす"],["く"],["て","",1],["、"],["おいしい"],["です"]],e:"It's cheap and tasty."}
+   ],q:["た","ながら","たら"]},
+  {lv:"N4",f:"〜たことがある",m:"have done before (experience)",
+   note:"Past plain verb + ことがある states that you have the experience of doing something.",
+   ex:[
+     {s:[["日本","にほん"],["へ"],["行","い"],["っ"],["たことがあります","",1]],e:"I have been to Japan."},
+     {s:[["寿司","すし"],["を"],["食","た"],["べ"],["たことがあります","",1]],e:"I have eaten sushi."},
+     {s:[["馬","うま"],["に"],["乗","の"],["っ"],["たことがあります","",1]],e:"I have ridden a horse."}
+   ],q:["ています","たいです","てください"]},
+  {lv:"N4",f:"〜たり〜たりする",m:"do things like A and B",
+   note:"Lists representative actions, not exhaustively: 読んだり寝たりします = read, sleep, and so on.",
+   ex:[
+     {s:[["読","よ"],["ん"],["だり","",1],["、"],["寝","ね"],["たり"],["します"]],e:"I do things like reading and sleeping."},
+     {s:[["歌","うた"],["っ"],["たり","",1],["、"],["踊","おど"],["ったり"],["します"]],e:"We sing and dance and so on."},
+     {s:[["買","か"],["っ"],["たり","",1],["、"],["売","う"],["ったり"],["します"]],e:"I buy and sell and such."}
+   ],q:["て","ながら","たら"]},
+  {lv:"N4",f:"〜ながら",m:"while doing (two actions at once)",
+   note:"Verb stem + ながら = doing one action while doing another. The main action is the second clause.",
+   ex:[
+     {s:[["音楽","おんがく"],["を"],["聴","き"],["き"],["ながら","",1],["勉強","べんきょう"],["します"]],e:"I study while listening to music."},
+     {s:[["歩","ある"],["き"],["ながら","",1],["話","はな"],["します"]],e:"We talk while walking."},
+     {s:[["テレビ"],["を"],["見","み"],["ながら","",1],["食","た"],["べます"]],e:"I eat while watching TV."}
+   ],q:["てから","たり","ので"]},
+  {lv:"N4",f:"〜ので",m:"because (objective, softer)",
+   note:"Plain clause + ので gives a reason that feels factual and polite — softer than から. Good for excuses.",
+   ex:[
+     {s:[["忙","いそが"],["しい"],["ので","",1],["、"],["行","い"],["けません"]],e:"Because I'm busy, I can't go."},
+     {s:[["雨","あめ"],["な"],["ので","",1],["、"],["中止","ちゅうし"],["です"]],e:"Because it's raining, it's cancelled."},
+     {s:[["時間","じかん"],["が"],["ない"],["ので","",1],["、"],["急","いそ"],["ぎます"]],e:"Because there's no time, I'll hurry."}
+   ],q:["のに","から","と"]},
+  {lv:"N4",f:"〜のに",m:"even though / despite",
+   note:"Plain clause + のに marks an unexpected, often frustrating contrast: A, even though B.",
+   ex:[
+     {s:[["勉強","べんきょう"],["した"],["のに","",1],["、"],["試験","しけん"],["が"],["だめ"],["でした"]],e:"Even though I studied, I failed the exam."},
+     {s:[["高","たか"],["い"],["のに","",1],["、"],["まずい"],["です"]],e:"Even though it's expensive, it tastes bad."},
+     {s:[["約束","やくそく"],["した"],["のに","",1],["、"],["来","こ"],["なかった"]],e:"Even though he promised, he didn't come."}
+   ],q:["ので","から","し"]},
+  {lv:"N4",f:"〜ば（条件）",m:"if … (general condition)",
+   note:"Conditional ば-form states a general or hypothetical condition: 安ければ = if it's cheap.",
+   ex:[
+     {s:[["安","やす"],["けれ"],["ば","",1],["、"],["買","か"],["います"]],e:"If it's cheap, I'll buy it."},
+     {s:[["押","お"],["せ"],["ば","",1],["、"],["開","あ"],["きます"]],e:"If you push it, it opens."},
+     {s:[["練習","れんしゅう"],["すれ"],["ば","",1],["、"],["上手","じょうず"],["に"],["なります"]],e:"If you practice, you'll get better."}
+   ],q:["たら","と","ても"]},
+  {lv:"N4",f:"〜たら",m:"if / when (then…)",
+   note:"Past plain + ら sets up “once/if X happens, then Y.” The most flexible conditional.",
+   ex:[
+     {s:[["着","つ"],["い"],["たら","",1],["、"],["電話","でんわ"],["します"]],e:"When I arrive, I'll call."},
+     {s:[["雨","あめ"],["が"],["降","ふ"],["っ"],["たら","",1],["、"],["休","やす"],["みます"]],e:"If it rains, I'll rest."},
+     {s:[["お金","おかね"],["が"],["あっ"],["たら","",1],["、"],["旅行","りょこう"],["します"]],e:"If I had money, I'd travel."}
+   ],q:["ば","と","ながら"]},
+  {lv:"N4",f:"〜と（自然結果）",m:"whenever / and then (natural result)",
+   note:"Plain nonpast + と = whenever A happens, B naturally follows. Used for rules, directions, habits.",
+   ex:[
+     {s:[["春","はる"],["に"],["なる"],["と","",1],["、"],["暖","あたた"],["かく"],["なります"]],e:"When spring comes, it gets warm."},
+     {s:[["右","みぎ"],["へ"],["曲","ま"],["がる"],["と","",1],["、"],["駅","えき"],["が"],["あります"]],e:"If you turn right, the station is there."},
+     {s:[["二","に"],["に"],["三","さん"],["を"],["足","た"],["す"],["と","",1],["、"],["五","ご"],["に"],["なる"]],e:"Two plus three makes five."}
+   ],q:["たら","ば","ので"]},
+  {lv:"N4",f:"〜なら",m:"if (given that) …",
+   note:"Noun/plain + なら picks up a topic the other person raised: “if (we're talking about)…”",
+   ex:[
+     {s:[["日本語","にほんご"],["なら","",1],["、"],["彼","かれ"],["に"],["聞","き"],["いて"]],e:"If it's about Japanese, ask him."},
+     {s:[["行","い"],["く"],["なら","",1],["、"],["傘","かさ"],["を"],["持","も"],["って"]],e:"If you're going, take an umbrella."},
+     {s:[["安","やす"],["い"],["なら","",1],["、"],["買","か"],["います"]],e:"If it's cheap (as you say), I'll buy it."}
+   ],q:["たら","ので","のに"]},
+  {lv:"N4",f:"〜なければならない",m:"must / have to",
+   note:"Negative ない-stem + ければならない = obligation. Casual: 〜なきゃ.",
+   ex:[
+     {s:[["行","い"],["か"],["なければなりません","",1]],e:"I must go."},
+     {s:[["薬","くすり"],["を"],["飲","の"],["ま"],["なければなりません","",1]],e:"I must take the medicine."},
+     {s:[["宿題","しゅくだい"],["を"],["し"],["なければなりません","",1]],e:"I must do my homework."}
+   ],q:["なくてもいい","たい","てもいい"]},
+  {lv:"N4",f:"〜なくてもいい",m:"don't have to",
+   note:"Negative ない-stem → なくてもいい = it's fine not to do it.",
+   ex:[
+     {s:[["急","いそ"],["が"],["なくてもいいです","",1]],e:"You don't have to hurry."},
+     {s:[["来","こ"],["なくてもいいです","",1]],e:"You don't have to come."},
+     {s:[["払","はら"],["わ"],["なくてもいいです","",1]],e:"You don't have to pay."}
+   ],q:["なければならない","たい","てください"]},
+  {lv:"N4",f:"可能形（できる）",m:"potential form — be able to",
+   note:"Verbs change to show ability: 読む→読める, 話す→話せる, 食べる→食べられる, する→できる.",
+   ex:[
+     {s:[["漢字","かんじ"],["が"],["読","よ"],["め","",1],["ます"]],e:"I can read kanji."},
+     {s:[["日本語","にほんご"],["が"],["話","はな"],["せ","",1],["ます"]],e:"I can speak Japanese."},
+     {s:[["納豆","なっとう"],["が"],["食","た"],["べ"],["られます","",1]],e:"I can eat natto."}
+   ],q:["み","んで","まれ"]},
+  {lv:"N4",f:"〜ようと思う",m:"intend to / be thinking of …ing",
+   note:"Volitional form + と思う expresses a decision or intention the speaker currently holds.",
+   ex:[
+     {s:[["電車","でんしゃ"],["で"],["行","い"],["こう"],["と思います","",1]],e:"I'm thinking of going by train."},
+     {s:[["日本語","にほんご"],["を"],["習","なら"],["おう"],["と思います","",1]],e:"I'm thinking of learning Japanese."},
+     {s:[["早","はや"],["く"],["寝","ね"],["よう"],["と思います","",1]],e:"I'm thinking of sleeping early."}
+   ],q:["たいです","つもりです","そうです"]},
+  {lv:"N4",f:"〜つもりだ",m:"intend to / plan to",
+   note:"Plain verb + つもりだ = a settled intention or plan.",
+   ex:[
+     {s:[["週末","しゅうまつ"],["に"],["会","あ"],["う"],["つもりです","",1]],e:"I plan to meet on the weekend."},
+     {s:[["来年","らいねん"],["、"],["留学","りゅうがく"],["する"],["つもりです","",1]],e:"I plan to study abroad next year."},
+     {s:[["車","くるま"],["を"],["買","か"],["う"],["つもりです","",1]],e:"I plan to buy a car."}
+   ],q:["ようだ","そうだ","はずだ"]},
+  {lv:"N4",f:"〜そうだ（様態）",m:"looks like / seems (from appearance)",
+   note:"Stem of い-adj / verb + そう = a judgement from appearance. おいしそう = looks tasty.",
+   ex:[
+     {s:[["この"],["ケーキ"],["は"],["おいし"],["そうです","",1]],e:"This cake looks delicious."},
+     {s:[["雨","あめ"],["が"],["降","ふ"],["り"],["そうです","",1]],e:"It looks like it's going to rain."},
+     {s:[["元気","げんき"],["そうです","",1]],e:"You look well."}
+   ],q:["らしいです","みたいです","ようです"]},
+  {lv:"N4",f:"〜そうだ（伝聞）",m:"I hear that … (hearsay)",
+   note:"Plain form + そうだ reports what you heard. (Different from the “looks like” そう, which attaches to stems.)",
+   ex:[
+     {s:[["田中","たなか"],["さん"],["は"],["来","こ"],["ない"],["そうです","",1]],e:"I hear Tanaka isn't coming."},
+     {s:[["来週","らいしゅう"],["雪","ゆき"],["が"],["降","ふ"],["る"],["そうです","",1]],e:"I hear it'll snow next week."},
+     {s:[["あの"],["店","みせ"],["は"],["安","やす"],["い"],["そうです","",1]],e:"I hear that shop is cheap."}
+   ],q:["ようです","はずです","つもりです"]},
+  {lv:"N4",f:"〜んです",m:"explanatory — “it's that…”",
+   note:"のです/んです adds explanation, reason, or emphasis to a statement or question.",
+   ex:[
+     {s:[["頭","あたま"],["が"],["痛","いた"],["い"],["んです","",1]],e:"It's that my head hurts."},
+     {s:[["どうして"],["来","こ"],["なかった"],["んです","",1],["か"]],e:"Why is it that you didn't come?"},
+     {s:[["お金","おかね"],["が"],["ない"],["んです","",1]],e:"The thing is, I have no money."}
+   ],q:["そうです","でした","ましょう"]},
+  {lv:"N4",f:"〜かもしれない",m:"might / maybe",
+   note:"Plain form + かもしれない expresses possibility — the speaker isn't sure.",
+   ex:[
+     {s:[["明日","あした"],["は"],["雨","あめ"],["かもしれません","",1]],e:"It might rain tomorrow."},
+     {s:[["彼","かれ"],["は"],["来","こ"],["ない"],["かもしれません","",1]],e:"He might not come."},
+     {s:[["道","みち"],["が"],["混","こ"],["む"],["かもしれません","",1]],e:"The road might be crowded."}
+   ],q:["はずです","つもりです","でしょう"]},
+  {lv:"N4",f:"受身形（られる）",m:"passive — be done to",
+   note:"Verbs take a passive form (れる/られる): X is done by someone, often when the subject is affected.",
+   ex:[
+     {s:[["先生","せんせい"],["に"],["褒","ほ"],["め"],["られました","",1]],e:"I was praised by the teacher."},
+     {s:[["みんな"],["に"],["笑","わら"],["わ"],["れました","",1]],e:"I was laughed at by everyone."},
+     {s:[["雨","あめ"],["に"],["降","ふ"],["ら"],["れました","",1]],e:"I got rained on."}
+   ],q:["ました","させました","たいです"]},
+  {lv:"N4",f:"使役形（させる）",m:"causative — make / let do",
+   note:"Causative form (せる/させる): make or let someone do something.",
+   ex:[
+     {s:[["子供","こども"],["に"],["野菜","やさい"],["を"],["食","た"],["べ"],["させます","",1]],e:"I make my child eat vegetables."},
+     {s:[["学生","がくせい"],["に"],["本","ほん"],["を"],["読","よ"],["ま"],["せます","",1]],e:"I make the students read books."},
+     {s:[["妹","いもうと"],["を"],["泣","な"],["か"],["せました","",1]],e:"I made my little sister cry."}
+   ],q:["られます","ます","たいです"]},
+  {lv:"N4",f:"〜てくれる",m:"do (something) for me",
+   note:"Te-form + くれる: someone does something for me / my side, felt as a favor.",
+   ex:[
+     {s:[["友達","ともだち"],["が"],["手伝","てつだ"],["っ"],["てくれました","",1]],e:"My friend helped me out."},
+     {s:[["母","はは"],["が"],["弁当","べんとう"],["を"],["作","つく"],["っ"],["てくれました","",1]],e:"My mother made me a lunch."},
+     {s:[["先生","せんせい"],["が"],["教","おし"],["え"],["てくれました","",1]],e:"The teacher taught me."}
+   ],q:["てもらいました","てあげました","ています"]},
+  {lv:"N4",f:"〜てもらう",m:"have / get someone to do",
+   note:"Te-form + もらう: I receive the favor of someone doing something (I had them do it).",
+   ex:[
+     {s:[["友達","ともだち"],["に"],["手伝","てつだ"],["っ"],["てもらいました","",1]],e:"I had my friend help me."},
+     {s:[["先生","せんせい"],["に"],["直","なお"],["し"],["てもらいました","",1]],e:"I had the teacher correct it."},
+     {s:[["駅","えき"],["まで"],["送","おく"],["っ"],["てもらいました","",1]],e:"I got someone to take me to the station."}
+   ],q:["てくれました","てあげました","ています"]},
+  {lv:"N4",f:"〜やすい / にくい",m:"easy / hard to do",
+   note:"Verb stem + やすい (easy to) or にくい (hard to).",
+   ex:[
+     {s:[["この"],["ペン"],["は"],["書","か"],["き"],["やすい","",1],["です"]],e:"This pen is easy to write with."},
+     {s:[["この"],["道","みち"],["は"],["歩","ある"],["き"],["やすい","",1]],e:"This road is easy to walk on."},
+     {s:[["小","ちい"],["さい"],["字","じ"],["は"],["読","よ"],["み"],["にくい","",1],["です"]],e:"Small text is hard to read."}
+   ],q:["たい","そう","ながら"]},
+  {lv:"N4",f:"〜すぎる",m:"too / excessively",
+   note:"Stem of verb/adjective + すぎる: doing or being something to excess.",
+   ex:[
+     {s:[["食","た"],["べ"],["すぎました","",1]],e:"I ate too much."},
+     {s:[["この"],["問題","もんだい"],["は"],["難","むずか"],["し"],["すぎます","",1]],e:"This problem is too difficult."},
+     {s:[["昨日","きのう"],["は"],["飲","の"],["み"],["すぎました","",1]],e:"I drank too much yesterday."}
+   ],q:["たいです","やすいです","そうです"]},
+  {lv:"N4",f:"〜方（かた）",m:"way of doing …",
+   note:"Verb stem + 方（かた）: the way or method of doing something.",
+   ex:[
+     {s:[["漢字","かんじ"],["の"],["書","か"],["き"],["方","かた",1]],e:"the way to write kanji"},
+     {s:[["使","つか"],["い"],["方","かた",1],["が"],["わかりません"]],e:"I don't understand how to use it."},
+     {s:[["この"],["料理","りょうり"],["の"],["作","つく"],["り"],["方","かた",1]],e:"how to make this dish"}
+   ],q:["たい","そう","にくい"]},
+  /* ============================ N3 ============================ */
+  {lv:"N3",f:"〜ても",m:"even if / even though",
+   note:"Te-form + も = no matter whether / even if A, B still holds.",
+   ex:[
+     {s:[["雨","あめ"],["が"],["降","ふ"],["っ"],["ても","",1],["、"],["行","い"],["きます"]],e:"Even if it rains, I'll go."},
+     {s:[["高","たか"],["く"],["ても","",1],["、"],["買","か"],["います"]],e:"Even if it's expensive, I'll buy it."},
+     {s:[["呼","よ"],["ん"],["でも","",1],["、"],["来","こ"],["ない"]],e:"Even if I call him, he won't come."}
+   ],q:["ので","たら","ながら"]},
+  {lv:"N3",f:"〜ようになる",m:"come to / reach the point of",
+   note:"Potential/plain verb + ようになる marks a gradual change reaching a new ability or state.",
+   ex:[
+     {s:[["日本語","にほんご"],["が"],["話","はな"],["せる"],["ようになりました","",1]],e:"I've become able to speak Japanese."},
+     {s:[["野菜","やさい"],["を"],["食","た"],["べる"],["ようになりました","",1]],e:"I've come to eat vegetables."},
+     {s:[["早","はや"],["く"],["起","お"],["きる"],["ようになりました","",1]],e:"I've come to wake up early."}
+   ],q:["ことにする","ために","はずだ"]},
+  {lv:"N3",f:"〜ことにする",m:"decide to …",
+   note:"Plain verb + ことにする = the speaker decides to do something.",
+   ex:[
+     {s:[["毎朝","まいあさ"],["走","はし"],["る"],["ことにしました","",1]],e:"I decided to run every morning."},
+     {s:[["たばこ"],["を"],["やめる"],["ことにしました","",1]],e:"I decided to quit smoking."},
+     {s:[["留学","りゅうがく"],["する"],["ことにしました","",1]],e:"I decided to study abroad."}
+   ],q:["ことになる","ようになる","つもりだ"]},
+  {lv:"N3",f:"〜ことになる",m:"it has been decided that …",
+   note:"Plain verb + ことになる: a decision or arrangement that's been reached, often not by the speaker.",
+   ex:[
+     {s:[["来月","らいげつ"],["、"],["転勤","てんきん"],["する"],["ことになりました","",1]],e:"It's been decided I'll transfer next month."},
+     {s:[["会議","かいぎ"],["は"],["中止","ちゅうし"],["する"],["ことになりました","",1]],e:"It's been decided the meeting is cancelled."},
+     {s:[["結婚","けっこん"],["する"],["ことになりました","",1]],e:"It's been settled that we'll marry."}
+   ],q:["ことにする","ようになる","はずだ"]},
+  {lv:"N3",f:"〜はずだ",m:"should be / ought to (expectation)",
+   note:"Plain form + はずだ = a logical expectation: it should be the case that…",
+   ex:[
+     {s:[["彼","かれ"],["は"],["もう"],["着","つ"],["いている"],["はずです","",1]],e:"He should have arrived already."},
+     {s:[["この"],["店","みせ"],["は"],["安","やす"],["い"],["はずです","",1]],e:"This shop should be cheap."},
+     {s:[["鍵","かぎ"],["は"],["ここ"],["に"],["ある"],["はずです","",1]],e:"The key should be here."}
+   ],q:["ようだ","らしい","つもりだ"]},
+  {lv:"N3",f:"〜らしい",m:"seems / I hear (hearsay)",
+   note:"Plain form + らしい reports information from an outside source, or describes typical character.",
+   ex:[
+     {s:[["明日","あした"],["は"],["雨","あめ"],["らしい","",1],["です"]],e:"It seems it'll rain tomorrow."},
+     {s:[["彼","かれ"],["は"],["来","こ"],["ない"],["らしい","",1]],e:"It seems he's not coming."},
+     {s:[["あの"],["店","みせ"],["は"],["おいしい"],["らしい","",1]],e:"I hear that shop is good."}
+   ],q:["はずだ","ようだ","つもりだ"]},
+  {lv:"N3",f:"〜ために",m:"in order to / for the sake of",
+   note:"Plain verb or noun + の + ために expresses purpose or benefit.",
+   ex:[
+     {s:[["健康","けんこう"],["の"],["ために","",1],["、"],["運動","うんどう"],["します"]],e:"I exercise for my health."},
+     {s:[["留学","りゅうがく"],["する"],["ために","",1],["、"],["お金","おかね"],["を"],["貯","た"],["めます"]],e:"I save money in order to study abroad."},
+     {s:[["家族","かぞく"],["の"],["ために","",1],["、"],["働","はたら"],["きます"]],e:"I work for my family."}
+   ],q:["ので","ように","のに"]},
+  {lv:"N3",f:"〜ように",m:"so that … / in such a way that",
+   note:"Plain form (often potential or negative) + ように states a goal aimed for. Contrast with the concrete-purpose ために.",
+   ex:[
+     {s:[["聞","き"],["こえる"],["ように","",1],["、"],["大","おお"],["きい"],["声","こえ"],["で"],["話","はな"],["します"]],e:"I speak loudly so I can be heard."},
+     {s:[["忘","わす"],["れない"],["ように","",1],["、"],["メモ"],["します"]],e:"I take notes so I won't forget."},
+     {s:[["風邪","かぜ"],["を"],["ひかない"],["ように","",1],["、"],["気","き"],["を"],["つけます"]],e:"I'm careful so as not to catch a cold."}
+   ],q:["ために","ので","のに"]},
+  {lv:"N3",f:"〜ば〜ほど",m:"the more …, the more …",
+   note:"ば-form + the same verb's plain form + ほど = as one increases, so does the other.",
+   ex:[
+     {s:[["考","かんが"],["えれ"],["ば","",1],["考","かんが"],["える"],["ほど"],["、"],["難","むずか"],["しい"]],e:"The more I think, the harder it gets."},
+     {s:[["練習","れんしゅう"],["すれ"],["ば","",1],["する"],["ほど"],["、"],["上手","じょうず"],["に"],["なる"]],e:"The more you practice, the better you get."},
+     {s:[["読","よ"],["め"],["ば","",1],["読","よ"],["む"],["ほど"],["、"],["面白","おもしろ"],["い"]],e:"The more I read, the more interesting it is."}
+   ],q:["たら","ても","ので"]},
+  {lv:"N3",f:"〜ばかり",m:"only / nothing but / just did",
+   note:"Noun + ばかり = nothing but; te-form + ばかり = just did it.",
+   ex:[
+     {s:[["ゲーム"],["ばかり","",1],["しています"]],e:"I do nothing but play games."},
+     {s:[["甘","あま"],["い"],["もの"],["ばかり","",1],["食","た"],["べます"]],e:"I eat nothing but sweets."},
+     {s:[["着","つ"],["いた"],["ばかり","",1],["です"]],e:"I've just arrived."}
+   ],q:["だけ","しか","ほど"]},
+  {lv:"N3",f:"〜ようだ / みたい",m:"seems like / appears (judgment)",
+   note:"Plain + ようだ (formal) or みたい (casual): the speaker's judgment based on evidence.",
+   ex:[
+     {s:[["誰","だれ"],["か"],["来","き"],["た"],["ようです","",1]],e:"It seems someone came."},
+     {s:[["風邪","かぜ"],["を"],["ひいた"],["ようです","",1]],e:"It seems I've caught a cold."},
+     {s:[["留守","るす"],["の"],["ようです","",1]],e:"It seems no one is home."}
+   ],q:["そうです","つもりです","はずです"]},
+  {lv:"N3",f:"〜わけだ",m:"no wonder / that's why",
+   note:"Plain form + わけだ draws a natural conclusion: that explains it.",
+   ex:[
+     {s:[["道理","どうり"],["で"],["寒","さむ"],["い"],["わけだ","",1]],e:"No wonder it's cold."},
+     {s:[["窓","まど"],["が"],["開","あ"],["いている"],["。"],["寒","さむ"],["い"],["わけだ","",1]],e:"The window's open — that's why it's cold."},
+     {s:[["三年","さんねん"],["住","す"],["んだ"],["。"],["上手","じょうず"],["な"],["わけだ","",1]],e:"She lived there three years — no wonder she's fluent."}
+   ],q:["はずがない","つもりだ","らしい"]},
+  {lv:"N3",f:"〜わけではない",m:"it's not (necessarily) that …",
+   note:"Plain form + わけではない softly denies a likely conclusion.",
+   ex:[
+     {s:[["嫌","きら"],["いな"],["わけではない","",1]],e:"It's not that I dislike it."},
+     {s:[["全部","ぜんぶ"],["わかる"],["わけではない","",1]],e:"It's not that I understand everything."},
+     {s:[["行","い"],["きたくない"],["わけではない","",1]],e:"It's not that I don't want to go."}
+   ],q:["はずだ","つもりだ","らしい"]},
+  {lv:"N3",f:"〜はずがない",m:"there's no way that … / can't be",
+   note:"Plain form + はずがない: the speaker is sure something is impossible.",
+   ex:[
+     {s:[["彼","かれ"],["が"],["嘘","うそ"],["を"],["つく"],["はずがない","",1]],e:"There's no way he'd lie."},
+     {s:[["そんなに"],["安","やす"],["い"],["はずがない","",1]],e:"It can't be that cheap."},
+     {s:[["知","し"],["らない"],["はずがない","",1]],e:"There's no way she doesn't know."}
+   ],q:["はずだ","かもしれない","らしい"]},
+  {lv:"N3",f:"〜べきだ",m:"should / ought to (moral)",
+   note:"Plain verb + べきだ: something is the right thing to do. (する → するべき / すべき.)",
+   ex:[
+     {s:[["約束","やくそく"],["は"],["守","まも"],["る"],["べきです","",1]],e:"You should keep your promises."},
+     {s:[["もっと"],["勉強","べんきょう"],["する"],["べきです","",1]],e:"You should study more."},
+     {s:[["すぐ"],["謝","あやま"],["る"],["べきです","",1]],e:"You should apologize right away."}
+   ],q:["はずです","つもりです","ようです"]},
+  {lv:"N3",f:"〜うちに",m:"while … / before it changes",
+   note:"Do something while a favorable state lasts, before it ends: 熱いうちに食べる.",
+   ex:[
+     {s:[["熱","あつ"],["い"],["うちに","",1],["、"],["食","た"],["べてください"]],e:"Eat it while it's hot."},
+     {s:[["明","あか"],["るい"],["うちに","",1],["、"],["帰","かえ"],["ります"]],e:"I'll head home while it's still light."},
+     {s:[["忘","わす"],["れない"],["うちに","",1],["、"],["書","か"],["きます"]],e:"I'll write it down before I forget."}
+   ],q:["あいだに","ながら","ために"]},
+  {lv:"N3",f:"〜間に（あいだに）",m:"during / while (a span)",
+   note:"Noun + の / plain + 間（あいだ）に: an action happens within a span of time.",
+   ex:[
+     {s:[["留守","るす"],["の"],["間に","あいだに",1],["、"],["泥棒","どろぼう"],["が"],["入","はい"],["った"]],e:"A burglar broke in while I was out."},
+     {s:[["夏休","なつやす"],["みの"],["間に","あいだに",1],["、"],["旅行","りょこう"],["した"]],e:"I traveled during summer vacation."},
+     {s:[["寝","ね"],["ている"],["間に","あいだに",1],["、"],["地震","じしん"],["が"],["あった"]],e:"There was an earthquake while I slept."}
+   ],q:["うちに","ながら","ために"]},
+  {lv:"N3",f:"〜たびに",m:"every time / whenever",
+   note:"Plain verb or noun + の + たびに: each time something happens.",
+   ex:[
+     {s:[["会","あ"],["う"],["たびに","",1],["、"],["プレゼント"],["を"],["くれる"]],e:"Every time we meet, she gives me a present."},
+     {s:[["春","はる"],["に"],["なる"],["たびに","",1],["、"],["桜","さくら"],["が"],["咲","さ"],["く"]],e:"Every time spring comes, the cherry blossoms bloom."},
+     {s:[["旅行","りょこう"],["の"],["たびに","",1],["、"],["写真","しゃしん"],["を"],["撮","と"],["る"]],e:"On every trip, I take photos."}
+   ],q:["うちに","ばかり","ながら"]},
+  {lv:"N3",f:"〜によって",m:"depending on / by means of / by (agent)",
+   note:"Noun + によって: it varies depending on; by means of; or the agent in a passive sentence.",
+   ex:[
+     {s:[["人","ひと"],["によって","",1],["、"],["考","かんが"],["え"],["が"],["違","ちが"],["う"]],e:"Opinions differ from person to person."},
+     {s:[["地震","じしん"],["によって","",1],["、"],["建物","たてもの"],["が"],["倒","たお"],["れた"]],e:"Buildings collapsed due to the earthquake."},
+     {s:[["天気","てんき"],["によって","",1],["、"],["予定","よてい"],["を"],["変","か"],["える"]],e:"We change plans depending on the weather."}
+   ],q:["について","のために","にとって"]},
+  {lv:"N3",f:"〜について",m:"about / concerning",
+   note:"Noun + について: regarding a topic.",
+   ex:[
+     {s:[["日本","にほん"],["の"],["文化","ぶんか"],["について","",1],["、"],["研究","けんきゅう"],["します"]],e:"I research Japanese culture."},
+     {s:[["事故","じこ"],["について","",1],["、"],["話","はな"],["しました"]],e:"We talked about the accident."},
+     {s:[["この"],["問題","もんだい"],["について","",1],["、"],["どう"],["思","おも"],["いますか"]],e:"What do you think about this issue?"}
+   ],q:["によって","のために","にとって"]},
+  {lv:"N3",f:"〜に対して（にたいして）",m:"toward / in contrast to",
+   note:"Noun + に対して: an action directed at someone or something, or a contrast between two things.",
+   ex:[
+     {s:[["質問","しつもん"],["に対して","にたいして",1],["、"],["答","こた"],["える"]],e:"I respond to the question."},
+     {s:[["親","おや"],["に対して","にたいして",1],["、"],["反抗","はんこう"],["する"]],e:"to rebel against one's parents"},
+     {s:[["失礼","しつれい"],["な"],["態度","たいど"],["に対して","にたいして",1],["、"],["怒","おこ"],["った"]],e:"I got angry at the rude attitude."}
+   ],q:["について","によって","にとって"]},
+  {lv:"N3",f:"〜にとって",m:"for / to (from the standpoint of)",
+   note:"Noun + にとって: seen from someone's viewpoint; what matters to them.",
+   ex:[
+     {s:[["私","わたし"],["にとって","",1],["、"],["家族","かぞく"],["が"],["一番","いちばん"],["大切","たいせつ"],["だ"]],e:"For me, family is the most important thing."},
+     {s:[["子供","こども"],["にとって","",1],["、"],["遊","あそ"],["び"],["は"],["大切","たいせつ"],["だ"]],e:"For children, play is important."},
+     {s:[["彼","かれ"],["にとって","",1],["、"],["難","むずか"],["しい"],["問題","もんだい"],["だ"]],e:"For him, it's a hard problem."}
+   ],q:["について","に対して","によって"]},
+  {lv:"N3",f:"〜ところだ",m:"about to / in the midst of / just did",
+   note:"Verb form + ところ: dictionary form + ところ (about to), ている + ところ (in the middle), た + ところ (just did).",
+   ex:[
+     {s:[["今","いま"],["から"],["出","で"],["かける"],["ところです","",1]],e:"I'm just about to go out."},
+     {s:[["今","いま"],["食","た"],["べている"],["ところです","",1]],e:"I'm in the middle of eating."},
+     {s:[["今","いま"],["着","つ"],["いた"],["ところです","",1]],e:"I've just arrived."}
+   ],q:["はずです","ばかりです","つもりです"]},
+  {lv:"N3",f:"〜おかげで",m:"thanks to / owing to (good result)",
+   note:"Plain form or noun + の + おかげで: a good outcome thanks to something.",
+   ex:[
+     {s:[["先生","せんせい"],["の"],["おかげで","",1],["、"],["合格","ごうかく"],["できた"]],e:"Thanks to the teacher, I passed."},
+     {s:[["薬","くすり"],["の"],["おかげで","",1],["、"],["元気","げんき"],["に"],["なった"]],e:"Thanks to the medicine, I got better."},
+     {s:[["手伝","てつだ"],["ってくれた"],["おかげで","",1],["、"],["早","はや"],["く"],["終","お"],["わった"]],e:"Thanks to your help, it finished early."}
+   ],q:["せいで","ために","ように"]},
+  {lv:"N3",f:"〜せいで",m:"because of (bad result) / due to",
+   note:"Plain form or noun + の + せいで: a bad outcome blamed on something.",
+   ex:[
+     {s:[["雨","あめ"],["の"],["せいで","",1],["、"],["試合","しあい"],["が"],["中止","ちゅうし"],["に"],["なった"]],e:"Because of the rain, the match was cancelled."},
+     {s:[["寝坊","ねぼう"],["した"],["せいで","",1],["、"],["遅刻","ちこく"],["した"]],e:"Because I overslept, I was late."},
+     {s:[["君","きみ"],["の"],["せいで","",1],["、"],["負","ま"],["けた"]],e:"We lost because of you."}
+   ],q:["おかげで","ために","ように"]},
+  {lv:"N3",f:"〜かどうか",m:"whether or not",
+   note:"Plain form + かどうか embeds a yes/no question inside a larger sentence.",
+   ex:[
+     {s:[["来","く"],["る"],["かどうか","",1],["、"],["わからない"]],e:"I don't know whether he'll come."},
+     {s:[["正","ただ"],["しい"],["かどうか","",1],["、"],["確","たし"],["かめる"]],e:"I'll check whether it's correct."},
+     {s:[["行","い"],["ける"],["かどうか","",1],["、"],["まだ"],["決","き"],["めていない"]],e:"I haven't decided whether I can go."}
+   ],q:["かもしれない","ばかり","ように"]},
+  {lv:"N3",f:"〜ことがある",m:"sometimes / there are times when",
+   note:"Plain nonpast verb + ことがある: something happens occasionally. (Contrast た + ことがある = past experience.)",
+   ex:[
+     {s:[["たまに"],["遅刻","ちこく"],["する"],["ことがあります","",1]],e:"I'm sometimes late."},
+     {s:[["朝","あさ"],["ごはん"],["を"],["抜","ぬ"],["く"],["ことがあります","",1]],e:"There are times I skip breakfast."},
+     {s:[["道","みち"],["に"],["迷","まよ"],["う"],["ことがあります","",1]],e:"I sometimes get lost."}
+   ],q:["たことがある","ばかり","はずだ"]},
+  {lv:"N3",f:"〜てほしい",m:"want someone to do …",
+   note:"Te-form + ほしい: the speaker wants another person to do something.",
+   ex:[
+     {s:[["手伝","てつだ"],["っ"],["てほしい","",1],["です"]],e:"I want you to help me."},
+     {s:[["静","しず"],["かに"],["し"],["てほしい","",1]],e:"I want you to be quiet."},
+     {s:[["本当","ほんとう"],["の"],["こと"],["を"],["言","い"],["っ"],["てほしい","",1]],e:"I want you to tell the truth."}
+   ],q:["たい","てあげる","ながら"]}
 ];
 
 /* ===== state ===== */
@@ -320,13 +785,13 @@ function buildLevels(){
 function rebuild(){ state.deck=filtered(); state.idx=0; renderLearn(); newQuiz(); }
 function renderLearn(){
   const g=state.deck[state.idx];
-  const exs=g.ex.map(e=>`<div class="ex"><div class="jpx">${segHTML(e,{hi:true})}</div></div>`).join("");
+  const exs=g.ex.map(e=>`<div class="ex"><div class="jpx">${segHTML(e.s,{hi:true})}</div><div class="ex-en">${e.e}</div></div>`).join("");
   $("learn-card").innerHTML=`
     <span class="lvl-pill">${g.lv}</span>
     <div class="g-form">${g.f}</div>
     <div class="g-mean">${g.m}</div>
     <div class="g-note">${g.note}</div>
-    <div class="ex-wrap"><div class="ex-label">Example</div>${exs}</div>`;
+    <div class="ex-wrap"><div class="ex-label">Examples</div>${exs}</div>`;
   $("counter").textContent=`${state.idx+1} / ${state.deck.length}`;
 }
 function move(d){ state.idx=(state.idx+d+state.deck.length)%state.deck.length; renderLearn(); }
@@ -336,12 +801,14 @@ function newQuiz(){
   const pool=filtered();
   if(state.qPos>=pool.length||!state.qDeck.length){state.qDeck=shuffle(pool);state.qPos=0;}
   const g=state.qDeck[state.qPos++]; state.qCur=g; state.answered=false;
+  const segs=g.ex[0].s;
   // answer = the marked token's base text from ex[0]
-  const tok=g.ex[0].find(s=>s[2]===1);
+  const tok=segs.find(s=>s[2]===1);
   const answer=tok?tok[0]:g.f;
   const opts=shuffle([answer,...g.q]);
   $("q-prompt").innerHTML=`<span class="q-tag">Choose the form that fits</span>
-    <div class="q-sent">${segHTML(g.ex[0],{blank:true})}</div>`;
+    <div class="q-sent">${segHTML(segs,{blank:true})}</div>
+    <div class="q-en">${g.ex[0].e}</div>`;
   const box=$("q-choices");
   box.innerHTML=opts.map((o,i)=>`<button class="choice" data-i="${i}">${o}</button>`).join("");
   [...box.children].forEach((btn,i)=>btn.onclick=()=>answer_(btn,opts[i]===answer,box,answer,g));
