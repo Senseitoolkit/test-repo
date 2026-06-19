@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>言葉リーダー — Word Reading · Study Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+:root{
+  --indigo-deep:#13213b; --indigo:#21385c; --indigo-soft:#3a557f;
+  --washi:#f5efe1; --washi-dim:#e7ddc6; --washi-line:#d8cdb2; --washi-soft:#efe7d4;
+  --ink:#222530; --ink-soft:#5a5d68; --ink-faint:#8a8576;
+  --shu:#c43d28; --shu-soft:#d9694f; --gold:#b6893e; --sage:#5a7a52;
+  --radius:16px; --radius-lg:22px; --pill:999px;
+  --shadow:0 12px 26px -20px rgba(0,0,0,.9);
+  --shadow-lift:0 22px 46px -24px rgba(8,16,32,.95);
+  --ff-jp:'Shippori Mincho',serif;
+  --ff-ui:'Zen Kaku Gothic New',system-ui,sans-serif;
+}
+html,body{ height:100%; }
+body{
+  font-family:var(--ff-ui); color:var(--ink); line-height:1.5; min-height:100%;
+  background:
+    radial-gradient(circle at 18% -10%, #2a456e 0%, transparent 45%),
+    radial-gradient(circle at 100% 110%, #1b2f50 0%, transparent 50%),
+    linear-gradient(160deg,#14233f 0%,#101c33 100%);
+  background-attachment:fixed; -webkit-font-smoothing:antialiased;
+}
+.grain{ position:fixed; inset:0; pointer-events:none; opacity:.05; z-index:0;
+  background-image:radial-gradient(rgba(255,255,255,.9) .8px,transparent .8px); background-size:7px 7px; }
+.app{ position:relative; z-index:1; max-width:620px; margin:0 auto; padding:18px 16px 11rem; }
+
+.topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:18px; }
+.back{ display:inline-flex; align-items:center; gap:7px; text-decoration:none; color:#a9bbd6;
+  font-size:12.5px; font-weight:700; letter-spacing:.4px; padding:8px 13px; border-radius:11px;
+  border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); transition:.15s; }
+.back:hover{ color:var(--washi); background:rgba(255,255,255,.09); transform:translateX(-2px); }
+.back .jp{ font-family:var(--ff-jp); }
+.streak{ background:rgba(182,137,62,.16); color:var(--gold); font-weight:800; font-size:13px;
+  padding:7px 13px; border-radius:var(--pill); display:flex; align-items:center; gap:6px; border:1px solid rgba(182,137,62,.35); }
+.hero{ display:flex; align-items:center; gap:16px; margin-bottom:6px; }
+.seal{ flex:none; width:64px; height:64px; border-radius:16px; border:3px solid var(--shu); color:var(--washi);
+  font-family:var(--ff-jp); font-weight:800; font-size:34px; display:grid; place-items:center;
+  background:linear-gradient(160deg,#c43d28,#a52e1d); box-shadow:0 10px 22px -8px rgba(196,61,40,.7); }
+.titles .eyebrow{ color:var(--shu-soft); font-size:11px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; margin-bottom:6px; }
+.titles h1{ font-family:var(--ff-jp); font-weight:800; color:var(--washi); font-size:clamp(26px,6vw,38px); letter-spacing:2px; line-height:1; }
+.titles h1 rt{ font-size:.3em; font-weight:500; color:#9fb1cd; }
+.titles .latin{ font-weight:700; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:#a9bbd6; margin-top:7px; }
+
+.tabbar{ position:fixed; bottom:0; left:0; right:0; z-index:50; display:flex; justify-content:space-around;
+  background:var(--indigo-deep); border-top:1px solid rgba(255,255,255,.14);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -10px 30px -12px rgba(0,0,0,.6); }
+.tabbar .tab{ flex:1; border:none; background:none; cursor:pointer; padding:8px 4px 9px; color:#7e90ad;
+  font-family:var(--ff-ui); font-weight:700; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:4px;
+  border-radius:12px; transition:color .15s; }
+.tab .ico{ font-family:var(--ff-jp); font-size:21px; line-height:1; }
+.tabbar .tab.active{ color:var(--shu-soft); }
+.launch-bar{ position:fixed; left:0; right:0; bottom:62px; z-index:49; background:rgba(16,28,51,.94); backdrop-filter:blur(8px);
+  border-top:1px solid rgba(255,255,255,.12); padding:11px 16px; display:flex; flex-direction:column; gap:9px;
+  box-shadow:0 -12px 30px -14px rgba(0,0,0,.6); }
+.launch-bar.hidden{ display:none; }
+.launch-info{ font-family:var(--ff-jp); font-weight:700; font-size:13px; color:#a9bbd6; text-align:center; }
+.launch-btns{ display:flex; gap:10px; max-width:620px; margin:0 auto; width:100%; }
+.btn.launch{ flex:1; }
+
+.panel{ animation:rise .35s cubic-bezier(.2,.9,.3,1); }
+@keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+.hidden{ display:none !important; }
+h2.section-h{ font-family:var(--ff-jp); font-weight:800; font-size:22px; color:var(--washi); letter-spacing:1px; margin-bottom:4px; }
+.section-sub{ color:#9fb1cd; font-size:13.5px; margin-bottom:1.25rem; font-weight:500; }
+
+.btn{ font-family:var(--ff-jp); font-weight:800; font-size:15px; cursor:pointer; border:1px solid var(--washi-dim);
+  border-radius:var(--pill); padding:12px 20px; color:var(--ink); background:var(--washi); box-shadow:var(--shadow);
+  transition:transform .08s, box-shadow .12s; user-select:none; }
+.btn:active{ transform:translateY(2px); }
+.btn.primary{ background:linear-gradient(160deg,var(--shu),#a52e1d); color:var(--washi); border-color:#8f2a1b; }
+.btn.ghost{ background:rgba(255,255,255,.06); color:#cdd9ea; border-color:rgba(255,255,255,.16); box-shadow:none; }
+.btn.ghost:hover{ background:rgba(255,255,255,.1); }
+.btn.danger{ color:var(--shu-soft); border-color:rgba(217,105,79,.5); background:rgba(217,105,79,.08); box-shadow:none; }
+.btn.block{ width:100%; display:block; }
+.btn.sm{ font-size:13px; padding:8px 14px; }
+.btn:disabled{ opacity:.4; }
+.btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+.play-switch{ display:flex; gap:6px; background:rgba(255,255,255,.06); padding:5px; border-radius:var(--pill);
+  margin-bottom:1.25rem; border:1px solid rgba(255,255,255,.1); }
+.ps-btn{ flex:1; padding:10px 6px; border-radius:var(--pill); border:none; background:none; cursor:pointer;
+  color:#9fb1cd; font-family:var(--ff-jp); font-weight:800; font-size:15px; line-height:1.1; }
+.ps-btn small{ display:block; font-family:var(--ff-ui); font-weight:600; font-size:10px; letter-spacing:.04em; color:#7e90ad; margin-top:2px; }
+.ps-btn.active{ background:var(--washi); color:var(--ink); box-shadow:var(--shadow); }
+.ps-btn.active small{ color:var(--ink-soft); }
+
+.field{ margin-bottom:1.25rem; }
+.field-label{ font-family:var(--ff-jp); font-weight:800; font-size:15px; color:var(--washi); margin-bottom:9px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.field-label .en{ font-family:var(--ff-ui); font-weight:600; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#7e90ad; }
+.chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+.chip{ padding:9px 15px; border-radius:var(--pill); border:1px solid var(--washi-dim); background:var(--washi);
+  cursor:pointer; font-weight:700; font-size:14px; color:var(--ink); font-family:var(--ff-ui); transition:all .12s; }
+.chip:active{ transform:scale(.96); }
+.chip.on{ background:var(--indigo-soft); color:var(--washi); border-color:var(--indigo); }
+.chip.on.alt{ background:var(--gold); border-color:#8a6322; color:#2a2310; }
+.chip.preset{ background:rgba(182,137,62,.14); color:var(--gold); border-color:rgba(182,137,62,.4); font-family:var(--ff-jp); font-weight:800; }
+.chip.preset.on{ background:var(--gold); color:#2a2310; border-color:#8a6322; }
+.sel-summary{ margin-left:auto; font-weight:700; font-size:12px; color:var(--shu-soft); background:rgba(217,105,79,.12); padding:3px 11px; border-radius:var(--pill); border:1px solid rgba(217,105,79,.3); }
+.select-row{ display:flex; gap:8px; margin-bottom:10px; }
+.hint-line{ font-size:12px; font-weight:600; color:#7e90ad; margin-top:8px; }
+.help-note{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); border-radius:var(--radius);
+  padding:13px 15px; font-size:13px; font-weight:500; color:#bccadf; margin-bottom:1.25rem; line-height:1.6; }
+.help-note b{ color:var(--washi); font-family:var(--ff-jp); }
+
+.group-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:9px; }
+.gcard{ background:var(--washi); border:1px solid var(--washi-dim); border-radius:var(--radius); padding:12px 8px 10px;
+  cursor:pointer; text-align:center; transition:transform .1s, border-color .12s, box-shadow .12s; position:relative; box-shadow:var(--shadow); }
+.gcard:active{ transform:scale(.96); }
+.gcard.sel{ border-color:var(--shu); box-shadow:0 14px 28px -18px rgba(196,61,40,.55); }
+.gcard.sel::before{ content:""; position:absolute; inset:5px; border-radius:11px; border:1px solid rgba(196,61,40,.35); pointer-events:none; }
+.lvl-seal{ width:38px; height:38px; margin:0 auto 7px; border-radius:11px; display:grid; place-items:center;
+  font-family:var(--ff-jp); font-weight:800; font-size:19px; color:var(--washi);
+  background:linear-gradient(160deg, var(--accent), color-mix(in srgb, var(--accent) 68%, black)); box-shadow:0 6px 14px -8px rgba(0,0,0,.6); }
+.gcard .gname{ font-family:var(--ff-jp); font-weight:800; font-size:15px; color:var(--ink); line-height:1.15; min-height:20px; }
+.gcard.sel .gname{ color:var(--shu); }
+.gcard .gcount{ font-size:11px; color:var(--ink-soft); font-weight:700; margin-top:2px; }
+.gcard .gmastery{ height:4px; border-radius:2px; background:var(--washi-line); margin-top:8px; overflow:hidden; }
+.gcard .gmastery>i{ display:block; height:100%; background:var(--sage); border-radius:2px; }
+.gcard .gquick{ display:flex; gap:6px; margin-top:9px; }
+.gcard .gq{ flex:1; border:1px solid var(--washi-line); background:var(--washi-soft); border-radius:9px; padding:5px 0;
+  font-size:11px; font-weight:800; font-family:var(--ff-jp); color:var(--shu); cursor:pointer; transition:transform .08s; }
+.gcard .gq:hover{ background:#f0dfd6; }
+.gcard .gq:active{ transform:scale(.9); }
+
+.progress-track{ height:9px; background:rgba(255,255,255,.08); border-radius:var(--pill); overflow:hidden; margin-bottom:5px; }
+.progress-fill{ height:100%; background:var(--sage); border-radius:var(--pill); transition:width .35s; }
+.mini-stat{ display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:#9fb1cd; margin-bottom:1rem; }
+.fc-stage{ perspective:1200px; margin:1rem 0; }
+.flashcard{ position:relative; width:100%; min-height:300px; cursor:pointer; transform-style:preserve-3d; transition:transform .5s cubic-bezier(.2,.9,.3,1); }
+.flashcard.flipped{ transform:rotateY(180deg); }
+.face{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:var(--radius-lg);
+  background:var(--washi); border:1px solid var(--washi-dim); box-shadow:var(--shadow-lift);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; text-align:center; }
+.face::before{ content:""; position:absolute; inset:10px; border-radius:15px; border:1px solid var(--washi-line); pointer-events:none; }
+.face.back{ transform:rotateY(180deg); background:linear-gradient(160deg,#f0e7d6,#e9dec7); }
+.face.back::before{ border-color:var(--shu-soft); }
+.fc-word{ display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:center; gap:4px 8px; position:relative; z-index:1; }
+.seg{ display:inline-flex; flex-direction:column; align-items:center; }
+.seg-letters{ font-family:var(--ff-jp); font-weight:800; font-size:clamp(38px,13vw,72px); color:var(--ink); line-height:1; }
+.seg.small .seg-letters{ font-size:clamp(28px,9vw,52px); }
+.fc-word.reveal{ margin-bottom:2px; }
+.face.back .seg-letters{ font-size:clamp(30px,10vw,52px); color:var(--shu); }
+.face.back .seg.small .seg-letters{ font-size:clamp(24px,7.5vw,40px); }
+.seg-mark{ height:22px; margin-top:9px; display:flex; align-items:center; justify-content:center; }
+.rj-chip{ font-family:var(--ff-ui); font-weight:700; font-size:12px; color:var(--indigo); background:#e6dcc6;
+  border-radius:6px; padding:2px 7px; letter-spacing:.02em; }
+.rj-chip.yoon{ background:rgba(58,85,127,.16); color:var(--indigo); }
+.rj-chip.long{ background:rgba(182,137,62,.18); color:#8a6322; }
+.rj-chip.sokuon{ background:rgba(196,61,40,.14); color:var(--shu); font-weight:900; }
+.fc-tap{ position:relative; z-index:1; color:var(--ink-faint); font-weight:700; font-size:13px; margin-top:20px; }
+.fc-back-label{ position:relative; z-index:1; font-weight:700; color:var(--ink-soft); font-size:13px; margin-bottom:8px; }
+.fc-mean{ position:relative; z-index:1; font-family:var(--ff-ui); font-weight:800; font-size:clamp(19px,5vw,26px); color:var(--ink); margin-top:14px; max-width:320px; line-height:1.35; }
+.fc-level-tag{ position:relative; z-index:1; margin-top:14px; font-size:12px; font-weight:800; padding:5px 15px; border-radius:var(--pill); letter-spacing:.04em; text-transform:uppercase; border:1px solid; background:transparent; }
+.fc-warn{ position:relative; z-index:1; margin-top:12px; font-size:12px; color:var(--shu); font-weight:700; max-width:290px; line-height:1.45; }
+
+.snd-legend{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin:0 0 1rem; font-size:11.5px; font-weight:700; color:#9fb1cd; }
+.snd-legend>span{ display:inline-flex; align-items:center; gap:6px; }
+.lg-chip{ font-family:var(--ff-ui); font-size:10px; font-weight:800; border-radius:5px; padding:1px 6px; }
+.lg-chip.mora{ background:#e6dcc6; color:var(--indigo); }
+.lg-chip.yoon{ background:rgba(58,85,127,.2); color:#cdd9ea; }
+.lg-chip.long{ background:rgba(182,137,62,.25); color:var(--gold); }
+.lg-chip.sokuon{ background:rgba(196,61,40,.2); color:var(--shu-soft); }
+
+.round-btn{ width:54px; height:54px; border-radius:50%; border:1px solid var(--washi-dim); background:var(--washi);
+  font-size:22px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--shu);
+  box-shadow:var(--shadow); transition:transform .08s; }
+.round-btn:active{ transform:scale(.9); }
+.round-btn.big{ width:64px; height:64px; font-size:27px; }
+.fc-controls{ display:flex; align-items:center; justify-content:center; gap:14px; margin:1rem 0 .5rem; }
+.judge-row{ display:flex; gap:12px; }
+.judge{ flex:1; padding:15px; border-radius:var(--radius); border:1px solid; cursor:pointer; font-family:var(--ff-jp);
+  font-weight:800; font-size:16px; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; gap:8px; transition:transform .08s; }
+.judge:active{ transform:translateY(2px); }
+.judge.again{ background:rgba(217,105,79,.1); color:var(--shu); border-color:rgba(217,105,79,.4); }
+.judge.know{ background:rgba(90,122,82,.12); color:var(--sage); border-color:rgba(90,122,82,.45); }
+
+.legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-weight:700; color:#9fb1cd; margin-bottom:1rem; }
+.legend span{ display:inline-flex; align-items:center; gap:5px; }
+.tier-h{ font-family:var(--ff-jp); font-weight:800; font-size:17px; color:var(--washi); margin:1.25rem 0 9px; display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.tier-h .lead-k{ width:34px; height:34px; border-radius:9px; display:grid; place-items:center; color:var(--washi); font-size:16px;
+  background:linear-gradient(160deg, var(--accent,#3a557f), color-mix(in srgb, var(--accent,#3a557f) 68%, black)); }
+.tier-h .badge{ background:rgba(90,122,82,.16); color:var(--sage); border-radius:var(--pill); padding:2px 10px; font-size:11px; font-family:var(--ff-ui); font-weight:700; }
+.word-wrap{ display:flex; flex-wrap:wrap; gap:7px; }
+.wchip{ display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 12px; border-radius:12px; background:var(--washi);
+  border:1px solid var(--washi-dim); cursor:pointer; transition:transform .08s; min-width:54px; }
+.wchip .wk{ font-family:var(--ff-jp); font-weight:800; font-size:18px; color:var(--ink); line-height:1; }
+.wchip .wr{ font-size:10px; font-weight:700; color:var(--ink-soft); }
+.wchip:active{ transform:scale(.94); }
+.wchip.mastered{ border-color:var(--sage); background:#e8efe2; }
+
+.stat-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:1rem; }
+.stat-box{ background:var(--washi); border:1px solid var(--washi-dim); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+.stat-box::before{ content:""; position:absolute; inset:6px; border-radius:10px; border:1px solid var(--washi-line); pointer-events:none; }
+.stat-box .v{ font-family:var(--ff-jp); font-weight:800; font-size:32px; color:var(--ink); position:relative; z-index:1; }
+.stat-box .l{ font-size:12px; font-weight:700; color:var(--ink-soft); margin-top:2px; position:relative; z-index:1; }
+.stat-box.accent{ background:linear-gradient(160deg,#f0e7d6,#e9dec7); border-color:var(--shu-soft); }
+.stat-box.accent .v{ color:var(--shu); }
+
+.toast{ position:fixed; left:50%; top:18px; transform:translateX(-50%) translateY(-80px); background:var(--indigo-deep);
+  color:var(--washi); font-family:var(--ff-jp); font-weight:700; font-size:15px; padding:11px 20px; border-radius:var(--pill);
+  z-index:100; opacity:0; transition:all .3s; box-shadow:var(--shadow-lift); border:1px solid rgba(255,255,255,.14); max-width:88vw; }
+.toast.show{ transform:translateX(-50%) translateY(0); opacity:1; }
+.empty{ text-align:center; padding:2.5rem 1rem; color:#9fb1cd; font-weight:700; }
+.empty .e{ font-family:var(--ff-jp); font-size:46px; margin-bottom:8px; color:#7e90ad; }
+
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+@media(max-width:560px){
+  .group-grid{ grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); }
+  .seal{ width:56px; height:56px; font-size:30px; }
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="toast" id="toast"></div>
+
+<div class="app">
+  <div class="topbar">
+    <a class="back" href="japanese-hub.html"><span>←</span> <span class="jp">日本語</span> Study Hub</a>
+    <div class="streak" id="streak">★ <span id="streak-num">0</span></div>
+  </div>
+
+  <header class="hero">
+    <div class="seal">言</div>
+    <div class="titles">
+      <div class="eyebrow">レベル別 · Graded word reading</div>
+      <h1><ruby>言葉<rt>ことば</rt></ruby>リーダー</h1>
+      <div class="latin">Read kana words — level by level</div>
+    </div>
+  </header>
+
+  <!-- PLAY -->
+  <div id="panel-play" class="panel">
+    <h2 class="section-h">よんでみよう</h2>
+    <p class="section-sub">Words climb from easy to hard. Flip a card to check the reading &amp; meaning.</p>
+
+    <div class="play-switch">
+      <button class="ps-btn active" id="ps-levels" onclick="setPlayMode('levels')">レベル<small>Levels</small></button>
+      <button class="ps-btn" id="ps-themes" onclick="setPlayMode('themes')">テーマ<small>Themes</small></button>
+      <button class="ps-btn" id="ps-review" onclick="setPlayMode('review')">ふくしゅう<small>Review</small></button>
+    </div>
+
+    <!-- LEVELS MODE -->
+    <div id="mode-levels">
+      <div class="field">
+        <div class="field-label">クイック <span class="en">Quick picks</span></div>
+        <div class="chip-row" id="preset-row"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">レベルを<ruby>選<rt>えら</rt></ruby>ぶ <span id="sel-summary" class="sel-summary"></span></div>
+        <div class="select-row">
+          <button class="btn ghost sm" onclick="selectAll()">Select all</button>
+          <button class="btn ghost sm" onclick="selectNone()">Clear</button>
+        </div>
+        <div class="group-grid" id="level-grid"></div>
+        <p class="hint-line">Pick a few levels — the deck runs easiest words first, then ramps up.</p>
+      </div>
+      <div class="field">
+        <div class="field-label"><ruby>文字<rt>もじ</rt></ruby> <span class="en">Script</span></div>
+        <div class="chip-row">
+          <button class="chip on" id="lv-starter" onclick="toggleScript('hira')">ひらがな</button>
+          <button class="chip on alt" id="lv-advanced" onclick="toggleScript('kata')">カタカナ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- THEMES / REVIEW MODE -->
+    <div id="mode-themes" class="hidden">
+      <div class="help-note" id="themes-intro"></div>
+      <div class="field">
+        <div class="field-label">バッチ <span class="en">Batch size</span> <span id="batch-summary" class="sel-summary"></span></div>
+        <div class="chip-row" id="batch-row">
+          <button class="chip" data-batch="5" onclick="setBatch(5)">5</button>
+          <button class="chip on" data-batch="10" onclick="setBatch(10)">10</button>
+          <button class="chip" data-batch="20" onclick="setBatch(20)">20</button>
+          <button class="chip" data-batch="0" onclick="setBatch(0)">All</button>
+        </div>
+        <p class="hint-line">Small batches that grow as you’re ready.</p>
+      </div>
+      <div class="field" id="theme-block">
+        <div class="field-label">テーマ <span class="en">Themes</span> <span id="tcat-summary" class="sel-summary"></span></div>
+        <div class="select-row">
+          <button class="btn ghost sm" onclick="themesAll()">Select all</button>
+          <button class="btn ghost sm" onclick="themesNone()">Clear</button>
+        </div>
+        <div class="group-grid" id="theme-grid"></div>
+      </div>
+    </div>
+
+    <p class="section-sub" id="deck-count" style="margin-top:1.4rem; margin-bottom:0"></p>
+  </div>
+
+  <!-- FLASHCARDS -->
+  <div id="panel-flashcard" class="panel hidden">
+    <div class="progress-track"><div class="progress-fill" id="fc-fill" style="width:0%"></div></div>
+    <div class="mini-stat"><span id="fc-counter">0 / 0</span><span id="fc-mode-label">Practice</span></div>
+
+    <div class="fc-stage">
+      <div class="flashcard" id="flashcard" onclick="flipCard()">
+        <div class="face front">
+          <div class="fc-word" id="fc-word">ねこ</div>
+          <div class="fc-tap">tap to check</div>
+        </div>
+        <div class="face back">
+          <div class="fc-back-label" id="fc-back-label">this word…</div>
+          <div class="fc-word reveal" id="fc-word-back">ねこ</div>
+          <div class="fc-mean" id="fc-mean">cat</div>
+          <div class="fc-level-tag" id="fc-level">Level 1</div>
+          <div class="fc-warn hidden" id="fc-warn"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="snd-legend">
+      <span><span class="lg-chip mora">a</span> mora</span>
+      <span><span class="lg-chip yoon">ya</span> yōon · 1 beat</span>
+      <span><span class="lg-chip long">ー</span> long vowel</span>
+      <span><span class="lg-chip sokuon">っ</span> small tsu</span>
+    </div>
+
+    <div class="fc-controls">
+      <button class="round-btn big" onclick="event.stopPropagation(); shuffleDeck()" title="shuffle">🔀</button>
+    </div>
+
+    <div class="judge-row">
+      <button class="judge again" onclick="judge(false)">もう一度 Again</button>
+      <button class="judge know" onclick="judge(true)">よめた Got it</button>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem; justify-content:center">
+      <button class="btn ghost sm" onclick="goPlay()">← Back</button>
+      <button class="btn ghost sm hidden" id="fc-review-btn" onclick="toggleReviewOnly()">Review missed</button>
+    </div>
+  </div>
+
+  <!-- EXPLORE -->
+  <div id="panel-explore" class="panel hidden">
+    <h2 class="section-h"><ruby>一覧<rt>いちらん</rt></ruby> · Browse</h2>
+    <p class="section-sub">Every word in your selected levels. Tap one for its meaning.</p>
+    <div class="legend">
+      <span><b style="color:var(--sage)">✓</b> mastered</span>
+      <span>tap a word to peek</span>
+    </div>
+    <div id="explore-list"></div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="panel-stats" class="panel hidden">
+    <h2 class="section-h"><ruby>記録<rt>きろく</rt></ruby> · Progress</h2>
+    <p class="section-sub">Everything is saved automatically.</p>
+    <div class="stat-grid">
+      <div class="stat-box accent"><div class="v" id="st-mastered">0</div><div class="l">words mastered</div></div>
+      <div class="stat-box"><div class="v" id="st-stars">0</div><div class="l">stars earned</div></div>
+      <div class="stat-box"><div class="v" id="st-review">0</div><div class="l">to review</div></div>
+      <div class="stat-box"><div class="v" id="st-seen">0</div><div class="l">practised</div></div>
+    </div>
+    <button class="btn danger block sm" onclick="resetAll()">Reset all progress</button>
+  </div>
+</div>
+
+<div class="launch-bar" id="launch-bar">
+  <span class="launch-info" id="launch-info">Pick levels to begin</span>
+  <div class="launch-btns">
+    <button class="btn primary launch" onclick="startMode()">🃏 Start reading</button>
+  </div>
+</div>
+
+<nav class="tabbar">
+  <button class="tab active" data-tab="play" onclick="showTab('play')"><span class="ico">練</span>Practice</button>
+  <button class="tab" data-tab="explore" onclick="showTab('explore')"><span class="ico">見</span>Browse</button>
+  <button class="tab" data-tab="stats" onclick="showTab('stats')"><span class="ico">録</span>Progress</button>
+</nav>
+
+<script>
+/* ============ KANA TABLE (for romaji guide under each character) ============ */
+const GOJUON = {
+  a:[["あ","ア","a"],["い","イ","i"],["う","ウ","u"],["え","エ","e"],["お","オ","o"]],
+  k:[["か","カ","ka"],["き","キ","ki"],["く","ク","ku"],["け","ケ","ke"],["こ","コ","ko"]],
+  s:[["さ","サ","sa"],["し","シ","shi"],["す","ス","su"],["せ","セ","se"],["そ","ソ","so"]],
+  t:[["た","タ","ta"],["ち","チ","chi"],["つ","ツ","tsu"],["て","テ","te"],["と","ト","to"]],
+  n:[["な","ナ","na"],["に","ニ","ni"],["ぬ","ヌ","nu"],["ね","ネ","ne"],["の","ノ","no"]],
+  h:[["は","ハ","ha"],["ひ","ヒ","hi"],["ふ","フ","fu"],["へ","ヘ","he"],["ほ","ホ","ho"]],
+  m:[["ま","マ","ma"],["み","ミ","mi"],["む","ム","mu"],["め","メ","me"],["も","モ","mo"]],
+  y:[["や","ヤ","ya"],["ゆ","ユ","yu"],["よ","ヨ","yo"]],
+  r:[["ら","ラ","ra"],["り","リ","ri"],["る","ル","ru"],["れ","レ","re"],["ろ","ロ","ro"]],
+  w:[["わ","ワ","wa"],["を","ヲ","wo"]],
+  nn:[["ん","ン","n"]],
+  g:[["が","ガ","ga"],["ぎ","ギ","gi"],["ぐ","グ","gu"],["げ","ゲ","ge"],["ご","ゴ","go"]],
+  z:[["ざ","ザ","za"],["じ","ジ","ji"],["ず","ズ","zu"],["ぜ","ゼ","ze"],["ぞ","ゾ","zo"]],
+  d:[["だ","ダ","da"],["ぢ","ヂ","ji"],["づ","ヅ","zu"],["で","デ","de"],["ど","ド","do"]],
+  b:[["ば","バ","ba"],["び","ビ","bi"],["ぶ","ブ","bu"],["べ","ベ","be"],["ぼ","ボ","bo"]],
+  p:[["ぱ","パ","pa"],["ぴ","ピ","pi"],["ぷ","プ","pu"],["ぺ","ペ","pe"],["ぽ","ポ","po"]],
+  ky:[["きゃ","キャ","kya"],["きゅ","キュ","kyu"],["きょ","キョ","kyo"]],
+  sh:[["しゃ","シャ","sha"],["しゅ","シュ","shu"],["しょ","ショ","sho"]],
+  ch:[["ちゃ","チャ","cha"],["ちゅ","チュ","chu"],["ちょ","チョ","cho"]],
+  ny:[["にゃ","ニャ","nya"],["にゅ","ニュ","nyu"],["にょ","ニョ","nyo"]],
+  hy:[["ひゃ","ヒャ","hya"],["ひゅ","ヒュ","hyu"],["ひょ","ヒョ","hyo"]],
+  my:[["みゃ","ミャ","mya"],["みゅ","ミュ","myu"],["みょ","ミョ","myo"]],
+  ryy:[["りゃ","リャ","rya"],["りゅ","リュ","ryu"],["りょ","リョ","ryo"]],
+  gy:[["ぎゃ","ギャ","gya"],["ぎゅ","ギュ","gyu"],["ぎょ","ギョ","gyo"]],
+  jj:[["じゃ","ジャ","ja"],["じゅ","ジュ","ju"],["じょ","ジョ","jo"]],
+  by:[["びゃ","ビャ","bya"],["びゅ","ビュ","byu"],["びょ","ビョ","byo"]],
+  py:[["ぴゃ","ピャ","pya"],["ぴゅ","ピュ","pyu"],["ぴょ","ピョ","pyo"]]
+};
+const KMAP={};
+for(const id in GOJUON){ for(const [h,k,r] of GOJUON[id]){ KMAP[h]=r; KMAP[k]=r; } }
+const SMALL_Y=new Set(["ゃ","ゅ","ょ","ャ","ュ","ョ"]);
+const SOKUON=new Set(["っ","ッ"]);
+const LONG=new Set(["ー"]);
+function moraSegments(raw){
+  const s=raw; const segs=[]; let i=0;
+  while(i<s.length){
+    const ch=s[i], nx=s[i+1];
+    if(nx && SMALL_Y.has(nx)){ const c=ch+nx; segs.push({k:c, r:KMAP[c]||"", type:"yoon"}); i+=2; continue; }
+    if(SOKUON.has(ch)){ segs.push({k:ch, r:"っ", type:"sokuon"}); i++; continue; }
+    if(LONG.has(ch)){ segs.push({k:ch, r:"ー", type:"long"}); i++; continue; }
+    segs.push({k:ch, r:KMAP[ch]||"", type:"mora"}); i++;
+  }
+  return segs.length?segs:[{k:raw, r:"", type:"mora"}];
+}
+
+/* ============ LEVELS, THEMES, WORDS ============ */
+const LEVELS=[
+  {id:1, jp:"はじめ", en:"First words", desc:"2-mora basic hiragana"},
+  {id:2, jp:"みじかい", en:"Short words", desc:"3-mora basic hiragana"},
+  {id:3, jp:"濁音", en:"Dakuten", desc:"が・ざ・だ・ば sounds"},
+  {id:4, jp:"長音", en:"Long vowels", desc:"おかあさん・せんせい…"},
+  {id:5, jp:"拗音", en:"Combos", desc:"きゃ・しゃ・ちょ…"},
+  {id:6, jp:"促音", en:"Small つ", desc:"がっこう・きって…"},
+  {id:7, jp:"カタカナ", en:"Katakana", desc:"loanwords"},
+  {id:8, jp:"ミックス", en:"Mixed & long", desc:"longer everyday words"}
+];
+const THEMES=[
+  {id:"food", seal:"食", jp:"たべもの", en:"Food"},
+  {id:"animal", seal:"動", jp:"どうぶつ", en:"Animals"},
+  {id:"nature", seal:"自", jp:"しぜん", en:"Nature"},
+  {id:"people", seal:"人", jp:"ひと", en:"People & body"},
+  {id:"school", seal:"学", jp:"がっこう", en:"School"},
+  {id:"town", seal:"町", jp:"まち", en:"Town"},
+  {id:"daily", seal:"日", jp:"せいかつ", en:"Daily life"},
+  {id:"time", seal:"時", jp:"とき", en:"Time"},
+  {id:"color", seal:"色", jp:"いろ", en:"Colours"},
+  {id:"greet", seal:"挨", jp:"あいさつ", en:"Greetings"},
+  {id:"verb", seal:"作", jp:"どうし", en:"Verbs"},
+  {id:"adj", seal:"形", jp:"けいよう", en:"Adjectives"},
+  {id:"work", seal:"仕", jp:"しごと", en:"Work"},
+  {id:"number", seal:"数", jp:"すうじ", en:"Numbers"},
+];
+/* [kana, romaji, english, level, theme] */
+const WORDS=[
+["ごはん","gohan","rice, meal",3,"food"],
+["みず","mizu","water",3,"food"],
+["おちゃ","ocha","tea",5,"food"],
+["たまご","tamago","egg",3,"food"],
+["りんご","ringo","apple",3,"food"],
+["すし","sushi","sushi",1,"food"],
+["にく","niku","meat",1,"food"],
+["さかな","sakana","fish (food)",2,"food"],
+["やさい","yasai","vegetable",2,"food"],
+["くだもの","kudamono","fruit",3,"food"],
+["みかん","mikan","tangerine",2,"food"],
+["いちご","ichigo","strawberry",3,"food"],
+["ぶどう","budō","grapes",4,"food"],
+["もも","momo","peach",1,"food"],
+["なし","nashi","pear",1,"food"],
+["すいか","suika","watermelon",2,"food"],
+["バナナ","banana","banana",7,"food"],
+["メロン","meron","melon",7,"food"],
+["レモン","remon","lemon",7,"food"],
+["トマト","tomato","tomato",7,"food"],
+["にんじん","ninjin","carrot",3,"food"],
+["だいこん","daikon","daikon radish",3,"food"],
+["じゃがいも","jagaimo","potato",5,"food"],
+["たまねぎ","tamanegi","onion",3,"food"],
+["きゅうり","kyūri","cucumber",5,"food"],
+["なす","nasu","eggplant",1,"food"],
+["はくさい","hakusai","napa cabbage",8,"food"],
+["キャベツ","kyabetsu","cabbage",7,"food"],
+["ねぎ","negi","green onion",3,"food"],
+["まめ","mame","bean",1,"food"],
+["こめ","kome","uncooked rice",1,"food"],
+["パン","pan","bread",7,"food"],
+["めん","men","noodles",1,"food"],
+["うどん","udon","udon",3,"food"],
+["そば","soba","soba",3,"food"],
+["ラーメン","rāmen","ramen",7,"food"],
+["カレー","karē","curry",7,"food"],
+["おにぎり","onigiri","rice ball",3,"food"],
+["べんとう","bentō","boxed lunch",4,"food"],
+["おべんとう","obentō","boxed lunch (polite)",4,"food"],
+["みそ","miso","miso",1,"food"],
+["しょうゆ","shōyu","soy sauce",5,"food"],
+["さとう","satō","sugar",4,"food"],
+["しお","shio","salt",1,"food"],
+["こしょう","koshō","pepper",5,"food"],
+["あぶら","abura","oil",3,"food"],
+["バター","batā","butter",7,"food"],
+["チーズ","chīzu","cheese",7,"food"],
+["ぎゅうにゅう","gyūnyū","milk",5,"food"],
+["ミルク","miruku","milk",7,"food"],
+["ジュース","jūsu","juice",7,"food"],
+["コーラ","kōra","cola",7,"food"],
+["おさけ","osake","alcohol, sake",2,"food"],
+["ビール","bīru","beer",7,"food"],
+["ワイン","wain","wine",7,"food"],
+["コーヒー","kōhī","coffee",7,"food"],
+["こうちゃ","kōcha","black tea",5,"food"],
+["おゆ","oyu","hot water",1,"food"],
+["こおり","kōri","ice",4,"food"],
+["ケーキ","kēki","cake",7,"food"],
+["クッキー","kukkī","cookie",7,"food"],
+["チョコ","choko","chocolate",7,"food"],
+["アイス","aisu","ice cream",7,"food"],
+["あめ","ame","candy",1,"food"],
+["せんべい","senbei","rice cracker",3,"food"],
+["だんご","dango","dumpling",3,"food"],
+["もち","mochi","rice cake",1,"food"],
+["プリン","purin","pudding",7,"food"],
+["ゼリー","zerī","jelly",7,"food"],
+["ヨーグルト","yōguruto","yogurt",7,"food"],
+["サラダ","sarada","salad",7,"food"],
+["スープ","sūpu","soup",7,"food"],
+["ピザ","piza","pizza",7,"food"],
+["ハンバーガー","hanbāgā","hamburger",7,"food"],
+["サンドイッチ","sandoitchi","sandwich",7,"food"],
+["ステーキ","sutēki","steak",7,"food"],
+["やきにく","yakiniku","grilled meat",8,"food"],
+["てんぷら","tenpura","tempura",3,"food"],
+["さしみ","sashimi","sashimi",2,"food"],
+["みそしる","misoshiru","miso soup",8,"food"],
+["ぎょうざ","gyōza","dumpling (gyoza)",5,"food"],
+["チャーハン","chāhan","fried rice",7,"food"],
+["おかし","okashi","sweets, snacks",2,"food"],
+["おやつ","oyatsu","snack",2,"food"],
+["いぬ","inu","dog",1,"animal"],
+["ねこ","neko","cat",1,"animal"],
+["とり","tori","bird",1,"animal"],
+["うま","uma","horse",1,"animal"],
+["うし","ushi","cow",1,"animal"],
+["ぶた","buta","pig",3,"animal"],
+["ひつじ","hitsuji","sheep",3,"animal"],
+["やぎ","yagi","goat",3,"animal"],
+["うさぎ","usagi","rabbit",3,"animal"],
+["ねずみ","nezumi","mouse",3,"animal"],
+["さる","saru","monkey",1,"animal"],
+["くま","kuma","bear",1,"animal"],
+["きつね","kitsune","fox",2,"animal"],
+["たぬき","tanuki","raccoon dog",2,"animal"],
+["しか","shika","deer",1,"animal"],
+["ぞう","zō","elephant",4,"animal"],
+["きりん","kirin","giraffe",2,"animal"],
+["ライオン","raion","lion",7,"animal"],
+["とら","tora","tiger",1,"animal"],
+["ひょう","hyō","leopard",5,"animal"],
+["おおかみ","ōkami","wolf",4,"animal"],
+["コアラ","koara","koala",7,"animal"],
+["パンダ","panda","panda",7,"animal"],
+["かば","kaba","hippo",3,"animal"],
+["さい","sai","rhinoceros",1,"animal"],
+["わに","wani","crocodile",1,"animal"],
+["へび","hebi","snake",3,"animal"],
+["かえる","kaeru","frog",2,"animal"],
+["かめ","kame","turtle",1,"animal"],
+["とかげ","tokage","lizard",3,"animal"],
+["こうもり","kōmori","bat",4,"animal"],
+["にわとり","niwatori","chicken",8,"animal"],
+["あひる","ahiru","duck",2,"animal"],
+["はと","hato","pigeon",1,"animal"],
+["からす","karasu","crow",2,"animal"],
+["すずめ","suzume","sparrow",3,"animal"],
+["つばめ","tsubame","swallow",3,"animal"],
+["わし","washi","eagle",1,"animal"],
+["たか","taka","hawk",1,"animal"],
+["ふくろう","fukurō","owl",4,"animal"],
+["ペンギン","pengin","penguin",7,"animal"],
+["くじゃく","kujaku","peacock",5,"animal"],
+["はくちょう","hakuchō","swan",5,"animal"],
+["くじら","kujira","whale",3,"animal"],
+["いるか","iruka","dolphin",2,"animal"],
+["さめ","same","shark",1,"animal"],
+["たこ","tako","octopus",1,"animal"],
+["いか","ika","squid",1,"animal"],
+["かに","kani","crab",1,"animal"],
+["えび","ebi","shrimp",3,"animal"],
+["くらげ","kurage","jellyfish",3,"animal"],
+["かい","kai","shellfish",1,"animal"],
+["こい","koi","carp",1,"animal"],
+["きんぎょ","kingyo","goldfish",5,"animal"],
+["むし","mushi","insect",1,"animal"],
+["ちょう","chō","butterfly",5,"animal"],
+["はち","hachi","bee",1,"animal"],
+["あり","ari","ant",1,"animal"],
+["くも","kumo","spider",1,"animal"],
+["か","ka","mosquito",1,"animal"],
+["はえ","hae","fly",1,"animal"],
+["せみ","semi","cicada",1,"animal"],
+["ばった","batta","grasshopper",6,"animal"],
+["かぶとむし","kabutomushi","beetle",3,"animal"],
+["てんとうむし","tentōmushi","ladybug",8,"animal"],
+["かたつむり","katatsumuri","snail",8,"animal"],
+["みみず","mimizu","earthworm",3,"animal"],
+["こうま","kōma","foal",4,"animal"],
+["こいぬ","koinu","puppy",2,"animal"],
+["こねこ","koneko","kitten",2,"animal"],
+["ひよこ","hiyoko","chick",2,"animal"],
+["おたまじゃくし","otamajakushi","tadpole",8,"animal"],
+["どうぶつ","dōbutsu","animal",4,"animal"],
+["ペット","petto","pet",7,"animal"],
+["しっぽ","shippo","tail",6,"animal"],
+["つばさ","tsubasa","wings",3,"animal"],
+["はね","hane","feather, wing",1,"animal"],
+["つの","tsuno","horn",1,"animal"],
+["きば","kiba","fang",3,"animal"],
+["くちばし","kuchibashi","beak",3,"animal"],
+["もぐら","mogura","mole",3,"animal"],
+["りす","risu","squirrel",1,"animal"],
+["はりねずみ","harinezumi","hedgehog",3,"animal"],
+["らくだ","rakuda","camel",3,"animal"],
+["やま","yama","mountain",1,"nature"],
+["かわ","kawa","river",1,"nature"],
+["うみ","umi","sea",1,"nature"],
+["そら","sora","sky",1,"nature"],
+["ほし","hoshi","star",1,"nature"],
+["つき","tsuki","moon",1,"nature"],
+["たいよう","taiyō","sun",4,"nature"],
+["ひ","hi","sun, fire",1,"nature"],
+["ゆき","yuki","snow",1,"nature"],
+["かぜ","kaze","wind",3,"nature"],
+["き","ki","tree",1,"nature"],
+["はな","hana","flower",1,"nature"],
+["くさ","kusa","grass",1,"nature"],
+["は","ha","leaf",1,"nature"],
+["ね","ne","root",1,"nature"],
+["えだ","eda","branch",3,"nature"],
+["たね","tane","seed",1,"nature"],
+["もり","mori","forest",1,"nature"],
+["はやし","hayashi","woods",2,"nature"],
+["やぶ","yabu","thicket",3,"nature"],
+["いけ","ike","pond",1,"nature"],
+["みずうみ","mizūmi","lake",4,"nature"],
+["たき","taki","waterfall",1,"nature"],
+["なみ","nami","wave",1,"nature"],
+["いし","ishi","stone",1,"nature"],
+["すな","suna","sand",1,"nature"],
+["つち","tsuchi","soil",1,"nature"],
+["どろ","doro","mud",3,"nature"],
+["ほのお","honō","flame",4,"nature"],
+["けむり","kemuri","smoke",2,"nature"],
+["にじ","niji","rainbow",3,"nature"],
+["かみなり","kaminari","thunder",8,"nature"],
+["いなずま","inazuma","lightning",3,"nature"],
+["きり","kiri","fog",1,"nature"],
+["つゆ","tsuyu","dew, rainy season",1,"nature"],
+["しも","shimo","frost",1,"nature"],
+["あらし","arashi","storm",2,"nature"],
+["たいふう","taifū","typhoon",4,"nature"],
+["じしん","jishin","earthquake",3,"nature"],
+["かざん","kazan","volcano",3,"nature"],
+["しま","shima","island",1,"nature"],
+["はま","hama","beach",1,"nature"],
+["みさき","misaki","cape",2,"nature"],
+["たに","tani","valley",1,"nature"],
+["おか","oka","hill",1,"nature"],
+["のはら","nohara","field",2,"nature"],
+["はたけ","hatake","crop field",2,"nature"],
+["たんぼ","tanbo","rice paddy",3,"nature"],
+["どうくつ","dōkutsu","cave",4,"nature"],
+["いずみ","izumi","spring (water)",3,"nature"],
+["さばく","sabaku","desert",3,"nature"],
+["くうき","kūki","air",4,"nature"],
+["てんき","tenki","weather",2,"nature"],
+["きおん","kion","temperature",2,"nature"],
+["しぜん","shizen","nature",3,"nature"],
+["ちきゅう","chikyū","earth",5,"nature"],
+["うちゅう","uchū","space, universe",5,"nature"],
+["わくせい","wakusei","planet",8,"nature"],
+["ぎんが","ginga","galaxy",3,"nature"],
+["さくら","sakura","cherry blossom",2,"nature"],
+["うめ","ume","plum blossom",1,"nature"],
+["ばら","bara","rose",3,"nature"],
+["ひまわり","himawari","sunflower",8,"nature"],
+["たんぽぽ","tanpopo","dandelion",3,"nature"],
+["チューリップ","chūrippu","tulip",7,"nature"],
+["あさがお","asagao","morning glory",3,"nature"],
+["きく","kiku","chrysanthemum",1,"nature"],
+["まつ","matsu","pine tree",1,"nature"],
+["たけ","take","bamboo",1,"nature"],
+["もみじ","momiji","maple leaves",3,"nature"],
+["いちょう","ichō","ginkgo",5,"nature"],
+["やしのき","yashinoki","palm tree",8,"nature"],
+["こけ","koke","moss",1,"nature"],
+["きのこ","kinoko","mushroom",2,"nature"],
+["どんぐり","donguri","acorn",3,"nature"],
+["まつぼっくり","matsubokkuri","pinecone",8,"nature"],
+["はっぱ","happa","leaf",6,"nature"],
+["つぼみ","tsubomi","flower bud",3,"nature"],
+["みなと","minato","harbor",2,"nature"],
+["すいへいせん","suiheisen","horizon",8,"nature"],
+["ちへいせん","chiheisen","horizon (land)",8,"nature"],
+["やまみち","yamamichi","mountain path",8,"nature"],
+["ひと","hito","person",1,"people"],
+["おとこ","otoko","man",2,"people"],
+["おんな","onna","woman",2,"people"],
+["こども","kodomo","child",3,"people"],
+["おとな","otona","adult",2,"people"],
+["あかちゃん","akachan","baby",5,"people"],
+["かぞく","kazoku","family",3,"people"],
+["りょうしん","ryōshin","parents",5,"people"],
+["ちち","chichi","father",1,"people"],
+["はは","haha","mother",1,"people"],
+["おとうさん","otōsan","father (polite)",4,"people"],
+["おかあさん","okāsan","mother (polite)",4,"people"],
+["あに","ani","older brother",1,"people"],
+["あね","ane","older sister",1,"people"],
+["おとうと","otōto","younger brother",4,"people"],
+["いもうと","imōto","younger sister",4,"people"],
+["きょうだい","kyōdai","siblings",5,"people"],
+["そふ","sofu","grandfather",1,"people"],
+["そぼ","sobo","grandmother",3,"people"],
+["おじいさん","ojiisan","grandfather (polite)",3,"people"],
+["おばあさん","obāsan","grandmother (polite)",4,"people"],
+["おじ","oji","uncle",3,"people"],
+["おば","oba","aunt",3,"people"],
+["いとこ","itoko","cousin",2,"people"],
+["まご","mago","grandchild",3,"people"],
+["むすこ","musuko","son",2,"people"],
+["むすめ","musume","daughter",2,"people"],
+["おっと","otto","husband",6,"people"],
+["つま","tsuma","wife",1,"people"],
+["ともだち","tomodachi","friend",3,"people"],
+["なかま","nakama","companion",2,"people"],
+["こいびと","koibito","sweetheart",3,"people"],
+["せんぱい","senpai","senior",3,"people"],
+["こうはい","kōhai","junior",4,"people"],
+["ひとびと","hitobito","people",3,"people"],
+["みんな","minna","everyone",2,"people"],
+["だれ","dare","who",3,"people"],
+["じぶん","jibun","oneself",3,"people"],
+["なまえ","namae","name",2,"people"],
+["からだ","karada","body",3,"people"],
+["あたま","atama","head",2,"people"],
+["かお","kao","face",1,"people"],
+["め","me","eye",1,"people"],
+["みみ","mimi","ear",1,"people"],
+["くち","kuchi","mouth",1,"people"],
+["した","shita","tongue",1,"people"],
+["くちびる","kuchibiru","lips",3,"people"],
+["ほお","hō","cheek",4,"people"],
+["あご","ago","jaw, chin",3,"people"],
+["ひたい","hitai","forehead",2,"people"],
+["まゆげ","mayuge","eyebrow",3,"people"],
+["まつげ","matsuge","eyelash",3,"people"],
+["かみ","kami","hair",1,"people"],
+["くび","kubi","neck",3,"people"],
+["かた","kata","shoulder",1,"people"],
+["むね","mune","chest",1,"people"],
+["おなか","onaka","stomach, belly",2,"people"],
+["せなか","senaka","back",2,"people"],
+["こし","koshi","lower back, hips",1,"people"],
+["うで","ude","arm",3,"people"],
+["ひじ","hiji","elbow",3,"people"],
+["て","te","hand",1,"people"],
+["ゆび","yubi","finger",3,"people"],
+["つめ","tsume","nail",1,"people"],
+["てくび","tekubi","wrist",3,"people"],
+["あし","ashi","leg, foot",1,"people"],
+["ひざ","hiza","knee",3,"people"],
+["かかと","kakato","heel",2,"people"],
+["ほね","hone","bone",1,"people"],
+["ち","chi","blood",1,"people"],
+["しんぞう","shinzō","heart (organ)",4,"people"],
+["はい","hai","lungs",1,"people"],
+["い","i","stomach (organ)",1,"people"],
+["のう","nō","brain",4,"people"],
+["はだ","hada","skin",3,"people"],
+["こえ","koe","voice",1,"people"],
+["いき","iki","breath",1,"people"],
+["なみだ","namida","tears",3,"people"],
+["あせ","ase","sweat",1,"people"],
+["きもち","kimochi","feeling",2,"people"],
+["こころ","kokoro","heart, mind",2,"people"],
+["ゆめ","yume","dream",1,"people"],
+["ちから","chikara","strength",2,"people"],
+["としより","toshiyori","elderly person",8,"people"],
+["がっこう","gakkō","school",6,"school"],
+["しょうがっこう","shōgakkō","elementary school",8,"school"],
+["ちゅうがっこう","chūgakkō","junior high",8,"school"],
+["こうこう","kōkō","high school",4,"school"],
+["だいがく","daigaku","university",3,"school"],
+["ようちえん","yōchien","kindergarten",4,"school"],
+["きょうしつ","kyōshitsu","classroom",5,"school"],
+["こくばん","kokuban","blackboard",3,"school"],
+["つくえ","tsukue","desk",2,"school"],
+["いす","isu","chair",1,"school"],
+["きょうかしょ","kyōkasho","textbook",5,"school"],
+["ノート","nōto","notebook",7,"school"],
+["えんぴつ","enpitsu","pencil",3,"school"],
+["ペン","pen","pen",7,"school"],
+["けしゴム","keshigomu","eraser",7,"school"],
+["ものさし","monosashi","ruler",8,"school"],
+["じょうぎ","jōgi","ruler",5,"school"],
+["はさみ","hasami","scissors",2,"school"],
+["ふでばこ","fudebako","pencil case",3,"school"],
+["かばん","kaban","bag",3,"school"],
+["ランドセル","randoseru","school backpack",7,"school"],
+["こくご","kokugo","Japanese (subject)",3,"school"],
+["さんすう","sansū","arithmetic",4,"school"],
+["すうがく","sūgaku","math",4,"school"],
+["りか","rika","science",1,"school"],
+["しゃかい","shakai","social studies",5,"school"],
+["えいご","eigo","English",3,"school"],
+["たいいく","taiiku","P.E.",8,"school"],
+["おんがく","ongaku","music",3,"school"],
+["ずこう","zukō","arts and crafts",4,"school"],
+["びじゅつ","bijutsu","art",5,"school"],
+["れきし","rekishi","history",2,"school"],
+["ちり","chiri","geography",1,"school"],
+["かがく","kagaku","chemistry, science",3,"school"],
+["ぶつり","butsuri","physics",3,"school"],
+["せいぶつ","seibutsu","biology",3,"school"],
+["じゅぎょう","jugyō","class, lesson",5,"school"],
+["べんきょう","benkyō","study",5,"school"],
+["しゅくだい","shukudai","homework",5,"school"],
+["テスト","tesuto","test",7,"school"],
+["しけん","shiken","exam",2,"school"],
+["せいせき","seiseki","grades",8,"school"],
+["もんだい","mondai","problem, question",3,"school"],
+["こたえ","kotae","answer",2,"school"],
+["せいかい","seikai","correct answer",8,"school"],
+["としょかん","toshokan","library",5,"school"],
+["たいいくかん","taiikukan","gym",8,"school"],
+["こうてい","kōtei","schoolyard",4,"school"],
+["ろうか","rōka","hallway",4,"school"],
+["しょくいんしつ","shokuinshitsu","staff room",8,"school"],
+["ほけんしつ","hokenshitsu","nurse's office",8,"school"],
+["プール","pūru","pool",7,"school"],
+["きゅうしょく","kyūshoku","school lunch",5,"school"],
+["せいふく","seifuku","uniform",8,"school"],
+["クラス","kurasu","class (group)",7,"school"],
+["クラスメート","kurasumēto","classmate",7,"school"],
+["どうきゅうせい","dōkyūsei","classmate",8,"school"],
+["こうちょう","kōchō","principal",5,"school"],
+["にっき","nikki","diary",6,"school"],
+["さくぶん","sakubun","essay, composition",3,"school"],
+["かんじ","kanji","kanji",3,"school"],
+["ひらがな","hiragana","hiragana",3,"school"],
+["カタカナ","katakana","katakana",7,"school"],
+["ことば","kotoba","word",3,"school"],
+["ぶんしょう","bunshō","sentence, text",5,"school"],
+["ものがたり","monogatari","story",3,"school"],
+["え","e","drawing, picture",1,"school"],
+["ちず","chizu","map",3,"school"],
+["じてん","jiten","dictionary",3,"school"],
+["ずかん","zukan","picture book/encyclopedia",3,"school"],
+["えほん","ehon","picture book",2,"school"],
+["こうしゃ","kōsha","school building",5,"school"],
+["ちょうれい","chōrei","morning assembly",5,"school"],
+["そつぎょう","sotsugyō","graduation",5,"school"],
+["にゅうがく","nyūgaku","school entrance",5,"school"],
+["えんそく","ensoku","field trip",8,"school"],
+["うんどうかい","undōkai","sports day",8,"school"],
+["ぶんかさい","bunkasai","culture festival",3,"school"],
+["まち","machi","town",1,"town"],
+["むら","mura","village",1,"town"],
+["し","shi","city",1,"town"],
+["いえ","ie","house",1,"town"],
+["うち","uchi","home",1,"town"],
+["マンション","manshon","apartment building",7,"town"],
+["アパート","apāto","apartment",7,"town"],
+["ビル","biru","building",7,"town"],
+["みせ","mise","shop",1,"town"],
+["スーパー","sūpā","supermarket",7,"town"],
+["コンビニ","konbini","convenience store",7,"town"],
+["デパート","depāto","department store",7,"town"],
+["ほんや","honya","bookstore",2,"town"],
+["やおや","yaoya","greengrocer",2,"town"],
+["にくや","nikuya","butcher",2,"town"],
+["さかなや","sakanaya","fish shop",8,"town"],
+["パンや","panya","bakery",7,"town"],
+["はなや","hanaya","florist",2,"town"],
+["くすりや","kusuriya","pharmacy",8,"town"],
+["やっきょく","yakkyoku","pharmacy",6,"town"],
+["ぎんこう","ginkō","bank",4,"town"],
+["ゆうびんきょく","yūbinkyoku","post office",8,"town"],
+["びょういん","byōin","hospital",5,"town"],
+["クリニック","kurinikku","clinic",7,"town"],
+["こうばん","kōban","police box",4,"town"],
+["けいさつ","keisatsu","police",8,"town"],
+["しょうぼうしょ","shōbōsho","fire station",5,"town"],
+["はくぶつかん","hakubutsukan","museum",8,"town"],
+["びじゅつかん","bijutsukan","art museum",5,"town"],
+["どうぶつえん","dōbutsuen","zoo",8,"town"],
+["すいぞくかん","suizokukan","aquarium",8,"town"],
+["ゆうえんち","yūenchi","amusement park",4,"town"],
+["こうえん","kōen","park",4,"town"],
+["えいがかん","eigakan","cinema",3,"town"],
+["げきじょう","gekijō","theater",5,"town"],
+["レストラン","resutoran","restaurant",7,"town"],
+["きっさてん","kissaten","coffee shop",6,"town"],
+["ホテル","hoteru","hotel",7,"town"],
+["りょかん","ryokan","Japanese inn",5,"town"],
+["じんじゃ","jinja","shrine",5,"town"],
+["おてら","otera","temple",2,"town"],
+["きょうかい","kyōkai","church",5,"town"],
+["こうじょう","kōjō","factory",5,"town"],
+["かいしゃ","kaisha","company",5,"town"],
+["じむしょ","jimusho","office",5,"town"],
+["えき","eki","station",1,"town"],
+["くうこう","kūkō","airport",4,"town"],
+["バスてい","basutei","bus stop",7,"town"],
+["ちゅうしゃじょう","chūshajō","parking lot",5,"town"],
+["こうさてん","kōsaten","intersection",4,"town"],
+["しんごう","shingō","traffic light",4,"town"],
+["おうだんほどう","ōdanhodō","crosswalk",8,"town"],
+["どうろ","dōro","road",4,"town"],
+["みち","michi","street",1,"town"],
+["ほどう","hodō","sidewalk",4,"town"],
+["トンネル","tonneru","tunnel",7,"town"],
+["かいだん","kaidan","stairs",3,"town"],
+["エレベーター","erebētā","elevator",7,"town"],
+["エスカレーター","esukarētā","escalator",7,"town"],
+["でんしゃ","densha","train",5,"town"],
+["ちかてつ","chikatetsu","subway",8,"town"],
+["しんかんせん","shinkansen","bullet train",8,"town"],
+["バス","basu","bus",7,"town"],
+["タクシー","takushī","taxi",7,"town"],
+["くるま","kuruma","car",2,"town"],
+["じてんしゃ","jitensha","bicycle",5,"town"],
+["バイク","baiku","motorbike",7,"town"],
+["ひこうき","hikōki","airplane",4,"town"],
+["ふね","fune","ship, boat",1,"town"],
+["トラック","torakku","truck",7,"town"],
+["きゅうきゅうしゃ","kyūkyūsha","ambulance",5,"town"],
+["しょうぼうしゃ","shōbōsha","fire engine",5,"town"],
+["パトカー","patokā","police car",7,"town"],
+["きっぷ","kippu","ticket",6,"town"],
+["しんごうき","shingōki","traffic signal",4,"town"],
+["まちかど","machikado","street corner",3,"town"],
+["ひろば","hiroba","plaza",3,"town"],
+["いちば","ichiba","market",3,"town"],
+["しょうてんがい","shōtengai","shopping street",8,"town"],
+["ガソリンスタンド","gasorinsutando","gas station",7,"town"],
+["こうみんかん","kōminkan","community center",8,"town"],
+["へや","heya","room",1,"daily"],
+["げんかん","genkan","entryway",3,"daily"],
+["だいどころ","daidokoro","kitchen",3,"daily"],
+["いま","ima","living room",1,"daily"],
+["しんしつ","shinshitsu","bedroom",8,"daily"],
+["おふろ","ofuro","bath",2,"daily"],
+["トイレ","toire","toilet",7,"daily"],
+["まど","mado","window",3,"daily"],
+["ドア","doa","door",7,"daily"],
+["かべ","kabe","wall",3,"daily"],
+["ゆか","yuka","floor",1,"daily"],
+["てんじょう","tenjō","ceiling",5,"daily"],
+["やね","yane","roof",1,"daily"],
+["にわ","niwa","garden",1,"daily"],
+["テーブル","tēburu","table",7,"daily"],
+["ベッド","beddo","bed",7,"daily"],
+["ふとん","futon","futon",2,"daily"],
+["まくら","makura","pillow",2,"daily"],
+["もうふ","mōfu","blanket",4,"daily"],
+["たな","tana","shelf",1,"daily"],
+["ほんだな","hondana","bookshelf",3,"daily"],
+["ひきだし","hikidashi","drawer",3,"daily"],
+["おしいれ","oshiire","closet",8,"daily"],
+["でんしレンジ","denshirenji","microwave",7,"daily"],
+["せんたくき","sentakuki","washing machine",8,"daily"],
+["そうじき","sōjiki","vacuum cleaner",4,"daily"],
+["テレビ","terebi","TV",7,"daily"],
+["ラジオ","rajio","radio",7,"daily"],
+["エアコン","eakon","air conditioner",7,"daily"],
+["でんき","denki","light, electricity",3,"daily"],
+["とけい","tokei","clock",2,"daily"],
+["かがみ","kagami","mirror",3,"daily"],
+["カーテン","kāten","curtain",7,"daily"],
+["でんわ","denwa","telephone",3,"daily"],
+["けいたい","keitai","cell phone",8,"daily"],
+["スマホ","sumaho","smartphone",7,"daily"],
+["パソコン","pasokon","computer",7,"daily"],
+["カメラ","kamera","camera",7,"daily"],
+["さいふ","saifu","wallet",2,"daily"],
+["かぎ","kagi","key",3,"daily"],
+["かさ","kasa","umbrella",1,"daily"],
+["めがね","megane","glasses",3,"daily"],
+["はぶらし","haburashi","toothbrush",3,"daily"],
+["はみがき","hamigaki","toothpaste",3,"daily"],
+["せっけん","sekken","soap",6,"daily"],
+["シャンプー","shanpū","shampoo",7,"daily"],
+["タオル","taoru","towel",7,"daily"],
+["ほうちょう","hōchō","kitchen knife",5,"daily"],
+["スプーン","supūn","spoon",7,"daily"],
+["やかん","yakan","kettle",2,"daily"],
+["ふく","fuku","clothes",1,"daily"],
+["シャツ","shatsu","shirt",7,"daily"],
+["ズボン","zubon","pants",7,"daily"],
+["スカート","sukāto","skirt",7,"daily"],
+["ワンピース","wanpīsu","dress",7,"daily"],
+["セーター","sētā","sweater",7,"daily"],
+["コート","kōto","coat",7,"daily"],
+["ジャケット","jaketto","jacket",7,"daily"],
+["くつ","kutsu","shoes",1,"daily"],
+["くつした","kutsushita","socks",8,"daily"],
+["ぼうし","bōshi","hat",4,"daily"],
+["てぶくろ","tebukuro","gloves",3,"daily"],
+["マフラー","mafurā","scarf",7,"daily"],
+["ハンカチ","hankachi","handkerchief",7,"daily"],
+["ベルト","beruto","belt",7,"daily"],
+["ゆびわ","yubiwa","ring",3,"daily"],
+["ネックレス","nekkuresu","necklace",7,"daily"],
+["おもちゃ","omocha","toy",5,"daily"],
+["ぬいぐるみ","nuigurumi","stuffed animal",3,"daily"],
+["ボール","bōru","ball",7,"daily"],
+["にんぎょう","ningyō","doll",5,"daily"],
+["つみき","tsumiki","building blocks",2,"daily"],
+["ふうとう","fūtō","envelope",4,"daily"],
+["きって","kitte","stamp",6,"daily"],
+["てがみ","tegami","letter",3,"daily"],
+["はがき","hagaki","postcard",3,"daily"],
+["しんぶん","shinbun","newspaper",3,"daily"],
+["ざっし","zasshi","magazine",6,"daily"],
+["ほん","hon","book",1,"daily"],
+["おかね","okane","money",2,"daily"],
+["さつ","satsu","bill (money)",1,"daily"],
+["こうか","kōka","coin",4,"daily"],
+["プレゼント","purezento","present",7,"daily"],
+["おくりもの","okurimono","gift",8,"daily"],
+["とき","toki","time",1,"time"],
+["じかん","jikan","time, hour",3,"time"],
+["きょう","kyō","today",5,"time"],
+["あした","ashita","tomorrow",2,"time"],
+["きのう","kinō","yesterday",4,"time"],
+["あさって","asatte","day after tomorrow",6,"time"],
+["おととい","ototoi","day before yesterday",8,"time"],
+["まいにち","mainichi","every day",8,"time"],
+["あさ","asa","morning",1,"time"],
+["ひる","hiru","noon, daytime",1,"time"],
+["ゆうがた","yūgata","evening",4,"time"],
+["よる","yoru","night",1,"time"],
+["ばん","ban","evening, night",3,"time"],
+["ひるま","hiruma","daytime",2,"time"],
+["ごぜん","gozen","a.m.",3,"time"],
+["ごご","gogo","p.m.",3,"time"],
+["しゅう","shū","week",5,"time"],
+["こんしゅう","konshū","this week",5,"time"],
+["らいしゅう","raishū","next week",5,"time"],
+["せんしゅう","senshū","last week",5,"time"],
+["まいしゅう","maishū","every week",5,"time"],
+["こんげつ","kongetsu","this month",3,"time"],
+["らいげつ","raigetsu","next month",3,"time"],
+["せんげつ","sengetsu","last month",3,"time"],
+["まいつき","maitsuki","every month",8,"time"],
+["とし","toshi","year",1,"time"],
+["ことし","kotoshi","this year",2,"time"],
+["らいねん","rainen","next year",8,"time"],
+["きょねん","kyonen","last year",5,"time"],
+["まいとし","maitoshi","every year",8,"time"],
+["にちようび","nichiyōbi","Sunday",4,"time"],
+["げつようび","getsuyōbi","Monday",4,"time"],
+["かようび","kayōbi","Tuesday",4,"time"],
+["すいようび","suiyōbi","Wednesday",4,"time"],
+["もくようび","mokuyōbi","Thursday",4,"time"],
+["きんようび","kinyōbi","Friday",4,"time"],
+["どようび","doyōbi","Saturday",4,"time"],
+["しゅうまつ","shūmatsu","weekend",5,"time"],
+["へいじつ","heijitsu","weekday",3,"time"],
+["きゅうじつ","kyūjitsu","day off",5,"time"],
+["はる","haru","spring",1,"time"],
+["なつ","natsu","summer",1,"time"],
+["あき","aki","autumn",1,"time"],
+["ふゆ","fuyu","winter",1,"time"],
+["きせつ","kisetsu","season",2,"time"],
+["カレンダー","karendā","calendar",7,"time"],
+["ひづけ","hizuke","date",3,"time"],
+["びょう","byō","second",5,"time"],
+["ふん","fun","minute",1,"time"],
+["はん","han","half (past)",1,"time"],
+["さいきん","saikin","recently",8,"time"],
+["むかし","mukashi","long ago",2,"time"],
+["しょうらい","shōrai","future",5,"time"],
+["げんざい","genzai","present",3,"time"],
+["かこ","kako","past",1,"time"],
+["はじめ","hajime","beginning",3,"time"],
+["おわり","owari","end",2,"time"],
+["とちゅう","tochū","midway",5,"time"],
+["いつも","itsumo","always",2,"time"],
+["ときどき","tokidoki","sometimes",3,"time"],
+["たまに","tamani","occasionally",2,"time"],
+["すぐ","sugu","soon, right away",3,"time"],
+["もうすぐ","mōsugu","soon",4,"time"],
+["まだ","mada","still, yet",3,"time"],
+["もう","mō","already",4,"time"],
+["これから","korekara","from now",8,"time"],
+["さっき","sakki","a moment ago",6,"time"],
+["あとで","atode","later",3,"time"],
+["つぎ","tsugi","next",3,"time"],
+["まえ","mae","before, front",1,"time"],
+["たんじょうび","tanjōbi","birthday",5,"time"],
+["やすみじかん","yasumijikan","break time",8,"time"],
+["じこく","jikoku","time (point)",3,"time"],
+["としつき","toshitsuki","months and years",8,"time"],
+["あか","aka","red",1,"color"],
+["あお","ao","blue",1,"color"],
+["きいろ","kiiro","yellow",2,"color"],
+["みどり","midori","green",3,"color"],
+["しろ","shiro","white",1,"color"],
+["くろ","kuro","black",1,"color"],
+["ちゃいろ","chairo","brown",5,"color"],
+["むらさき","murasaki","purple",8,"color"],
+["ピンク","pinku","pink",7,"color"],
+["オレンジ","orenji","orange",7,"color"],
+["はいいろ","haiiro","gray",8,"color"],
+["グレー","gurē","gray",7,"color"],
+["きん","kin","gold",1,"color"],
+["ぎん","gin","silver",3,"color"],
+["みずいろ","mizuiro","light blue",3,"color"],
+["こん","kon","navy blue",1,"color"],
+["ベージュ","bēju","beige",7,"color"],
+["いろ","iro","color",1,"color"],
+["にじいろ","nijiiro","rainbow colored",3,"color"],
+["くらい","kurai","dark",2,"color"],
+["あかるい","akarui","bright",8,"color"],
+["うすい","usui","pale, thin",2,"color"],
+["カラフル","karafuru","colorful",7,"color"],
+["とうめい","tōmei","transparent",4,"color"],
+["おはよう","ohayō","good morning",4,"greet"],
+["こんにちは","konnichiha","hello",8,"greet"],
+["こんばんは","konbanha","good evening",3,"greet"],
+["おやすみ","oyasumi","good night",8,"greet"],
+["さようなら","sayōnara","goodbye",4,"greet"],
+["バイバイ","baibai","bye-bye",7,"greet"],
+["ありがとう","arigatō","thank you",4,"greet"],
+["どういたしまして","dōitashimashite","you're welcome",8,"greet"],
+["すみません","sumimasen","excuse me, sorry",8,"greet"],
+["ごめんなさい","gomennasai","I'm sorry",8,"greet"],
+["いいえ","iie","no",2,"greet"],
+["いただきます","itadakimasu","\"let's eat\"",8,"greet"],
+["ごちそうさま","gochisōsama","\"thanks for the meal\"",8,"greet"],
+["いってきます","ittekimasu","I'm off",8,"greet"],
+["いってらっしゃい","itterasshai","take care",8,"greet"],
+["ただいま","tadaima","I'm home",3,"greet"],
+["おかえり","okaeri","welcome back",8,"greet"],
+["はじめまして","hajimemashite","nice to meet you",8,"greet"],
+["おめでとう","omedetō","congratulations",4,"greet"],
+["がんばって","ganbatte","good luck, do your best",6,"greet"],
+["おだいじに","odaijini","take care (get well)",3,"greet"],
+["おねがい","onegai","please",3,"greet"],
+["だいじょうぶ","daijōbu","okay, all right",5,"greet"],
+["もしもし","moshimoshi","hello (on phone)",8,"greet"],
+["やあ","yā","hi",4,"greet"],
+["おひさしぶり","ohisashiburi","long time no see",8,"greet"],
+["ようこそ","yōkoso","welcome",4,"greet"],
+["おつかれさま","otsukaresama","good work",8,"greet"],
+["どうぞ","dōzo","please, go ahead",4,"greet"],
+["げんき","genki","well, healthy",3,"greet"],
+["おまたせ","omatase","sorry to keep you waiting",8,"greet"],
+["しつれいします","shitsureishimasu","excuse me (formal)",8,"greet"],
+["たべる","taberu","to eat",3,"verb"],
+["のむ","nomu","to drink",1,"verb"],
+["みる","miru","to see, watch",1,"verb"],
+["はなす","hanasu","to speak",2,"verb"],
+["いう","iu","to say",1,"verb"],
+["よむ","yomu","to read",1,"verb"],
+["かく","kaku","to write",1,"verb"],
+["あるく","aruku","to walk",2,"verb"],
+["はしる","hashiru","to run",2,"verb"],
+["およぐ","oyogu","to swim",3,"verb"],
+["とぶ","tobu","to fly, jump",3,"verb"],
+["たつ","tatsu","to stand",1,"verb"],
+["すわる","suwaru","to sit",2,"verb"],
+["ねる","neru","to sleep",1,"verb"],
+["おきる","okiru","to wake up",2,"verb"],
+["いく","iku","to go",1,"verb"],
+["くる","kuru","to come",1,"verb"],
+["はいる","hairu","to enter",2,"verb"],
+["でる","deru","to exit",3,"verb"],
+["のる","noru","to ride",1,"verb"],
+["おりる","oriru","to get off",2,"verb"],
+["つく","tsuku","to arrive",1,"verb"],
+["あう","au","to meet",1,"verb"],
+["わかれる","wakareru","to part",8,"verb"],
+["かう","kau","to buy",1,"verb"],
+["うる","uru","to sell",1,"verb"],
+["はらう","harau","to pay",2,"verb"],
+["つかう","tsukau","to use",2,"verb"],
+["つくる","tsukuru","to make",2,"verb"],
+["なおす","naosu","to fix",2,"verb"],
+["こわす","kowasu","to break",2,"verb"],
+["あける","akeru","to open",2,"verb"],
+["しめる","shimeru","to close",2,"verb"],
+["つける","tsukeru","to turn on",2,"verb"],
+["けす","kesu","to turn off",1,"verb"],
+["もつ","motsu","to hold",1,"verb"],
+["とる","toru","to take",1,"verb"],
+["おく","oku","to put",1,"verb"],
+["すてる","suteru","to throw away",2,"verb"],
+["ひろう","hirō","to pick up",4,"verb"],
+["なげる","nageru","to throw",3,"verb"],
+["うける","ukeru","to receive, catch",2,"verb"],
+["おす","osu","to push",1,"verb"],
+["ひく","hiku","to pull",1,"verb"],
+["きる","kiru","to cut, wear",1,"verb"],
+["ぬぐ","nugu","to take off",3,"verb"],
+["あらう","arau","to wash",2,"verb"],
+["みがく","migaku","to polish, brush",3,"verb"],
+["そうじする","sōjisuru","to clean",4,"verb"],
+["ならう","narau","to learn",2,"verb"],
+["おしえる","oshieru","to teach",8,"verb"],
+["おぼえる","oboeru","to memorize",3,"verb"],
+["わすれる","wasureru","to forget",8,"verb"],
+["しる","shiru","to know",1,"verb"],
+["おもう","omō","to think",4,"verb"],
+["かんがえる","kangaeru","to consider",3,"verb"],
+["わかる","wakaru","to understand",2,"verb"],
+["できる","dekiru","to be able",3,"verb"],
+["はじめる","hajimeru","to begin",3,"verb"],
+["おわる","owaru","to finish",2,"verb"],
+["つづける","tsuzukeru","to continue",3,"verb"],
+["やめる","yameru","to quit",2,"verb"],
+["てつだう","tetsudau","to help",3,"verb"],
+["たすける","tasukeru","to rescue",8,"verb"],
+["まもる","mamoru","to protect",2,"verb"],
+["さがす","sagasu","to search",3,"verb"],
+["みつける","mitsukeru","to find",8,"verb"],
+["えらぶ","erabu","to choose",3,"verb"],
+["わたす","watasu","to hand over",2,"verb"],
+["もらう","morau","to receive",2,"verb"],
+["あげる","ageru","to give",3,"verb"],
+["かす","kasu","to lend",1,"verb"],
+["かりる","kariru","to borrow",2,"verb"],
+["ためる","tameru","to save up",2,"verb"],
+["はこぶ","hakobu","to carry",3,"verb"],
+["ならべる","naraberu","to line up",3,"verb"],
+["かさねる","kasaneru","to stack",8,"verb"],
+["わける","wakeru","to divide",2,"verb"],
+["くばる","kubaru","to distribute",3,"verb"],
+["あつめる","atsumeru","to collect",8,"verb"],
+["かぞえる","kazoeru","to count",3,"verb"],
+["はかる","hakaru","to measure",2,"verb"],
+["くらべる","kuraberu","to compare",3,"verb"],
+["えがく","egaku","to draw",3,"verb"],
+["うたう","utau","to sing",2,"verb"],
+["おおきい","ōkii","big",4,"adj"],
+["ちいさい","chiisai","small",8,"adj"],
+["たかい","takai","tall, expensive",2,"adj"],
+["ひくい","hikui","low",2,"adj"],
+["ながい","nagai","long",3,"adj"],
+["みじかい","mijikai","short",3,"adj"],
+["ふとい","futoi","thick",2,"adj"],
+["ほそい","hosoi","thin",2,"adj"],
+["ひろい","hiroi","wide",2,"adj"],
+["せまい","semai","narrow",2,"adj"],
+["あつい","atsui","hot, thick",2,"adj"],
+["さむい","samui","cold (weather)",2,"adj"],
+["つめたい","tsumetai","cold (to touch)",8,"adj"],
+["あたたかい","atatakai","warm",8,"adj"],
+["すずしい","suzushii","cool",3,"adj"],
+["おもい","omoi","heavy",2,"adj"],
+["かるい","karui","light (weight)",2,"adj"],
+["はやい","hayai","fast, early",2,"adj"],
+["おそい","osoi","slow, late",2,"adj"],
+["つよい","tsuyoi","strong",2,"adj"],
+["よわい","yowai","weak",2,"adj"],
+["あたらしい","atarashii","new",8,"adj"],
+["ふるい","furui","old",2,"adj"],
+["わかい","wakai","young",2,"adj"],
+["いい","ii","good",1,"adj"],
+["わるい","warui","bad",2,"adj"],
+["うつくしい","utsukushii","beautiful",8,"adj"],
+["きれい","kirei","pretty, clean",2,"adj"],
+["きたない","kitanai","dirty",8,"adj"],
+["うるさい","urusai","noisy",8,"adj"],
+["しずか","shizuka","quiet",3,"adj"],
+["やさしい","yasashii","kind, easy",8,"adj"],
+["むずかしい","muzukashii","difficult",3,"adj"],
+["かんたん","kantan","simple",8,"adj"],
+["たいせつ","taisetsu","important",8,"adj"],
+["だいじ","daiji","important",3,"adj"],
+["べんり","benri","convenient",3,"adj"],
+["ふべん","fuben","inconvenient",3,"adj"],
+["おいしい","oishii","delicious",8,"adj"],
+["まずい","mazui","bad-tasting",3,"adj"],
+["あまい","amai","sweet",2,"adj"],
+["からい","karai","spicy",2,"adj"],
+["にがい","nigai","bitter",3,"adj"],
+["すっぱい","suppai","sour",6,"adj"],
+["しょっぱい","shoppai","salty",6,"adj"],
+["うれしい","ureshii","happy, glad",8,"adj"],
+["たのしい","tanoshii","fun",8,"adj"],
+["かなしい","kanashii","sad",8,"adj"],
+["さびしい","sabishii","lonely",3,"adj"],
+["こわい","kowai","scary",2,"adj"],
+["いたい","itai","painful",2,"adj"],
+["かゆい","kayui","itchy",2,"adj"],
+["ねむい","nemui","sleepy",2,"adj"],
+["つかれた","tsukareta","tired",8,"adj"],
+["びょうき","byōki","sick, ill",5,"adj"],
+["いそがしい","isogashii","busy",3,"adj"],
+["ひま","hima","free (time)",1,"adj"],
+["おもしろい","omoshiroi","interesting",8,"adj"],
+["つまらない","tsumaranai","boring",8,"adj"],
+["すごい","sugoi","amazing",3,"adj"],
+["ゆうめい","yūmei","famous",4,"adj"],
+["しんせつ","shinsetsu","kind",8,"adj"],
+["まじめ","majime","serious, earnest",3,"adj"],
+["やわらかい","yawarakai","soft",8,"adj"],
+["かたい","katai","hard",2,"adj"],
+["つるつる","tsurutsuru","smooth",8,"adj"],
+["ざらざら","zarazara","rough",3,"adj"],
+["まるい","marui","round",2,"adj"],
+["しかくい","shikakui","square",8,"adj"],
+["おなじ","onaji","same",3,"adj"],
+["ちがう","chigau","different",3,"adj"],
+["おおい","ōi","many",4,"adj"],
+["すくない","sukunai","few",8,"adj"],
+["いっぱい","ippai","full",6,"adj"],
+["からっぽ","karappo","empty",6,"adj"],
+["あぶない","abunai","dangerous",3,"adj"],
+["あんぜん","anzen","safe",3,"adj"],
+["じょうぶ","jōbu","sturdy",5,"adj"],
+["りっぱ","rippa","splendid",6,"adj"],
+["へん","hen","strange",1,"adj"],
+["ふしぎ","fushigi","mysterious",3,"adj"],
+["すてき","suteki","lovely",2,"adj"],
+["かわいい","kawaii","cute",8,"adj"],
+["かっこいい","kakkoii","cool, stylish",6,"adj"],
+["ほしい","hoshii","wanted",2,"adj"],
+["しゃちょう","shachō","company president",5,"work"],
+["ぶちょう","buchō","department head",5,"work"],
+["かちょう","kachō","section chief",5,"work"],
+["じょうし","jōshi","boss",5,"work"],
+["ぶか","buka","subordinate",3,"work"],
+["どうりょう","dōryō","colleague",5,"work"],
+["しゃいん","shain","employee",5,"work"],
+["てんいん","tenin","shop clerk",8,"work"],
+["てんちょう","tenchō","store manager",5,"work"],
+["かいぎ","kaigi","meeting",3,"work"],
+["メール","mēru","email",7,"work"],
+["しょるい","shorui","documents",5,"work"],
+["しりょう","shiryō","materials",5,"work"],
+["ほうこく","hōkoku","report",4,"work"],
+["れんらく","renraku","contact",8,"work"],
+["そうだん","sōdan","consultation",4,"work"],
+["やくそく","yakusoku","promise, appointment",8,"work"],
+["よてい","yotei","schedule, plan",2,"work"],
+["きゅうりょう","kyūryō","salary",5,"work"],
+["ざんぎょう","zangyō","overtime",5,"work"],
+["きゅうけい","kyūkei","break",5,"work"],
+["しゅっちょう","shutchō","business trip",6,"work"],
+["かいぎしつ","kaigishitsu","meeting room",3,"work"],
+["うけつけ","uketsuke","reception",8,"work"],
+["めいし","meishi","business card",2,"work"],
+["べんごし","bengoshi","lawyer",3,"work"],
+["けいさつかん","keisatsukan","police officer",8,"work"],
+["しょうぼうし","shōbōshi","firefighter",5,"work"],
+["コック","kokku","cook",7,"work"],
+["りょうりにん","ryōrinin","chef",5,"work"],
+["うんてんしゅ","untenshu","driver",5,"work"],
+["パイロット","pairotto","pilot",7,"work"],
+["かしゅ","kashu","singer",5,"work"],
+["はいゆう","haiyū","actor",4,"work"],
+["がか","gaka","painter",3,"work"],
+["おんがくか","ongakuka","musician",3,"work"],
+["さっか","sakka","writer",6,"work"],
+["のうか","nōka","farmer",4,"work"],
+["りょうし","ryōshi","fisherman",5,"work"],
+["だいく","daiku","carpenter",3,"work"],
+["てんきよほうし","tenkiyohōshi","weather forecaster",8,"work"],
+["びようし","biyōshi","hairdresser",4,"work"],
+["こうむいん","kōmuin","civil servant",4,"work"],
+["えきいん","ekiin","station attendant",8,"work"],
+["はいたついん","haitatsuin","delivery person",8,"work"],
+["うちゅうひこうし","uchūhikōshi","astronaut",8,"work"],
+["かがくしゃ","kagakusha","scientist",5,"work"],
+["けんきゅう","kenkyū","research",5,"work"],
+["せいさん","seisan","production",8,"work"],
+["はんばい","hanbai","sales",3,"work"],
+["のうぎょう","nōgyō","agriculture",5,"work"],
+["ぎょぎょう","gyogyō","fishing industry",5,"work"],
+["しょうばい","shōbai","business, trade",5,"work"],
+["きゅうじん","kyūjin","job opening",5,"work"],
+["めんせつ","mensetsu","interview",8,"work"],
+["りれきしょ","rirekisho","resume",5,"work"],
+["せいこう","seikō","success",4,"work"],
+["しっぱい","shippai","failure",6,"work"],
+["もくひょう","mokuhyō","goal",5,"work"],
+["けいかく","keikaku","plan",8,"work"],
+["どりょく","doryoku","effort",5,"work"],
+["せきにん","sekinin","responsibility",8,"work"],
+["やくわり","yakuwari","role",8,"work"],
+["チームワーク","chīmuwāku","teamwork",7,"work"],
+["ぜろ","zero","zero",3,"number"],
+["れい","rei","zero",1,"number"],
+["いち","ichi","one",1,"number"],
+["に","ni","two",1,"number"],
+["さん","san","three",1,"number"],
+["よん","yon","four",1,"number"],
+["ご","go","five",3,"number"],
+["ろく","roku","six",1,"number"],
+["なな","nana","seven",1,"number"],
+["しち","shichi","seven",1,"number"],
+["きゅう","kyū","nine",5,"number"],
+["く","ku","nine",1,"number"],
+["じゅう","jū","ten",5,"number"],
+["じゅういち","jūichi","eleven",5,"number"],
+["じゅうに","jūni","twelve",5,"number"],
+["にじゅう","nijū","twenty",5,"number"],
+["さんじゅう","sanjū","thirty",5,"number"],
+["よんじゅう","yonjū","forty",5,"number"],
+["ごじゅう","gojū","fifty",5,"number"],
+["ひゃく","hyaku","hundred",5,"number"],
+["せん","sen","thousand",1,"number"],
+["まん","man","ten thousand",1,"number"],
+["ひとつ","hitotsu","one (thing)",2,"number"],
+["ふたつ","futatsu","two (things)",2,"number"],
+["みっつ","mittsu","three (things)",6,"number"],
+["よっつ","yottsu","four (things)",6,"number"],
+["いつつ","itsutsu","five (things)",2,"number"],
+["むっつ","muttsu","six (things)",6,"number"],
+["ななつ","nanatsu","seven (things)",2,"number"],
+["やっつ","yattsu","eight (things)",6,"number"],
+["ここのつ","kokonotsu","nine (things)",8,"number"],
+["とお","tō","ten (things)",4,"number"],
+["ひとり","hitori","one person",2,"number"],
+["ふたり","futari","two people",2,"number"],
+["さんにん","sannin","three people",8,"number"],
+["いっぴき","ippiki","one (animal)",6,"number"],
+["いっぽん","ippon","one (long object)",6,"number"],
+["いちまい","ichimai","one (flat object)",8,"number"],
+["いっこ","ikko","one (small object)",6,"number"],
+["いっかい","ikkai","one time / first floor",6,"number"],
+["はんぶん","hanbun","half",3,"number"],
+["ぜんぶ","zenbu","all",3,"number"],
+["すうじ","sūji","number",4,"number"],
+["かず","kazu","number, count",3,"number"],
+["けた","keta","digit",1,"number"],
+["ばんごう","bangō","number (ID)",4,"number"],
+["だいいち","daiichi","first",3,"number"],
+["だいに","daini","second",3,"number"],
+["さいしょ","saisho","first, beginning",5,"number"],
+["さいご","saigo","last",3,"number"],
+["いちばん","ichiban","number one, most",3,"number"],
+["たくさん","takusan","a lot",8,"number"],
+["ちょっと","chotto","a little",6,"number"],
+["ぜんいん","zenin","everyone",3,"number"],
+["りょうほう","ryōhō","both",5,"number"],
+["かたほう","katahō","one side",4,"number"],
+["いくつ","ikutsu","how many",2,"number"],
+["いくら","ikura","how much",2,"number"],
+["なんばん","nanban","what number",3,"number"]
+];
+const PAL=['#5a7a52','#3a557f','#b6893e','#bd6a4a','#6e567f','#5b7e9e','#9a6b2e','#c43d28'];
+const lvAccent=id=>PAL[(id-1)%PAL.length];
+function isKata(w){ return /[\u30A0-\u30FF]/.test(w); }
+function makeItem(row){ return {word:row[0], romaji:row[1], en:row[2], lv:row[3], th:row[4], group:'L'+row[3], level:'lv'+row[3]}; }
+
+/* ============ PERSISTENCE ============ */
+const SAVE_KEY="wordreader_v1";
+let save={ mastery:{}, stars:0, streakDays:0, lastDay:null, seen:{}, lastPicked:null };
+function load(){ try{ const r=localStorage.getItem(SAVE_KEY); if(r) save=Object.assign(save, JSON.parse(r)); }catch(e){} }
+function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+function wkey(it){ return it.word+"::"+it.group; }
+
+/* ============ CONFIG ============ */
+let cfg={ picked:new Set(), hira:true, kata:true, playMode:'levels', batch:10, themeCats:new Set() };
+function scriptOk(row){ const kata=isKata(row[0]); return kata?cfg.kata:cfg.hira; }
+
+/* ============ PRESETS ============ */
+const PRESETS=[
+  {name:"はじめ Lv1–2", lvls:[1,2]},
+  {name:"Lv1–4", lvls:[1,2,3,4]},
+  {name:"ぜんぶ All", lvls:[1,2,3,4,5,6,7,8]},
+  {name:"濁音・拗音", lvls:[3,5]},
+  {name:"カタカナ", lvls:[7]},
+  {name:"むずかしい Lv6–8", lvls:[6,7,8]}
+];
+function applyPreset(idx){ const p=PRESETS[idx]; cfg.picked=new Set(p.lvls); buildLevelGrid(); updateCount(); refreshPresetState(); toast(p.name+" selected"); }
+function buildPresetRow(){ const row=document.getElementById('preset-row'); row.innerHTML='';
+  PRESETS.forEach((p,i)=>{ const b=document.createElement('button'); b.className='chip preset'; b.textContent=p.name; b.dataset.preset=i; b.onclick=()=>applyPreset(i); row.appendChild(b); }); }
+function refreshPresetState(){ document.querySelectorAll('.chip.preset').forEach(b=>{ const p=PRESETS[+b.dataset.preset]; const exact=p.lvls.length===cfg.picked.size && p.lvls.every(l=>cfg.picked.has(l)); b.classList.toggle('on', exact); }); }
+
+/* ============ DECK BUILDING ============ */
+function wordsInLevel(id){ return WORDS.filter(r=>r[3]===id); }
+function wordsInTheme(id){ return WORDS.filter(r=>r[4]===id); }
+function getWordsFor(levels){
+  let items=WORDS.filter(r=>levels.includes(r[3]) && scriptOk(r)).map(makeItem);
+  const seen=new Set();
+  items=items.filter(it=>{ const k=wkey(it); if(seen.has(k))return false; seen.add(k); return true; });
+  // easy → hard: order by level, then weakest within level (so a session ramps up)
+  return items.sort((a,b)=> a.lv-b.lv || (save.mastery[wkey(a)]||0)-(save.mastery[wkey(b)]||0));
+}
+function getThemeWords(){
+  const sel=cfg.themeCats; const cats=sel.size?[...sel]:THEMES.map(t=>t.id);
+  let items=WORDS.filter(r=>cats.includes(r[4]) && scriptOk(r)).map(makeItem);
+  items=srsOrder(items);
+  if(cfg.batch>0) items=items.slice(0,cfg.batch);
+  return items;
+}
+function getReviewWords(){
+  let items=WORDS.filter(r=>scriptOk(r)).map(makeItem)
+    .filter(it=>{ const b=save.mastery[wkey(it)]||0; return save.seen[wkey(it)] || (b>0 && b<4); });
+  items=srsOrder(items);
+  if(cfg.batch>0) items=items.slice(0,cfg.batch);
+  return items;
+}
+function getWords(){
+  if(cfg.playMode==='themes') return getThemeWords();
+  if(cfg.playMode==='review') return getReviewWords();
+  return getWordsFor([...cfg.picked]);
+}
+function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function srsOrder(words){ return shuffle(words).sort((a,b)=>(save.mastery[wkey(a)]||0)-(save.mastery[wkey(b)]||0)); }
+
+/* ============ TABS ============ */
+function showTab(t){
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active', el.dataset.tab===t));
+  ['play','explore','stats'].forEach(p=>document.getElementById('panel-'+p).classList.add('hidden'));
+  document.getElementById('panel-flashcard').classList.add('hidden');
+  document.getElementById('panel-'+t).classList.remove('hidden');
+  setLaunchBar(t==='play');
+  if(t==='explore') buildExplore();
+  if(t==='stats') renderStats();
+}
+function setLaunchBar(show){ document.getElementById('launch-bar').classList.toggle('hidden', !show); }
+function goPlay(){ showTab('play'); }
+
+/* ============ SETUP ============ */
+function buildLevelGrid(){
+  const grid=document.getElementById('level-grid'); grid.innerHTML='';
+  LEVELS.forEach(lv=>{
+    const total=wordsInLevel(lv.id).length;
+    const mast=levelMastery(lv.id);
+    const c=document.createElement('div');
+    c.className='gcard'+(cfg.picked.has(lv.id)?' sel':'');
+    c.innerHTML=`<div class="lvl-seal" style="--accent:${lvAccent(lv.id)}">${lv.id}</div>
+      <div class="gname">${lv.jp}</div><div class="gcount">${lv.en} · ${total}</div>
+      <div class="gmastery"><i style="width:${mast}%"></i></div>
+      <div class="gquick"><button class="gq" data-fc>🃏 read</button></div>`;
+    c.onclick=()=>{ cfg.picked.has(lv.id)?cfg.picked.delete(lv.id):cfg.picked.add(lv.id); buildLevelGrid(); updateCount(); refreshPresetState(); };
+    c.querySelector('[data-fc]').onclick=(e)=>{ e.stopPropagation(); startMode([lv.id]); };
+    grid.appendChild(c);
+  });
+  refreshPresetState();
+}
+function selectAll(){ cfg.picked=new Set(LEVELS.map(l=>l.id)); buildLevelGrid(); updateCount(); }
+function selectNone(){ cfg.picked.clear(); buildLevelGrid(); updateCount(); }
+function toggleScript(s){
+  if(s==='hira'){ cfg.hira=!cfg.hira; document.getElementById('lv-starter').classList.toggle('on',cfg.hira); }
+  else { cfg.kata=!cfg.kata; document.getElementById('lv-advanced').classList.toggle('on',cfg.kata); }
+  updateCount();
+}
+
+function setPlayMode(m){
+  cfg.playMode=m;
+  document.getElementById('ps-levels').classList.toggle('active', m==='levels');
+  document.getElementById('ps-themes').classList.toggle('active', m==='themes');
+  document.getElementById('ps-review').classList.toggle('active', m==='review');
+  document.getElementById('mode-levels').classList.toggle('hidden', m!=='levels');
+  document.getElementById('mode-themes').classList.toggle('hidden', m==='levels');
+  if(m!=='levels'){
+    const intro=document.getElementById('themes-intro');
+    document.getElementById('theme-block').classList.toggle('hidden', m==='review');
+    if(m==='review'){
+      intro.innerHTML='🔁 <b>ふくしゅう Review</b> — words you’ve already started, weakest first. A quick mixed refresher across every level you’ve touched.';
+    } else {
+      intro.innerHTML='🗂️ <b>テーマ Themes</b> — read words grouped by topic instead of by level. Flip a card to check the reading &amp; meaning.';
+      buildThemeGrid();
+    }
+  }
+  updateCount();
+}
+function setBatch(n){ cfg.batch=n; document.querySelectorAll('#batch-row .chip').forEach(b=>b.classList.toggle('on', +b.dataset.batch===n)); updateCount(); }
+function buildThemeGrid(){
+  const grid=document.getElementById('theme-grid'); grid.innerHTML='';
+  const sel=cfg.themeCats;
+  THEMES.forEach((th,i)=>{
+    const items=wordsInTheme(th.id);
+    const mastered=items.filter(r=>(save.mastery[r[0]+'::L'+r[3]]||0)>=4).length;
+    const mast=items.length?Math.round(mastered/items.length*100):0;
+    const c=document.createElement('div');
+    c.className='gcard'+(sel.has(th.id)?' sel':'');
+    c.innerHTML=`<div class="lvl-seal" style="--accent:${PAL[i%PAL.length]}">${th.seal}</div>
+      <div class="gname">${th.jp}</div><div class="gcount">${th.en} · ${items.length}</div>
+      <div class="gmastery"><i style="width:${mast}%"></i></div>
+      <div class="gquick"><button class="gq" data-fc>🃏 read</button></div>`;
+    c.onclick=()=>{ sel.has(th.id)?sel.delete(th.id):sel.add(th.id); buildThemeGrid(); updateCount(); };
+    c.querySelector('[data-fc]').onclick=(e)=>{ e.stopPropagation(); playThemeCat(th.id); };
+    grid.appendChild(c);
+  });
+}
+function themesAll(){ cfg.themeCats=new Set(THEMES.map(t=>t.id)); buildThemeGrid(); updateCount(); }
+function themesNone(){ cfg.themeCats.clear(); buildThemeGrid(); updateCount(); }
+function playThemeCat(id){ const saved=new Set(cfg.themeCats); cfg.themeCats=new Set([id]); startMode(); cfg.themeCats=saved; buildThemeGrid(); updateCount(); }
+
+function updateCount(){
+  const info=document.getElementById('launch-info'); const dc=document.getElementById('deck-count');
+  if(cfg.playMode==='levels'){
+    const n=getWords().length, gsel=cfg.picked.size;
+    document.getElementById('sel-summary').textContent = gsel?`${gsel} level${gsel>1?'s':''}`:'none';
+    dc.textContent = !gsel?'⚠️ Pick at least one level above'
+      : (n?`📦 ${n} words ready · Lv ${Math.min(...cfg.picked)}–${Math.max(...cfg.picked)}, easy first`:'⚠️ No words — turn on ひらがな or カタカナ');
+    info.textContent = !gsel?'Pick levels to begin':(n?`${n} words · ${gsel} level${gsel>1?'s':''}`:'No words — enable a script');
+    document.querySelectorAll('.btn.launch').forEach(b=>b.disabled=!(gsel&&n));
+  } else if(cfg.playMode==='themes'){
+    const sel=cfg.themeCats, csel=sel.size;
+    const pool=(csel?[...sel]:THEMES.map(t=>t.id)).reduce((s,c)=>s+wordsInTheme(c).filter(scriptOk).length,0);
+    const n=getWords().length;
+    const ts=document.getElementById('tcat-summary'); if(ts) ts.textContent=csel?`${csel} selected`:'all';
+    document.getElementById('batch-summary').textContent=cfg.batch>0?`${cfg.batch} at a time`:'all';
+    dc.textContent=`🗂️ ${n} words this batch${pool>n?` (of ${pool})`:''}`;
+    info.textContent=n?`${n} words · batch of ${cfg.batch>0?cfg.batch:'all'}`:'No words — enable a script';
+    document.querySelectorAll('.btn.launch').forEach(b=>b.disabled=!n);
+  } else {
+    const n=getWords().length;
+    document.getElementById('batch-summary').textContent=cfg.batch>0?`${cfg.batch} at a time`:'all';
+    dc.textContent = n?`🔁 ${n} words due for review`:'🔁 Nothing to review yet — read some levels first.';
+    info.textContent = n?`${n} words to review`:'Practise some words first';
+    document.querySelectorAll('.btn.launch').forEach(b=>b.disabled=!n);
+  }
+}
+
+/* ============ MASTERY ============ */
+function levelMastery(id){ const ws=wordsInLevel(id); if(!ws.length)return 0; const m=ws.filter(r=>(save.mastery[r[0]+'::L'+r[3]]||0)>=4).length; return Math.round(m/ws.length*100); }
+
+/* ============ STREAK ============ */
+function bumpStreak(){ const today=new Date().toDateString();
+  if(save.lastDay!==today){ const y=new Date(Date.now()-86400000).toDateString(); save.streakDays=(save.lastDay===y)?save.streakDays+1:1; save.lastDay=today; persist(); }
+  renderStreak();
+}
+function renderStreak(){ document.getElementById('streak-num').textContent=save.streakDays; }
+
+/* ============ FLASHCARDS ============ */
+let fc={ deck:[], i:0, flipped:false, reviewOnly:false, missed:new Set(), scopeLabel:'' };
+function startMode(levelOverride){
+  let words, label;
+  if(levelOverride && levelOverride.length){
+    words=getWordsFor(levelOverride);
+    const lv=LEVELS.find(l=>l.id===levelOverride[0]);
+    label='Lv '+levelOverride[0]+' · '+(lv?lv.jp:'');
+  } else if(cfg.playMode==='levels'){
+    if(!cfg.picked.size){ toast('Pick at least one level first.'); return; }
+    words=getWordsFor([...cfg.picked]);
+    label = cfg.picked.size===LEVELS.length ? 'All levels' : `Lv ${Math.min(...cfg.picked)}–${Math.max(...cfg.picked)}`;
+    save.lastPicked=[...cfg.picked]; persist();
+  } else if(cfg.playMode==='themes'){
+    words=getThemeWords();
+    const sel=cfg.themeCats;
+    label = sel.size===1 ? (THEMES.find(t=>t.id===[...sel][0])||{}).en : 'Themes';
+    label += cfg.batch>0?` · ${cfg.batch}`:'';
+  } else {
+    words=getReviewWords(); label='Review';
+  }
+  if(!words.length){ toast('No words available.'); return; }
+  bumpStreak();
+  // level deck keeps its easy→hard order; others get SRS shuffle
+  fc.deck = (levelOverride||cfg.playMode==='levels') ? words : srsOrder(words);
+  fc.i=0; fc.flipped=false; fc.reviewOnly=false; fc.missed=new Set(); fc.scopeLabel=label;
+  showGamePanel(); renderCard();
+}
+function showGamePanel(){
+  ['play','explore','stats'].forEach(p=>document.getElementById('panel-'+p).classList.add('hidden'));
+  document.getElementById('panel-flashcard').classList.remove('hidden');
+  setLaunchBar(false);
+}
+function fcActiveDeck(){ return fc.reviewOnly ? fc.deck.filter(w=>fc.missed.has(wkey(w))) : fc.deck; }
+
+function renderKana(word, el, showRomaji){
+  el.innerHTML='';
+  const segs=moraSegments(word);
+  const many=segs.length>=4;
+  segs.forEach(seg=>{
+    const col=document.createElement('span'); col.className='seg'+(many?' small':'');
+    const lt=document.createElement('span'); lt.className='seg-letters'; lt.textContent=seg.k;
+    col.appendChild(lt);
+    if(showRomaji){
+      const mk=document.createElement('span'); mk.className='seg-mark';
+      const chip=document.createElement('span'); chip.className='rj-chip '+seg.type;
+      chip.textContent = seg.type==='sokuon'?'っ': seg.type==='long'?'ー': seg.r;
+      mk.appendChild(chip); col.appendChild(mk);
+    }
+    el.appendChild(col);
+  });
+}
+function renderCard(){
+  const deck=fcActiveDeck();
+  const front=document.getElementById('fc-word');
+  if(!deck.length){ front.textContent='🎉'; return; }
+  if(fc.i>=deck.length) fc.i=deck.length-1;
+  const it=deck[fc.i];
+  save.seen[wkey(it)]=true;
+  document.getElementById('flashcard').classList.toggle('flipped', fc.flipped);
+  renderKana(it.word, front, false);                                  // front: clean word
+  renderKana(it.word, document.getElementById('fc-word-back'), true); // back: romaji under each character
+  document.getElementById('fc-back-label').textContent='this word…';
+  document.getElementById('fc-mean').textContent=it.en;
+  const lvl=LEVELS.find(l=>l.id===it.lv)||{jp:''};
+  const tag=document.getElementById('fc-level');
+  tag.textContent='Level '+it.lv+' · '+lvl.jp;
+  tag.style.color=lvAccent(it.lv); tag.style.borderColor=lvAccent(it.lv);
+  document.getElementById('fc-counter').textContent=(fc.i+1)+' / '+deck.length;
+  document.getElementById('fc-fill').style.width=((fc.i+1)/deck.length*100)+'%';
+  document.getElementById('fc-mode-label').textContent=fc.reviewOnly?'Review':(fc.scopeLabel||'Practice');
+  const rb=document.getElementById('fc-review-btn');
+  rb.classList.toggle('hidden', fc.missed.size===0);
+  rb.textContent=fc.reviewOnly?'Show all':`Review missed (${fc.missed.size})`;
+}
+function flipCard(){ fc.flipped=!fc.flipped; renderCard(); }
+function shuffleDeck(){ fc.deck=shuffle(fc.deck); fc.i=0; fc.flipped=false; renderCard(); }
+function judge(known){
+  const d=fcActiveDeck(); if(!d.length) return;
+  const it=d[fc.i], k=wkey(it), box=save.mastery[k]||0;
+  if(known){ save.mastery[k]=Math.min(5,box+1); if(save.mastery[k]>=4) save.stars++; fc.missed.delete(k); }
+  else { save.mastery[k]=Math.max(0,box-1); fc.missed.add(k); }
+  persist(); fc.flipped=false;
+  if(fc.i<d.length-1){ fc.i++; renderCard(); }
+  else { renderCard(); toast(fc.missed.size?'Deck done! Tap “Review missed”.':'🌟 Whole deck done!'); }
+}
+function toggleReviewOnly(){ fc.reviewOnly=!fc.reviewOnly; fc.i=0; fc.flipped=false; renderCard(); }
+
+/* ============ EXPLORE ============ */
+function buildExplore(){
+  const el=document.getElementById('explore-list'); el.innerHTML='';
+  const levels=[...cfg.picked].sort((a,b)=>a-b);
+  if(!levels.length){ el.innerHTML='<div class="empty"><div class="e">見</div>No levels selected.<br>Pick some in the Practice tab.</div>'; return; }
+  levels.forEach(id=>{
+    const lv=LEVELS.find(l=>l.id===id);
+    const h=document.createElement('div'); h.className='tier-h';
+    h.innerHTML=`<span class="lead-k" style="--accent:${lvAccent(id)}">${id}</span> ${lv.jp} <span style="font-weight:600;font-size:12px;color:#7e90ad">${lv.en}</span> <span class="badge">${levelMastery(id)}% mastered</span>`;
+    el.appendChild(h);
+    const wrap=document.createElement('div'); wrap.className='word-wrap';
+    wordsInLevel(id).forEach(r=>{
+      const it=makeItem(r);
+      const mastered=(save.mastery[wkey(it)]||0)>=4;
+      const chip=document.createElement('span'); chip.className='wchip'+(mastered?' mastered':'');
+      chip.innerHTML=`<span class="wk">${it.word}</span><span class="wr">${mastered?'✓ ':''}${it.romaji}</span>`;
+      chip.onclick=()=>{ chip.style.transform='scale(1.16)'; setTimeout(()=>chip.style.transform='',150); toast(it.word+' = '+it.romaji+' · '+it.en); };
+      wrap.appendChild(chip);
+    });
+    el.appendChild(wrap);
+  });
+}
+
+/* ============ STATS ============ */
+function renderStats(){
+  let mastered=0;
+  WORDS.forEach(r=>{ if((save.mastery[r[0]+'::L'+r[3]]||0)>=4) mastered++; });
+  const review=Object.keys(save.mastery).filter(k=>save.mastery[k]>0 && save.mastery[k]<4).length;
+  document.getElementById('st-mastered').textContent=mastered;
+  document.getElementById('st-stars').textContent=save.stars;
+  document.getElementById('st-review').textContent=review;
+  document.getElementById('st-seen').textContent=Object.keys(save.seen).length;
+}
+function resetAll(){
+  if(!confirm('Reset all progress, stars and streaks? This can’t be undone.')) return;
+  save={ mastery:{}, stars:0, streakDays:0, lastDay:null, seen:{}, lastPicked:null };
+  cfg.picked=new Set(DEFAULT_LEVELS);
+  persist(); renderStreak(); renderStats(); buildLevelGrid(); updateCount(); toast('Progress reset.');
+}
+
+/* ============ TOAST ============ */
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ============ INIT ============ */
+const DEFAULT_LEVELS=[1,2];
+load();
+renderStreak();
+if(Array.isArray(save.lastPicked) && save.lastPicked.length){ cfg.picked=new Set(save.lastPicked.filter(l=>LEVELS.some(L=>L.id===l))); }
+else { cfg.picked=new Set(DEFAULT_LEVELS); }
+buildPresetRow();
+buildLevelGrid();
+buildThemeGrid();
+setBatch(cfg.batch);
+updateCount();
+setLaunchBar(true);
+</script>
+</body>
+</html>
