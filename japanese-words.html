@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>仮名トレーナー — Kana · Study Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+:root{
+  --indigo-deep:#13213b; --indigo:#21385c; --indigo-soft:#3a557f;
+  --washi:#f5efe1; --washi-dim:#e7ddc6; --washi-line:#d8cdb2; --washi-soft:#efe7d4;
+  --ink:#222530; --ink-soft:#5a5d68; --ink-faint:#8a8576;
+  --shu:#c43d28; --shu-soft:#d9694f; --gold:#b6893e; --sage:#5a7a52;
+  --radius:16px; --radius-lg:22px; --pill:999px;
+  --shadow:0 12px 26px -20px rgba(0,0,0,.9);
+  --shadow-lift:0 22px 46px -24px rgba(8,16,32,.95);
+  --ff-jp:'Shippori Mincho',serif;
+  --ff-ui:'Zen Kaku Gothic New',system-ui,sans-serif;
+}
+html,body{ height:100%; }
+body{
+  font-family:var(--ff-ui); color:var(--ink); line-height:1.5; min-height:100%;
+  background:
+    radial-gradient(circle at 18% -10%, #2a456e 0%, transparent 45%),
+    radial-gradient(circle at 100% 110%, #1b2f50 0%, transparent 50%),
+    linear-gradient(160deg,#14233f 0%,#101c33 100%);
+  background-attachment:fixed; -webkit-font-smoothing:antialiased;
+}
+.grain{ position:fixed; inset:0; pointer-events:none; opacity:.05; z-index:0;
+  background-image:radial-gradient(rgba(255,255,255,.9) .8px,transparent .8px); background-size:7px 7px; }
+.app{ position:relative; z-index:1; max-width:620px; margin:0 auto; padding:18px 16px 11rem; }
+
+/* ---- Top bar + hero ---- */
+.topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:18px; }
+.back{ display:inline-flex; align-items:center; gap:7px; text-decoration:none; color:#a9bbd6;
+  font-size:12.5px; font-weight:700; letter-spacing:.4px; padding:8px 13px; border-radius:11px;
+  border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); transition:.15s; }
+.back:hover{ color:var(--washi); background:rgba(255,255,255,.09); transform:translateX(-2px); }
+.back .jp{ font-family:var(--ff-jp); }
+.streak{ background:rgba(182,137,62,.16); color:var(--gold); font-weight:800; font-size:13px;
+  padding:7px 13px; border-radius:var(--pill); display:flex; align-items:center; gap:6px; border:1px solid rgba(182,137,62,.35); }
+.hero{ display:flex; align-items:center; gap:16px; margin-bottom:6px; }
+.seal{ flex:none; width:64px; height:64px; border-radius:16px; border:3px solid var(--shu); color:var(--washi);
+  font-family:var(--ff-jp); font-weight:800; font-size:34px; display:grid; place-items:center;
+  background:linear-gradient(160deg,#c43d28,#a52e1d); box-shadow:0 10px 22px -8px rgba(196,61,40,.7); }
+.titles .eyebrow{ color:var(--shu-soft); font-size:11px; font-weight:800; letter-spacing:2.5px; text-transform:uppercase; margin-bottom:6px; }
+.titles h1{ font-family:var(--ff-jp); font-weight:800; color:var(--washi); font-size:clamp(26px,6vw,38px); letter-spacing:2px; line-height:1; }
+.titles h1 rt{ font-size:.3em; font-weight:500; color:#9fb1cd; }
+.titles .latin{ font-weight:700; font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:#a9bbd6; margin-top:7px; }
+
+/* ---- Bottom nav + launch bar ---- */
+.tabbar{ position:fixed; bottom:0; left:0; right:0; z-index:50; display:flex; justify-content:space-around;
+  background:var(--indigo-deep); border-top:1px solid rgba(255,255,255,.14);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -10px 30px -12px rgba(0,0,0,.6); }
+.tabbar .tab{ flex:1; border:none; background:none; cursor:pointer; padding:8px 4px 9px; color:#7e90ad;
+  font-family:var(--ff-ui); font-weight:700; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:4px;
+  border-radius:12px; transition:color .15s; }
+.tab .ico{ font-family:var(--ff-jp); font-size:21px; line-height:1; }
+.tabbar .tab.active{ color:var(--shu-soft); }
+.launch-bar{ position:fixed; left:0; right:0; bottom:62px; z-index:49; background:rgba(16,28,51,.94); backdrop-filter:blur(8px);
+  border-top:1px solid rgba(255,255,255,.12); padding:11px 16px; display:flex; flex-direction:column; gap:9px;
+  box-shadow:0 -12px 30px -14px rgba(0,0,0,.6); }
+.launch-bar.hidden{ display:none; }
+.launch-info{ font-family:var(--ff-jp); font-weight:700; font-size:13px; color:#a9bbd6; text-align:center; }
+.launch-btns{ display:flex; gap:10px; max-width:620px; margin:0 auto; width:100%; }
+.btn.launch{ flex:1; }
+
+.panel{ animation:rise .35s cubic-bezier(.2,.9,.3,1); }
+@keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:none;} }
+.hidden{ display:none !important; }
+
+h2.section-h{ font-family:var(--ff-jp); font-weight:800; font-size:22px; color:var(--washi); letter-spacing:1px; margin-bottom:4px; }
+.section-sub{ color:#9fb1cd; font-size:13.5px; margin-bottom:1.25rem; font-weight:500; }
+
+/* ---- Buttons ---- */
+.btn{ font-family:var(--ff-jp); font-weight:800; font-size:15px; cursor:pointer; border:1px solid var(--washi-dim);
+  border-radius:var(--pill); padding:12px 20px; color:var(--ink); background:var(--washi); box-shadow:var(--shadow);
+  transition:transform .08s, box-shadow .12s; user-select:none; }
+.btn:active{ transform:translateY(2px); }
+.btn.primary{ background:linear-gradient(160deg,var(--shu),#a52e1d); color:var(--washi); border-color:#8f2a1b; }
+.btn.ghost{ background:rgba(255,255,255,.06); color:#cdd9ea; border-color:rgba(255,255,255,.16); box-shadow:none; }
+.btn.ghost:hover{ background:rgba(255,255,255,.1); }
+.btn.danger{ color:var(--shu-soft); border-color:rgba(217,105,79,.5); background:rgba(217,105,79,.08); box-shadow:none; }
+.btn.block{ width:100%; display:block; }
+.btn.sm{ font-size:13px; padding:8px 14px; }
+.btn:disabled{ opacity:.4; }
+.btn-row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+/* ---- Play switch ---- */
+.play-switch{ display:flex; gap:6px; background:rgba(255,255,255,.06); padding:5px; border-radius:var(--pill);
+  margin-bottom:1.25rem; border:1px solid rgba(255,255,255,.1); }
+.ps-btn{ flex:1; padding:10px 6px; border-radius:var(--pill); border:none; background:none; cursor:pointer;
+  color:#9fb1cd; font-family:var(--ff-jp); font-weight:800; font-size:15px; line-height:1.1; }
+.ps-btn small{ display:block; font-family:var(--ff-ui); font-weight:600; font-size:10px; letter-spacing:.04em; color:#7e90ad; margin-top:2px; }
+.ps-btn.active{ background:var(--washi); color:var(--ink); box-shadow:var(--shadow); }
+.ps-btn.active small{ color:var(--ink-soft); }
+
+/* ---- Fields / chips ---- */
+.field{ margin-bottom:1.25rem; }
+.field-label{ font-family:var(--ff-jp); font-weight:800; font-size:15px; color:var(--washi); margin-bottom:9px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.field-label .en{ font-family:var(--ff-ui); font-weight:600; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#7e90ad; }
+.chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+.chip{ padding:9px 15px; border-radius:var(--pill); border:1px solid var(--washi-dim); background:var(--washi);
+  cursor:pointer; font-weight:700; font-size:14px; color:var(--ink); font-family:var(--ff-ui); transition:all .12s; }
+.chip:active{ transform:scale(.96); }
+.chip.on{ background:var(--indigo-soft); color:var(--washi); border-color:var(--indigo); }
+.chip.on.alt{ background:var(--gold); border-color:#8a6322; color:#2a2310; }
+.chip.preset{ background:rgba(182,137,62,.14); color:var(--gold); border-color:rgba(182,137,62,.4); font-family:var(--ff-jp); font-weight:800; }
+.chip.preset.on{ background:var(--gold); color:#2a2310; border-color:#8a6322; }
+.sel-summary{ margin-left:auto; font-weight:700; font-size:12px; color:var(--shu-soft); background:rgba(217,105,79,.12); padding:3px 11px; border-radius:var(--pill); border:1px solid rgba(217,105,79,.3); }
+.select-row{ display:flex; gap:8px; margin-bottom:10px; }
+.hint-line{ font-size:12px; font-weight:600; color:#7e90ad; margin-top:8px; }
+.help-note{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); border-radius:var(--radius);
+  padding:13px 15px; font-size:13px; font-weight:500; color:#bccadf; margin-bottom:1.25rem; line-height:1.6; }
+.help-note b{ color:var(--washi); font-family:var(--ff-jp); }
+
+/* ---- Group grid ---- */
+.group-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:9px; }
+.gcard{ background:var(--washi); border:1px solid var(--washi-dim); border-radius:var(--radius); padding:12px 8px 10px;
+  cursor:pointer; text-align:center; transition:transform .1s, border-color .12s, box-shadow .12s; position:relative; box-shadow:var(--shadow); }
+.gcard:active{ transform:scale(.96); }
+.gcard.sel{ border-color:var(--shu); box-shadow:0 14px 28px -18px rgba(196,61,40,.55); }
+.gcard.sel::before{ content:""; position:absolute; inset:5px; border-radius:11px; border:1px solid rgba(196,61,40,.35); pointer-events:none; }
+.gcard .gname{ font-family:var(--ff-jp); font-weight:800; font-size:26px; color:var(--ink); line-height:1.05; }
+.gcard .gname.tcat{ font-size:13px; line-height:1.2; min-height:32px; display:flex; align-items:center; justify-content:center; font-weight:800; }
+.gcard.sel .gname{ color:var(--shu); }
+.gcard .gcount{ font-size:11px; color:var(--ink-soft); font-weight:700; margin-top:3px; }
+.gcard .gmastery{ height:4px; border-radius:2px; background:var(--washi-line); margin-top:8px; overflow:hidden; }
+.gcard .gmastery>i{ display:block; height:100%; background:var(--sage); border-radius:2px; }
+.gcard .gquick{ display:flex; gap:6px; margin-top:9px; }
+.gcard .gq{ flex:1; border:1px solid var(--washi-line); background:var(--washi-soft); border-radius:9px; padding:5px 0;
+  font-size:11px; font-weight:800; font-family:var(--ff-jp); color:var(--shu); cursor:pointer; transition:transform .08s; }
+.gcard .gq:hover{ background:#f0dfd6; }
+.gcard .gq:active{ transform:scale(.9); }
+
+/* ---- Flashcard ---- */
+.progress-track{ height:9px; background:rgba(255,255,255,.08); border-radius:var(--pill); overflow:hidden; margin-bottom:5px; }
+.progress-fill{ height:100%; background:var(--sage); border-radius:var(--pill); transition:width .35s; }
+.mini-stat{ display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:#9fb1cd; margin-bottom:1rem; }
+.fc-stage{ perspective:1200px; margin:1rem 0; }
+.flashcard{ position:relative; width:100%; min-height:290px; cursor:pointer; transform-style:preserve-3d; transition:transform .5s cubic-bezier(.2,.9,.3,1); }
+.flashcard.flipped{ transform:rotateY(180deg); }
+.face{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; border-radius:var(--radius-lg);
+  background:var(--washi); border:1px solid var(--washi-dim); box-shadow:var(--shadow-lift);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; padding:1.5rem; text-align:center; }
+.face::before{ content:""; position:absolute; inset:10px; border-radius:15px; border:1px solid var(--washi-line); pointer-events:none; }
+.face.back{ transform:rotateY(180deg); background:linear-gradient(160deg,#f0e7d6,#e9dec7); }
+.face.back::before{ border-color:var(--shu-soft); }
+.fc-word{ display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:center; gap:4px 8px; position:relative; z-index:1; }
+.seg{ display:inline-flex; flex-direction:column; align-items:center; }
+.seg-letters{ font-family:var(--ff-jp); font-weight:800; font-size:clamp(40px,15vw,82px); color:var(--ink); line-height:1; }
+.seg.small .seg-letters{ font-size:clamp(30px,10vw,56px); }
+.seg-mark{ height:22px; margin-top:9px; display:flex; align-items:center; justify-content:center; }
+.rj-chip{ font-family:var(--ff-ui); font-weight:700; font-size:12px; color:var(--indigo); background:#e6dcc6;
+  border-radius:6px; padding:2px 7px; letter-spacing:.02em; }
+.rj-chip.yoon{ background:rgba(58,85,127,.16); color:var(--indigo); }
+.rj-chip.long{ background:rgba(182,137,62,.18); color:#8a6322; }
+.rj-chip.sokuon{ background:rgba(196,61,40,.14); color:var(--shu); font-weight:900; }
+.fc-tap{ position:relative; z-index:1; color:var(--ink-faint); font-weight:700; font-size:13px; margin-top:20px; }
+.fc-back-label{ position:relative; z-index:1; font-weight:700; color:var(--ink-soft); font-size:13px; margin-bottom:8px; }
+.fc-word.reveal{ margin-bottom:2px; }
+.face.back .seg-letters{ font-size:clamp(34px,11vw,58px); color:var(--shu); }
+.face.back .seg.small .seg-letters{ font-size:clamp(26px,8vw,44px); }
+.fc-note{ position:relative; z-index:1; font-weight:600; font-size:15px; color:var(--ink); margin-top:12px; max-width:300px; line-height:1.5; }
+.fc-level-tag{ position:relative; z-index:1; margin-top:16px; font-size:12px; font-weight:800; padding:5px 15px; border-radius:var(--pill); letter-spacing:.04em; text-transform:uppercase; }
+.fc-level-tag.hira{ background:rgba(90,122,82,.16); color:var(--sage); }
+.fc-level-tag.kata{ background:rgba(182,137,62,.18); color:#8a6322; }
+.fc-level-tag.tricky{ background:rgba(196,61,40,.14); color:var(--shu); }
+.fc-level-tag.word{ background:rgba(58,85,127,.16); color:var(--indigo); }
+.fc-warn{ position:relative; z-index:1; margin-top:12px; font-size:12px; color:var(--shu); font-weight:700; max-width:290px; line-height:1.45; }
+
+.snd-legend{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin:0 0 1rem; font-size:11.5px; font-weight:700; color:#9fb1cd; }
+.snd-legend>span{ display:inline-flex; align-items:center; gap:6px; }
+.lg-chip{ font-family:var(--ff-ui); font-size:10px; font-weight:800; border-radius:5px; padding:1px 6px; }
+.lg-chip.mora{ background:#e6dcc6; color:var(--indigo); }
+.lg-chip.yoon{ background:rgba(58,85,127,.2); color:#cdd9ea; }
+.lg-chip.long{ background:rgba(182,137,62,.25); color:var(--gold); }
+.lg-chip.sokuon{ background:rgba(196,61,40,.2); color:var(--shu-soft); }
+
+.round-btn{ width:54px; height:54px; border-radius:50%; border:1px solid var(--washi-dim); background:var(--washi);
+  font-size:22px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; color:var(--shu);
+  box-shadow:var(--shadow); transition:transform .08s; }
+.round-btn:active{ transform:scale(.9); }
+.round-btn.big{ width:64px; height:64px; font-size:27px; }
+.round-btn.off{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.18); color:#9fb1cd; }
+.fc-controls{ display:flex; align-items:center; justify-content:center; gap:14px; margin:1rem 0 .5rem; }
+.judge-row{ display:flex; gap:12px; }
+.judge{ flex:1; padding:15px; border-radius:var(--radius); border:1px solid; cursor:pointer; font-family:var(--ff-jp);
+  font-weight:800; font-size:16px; box-shadow:var(--shadow); display:flex; align-items:center; justify-content:center; gap:8px; transition:transform .08s; }
+.judge:active{ transform:translateY(2px); }
+.judge.again{ background:rgba(217,105,79,.1); color:var(--shu); border-color:rgba(217,105,79,.4); }
+.judge.know{ background:rgba(90,122,82,.12); color:var(--sage); border-color:rgba(90,122,82,.45); }
+
+/* ---- Explore ---- */
+.legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:12px; font-weight:700; color:#9fb1cd; margin-bottom:1rem; }
+.legend span{ display:inline-flex; align-items:center; gap:5px; }
+.tier-h{ font-family:var(--ff-jp); font-weight:800; font-size:17px; color:var(--washi); margin:1.25rem 0 9px; display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.tier-h .lead-k{ width:34px; height:34px; border-radius:9px; display:grid; place-items:center; background:linear-gradient(160deg,var(--indigo-soft),var(--indigo)); color:var(--washi); font-size:18px; }
+.tier-h .badge{ background:rgba(90,122,82,.16); color:var(--sage); border-radius:var(--pill); padding:2px 10px; font-size:11px; font-family:var(--ff-ui); font-weight:700; }
+.word-wrap{ display:flex; flex-wrap:wrap; gap:7px; }
+.wchip{ display:flex; flex-direction:column; align-items:center; gap:1px; padding:7px 12px; border-radius:12px; background:var(--washi);
+  border:1px solid var(--washi-dim); cursor:pointer; transition:transform .08s; min-width:48px; }
+.wchip .wk{ font-family:var(--ff-jp); font-weight:800; font-size:20px; color:var(--ink); line-height:1; }
+.wchip .wr{ font-size:10px; font-weight:700; color:var(--ink-soft); }
+.wchip:active{ transform:scale(.94); }
+.wchip.mastered{ border-color:var(--sage); background:#e8efe2; }
+.wchip.kata{ background:#f3ecdb; }
+
+/* ---- Stats ---- */
+.stat-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:1rem; }
+.stat-box{ background:var(--washi); border:1px solid var(--washi-dim); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+.stat-box::before{ content:""; position:absolute; inset:6px; border-radius:10px; border:1px solid var(--washi-line); pointer-events:none; }
+.stat-box .v{ font-family:var(--ff-jp); font-weight:800; font-size:32px; color:var(--ink); position:relative; z-index:1; }
+.stat-box .l{ font-size:12px; font-weight:700; color:var(--ink-soft); margin-top:2px; position:relative; z-index:1; }
+.stat-box.accent{ background:linear-gradient(160deg,#f0e7d6,#e9dec7); border-color:var(--shu-soft); }
+.stat-box.accent .v{ color:var(--shu); }
+
+.toast{ position:fixed; left:50%; top:18px; transform:translateX(-50%) translateY(-80px); background:var(--indigo-deep);
+  color:var(--washi); font-family:var(--ff-jp); font-weight:700; font-size:15px; padding:11px 20px; border-radius:var(--pill);
+  z-index:100; opacity:0; transition:all .3s; box-shadow:var(--shadow-lift); border:1px solid rgba(255,255,255,.14); }
+.toast.show{ transform:translateX(-50%) translateY(0); opacity:1; }
+.empty{ text-align:center; padding:2.5rem 1rem; color:#9fb1cd; font-weight:700; }
+.empty .e{ font-family:var(--ff-jp); font-size:46px; margin-bottom:8px; color:#7e90ad; }
+
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+@media(max-width:560px){
+  .group-grid{ grid-template-columns:repeat(auto-fill,minmax(84px,1fr)); }
+  .seal{ width:56px; height:56px; font-size:30px; }
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="toast" id="toast"></div>
+
+<div class="app">
+  <div class="topbar">
+    <a class="back" href="japanese-hub.html"><span>←</span> <span class="jp">日本語</span> Study Hub</a>
+    <div class="streak" id="streak">★ <span id="streak-num">0</span></div>
+  </div>
+
+  <header class="hero">
+    <div class="seal">仮</div>
+    <div class="titles">
+      <div class="eyebrow">かな · Hiragana &amp; Katakana</div>
+      <h1><ruby>仮名<rt>かな</rt></ruby>トレーナー</h1>
+      <div class="latin">Learn to read every kana</div>
+    </div>
+  </header>
+
+  <!-- PLAY -->
+  <div id="panel-play" class="panel">
+    <h2 class="section-h">れんしゅうしよう</h2>
+    <p class="section-sub">Pick your kana, then start the cards.</p>
+
+    <div class="play-switch">
+      <button class="ps-btn active" id="ps-groups" onclick="setPlayMode('gojuon')">五十音<small>Kana</small></button>
+      <button class="ps-btn" id="ps-tricky" onclick="setPlayMode('tricky')">にがて<small>Look-alikes</small></button>
+      <button class="ps-btn" id="ps-sight" onclick="setPlayMode('words')">単語<small>Words</small></button>
+    </div>
+
+    <!-- GOJUON MODE -->
+    <div id="mode-groups">
+      <div class="field">
+        <div class="field-label">クイック <span class="en">Quick picks</span></div>
+        <div class="chip-row" id="preset-row"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">かなを<ruby>選<rt>えら</rt></ruby>ぶ <span id="sel-summary" class="sel-summary"></span></div>
+        <div class="select-row">
+          <button class="btn ghost sm" onclick="selectAll()">Select all</button>
+          <button class="btn ghost sm" onclick="selectNone()">Clear</button>
+        </div>
+        <div class="group-grid" id="group-grid"></div>
+      </div>
+      <div class="field">
+        <div class="field-label"><ruby>文字<rt>もじ</rt></ruby> <span class="en">Script</span></div>
+        <div class="chip-row">
+          <button class="chip on" id="lv-starter" onclick="toggleLevel('starter')">ひらがな</button>
+          <button class="chip on alt" id="lv-advanced" onclick="toggleLevel('advanced')">カタカナ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRICKY / WORDS MODE (shared UI) -->
+    <div id="mode-tricky" class="hidden">
+      <div class="help-note" id="tricky-intro"></div>
+      <div class="field">
+        <div class="field-label">バッチ <span class="en">Batch size</span> <span id="batch-summary" class="sel-summary"></span></div>
+        <div class="chip-row" id="batch-row">
+          <button class="chip" data-batch="5" onclick="setBatch(5)">5</button>
+          <button class="chip on" data-batch="10" onclick="setBatch(10)">10</button>
+          <button class="chip" data-batch="20" onclick="setBatch(20)">20</button>
+          <button class="chip" data-batch="0" onclick="setBatch(0)">All</button>
+        </div>
+        <p class="hint-line">Small batches that grow as you’re ready.</p>
+      </div>
+      <div class="field">
+        <div class="field-label" id="tcat-label">カテゴリ <span id="tcat-summary" class="sel-summary"></span></div>
+        <div class="select-row">
+          <button class="btn ghost sm" onclick="trickyAll()">Select all</button>
+          <button class="btn ghost sm" onclick="trickyNone()">Clear</button>
+        </div>
+        <div class="group-grid" id="tricky-grid"></div>
+      </div>
+    </div>
+
+    <p class="section-sub" id="deck-count" style="margin-top:1.4rem; margin-bottom:0"></p>
+  </div>
+
+  <!-- FLASHCARDS -->
+  <div id="panel-flashcard" class="panel hidden">
+    <div class="progress-track"><div class="progress-fill" id="fc-fill" style="width:0%"></div></div>
+    <div class="mini-stat"><span id="fc-counter">0 / 0</span><span id="fc-mode-label">Practice</span></div>
+
+    <div class="fc-stage">
+      <div class="flashcard" id="flashcard" onclick="flipCard()">
+        <div class="face front">
+          <div class="fc-word" id="fc-word">あ</div>
+          <div class="fc-tap">tap to check</div>
+        </div>
+        <div class="face back">
+          <div class="fc-back-label" id="fc-back-label">this kana reads…</div>
+          <div class="fc-word reveal" id="fc-word-back">あ</div>
+          <div class="fc-note hidden" id="fc-note"></div>
+          <div class="fc-level-tag hira" id="fc-level">hiragana</div>
+          <div class="fc-warn hidden" id="fc-warn"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="snd-legend" id="snd-legend">
+      <span><span class="lg-chip mora">a</span> mora</span>
+      <span><span class="lg-chip yoon">ya</span> yōon · 1 beat</span>
+      <span><span class="lg-chip long">ー</span> long vowel</span>
+      <span><span class="lg-chip sokuon">っ</span> small tsu</span>
+    </div>
+
+    <div class="fc-controls">
+      <button class="round-btn big" onclick="event.stopPropagation(); shuffleDeck()" title="shuffle">🔀</button>
+    </div>
+
+    <div class="judge-row">
+      <button class="judge again" onclick="judge(false)">もう一度 Again</button>
+      <button class="judge know" onclick="judge(true)">できた Got it</button>
+    </div>
+
+    <div class="btn-row" style="margin-top:1rem; justify-content:center">
+      <button class="btn ghost sm" onclick="goPlay()">← Back</button>
+      <button class="btn ghost sm hidden" id="fc-review-btn" onclick="toggleReviewOnly()">Review missed</button>
+    </div>
+  </div>
+
+  <!-- EXPLORE -->
+  <div id="panel-explore" class="panel hidden">
+    <h2 class="section-h"><ruby>一覧<rt>いちらん</rt></ruby> · Browse</h2>
+    <p class="section-sub">Every kana in your selected rows.</p>
+    <div class="legend">
+      <span><b style="color:var(--sage)">✓</b> mastered</span>
+      <span><b style="color:var(--gold)">■</b> katakana</span>
+      <span>tap a kana to peek</span>
+    </div>
+    <div id="explore-list"></div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="panel-stats" class="panel hidden">
+    <h2 class="section-h"><ruby>記録<rt>きろく</rt></ruby> · Progress</h2>
+    <p class="section-sub">Everything is saved automatically.</p>
+    <div class="stat-grid">
+      <div class="stat-box accent"><div class="v" id="st-mastered">0</div><div class="l">kana mastered</div></div>
+      <div class="stat-box"><div class="v" id="st-stars">0</div><div class="l">stars earned</div></div>
+      <div class="stat-box"><div class="v" id="st-review">0</div><div class="l">to review</div></div>
+      <div class="stat-box"><div class="v" id="st-seen">0</div><div class="l">practised</div></div>
+    </div>
+    <button class="btn danger block sm" onclick="resetAll()">Reset all progress</button>
+  </div>
+</div>
+
+<!-- STICKY LAUNCH BAR -->
+<div class="launch-bar" id="launch-bar">
+  <span class="launch-info" id="launch-info">Pick kana to begin</span>
+  <div class="launch-btns">
+    <button class="btn primary launch" onclick="startMode('flashcard')">🃏 Start flashcards</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="tabbar">
+  <button class="tab active" data-tab="play" onclick="showTab('play')"><span class="ico">練</span>Practice</button>
+  <button class="tab" data-tab="explore" onclick="showTab('explore')"><span class="ico">見</span>Browse</button>
+  <button class="tab" data-tab="stats" onclick="showTab('stats')"><span class="ico">録</span>Progress</button>
+</nav>
+
+<script>
+/* ============ DATA ============ */
+/* Gojūon rows: id -> { rj: short label, kana: [ [hiragana, katakana, romaji], ... ] } */
+const GOJUON = {
+  a:{rj:"vowels", kana:[["あ","ア","a"],["い","イ","i"],["う","ウ","u"],["え","エ","e"],["お","オ","o"]]},
+  k:{rj:"k", kana:[["か","カ","ka"],["き","キ","ki"],["く","ク","ku"],["け","ケ","ke"],["こ","コ","ko"]]},
+  s:{rj:"s", kana:[["さ","サ","sa"],["し","シ","shi"],["す","ス","su"],["せ","セ","se"],["そ","ソ","so"]]},
+  t:{rj:"t", kana:[["た","タ","ta"],["ち","チ","chi"],["つ","ツ","tsu"],["て","テ","te"],["と","ト","to"]]},
+  n:{rj:"n", kana:[["な","ナ","na"],["に","ニ","ni"],["ぬ","ヌ","nu"],["ね","ネ","ne"],["の","ノ","no"]]},
+  h:{rj:"h", kana:[["は","ハ","ha"],["ひ","ヒ","hi"],["ふ","フ","fu"],["へ","ヘ","he"],["ほ","ホ","ho"]]},
+  m:{rj:"m", kana:[["ま","マ","ma"],["み","ミ","mi"],["む","ム","mu"],["め","メ","me"],["も","モ","mo"]]},
+  y:{rj:"y", kana:[["や","ヤ","ya"],["ゆ","ユ","yu"],["よ","ヨ","yo"]]},
+  r:{rj:"r", kana:[["ら","ラ","ra"],["り","リ","ri"],["る","ル","ru"],["れ","レ","re"],["ろ","ロ","ro"]]},
+  w:{rj:"w", kana:[["わ","ワ","wa"],["を","ヲ","wo"]]},
+  nn:{rj:"n", kana:[["ん","ン","n"]]},
+  g:{rj:"g", kana:[["が","ガ","ga"],["ぎ","ギ","gi"],["ぐ","グ","gu"],["げ","ゲ","ge"],["ご","ゴ","go"]]},
+  z:{rj:"z", kana:[["ざ","ザ","za"],["じ","ジ","ji"],["ず","ズ","zu"],["ぜ","ゼ","ze"],["ぞ","ゾ","zo"]]},
+  d:{rj:"d", kana:[["だ","ダ","da"],["ぢ","ヂ","ji"],["づ","ヅ","zu"],["で","デ","de"],["ど","ド","do"]]},
+  b:{rj:"b", kana:[["ば","バ","ba"],["び","ビ","bi"],["ぶ","ブ","bu"],["べ","ベ","be"],["ぼ","ボ","bo"]]},
+  p:{rj:"p", kana:[["ぱ","パ","pa"],["ぴ","ピ","pi"],["ぷ","プ","pu"],["ぺ","ペ","pe"],["ぽ","ポ","po"]]},
+  ky:{rj:"ky", kana:[["きゃ","キャ","kya"],["きゅ","キュ","kyu"],["きょ","キョ","kyo"]]},
+  sh:{rj:"sh", kana:[["しゃ","シャ","sha"],["しゅ","シュ","shu"],["しょ","ショ","sho"]]},
+  ch:{rj:"ch", kana:[["ちゃ","チャ","cha"],["ちゅ","チュ","chu"],["ちょ","チョ","cho"]]},
+  ny:{rj:"ny", kana:[["にゃ","ニャ","nya"],["にゅ","ニュ","nyu"],["にょ","ニョ","nyo"]]},
+  hy:{rj:"hy", kana:[["ひゃ","ヒャ","hya"],["ひゅ","ヒュ","hyu"],["ひょ","ヒョ","hyo"]]},
+  my:{rj:"my", kana:[["みゃ","ミャ","mya"],["みゅ","ミュ","myu"],["みょ","ミョ","myo"]]},
+  ryy:{rj:"ry", kana:[["りゃ","リャ","rya"],["りゅ","リュ","ryu"],["りょ","リョ","ryo"]]},
+  gy:{rj:"gy", kana:[["ぎゃ","ギャ","gya"],["ぎゅ","ギュ","gyu"],["ぎょ","ギョ","gyo"]]},
+  jj:{rj:"j", kana:[["じゃ","ジャ","ja"],["じゅ","ジュ","ju"],["じょ","ジョ","jo"]]},
+  by:{rj:"by", kana:[["びゃ","ビャ","bya"],["びゅ","ビュ","byu"],["びょ","ビョ","byo"]]},
+  py:{rj:"py", kana:[["ぴゃ","ピャ","pya"],["ぴゅ","ピュ","pyu"],["ぴょ","ピョ","pyo"]]}
+};
+const ORDER = ["a","k","s","t","n","h","m","y","r","w","nn",
+  "g","z","d","b","p",
+  "ky","sh","ch","ny","hy","my","ryy","gy","jj","by","py"];
+const GROUPS = ORDER.filter(g=>GOJUON[g]);
+
+/* Context-different readings (warnings on the card) */
+const WARN = {
+  "は":"As a topic particle, は is read “wa.”",
+  "へ":"As a direction particle, へ is read “e.”",
+  "を":"を is almost always the object particle “o.”",
+  "ん":"ん never begins a word — it’s a full beat of its own.",
+  "ぢ":"Rare today — usually written じ (ji).",
+  "づ":"Rare today — usually written ず (zu)."
+};
+
+/* Look-alike / tricky kana, grouped by the kind of confusion */
+const TRICKY = {
+  "シ・ツ・ソ・ン (カタカナ)":[
+    ["シ","shi","Two strokes sweep UP toward the right; written bottom-to-top."],
+    ["ツ","tsu","Two strokes come DOWN from the top; written top-to-bottom."],
+    ["ソ","so","One short stroke, then a long one coming down — like ン but downward."],
+    ["ン","n","One short stroke, then a hook that flicks UP from the bottom."]
+  ],
+  "ね・れ・わ (ひらがな)":[
+    ["ね","ne","Ends in a full loop on the right."],
+    ["れ","re","Right side curves out with NO loop."],
+    ["わ","wa","Right side is a small soft hook, no loop."]
+  ],
+  "る・ろ (ひらがな)":[
+    ["る","ru","Ends with a little loop."],
+    ["ろ","ro","Same shape but NO loop at the end."]
+  ],
+  "ぬ・め (ひらがな)":[
+    ["ぬ","nu","Has an extra loop tail at the end."],
+    ["め","me","Same start, but NO loop tail."]
+  ],
+  "は・ほ (ひらがな)":[
+    ["は","ha","Two horizontal bars on the right stem."],
+    ["ほ","ho","Like は but with an EXTRA top stroke."]
+  ],
+  "あ・お (ひらがな)":[
+    ["あ","a","Has a curl that loops through the cross."],
+    ["お","o","Has a little dot on the upper right; no inner loop."]
+  ],
+  "き・さ・ち (ひらがな)":[
+    ["き","ki","Two bars crossed by a vertical, curl at the bottom."],
+    ["さ","sa","One bar, then a curve — opens to the LEFT."],
+    ["ち","chi","Like さ flipped — opens to the RIGHT."]
+  ],
+  "ク・ワ・ウ・フ (カタカナ)":[
+    ["ク","ku","Sharp corner, short top stroke crossing in."],
+    ["ワ","wa","Open box shape, rounded bottom-left."],
+    ["ウ","u","Like ワ but with a small mark on top."],
+    ["フ","fu","Just a single bent stroke — no inner stroke."]
+  ],
+  "コ・ユ・ヨ (カタカナ)":[
+    ["コ","ko","Two strokes forming an open box (top + right)."],
+    ["ユ","yu","Bottom bar with a short vertical — opens upward."],
+    ["ヨ","yo","Three horizontal bars stacked like an E."]
+  ]
+};
+
+/* Kana words, grouped by theme: [kana, romaji, english] */
+const WORDS = {
+  "あいさつ Greetings":[
+    ["こんにちは","konnichiwa","hello / good afternoon"],["おはよう","ohayō","good morning"],
+    ["こんばんは","konbanwa","good evening"],["ありがとう","arigatō","thank you"],
+    ["すみません","sumimasen","excuse me / sorry"],["さようなら","sayōnara","goodbye"],
+    ["はい","hai","yes"],["いいえ","iie","no"]
+  ],
+  "かず Numbers":[
+    ["いち","ichi","one"],["に","ni","two"],["さん","san","three"],["よん","yon","four"],
+    ["ご","go","five"],["ろく","roku","six"],["なな","nana","seven"],["はち","hachi","eight"],
+    ["きゅう","kyū","nine"],["じゅう","jū","ten"]
+  ],
+  "どうぶつ Animals":[
+    ["いぬ","inu","dog"],["ねこ","neko","cat"],["とり","tori","bird"],["さかな","sakana","fish"],
+    ["うま","uma","horse"],["うさぎ","usagi","rabbit"],["くま","kuma","bear"],["ぞう","zō","elephant"]
+  ],
+  "たべもの Food":[
+    ["ごはん","gohan","rice / meal"],["みず","mizu","water"],["おちゃ","ocha","tea"],["たまご","tamago","egg"],
+    ["りんご","ringo","apple"],["すし","sushi","sushi"],["パン","pan","bread"],["ラーメン","rāmen","ramen"]
+  ],
+  "いろ Colours":[
+    ["あか","aka","red"],["あお","ao","blue"],["きいろ","kiiro","yellow"],["みどり","midori","green"],
+    ["しろ","shiro","white"],["くろ","kuro","black"],["ちゃいろ","chairo","brown"],["ピンク","pinku","pink"]
+  ],
+  "かぞく Family":[
+    ["はは","haha","(my) mother"],["ちち","chichi","(my) father"],["あね","ane","older sister"],
+    ["あに","ani","older brother"],["いもうと","imōto","younger sister"],["おとうと","otōto","younger brother"],
+    ["かぞく","kazoku","family"],["ともだち","tomodachi","friend"]
+  ],
+  "がっこう School":[
+    ["せんせい","sensei","teacher"],["がくせい","gakusei","student"],["がっこう","gakkō","school"],
+    ["ほん","hon","book"],["えんぴつ","enpitsu","pencil"],["べんきょう","benkyō","study"],
+    ["しゅくだい","shukudai","homework"],["きょうしつ","kyōshitsu","classroom"]
+  ],
+  "カタカナご Loanwords":[
+    ["コーヒー","kōhī","coffee"],["テレビ","terebi","TV"],["バス","basu","bus"],["ケーキ","kēki","cake"],
+    ["ノート","nōto","notebook"],["カメラ","kamera","camera"],["ペン","pen","pen"],["ドア","doa","door"]
+  ]
+};
+
+/* Build romaji map from gojūon (covers basic, dakuten, handakuten, yōon, both scripts) */
+const KMAP = {};
+for(const id of GROUPS){ for(const [h,k,r] of GOJUON[id].kana){ KMAP[h]=r; KMAP[k]=r; } }
+const SMALL_Y = new Set(["ゃ","ゅ","ょ","ャ","ュ","ョ"]);
+const SOKUON = new Set(["っ","ッ"]);
+const LONG = new Set(["ー"]);
+
+/* Mora segmentation for the romaji guide */
+function moraSegments(raw){
+  const s = raw; const segs=[]; let i=0;
+  while(i<s.length){
+    const ch=s[i], nx=s[i+1];
+    if(nx && SMALL_Y.has(nx)){ const combo=ch+nx; segs.push({k:combo, r:KMAP[combo]||"", type:"yoon"}); i+=2; continue; }
+    if(SOKUON.has(ch)){ segs.push({k:ch, r:"っ", type:"sokuon"}); i++; continue; }
+    if(LONG.has(ch)){ segs.push({k:ch, r:"ー", type:"long"}); i++; continue; }
+    segs.push({k:ch, r:KMAP[ch]||"", type:"mora"}); i++;
+  }
+  return segs.length?segs:[{k:raw, r:"", type:"mora"}];
+}
+
+/* ============ PERSISTENCE ============ */
+const SAVE_KEY="kanapals_v1";
+let save={ mastery:{}, stars:0, streakDays:0, lastDay:null, seen:{}, lastPicked:null };
+function load(){ try{ const r=localStorage.getItem(SAVE_KEY); if(r) save=Object.assign(save, JSON.parse(r)); }catch(e){} }
+function persist(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+function wkey(it){ return it.word+"::"+it.group; }
+
+/* ============ SESSION CONFIG ============ */
+let cfg={ picked:new Set(), hira:true, kata:true, playMode:'gojuon', batch:10, trickyCats:new Set(), wordCats:new Set() };
+function isWordMode(){ return cfg.playMode==='tricky' || cfg.playMode==='words'; }
+function curCats(){ return cfg.playMode==='words' ? cfg.wordCats : cfg.trickyCats; }
+function trickyData(){ return cfg.playMode==='words' ? WORDS : TRICKY; }
+
+/* ============ PRESETS ============ */
+const PRESETS=[
+  {name:"母音 a–o", rows:["a"]},
+  {name:"あ〜の", rows:["a","k","s","t","n"]},
+  {name:"清音 (basic)", rows:["a","k","s","t","n","h","m","y","r","w","nn"]},
+  {name:"濁音 (dakuten)", rows:["g","z","d","b"]},
+  {name:"半濁音 (p)", rows:["p"]},
+  {name:"拗音 (combos)", rows:["ky","sh","ch","ny","hy","my","ryy","gy","jj","by","py"]}
+];
+function applyPreset(idx){ const p=PRESETS[idx]; cfg.picked=new Set(p.rows.filter(g=>GOJUON[g])); buildGroupGrid(); updateCount(); refreshPresetState(); toast(p.name+" selected"); }
+function buildPresetRow(){ const row=document.getElementById('preset-row'); row.innerHTML='';
+  PRESETS.forEach((p,i)=>{ const b=document.createElement('button'); b.className='chip preset'; b.textContent=p.name; b.dataset.preset=i; b.onclick=()=>applyPreset(i); row.appendChild(b); }); }
+function refreshPresetState(){ document.querySelectorAll('.chip.preset').forEach(b=>{ const p=PRESETS[+b.dataset.preset]; const v=p.rows.filter(g=>GOJUON[g]); const exact=v.length===cfg.picked.size && v.every(g=>cfg.picked.has(g)); b.classList.toggle('on', exact); }); }
+
+/* ============ DECK BUILDING ============ */
+function activeGroups(){ return GROUPS.filter(g=>cfg.picked.has(g)); }
+function rowLabel(id){ return GOJUON[id].kana[0][0] + (GOJUON[id].rj==='vowels' ? " · vowels" : " · "+GOJUON[id].rj); }
+function getWordsFor(groups){
+  let all=[];
+  for(const g of groups){ if(!GOJUON[g]) continue;
+    for(const [h,k,r] of GOJUON[g].kana){
+      if(cfg.hira) all.push({word:h, romaji:r, group:g, level:'hiragana', note:rowLabel(g)});
+      if(cfg.kata) all.push({word:k, romaji:r, group:g, level:'katakana', note:rowLabel(g)});
+    }
+  }
+  const seen=new Set();
+  return all.filter(w=>{ const key=wkey(w); if(seen.has(key))return false; seen.add(key); return true; });
+}
+function getBatchWords(){
+  const data=trickyData(); const sel=curCats();
+  const cats=sel.size?[...sel]:Object.keys(data);
+  let all=[];
+  for(const cat of cats){ (data[cat]||[]).forEach(row=>{
+    if(cfg.playMode==='words') all.push({word:row[0], romaji:row[1], group:cat, level:'word', note:row[2]});
+    else all.push({word:row[0], romaji:row[1], group:cat, level:'tricky', note:row[2]});
+  }); }
+  const seen=new Set();
+  all=all.filter(w=>{ const key=wkey(w); if(seen.has(key))return false; seen.add(key); return true; });
+  all=srsOrder(all);
+  if(cfg.batch>0) all=all.slice(0,cfg.batch);
+  return all;
+}
+function getWords(){ return isWordMode()?getBatchWords():getWordsFor(activeGroups()); }
+function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function srsOrder(words){ return shuffle(words).sort((a,b)=>(save.mastery[wkey(a)]||0)-(save.mastery[wkey(b)]||0)); }
+
+/* ============ TABS ============ */
+let activeTab="play";
+function showTab(t){
+  activeTab=t;
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active', el.dataset.tab===t));
+  ['play','explore','stats'].forEach(p=>document.getElementById('panel-'+p).classList.add('hidden'));
+  document.getElementById('panel-flashcard').classList.add('hidden');
+  document.getElementById('panel-'+t).classList.remove('hidden');
+  setLaunchBar(t==='play');
+  if(t==='explore') buildExplore();
+  if(t==='stats') renderStats();
+}
+function setLaunchBar(show){ document.getElementById('launch-bar').classList.toggle('hidden', !show); }
+function goPlay(){ showTab('play'); }
+
+/* ============ SETUP ============ */
+function buildGroupGrid(){
+  const grid=document.getElementById('group-grid'); grid.innerHTML='';
+  GROUPS.forEach(g=>{
+    const total=GOJUON[g].kana.length*2;
+    const mast=groupMastery(g);
+    const lead=GOJUON[g].kana[0][0];
+    const c=document.createElement('div');
+    c.className='gcard'+(cfg.picked.has(g)?' sel':'');
+    c.innerHTML=`<div class="gname">${lead}</div><div class="gcount">${GOJUON[g].rj} · ${GOJUON[g].kana.length}</div>
+      <div class="gmastery"><i style="width:${mast}%"></i></div>
+      <div class="gquick"><button class="gq" data-fc>🃏 cards</button></div>`;
+    c.onclick=()=>{ cfg.picked.has(g)?cfg.picked.delete(g):cfg.picked.add(g); buildGroupGrid(); updateCount(); refreshPresetState(); };
+    c.querySelector('[data-fc]').onclick=(e)=>{ e.stopPropagation(); startMode('flashcard',[g]); };
+    grid.appendChild(c);
+  });
+  refreshPresetState();
+}
+function selectAll(){ cfg.picked=new Set(GROUPS); buildGroupGrid(); updateCount(); }
+function selectNone(){ cfg.picked.clear(); buildGroupGrid(); updateCount(); }
+function toggleLevel(l){
+  if(l==='starter'){ cfg.hira=!cfg.hira; document.getElementById('lv-starter').classList.toggle('on',cfg.hira); }
+  else { cfg.kata=!cfg.kata; document.getElementById('lv-advanced').classList.toggle('on',cfg.kata); }
+  updateCount();
+}
+
+/* ============ PLAY MODE ============ */
+function setPlayMode(m){
+  cfg.playMode=m;
+  document.getElementById('ps-groups').classList.toggle('active', m==='gojuon');
+  document.getElementById('ps-tricky').classList.toggle('active', m==='tricky');
+  document.getElementById('ps-sight').classList.toggle('active', m==='words');
+  document.getElementById('mode-groups').classList.toggle('hidden', m!=='gojuon');
+  document.getElementById('mode-tricky').classList.toggle('hidden', !isWordMode());
+  if(isWordMode()){
+    const intro=document.getElementById('tricky-intro'); const lbl=document.getElementById('tcat-label');
+    if(m==='words'){
+      intro.innerHTML='📖 <b>単語 Words</b> — read common words built from kana. Flip a card to reveal the reading (shown under each character) and the meaning.';
+      lbl.innerHTML='🗂️ <ruby>分類<rt>ぶんるい</rt></ruby> Themes <span id="tcat-summary" class="sel-summary"></span>';
+    } else {
+      intro.innerHTML='👀 <b>にがて Look-alikes</b> — kana that are easy to mix up. Each set groups characters that look similar, with a note on how to tell them apart.';
+      lbl.innerHTML='🗂️ カテゴリ Sets <span id="tcat-summary" class="sel-summary"></span>';
+    }
+    buildTrickyGrid();
+  }
+  updateCount();
+}
+function setBatch(n){ cfg.batch=n; document.querySelectorAll('#batch-row .chip').forEach(b=>b.classList.toggle('on', +b.dataset.batch===n)); updateCount(); }
+function buildTrickyGrid(){
+  const data=trickyData(); const sel=curCats();
+  const grid=document.getElementById('tricky-grid'); grid.innerHTML='';
+  Object.keys(data).forEach(cat=>{
+    const items=data[cat];
+    const mastered=items.filter(it=>(save.mastery[it[0]+'::'+cat]||0)>=4).length;
+    const mast=items.length?Math.round(mastered/items.length*100):0;
+    const c=document.createElement('div');
+    c.className='gcard'+(sel.has(cat)?' sel':'');
+    c.innerHTML=`<div class="gname tcat">${cat}</div><div class="gcount">${items.length}</div>
+      <div class="gmastery"><i style="width:${mast}%"></i></div>
+      <div class="gquick"><button class="gq" data-fc>🃏 cards</button></div>`;
+    c.onclick=()=>{ sel.has(cat)?sel.delete(cat):sel.add(cat); buildTrickyGrid(); updateCount(); };
+    c.querySelector('[data-fc]').onclick=(e)=>{ e.stopPropagation(); playTrickyCat(cat); };
+    grid.appendChild(c);
+  });
+}
+function trickyAll(){ const s=curCats(); s.clear(); Object.keys(trickyData()).forEach(c=>s.add(c)); buildTrickyGrid(); updateCount(); }
+function trickyNone(){ curCats().clear(); buildTrickyGrid(); updateCount(); }
+function playTrickyCat(cat){
+  const sel=curCats(); const saved=new Set(sel);
+  sel.clear(); sel.add(cat); startMode('flashcard');
+  sel.clear(); saved.forEach(c=>sel.add(c)); buildTrickyGrid(); updateCount();
+}
+
+function updateCount(){
+  if(isWordMode()){ updateCountTricky(); return; }
+  const n=getWords().length, gsel=cfg.picked.size;
+  document.getElementById('sel-summary').textContent = gsel ? `${gsel} row${gsel>1?'s':''}` : 'none';
+  document.getElementById('deck-count').textContent = !gsel ? '⚠️ Pick at least one row above'
+    : (n ? `📦 ${n} kana ready from ${gsel} row${gsel>1?'s':''}` : '⚠️ No kana — turn on ひらがな or カタカナ');
+  const info=document.getElementById('launch-info'); const ready=gsel&&n;
+  info.textContent = !gsel ? 'Pick kana to begin' : (n ? `${n} kana · ${gsel} row${gsel>1?'s':''}` : 'No kana — enable a script');
+  document.querySelectorAll('.btn.launch').forEach(b=>b.disabled=!ready);
+}
+function updateCountTricky(){
+  const data=trickyData(), sel=curCats(), csel=sel.size;
+  const totalPool=(csel?[...sel]:Object.keys(data)).reduce((s,c)=>s+(data[c]||[]).length,0);
+  const n=getWords().length;
+  const ts=document.getElementById('tcat-summary'); if(ts) ts.textContent=csel?`${csel} selected`:'all';
+  const bsum=document.getElementById('batch-summary'); if(bsum) bsum.textContent=cfg.batch>0?`${cfg.batch} at a time`:'all';
+  const label=cfg.playMode==='words'?'words':'kana'; const icon=cfg.playMode==='words'?'📖':'👀';
+  document.getElementById('deck-count').textContent=`${icon} ${n} ${label} this batch${totalPool>n?` (of ${totalPool})`:''}`;
+  document.getElementById('launch-info').textContent = n ? `${n} ${label} · batch of ${cfg.batch>0?cfg.batch:'all'}` : 'No items available';
+  document.querySelectorAll('.btn.launch').forEach(b=>b.disabled=!n);
+}
+
+/* ============ MASTERY ============ */
+function groupMastery(g){
+  const ws=[]; GOJUON[g].kana.forEach(([h,k])=>{ ws.push(h+'::'+g); ws.push(k+'::'+g); });
+  if(!ws.length) return 0;
+  const m=ws.filter(key=>(save.mastery[key]||0)>=4).length;
+  return Math.round(m/ws.length*100);
+}
+
+/* ============ STREAK ============ */
+function bumpStreak(){
+  const today=new Date().toDateString();
+  if(save.lastDay!==today){ const y=new Date(Date.now()-86400000).toDateString(); save.streakDays=(save.lastDay===y)?save.streakDays+1:1; save.lastDay=today; persist(); }
+  renderStreak();
+}
+function renderStreak(){ document.getElementById('streak-num').textContent=save.streakDays; }
+
+/* ============ FLASHCARDS ============ */
+let fc={ deck:[], i:0, flipped:false, reviewOnly:false, missed:new Set(), scopeLabel:'' };
+function startMode(mode, groupOverride){
+  if(isWordMode() && !groupOverride){
+    const words=getBatchWords();
+    if(!words.length){ toast('No items available.'); return; }
+    const label=cfg.playMode==='words'?'Words':'Look-alikes'; const sel=curCats();
+    fc.scopeLabel=label+(cfg.batch>0?` · batch of ${cfg.batch}`:'')+(sel.size===1?` · ${[...sel][0].split(' ')[0]}`:'');
+    bumpStreak();
+    fc.deck=srsOrder(words); fc.i=0; fc.flipped=false; fc.reviewOnly=false; fc.missed=new Set();
+    showGamePanel(); renderCard(); return;
+  }
+  const groups=groupOverride&&groupOverride.length?groupOverride.filter(g=>GOJUON[g]):[...cfg.picked];
+  if(!groups.length){ toast('Pick at least one row first.'); return; }
+  const words=getWordsFor(groups);
+  if(!words.length){ toast('No kana! Turn on ひらがな or カタカナ.'); return; }
+  if(!groupOverride){ save.lastPicked=[...cfg.picked]; persist(); }
+  fc.scopeLabel=groupOverride?(GOJUON[groups[0]].kana[0][0]+' row'):(groups.length===GROUPS.length?'All rows':groups.length+' rows');
+  bumpStreak();
+  fc.deck=srsOrder(words); fc.i=0; fc.flipped=false; fc.reviewOnly=false; fc.missed=new Set();
+  showGamePanel(); renderCard();
+}
+function showGamePanel(){
+  ['play','explore','stats'].forEach(p=>document.getElementById('panel-'+p).classList.add('hidden'));
+  document.getElementById('panel-flashcard').classList.remove('hidden');
+  setLaunchBar(false);
+}
+function fcActiveDeck(){ return fc.reviewOnly ? fc.deck.filter(w=>fc.missed.has(wkey(w))) : fc.deck; }
+
+function renderKana(word, el, showRomaji){
+  el.innerHTML='';
+  const segs=moraSegments(word);
+  const many=segs.length>=4;
+  segs.forEach(seg=>{
+    const col=document.createElement('span'); col.className='seg'+(many?' small':'');
+    const lt=document.createElement('span'); lt.className='seg-letters'; lt.textContent=seg.k;
+    col.appendChild(lt);
+    if(showRomaji){
+      const mk=document.createElement('span'); mk.className='seg-mark';
+      const chip=document.createElement('span'); chip.className='rj-chip '+seg.type;
+      chip.textContent = seg.type==='sokuon' ? 'っ' : seg.type==='long' ? 'ー' : seg.r;
+      mk.appendChild(chip); col.appendChild(mk);
+    }
+    el.appendChild(col);
+  });
+}
+function renderCard(){
+  const deck=fcActiveDeck();
+  const front=document.getElementById('fc-word');
+  if(!deck.length){ front.textContent='🎉'; return; }
+  if(fc.i>=deck.length) fc.i=deck.length-1;
+  const it=deck[fc.i];
+  save.seen[wkey(it)]=true;
+  document.getElementById('flashcard').classList.toggle('flipped', fc.flipped);
+  renderKana(it.word, front, false);                                   // front: clean kana, no answer
+  renderKana(it.word, document.getElementById('fc-word-back'), true);  // back: romaji revealed under each char
+  const cap=document.getElementById('fc-back-label');
+  cap.textContent = it.level==='word' ? 'this word…' : it.level==='tricky' ? 'this look-alike reads…' : 'this kana reads…';
+  const note=document.getElementById('fc-note');
+  if(it.note){ note.classList.remove('hidden'); note.textContent = it.level==='word' ? it.romaji+' — '+it.note : it.note; }
+  else note.classList.add('hidden');
+  const lvl=document.getElementById('fc-level');
+  const map={hiragana:['hiragana','hira'],katakana:['katakana','kata'],tricky:['look-alike','tricky'],word:['word','word']};
+  const [txt,cls]=map[it.level]||['kana','hira'];
+  lvl.textContent=txt; lvl.className='fc-level-tag '+cls;
+  const warn=document.getElementById('fc-warn');
+  if(WARN[it.word]){ warn.classList.remove('hidden'); warn.textContent='⚠️ '+WARN[it.word]; } else warn.classList.add('hidden');
+  document.getElementById('fc-counter').textContent=(fc.i+1)+' / '+deck.length;
+  document.getElementById('fc-fill').style.width=((fc.i+1)/deck.length*100)+'%';
+  document.getElementById('fc-mode-label').textContent=fc.reviewOnly?'Review':(fc.scopeLabel||'Practice');
+  const rb=document.getElementById('fc-review-btn');
+  rb.classList.toggle('hidden', fc.missed.size===0);
+  rb.textContent=fc.reviewOnly?'Show all':`Review missed (${fc.missed.size})`;
+}
+function flipCard(){ fc.flipped=!fc.flipped; renderCard(); }
+function shuffleDeck(){ fc.deck=shuffle(fc.deck); fc.i=0; fc.flipped=false; renderCard(); }
+function judge(known){
+  const d=fcActiveDeck(); if(!d.length) return;
+  const it=d[fc.i], k=wkey(it), box=save.mastery[k]||0;
+  if(known){ save.mastery[k]=Math.min(5,box+1); if(save.mastery[k]>=4) save.stars++; fc.missed.delete(k); }
+  else { save.mastery[k]=Math.max(0,box-1); fc.missed.add(k); }
+  persist(); fc.flipped=false;
+  if(fc.i<d.length-1){ fc.i++; renderCard(); }
+  else { renderCard(); toast(fc.missed.size?'Deck done! Tap “Review missed”.':'🌟 Whole deck done!'); }
+}
+function toggleReviewOnly(){ fc.reviewOnly=!fc.reviewOnly; fc.i=0; fc.flipped=false; renderCard(); }
+
+/* ============ EXPLORE ============ */
+function buildExplore(){
+  const el=document.getElementById('explore-list'); el.innerHTML='';
+  const groups=activeGroups();
+  if(!groups.length){ el.innerHTML='<div class="empty"><div class="e">見</div>No rows selected.<br>Pick some in the Practice tab.</div>'; return; }
+  groups.forEach(g=>{
+    const h=document.createElement('div'); h.className='tier-h';
+    h.innerHTML=`<span class="lead-k">${GOJUON[g].kana[0][0]}</span> ${GOJUON[g].rj} <span class="badge">${groupMastery(g)}% mastered</span>`;
+    el.appendChild(h);
+    const wrap=document.createElement('div'); wrap.className='word-wrap';
+    GOJUON[g].kana.forEach(([hk,kk,r])=>{
+      if(cfg.hira) wrap.appendChild(kanaChip(hk,r,g,false));
+      if(cfg.kata) wrap.appendChild(kanaChip(kk,r,g,true));
+    });
+    el.appendChild(wrap);
+  });
+}
+function kanaChip(ch,r,g,isKata){
+  const mastered=(save.mastery[ch+'::'+g]||0)>=4;
+  const chip=document.createElement('span');
+  chip.className='wchip'+(mastered?' mastered':'')+(isKata?' kata':'');
+  chip.innerHTML=`<span class="wk">${(mastered?'':'')}${ch}</span><span class="wr">${mastered?'✓ ':''}${r}</span>`;
+  chip.onclick=()=>{ chip.style.transform='scale(1.18)'; setTimeout(()=>chip.style.transform='',150); toast(ch+' = '+r); };
+  return chip;
+}
+
+/* ============ STATS ============ */
+function renderStats(){
+  let mastered=0;
+  for(const g of GROUPS){ GOJUON[g].kana.forEach(([h,k])=>{ if((save.mastery[h+'::'+g]||0)>=4) mastered++; if((save.mastery[k+'::'+g]||0)>=4) mastered++; }); }
+  Object.keys(TRICKY).forEach(cat=>TRICKY[cat].forEach(it=>{ if((save.mastery[it[0]+'::'+cat]||0)>=4) mastered++; }));
+  Object.keys(WORDS).forEach(cat=>WORDS[cat].forEach(it=>{ if((save.mastery[it[0]+'::'+cat]||0)>=4) mastered++; }));
+  const review=Object.keys(save.mastery).filter(k=>save.mastery[k]>0 && save.mastery[k]<4).length;
+  document.getElementById('st-mastered').textContent=mastered;
+  document.getElementById('st-stars').textContent=save.stars;
+  document.getElementById('st-review').textContent=review;
+  document.getElementById('st-seen').textContent=Object.keys(save.seen).length;
+}
+function resetAll(){
+  if(!confirm('Reset all progress, stars and streaks? This can’t be undone.')) return;
+  save={ mastery:{}, stars:0, streakDays:0, lastDay:null, seen:{}, lastPicked:null };
+  cfg.picked=new Set(DEFAULT_ROWS);
+  persist(); renderStreak(); renderStats(); buildGroupGrid(); updateCount(); toast('Progress reset.');
+}
+
+/* ============ TOAST ============ */
+let toastT;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2000); }
+
+/* ============ INIT ============ */
+const DEFAULT_ROWS=["a","k","s","t","n","h","m","y","r","w","nn"];
+load();
+renderStreak();
+if(Array.isArray(save.lastPicked) && save.lastPicked.length){ cfg.picked=new Set(save.lastPicked.filter(g=>GOJUON[g])); }
+else { cfg.picked=new Set(DEFAULT_ROWS); }
+buildPresetRow();
+buildGroupGrid();
+buildTrickyGrid();
+setBatch(cfg.batch);
+updateCount();
+setLaunchBar(true);
+</script>
+</body>
+</html>
