@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pocket — drum drill station</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#16130F;
+    --panel:#211C16;
+    --panel2:#2B251D;
+    --edge:#3A3228;
+    --edge2:#4A4032;
+    --text:#EFE7D8;
+    --muted:#9B9081;
+    --muted2:#6E665A;
+    --amber:#FF8A1E;
+    --cyan:#46D6C4;
+    --shadow:rgba(0,0,0,.45);
+    --kit-body:#4C4334;
+    --kit-hw:#5A4F3B;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 70% -10%, #221d16 0%, transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Space Grotesk",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:18px;
+    min-height:100%;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;align-items:center;gap:18px;
+    flex-wrap:wrap;
+    padding:6px 4px 16px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px}
+  .logo{
+    font-weight:700;font-size:30px;letter-spacing:.16em;
+    color:var(--text);
+  }
+  .logo b{color:var(--amber)}
+  .tag{font-family:"DM Mono",monospace;font-size:12px;color:var(--muted);letter-spacing:.04em}
+  .led{
+    margin-left:auto;
+    display:flex;align-items:center;gap:14px;
+    background:#0E0C09;
+    border:1px solid var(--edge);
+    border-radius:12px;
+    padding:8px 16px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,.6);
+  }
+  .bpm-num{
+    font-family:"DM Mono",monospace;font-weight:500;
+    font-size:40px;line-height:1;color:var(--amber);
+    text-shadow:0 0 14px rgba(255,138,30,.55);
+    min-width:96px;text-align:right;font-variant-numeric:tabular-nums;
+  }
+  .bpm-lab{font-family:"DM Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.18em}
+  .drill-flag{
+    font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.12em;
+    color:var(--cyan);opacity:0;transition:opacity .2s;
+  }
+  .drill-flag.on{opacity:1}
+
+  /* ---------- transport ---------- */
+  .transport{
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    background:var(--panel);
+    border:1px solid var(--edge);
+    border-radius:14px;
+    padding:14px 16px;
+    margin-bottom:16px;
+    box-shadow:0 6px 18px var(--shadow);
+  }
+  .play{
+    display:flex;align-items:center;justify-content:center;gap:10px;
+    width:64px;height:64px;border-radius:50%;
+    border:1px solid var(--edge2);
+    background:radial-gradient(circle at 35% 30%, #3a3228, #1c1813);
+    color:var(--text);cursor:pointer;flex:none;
+    transition:transform .08s, box-shadow .2s, border-color .2s;
+  }
+  .play:hover{border-color:var(--amber);box-shadow:0 0 0 4px rgba(255,138,30,.12)}
+  .play:active{transform:scale(.95)}
+  .play.playing{
+    border-color:var(--amber);
+    box-shadow:0 0 22px rgba(255,138,30,.4), inset 0 0 14px rgba(255,138,30,.18);
+  }
+  .play svg{width:24px;height:24px;fill:var(--amber)}
+
+  .ctl{display:flex;flex-direction:column;gap:5px;min-width:130px}
+  .ctl-top{display:flex;justify-content:space-between;align-items:baseline}
+  .ctl label{font-family:"DM Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.1em}
+  .ctl .val{font-family:"DM Mono",monospace;font-size:12px;color:var(--text)}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:4px;
+    background:var(--edge2);outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--amber);border:2px solid #1c1813;cursor:pointer;
+    box-shadow:0 0 8px rgba(255,138,30,.5);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;background:var(--amber);
+    border:2px solid #1c1813;cursor:pointer;
+  }
+  .spacer{flex:1}
+  .ghost-btn{
+    font-family:"DM Mono",monospace;font-size:11px;letter-spacing:.08em;
+    color:var(--muted);background:transparent;border:1px solid var(--edge2);
+    border-radius:9px;padding:9px 12px;cursor:pointer;transition:.18s;
+  }
+  .ghost-btn:hover{color:var(--text);border-color:var(--amber)}
+
+  /* ---------- main grid layout ---------- */
+  .stage{display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start}
+  @media (max-width:880px){.stage{grid-template-columns:1fr}}
+
+  .seq-panel{
+    background:var(--panel);border:1px solid var(--edge);border-radius:14px;
+    padding:14px;box-shadow:0 6px 18px var(--shadow);overflow:hidden;
+  }
+  .seq-scroll{overflow-x:auto;padding-bottom:4px}
+  .seq{
+    --label-w:118px;
+    display:grid;
+    grid-template-columns:var(--label-w) repeat(16,minmax(34px,1fr));
+    gap:6px;min-width:620px;
+  }
+  .count-row{display:contents}
+  .count-cell{
+    font-family:"DM Mono",monospace;font-size:12px;text-align:center;
+    color:var(--muted2);padding-bottom:2px;user-select:none;
+  }
+  .count-cell.beat{color:var(--amber)}
+  .count-spacer{}
+
+  .row-label{
+    display:flex;align-items:center;gap:8px;
+    font-family:"DM Mono",monospace;font-size:13px;color:var(--text);
+    background:var(--panel2);border:1px solid var(--edge);border-radius:8px;
+    padding:0 10px;cursor:pointer;position:sticky;left:0;z-index:2;
+    transition:.15s;
+  }
+  .row-label:hover{border-color:var(--edge2)}
+  .row-label:active{transform:scale(.98)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .row-label .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .pad{
+    position:relative;aspect-ratio:1/1;min-height:30px;
+    border-radius:8px;background:#0F0D0A;
+    border:1px solid var(--edge);cursor:pointer;
+    transition:transform .05s, background .1s, box-shadow .12s;
+  }
+  .pad:hover{border-color:var(--edge2)}
+  .pad::after{
+    content:"";position:absolute;inset:5px;border-radius:5px;
+    background:transparent;transition:.1s;
+  }
+  .pad.on::after{background:var(--rc, var(--amber));box-shadow:0 0 10px -1px var(--rc, var(--amber))}
+  .pad.beat{border-color:var(--edge2)}
+  .pad.cursor{box-shadow:inset 0 0 0 2px rgba(70,214,196,.7)}
+  .pad.cursor.on::after{filter:brightness(1.45) saturate(1.1)}
+  .pad.flash::after{filter:brightness(1.6)}
+
+  /* ---------- side panel ---------- */
+  .side{display:flex;flex-direction:column;gap:16px}
+  .card{
+    background:var(--panel);border:1px solid var(--edge);border-radius:14px;
+    padding:16px;box-shadow:0 6px 18px var(--shadow);
+  }
+  .card h2{
+    font-family:"DM Mono",monospace;font-weight:500;font-size:11px;
+    letter-spacing:.18em;color:var(--muted);text-transform:uppercase;
+    margin-bottom:12px;display:flex;align-items:center;gap:8px;
+  }
+  .card h2::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan)}
+
+  /* ---------- kit diagram ---------- */
+  .kit-card{margin-bottom:16px}
+  .kit-sub{text-transform:none;letter-spacing:0;color:var(--muted);font-weight:400;font-family:"Space Grotesk"}
+  .kit-wrap{
+    background:radial-gradient(120% 95% at 50% 16%, #221d15 0%, #131009 78%);
+    border:1px solid var(--edge);border-radius:12px;padding:8px 6px 2px;
+  }
+  .kit-svg{width:100%;height:auto;display:block;max-height:300px}
+  .kit-svg .body{fill:var(--kit-body)}
+  .kit-svg .rim{fill:none;stroke:var(--kit-hw);stroke-width:2}
+  .kit-svg .hw{stroke:var(--kit-hw);stroke-width:3;stroke-linecap:round;fill:none}
+  .kit-svg .lab{fill:var(--muted);font-family:"DM Mono",monospace;font-size:11px;text-anchor:middle;pointer-events:none}
+  .kit-svg .part{transition:opacity .25s}
+  .kit-svg .part.ghost{opacity:.13}
+  .kit-svg .part.lit .body{animation:strike .5s ease-out}
+  .kit-svg .module rect{fill:#241f17;stroke:var(--kit-hw);stroke-width:1.5}
+  .kit-svg .module .screen{fill:#173330;stroke:none}
+  .kit-svg .module circle{fill:var(--kit-hw)}
+  .kit-svg .modlab{fill:var(--muted2);font-family:"DM Mono",monospace;font-size:9px;text-anchor:middle;letter-spacing:.08em}
+  @keyframes strike{
+    0%{fill:var(--glow);filter:drop-shadow(0 0 8px var(--glow))}
+    100%{fill:var(--kit-body);filter:none}
+  }
+
+  /* layout segmented */
+  .seg{display:flex;background:#0F0D0A;border:1px solid var(--edge);border-radius:10px;padding:3px;gap:3px}
+  .seg button{
+    flex:1;font-family:"Space Grotesk";font-size:13px;font-weight:500;
+    color:var(--muted);background:transparent;border:none;border-radius:7px;
+    padding:9px 4px;cursor:pointer;transition:.15s;
+  }
+  .seg button:hover{color:var(--text)}
+  .seg button.active{background:var(--panel2);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.4)}
+  .seg .pc{font-family:"DM Mono",monospace;font-size:10px;color:var(--muted2);display:block;margin-top:2px}
+  .seg button.active .pc{color:var(--amber)}
+
+  /* presets */
+  .preset-list{display:flex;flex-direction:column;gap:7px}
+  .preset{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:var(--panel2);border:1px solid var(--edge);border-radius:10px;
+    padding:10px 12px;cursor:pointer;transition:.15s;color:var(--text);
+  }
+  .preset:hover{border-color:var(--edge2)}
+  .preset.active{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+  .preset .pname{font-size:14px;font-weight:500;flex:1}
+  .preset .diff{
+    font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.06em;
+    padding:2px 7px;border-radius:20px;border:1px solid var(--edge2);color:var(--muted)
+  }
+  .preset .diff.easy{color:#86d59a;border-color:#3c5a44}
+  .preset .diff.med{color:#e7c46b;border-color:#5c5132}
+
+  /* drill guide callout */
+  .guide{
+    background:linear-gradient(180deg,#1a2a28,#16201f);
+    border:1px solid #2b4744;border-radius:10px;padding:12px 13px;margin-top:12px;
+  }
+  .guide .gtitle{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.14em;color:var(--cyan);text-transform:uppercase;margin-bottom:6px}
+  .guide p{font-size:13px;line-height:1.5;color:var(--text)}
+
+  /* drill controls */
+  .drill-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-family:"DM Mono",monospace;font-size:10px;letter-spacing:.08em;color:var(--muted)}
+  .field input{
+    font-family:"DM Mono",monospace;font-size:14px;color:var(--text);
+    background:#0F0D0A;border:1px solid var(--edge);border-radius:8px;padding:8px 10px;width:100%;
+  }
+  .field input:focus{outline:none;border-color:var(--cyan)}
+  .drill-meter{height:8px;border-radius:6px;background:#0F0D0A;border:1px solid var(--edge);overflow:hidden;margin:4px 0 8px}
+  .drill-fill{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--amber));transition:width .25s}
+  .drill-status{font-family:"DM Mono",monospace;font-size:11px;color:var(--muted);margin-bottom:12px;min-height:14px}
+  .drill-status b{color:var(--text)}
+  .drill-btn{
+    width:100%;font-family:"Space Grotesk";font-weight:600;font-size:14px;
+    color:#10201e;background:var(--cyan);border:none;border-radius:10px;
+    padding:11px;cursor:pointer;transition:.15s;
+  }
+  .drill-btn:hover{filter:brightness(1.08)}
+  .drill-btn.active{background:var(--amber);color:#231405}
+
+  .hint{font-size:12px;color:var(--muted);line-height:1.5;margin-top:10px}
+  footer{text-align:center;color:var(--muted2);font-family:"DM Mono",monospace;font-size:11px;margin-top:22px;letter-spacing:.04em}
+
+  /* ---------- course ---------- */
+  .course{margin-top:28px}
+  .course-head{max-width:780px;margin-bottom:18px}
+  .course-title{font-size:27px;font-weight:700;letter-spacing:-.01em}
+  .course-title .accent{color:var(--amber)}
+  .course-intro{margin-top:9px;color:var(--muted);font-size:14px;line-height:1.6}
+  .course-intro b{color:var(--text)}
+
+  .lessons{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+  .lesson{background:var(--panel);border:1px solid var(--edge);border-radius:12px;overflow:hidden}
+  .lesson.open{border-color:var(--edge2)}
+  .lesson-head{
+    width:100%;display:flex;align-items:center;gap:14px;text-align:left;
+    background:transparent;border:none;color:var(--text);cursor:pointer;
+    padding:14px 16px;font-family:"Space Grotesk";
+  }
+  .lesson-head:hover{background:var(--panel2)}
+  .lnum{font-family:"DM Mono",monospace;font-size:13px;color:var(--amber);width:22px;flex:none}
+  .lname{font-weight:600;font-size:16px;flex:none}
+  .lline{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lchev{font-family:"DM Mono",monospace;color:var(--muted);font-size:20px;flex:none;transition:transform .2s;line-height:1}
+  .lesson.open .lchev{transform:rotate(45deg)}
+  .lesson-body{padding:0 16px 16px;border-top:1px solid var(--edge)}
+  .lesson-body .inner{padding-top:15px;display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:20px}
+  @media(max-width:680px){.lesson-body .inner{grid-template-columns:1fr}}
+  .notation{
+    font-family:"DM Mono",monospace;font-size:13px;line-height:1.75;
+    background:#0F0D0A;border:1px solid var(--edge);border-radius:10px;padding:12px 14px;white-space:pre;overflow-x:auto;
+  }
+  .notation .nlab{color:var(--cyan)}
+  .ncount{font-family:"DM Mono",monospace;font-size:11px;color:var(--muted);margin-top:9px}
+  .lmeta{display:flex;flex-direction:column;gap:12px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-family:"DM Mono",monospace;font-size:11px;color:var(--muted);border:1px solid var(--edge2);border-radius:20px;padding:3px 10px}
+  .lbpm{font-family:"DM Mono",monospace;font-size:12px;color:var(--amber)}
+  .ltip{font-size:13.5px;line-height:1.55;color:var(--text)}
+  .lnote{font-size:12px;color:var(--muted);line-height:1.5;border-left:2px solid var(--edge2);padding-left:10px}
+  .load-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+  .load-btn{
+    font-family:"Space Grotesk";font-weight:600;font-size:13px;color:#10201e;
+    background:var(--cyan);border:none;border-radius:9px;padding:9px 14px;cursor:pointer;transition:.15s;
+  }
+  .load-btn:hover{filter:brightness(1.08)}
+  .load-btn.var{background:var(--panel2);color:var(--text);border:1px solid var(--edge2)}
+  .load-btn.var:hover{border-color:var(--cyan);color:var(--text)}
+
+  .course-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  @media(max-width:760px){.course-grid{grid-template-columns:1fr}}
+  .fill-item{margin-bottom:13px}
+  .fill-item:last-child{margin-bottom:0}
+  .fill-item .lbl{color:var(--muted);font-size:12px;font-family:"DM Mono",monospace;margin-bottom:3px}
+  .stick{font-family:"DM Mono",monospace;font-size:15px;color:var(--text);letter-spacing:.14em}
+  .stick .k{color:var(--amber)}
+  .stick .c{color:var(--cyan)}
+  .ex-list{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .ex-list li{font-size:13px;line-height:1.5;color:var(--text);display:flex;gap:10px}
+  .ex-list li .ix{font-family:"DM Mono",monospace;color:var(--amber);flex:none}
+  .ex-note{font-size:12px;color:var(--muted);margin-top:11px;line-height:1.5}
+
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important}
+    .pad.flash::after{filter:none}
+    .kit-svg .part.lit .body{animation-duration:.2s}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo">POCK<b>E</b>T</div>
+      <div class="tag">drum drill station</div>
+    </div>
+    <div class="led">
+      <div>
+        <div class="bpm-num" id="bpmNum">100</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <span class="bpm-lab">BPM</span>
+        <span class="drill-flag" id="drillFlag">▲ DRILLING</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="transport">
+    <button class="play" id="playBtn" aria-label="Play or stop (space)">
+      <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+
+    <div class="ctl" style="min-width:180px">
+      <div class="ctl-top"><label>tempo</label><span class="val" id="tempoVal">100 bpm</span></div>
+      <input type="range" id="tempo" min="40" max="220" value="100" />
+    </div>
+
+    <div class="ctl">
+      <div class="ctl-top"><label>swing</label><span class="val" id="swingVal">0%</span></div>
+      <input type="range" id="swing" min="0" max="60" value="0" />
+    </div>
+
+    <div class="ctl">
+      <div class="ctl-top"><label>volume</label><span class="val" id="volVal">80%</span></div>
+      <input type="range" id="vol" min="0" max="100" value="80" />
+    </div>
+
+    <div class="spacer"></div>
+    <button class="ghost-btn" id="clearBtn">clear</button>
+    <button class="ghost-btn" id="randBtn">random</button>
+  </div>
+
+  <div class="card kit-card">
+    <h2>Your kit <span class="kit-sub">— Roland TD-07DMK · 3-cymbal setup · each pad lights up as it plays</span></h2>
+    <div class="kit-wrap">
+      <svg class="kit-svg" viewBox="0 0 440 300" role="img" aria-label="Roland TD-07DMK electronic drum kit diagram on a four-post rack: hi-hat, crash, second crash and ride cymbals, dual-zone snare, three toms, kick pad and TD-07 module. Each pad glows when it plays.">
+        <defs>
+          <radialGradient id="floorGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#000" stop-opacity=".55"/>
+            <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="220" cy="286" rx="205" ry="13" fill="url(#floorGrad)"/>
+
+        <!-- four-post rack + hardware (behind pads) -->
+        <g class="hw">
+          <line x1="95"  y1="118" x2="95"  y2="264"/>
+          <line x1="312" y1="118" x2="312" y2="264"/>
+          <line x1="95"  y1="120" x2="312" y2="120"/>
+          <line x1="80"  y1="264" x2="336" y2="264"/>
+          <line x1="95"  y1="264" x2="84"  y2="272"/>
+          <line x1="312" y1="264" x2="323" y2="272"/>
+          <!-- cymbal boom arms -->
+          <line x1="100" y1="120" x2="120" y2="88"/>
+          <line x1="232" y1="120" x2="245" y2="78"/>
+          <line x1="312" y1="122" x2="348" y2="102"/>
+          <!-- tom mounts -->
+          <line x1="150" y1="120" x2="172" y2="132"/>
+          <line x1="236" y1="120" x2="236" y2="128"/>
+          <line x1="312" y1="150" x2="326" y2="166"/>
+          <!-- snare stand -->
+          <line x1="128" y1="200" x2="118" y2="264"/>
+          <line x1="128" y1="200" x2="140" y2="264"/>
+          <!-- hi-hat stand + pedal -->
+          <line x1="60" y1="152" x2="60" y2="264"/>
+          <line x1="48" y1="264" x2="74" y2="264"/>
+          <!-- kick pad mount + pedal -->
+          <line x1="205" y1="226" x2="205" y2="252"/>
+          <line x1="190" y1="258" x2="236" y2="263"/>
+          <line x1="205" y1="250" x2="216" y2="238"/>
+          <!-- module mount -->
+          <line x1="312" y1="208" x2="372" y2="214"/>
+        </g>
+
+        <!-- cymbals (CY-5) -->
+        <g class="part" id="p-crash" data-part="crash">
+          <ellipse class="body" cx="120" cy="86" rx="40" ry="8" transform="rotate(-13 120 86)"/>
+          <ellipse class="rim"  cx="120" cy="86" rx="5" ry="2"/>
+          <text class="lab" x="118" y="64">Crash</text>
+        </g>
+        <g class="part" id="p-crash2" data-part="crash2">
+          <ellipse class="body" cx="245" cy="74" rx="37" ry="8" transform="rotate(-7 245 74)"/>
+          <ellipse class="rim"  cx="245" cy="74" rx="5" ry="2"/>
+          <text class="lab" x="245" y="52">Crash 2</text>
+        </g>
+        <g class="part" id="p-ride" data-part="ride">
+          <ellipse class="body" cx="350" cy="100" rx="45" ry="9" transform="rotate(9 350 100)"/>
+          <ellipse class="rim"  cx="350" cy="100" rx="5" ry="2"/>
+          <text class="lab" x="356" y="78">Ride</text>
+        </g>
+        <g class="part" id="p-hihat" data-part="hihat">
+          <ellipse class="body" cx="60" cy="142" rx="30" ry="7"/>
+          <ellipse class="rim"  cx="60" cy="152" rx="27" ry="6"/>
+          <text class="lab" x="60" y="124">Hi-Hat</text>
+        </g>
+
+        <!-- mesh toms (PDX-6A x3) -->
+        <g class="part" id="p-tomHigh" data-part="tomHigh">
+          <ellipse class="body" cx="172" cy="138" rx="25" ry="20"/>
+          <ellipse class="rim"  cx="172" cy="138" rx="25" ry="20"/>
+          <text class="lab" x="170" y="110">Tom 1</text>
+        </g>
+        <g class="part" id="p-tomMid" data-part="tomMid">
+          <ellipse class="body" cx="236" cy="134" rx="27" ry="21"/>
+          <ellipse class="rim"  cx="236" cy="134" rx="27" ry="21"/>
+          <text class="lab" x="240" y="106">Tom 2</text>
+        </g>
+        <g class="part" id="p-tomLow" data-part="tomLow">
+          <ellipse class="body" cx="326" cy="180" rx="33" ry="26"/>
+          <ellipse class="rim"  cx="326" cy="180" rx="33" ry="26"/>
+          <text class="lab" x="326" y="220">Tom 3</text>
+        </g>
+
+        <!-- mesh snare (PDX-8) + kick pad (KD-2) -->
+        <g class="part" id="p-snare" data-part="snare">
+          <ellipse class="body" cx="128" cy="196" rx="34" ry="24"/>
+          <ellipse class="rim"  cx="128" cy="196" rx="34" ry="24"/>
+          <ellipse class="rim"  cx="128" cy="196" rx="25" ry="17"/>
+          <text class="lab" x="120" y="236">Snare</text>
+        </g>
+        <g class="part" id="p-kick" data-part="kick">
+          <ellipse class="body" cx="205" cy="224" rx="27" ry="23"/>
+          <ellipse class="rim"  cx="205" cy="224" rx="27" ry="23"/>
+          <text class="lab" x="205" y="227">Kick</text>
+        </g>
+
+        <!-- TD-07 sound module -->
+        <g class="module" aria-hidden="true">
+          <rect x="372" y="204" width="48" height="32" rx="4"/>
+          <rect class="screen" x="378" y="210" width="36" height="11" rx="2"/>
+          <circle cx="380" cy="229" r="2.4"/>
+          <circle cx="391" cy="229" r="2.4"/>
+          <circle cx="402" cy="229" r="2.4"/>
+          <text class="modlab" x="396" y="250">TD-07</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="seq-panel">
+      <div class="seq-scroll">
+        <div class="seq" id="seq"></div>
+      </div>
+      <p class="hint">Tap a pad to place a hit. Click a drum name to hear it. The cyan beam is the beat passing through — read the counts up top: <b>1 e &amp; a</b>.</p>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h2>Beats to learn</h2>
+        <div class="preset-list" id="presetList"></div>
+        <div class="guide" id="guide" hidden>
+          <div class="gtitle">Drill guide</div>
+          <p id="guideText"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Tempo drill</h2>
+        <div class="drill-grid">
+          <div class="field"><label>start bpm</label><input type="number" id="dStart" value="70" min="40" max="220"></div>
+          <div class="field"><label>target bpm</label><input type="number" id="dTarget" value="130" min="40" max="220"></div>
+          <div class="field"><label>step +bpm</label><input type="number" id="dStep" value="6" min="1" max="40"></div>
+          <div class="field"><label>every (bars)</label><input type="number" id="dBars" value="2" min="1" max="16"></div>
+        </div>
+        <div class="drill-meter"><div class="drill-fill" id="drillFill"></div></div>
+        <div class="drill-status" id="drillStatus">Idle. Set a slow start, a target, and climb.</div>
+        <button class="drill-btn" id="drillBtn">Start drill</button>
+        <p class="hint">Drill ramps the tempo up automatically while the pattern loops — master a beat slow, then push it faster without thinking about the dial.</p>
+      </div>
+    </div>
+  </div>
+
+  <section class="course">
+    <div class="course-head">
+      <h2 class="course-title">The drummer's <span class="accent">path</span></h2>
+      <p class="course-intro">To become a <b>well-rounded drummer</b> rather than just memorize songs, a handful of grooves teach nearly every fundamental skill. Work through them roughly in order, and <b>play each one slowly with rock-solid timing before pushing the tempo</b>. Tap a lesson to open it; hit <b>Load into sequencer</b> to drop it into the kit above and start drilling.</p>
+    </div>
+
+    <div class="lessons" id="lessons"></div>
+
+    <div class="course-grid">
+      <div class="card">
+        <h2>Essential fills</h2>
+        <p class="ex-note" style="margin-top:0;margin-bottom:14px">Learn these on a pad before any flashy fills — they build the hands everything else rests on.</p>
+        <div class="fill-item"><div class="lbl">Single strokes</div><div class="stick">R L R L R L R L</div></div>
+        <div class="fill-item"><div class="lbl">Double strokes</div><div class="stick">R R L L R R L L</div></div>
+        <div class="fill-item"><div class="lbl">Paradiddle</div><div class="stick">R L R R&nbsp;&nbsp;L R L L</div></div>
+        <div class="fill-item">
+          <div class="lbl">One-bar fill &nbsp;·&nbsp; 1 &amp; 2 &amp; 3 &amp; 4 &amp;</div>
+          <div class="stick">R L R L R L <span class="k">K</span> <span class="c">Crash</span></div>
+          <div class="load-row" style="margin-top:10px"><button class="load-btn" id="fillLoad">Hear the fill</button></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Independence exercises</h2>
+        <ul class="ex-list">
+          <li><span class="ix">1</span><span>Keep the hi-hat constant and the snare on 2 &amp; 4 — then move <b>only the bass drum</b> around underneath.</span></li>
+          <li><span class="ix">2</span><span>Then keep the <b>bass drum constant</b> and move the hi-hat accents instead.</span></li>
+        </ul>
+        <p class="ex-note">Isolating one limb at a time is how true four-way coordination is built. Lesson 02 above is the drill for step one.</p>
+      </div>
+
+      <div class="card">
+        <h2>Timing checks</h2>
+        <p class="ex-note" style="margin-top:0;margin-bottom:13px">Practice any groove against each of these. They quickly reveal whether your internal clock is actually solid.</p>
+        <ul class="ex-list">
+          <li><span class="ix">·</span><span>Quarter-note metronome (click on every beat)</span></li>
+          <li><span class="ix">·</span><span>Half-time click — only on 2 &amp; 4</span></li>
+          <li><span class="ix">·</span><span>Click only on beat 4</span></li>
+          <li><span class="ix">·</span><span>Click only on beat 1, every other measure</span></li>
+        </ul>
+        <p class="ex-note">Use the tempo drill above to start slow and ramp up once a groove feels locked.</p>
+      </div>
+
+      <div class="card">
+        <h2>Suggested order</h2>
+        <ul class="ex-list">
+          <li><span class="ix">1</span><span>Basic rock</span></li>
+          <li><span class="ix">2</span><span>Kick variations</span></li>
+          <li><span class="ix">3</span><span>Four-on-the-floor</span></li>
+          <li><span class="ix">4</span><span>16th-note grooves</span></li>
+          <li><span class="ix">5</span><span>Shuffle</span></li>
+          <li><span class="ix">6</span><span>Half-time</span></li>
+          <li><span class="ix">7</span><span>Funk with ghost notes</span></li>
+          <li><span class="ix">8</span><span>Jazz ride</span></li>
+          <li><span class="ix">9</span><span>Bossa nova</span></li>
+          <li><span class="ix">10</span><span>Odd meters (5/4, 7/8)</span></li>
+        </ul>
+        <p class="ex-note">Get through these and you'll have the vocabulary for most pop, rock, country, blues, funk, worship, and many jazz tunes — plus the coordination for what comes next.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>Built with the Web Audio API — every sound is synthesized live, no samples. Spacebar plays.</footer>
+</div>
+
+<script>
+"use strict";
+/* ============================ AUDIO ENGINE ============================ */
+let ctx = null, master = null, noiseBuf = null;
+function initAudio(){
+  if(ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  master = ctx.createGain();
+  master.gain.value = 0.8;
+  master.connect(ctx.destination);
+  // shared white-noise buffer
+  const len = ctx.sampleRate * 1;
+  noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i] = Math.random()*2 - 1;
+}
+function noiseSrc(){ const s = ctx.createBufferSource(); s.buffer = noiseBuf; return s; }
+function env(g, t, peak, dur){
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(peak, t+0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+}
+
+const VOICES = {
+  kick(t){
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.frequency.setValueAtTime(160,t);
+    o.frequency.exponentialRampToValueAtTime(46,t+0.13);
+    env(g,t,1.0,0.42); o.connect(g).connect(master); o.start(t); o.stop(t+0.45);
+  },
+  snare(t){
+    const n=noiseSrc(), nf=ctx.createBiquadFilter(), ng=ctx.createGain();
+    nf.type="highpass"; nf.frequency.value=1400;
+    env(ng,t,0.7,0.2); n.connect(nf).connect(ng).connect(master); n.start(t); n.stop(t+0.22);
+    const o=ctx.createOscillator(), og=ctx.createGain();
+    o.type="triangle"; o.frequency.setValueAtTime(190,t);
+    env(og,t,0.45,0.12); o.connect(og).connect(master); o.start(t); o.stop(t+0.13);
+  },
+  rim(t){
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type="triangle"; o.frequency.value=430;
+    env(g,t,0.55,0.05); o.connect(g).connect(master); o.start(t); o.stop(t+0.06);
+  },
+  crash2(t){
+    const n=noiseSrc(), hp=ctx.createBiquadFilter(), g=ctx.createGain();
+    hp.type="highpass"; hp.frequency.value=6500;
+    env(g,t,0.4,0.9); n.connect(hp).connect(g).connect(master); n.start(t); n.stop(t+0.95);
+  },
+  hatClosed(t){
+    const n=noiseSrc(), hp=ctx.createBiquadFilter(), g=ctx.createGain();
+    hp.type="highpass"; hp.frequency.value=8000;
+    env(g,t,0.32,0.045); n.connect(hp).connect(g).connect(master); n.start(t); n.stop(t+0.06);
+  },
+  hatOpen(t){
+    const n=noiseSrc(), hp=ctx.createBiquadFilter(), g=ctx.createGain();
+    hp.type="highpass"; hp.frequency.value=7000;
+    env(g,t,0.3,0.3); n.connect(hp).connect(g).connect(master); n.start(t); n.stop(t+0.32);
+  },
+  crash(t){
+    const n=noiseSrc(), hp=ctx.createBiquadFilter(), g=ctx.createGain();
+    hp.type="highpass"; hp.frequency.value=4500;
+    env(g,t,0.45,1.3); n.connect(hp).connect(g).connect(master); n.start(t); n.stop(t+1.35);
+  },
+  ride(t){
+    const n=noiseSrc(), bp=ctx.createBiquadFilter(), g=ctx.createGain();
+    bp.type="bandpass"; bp.frequency.value=7000; bp.Q.value=0.7;
+    env(g,t,0.28,0.5); n.connect(bp).connect(g).connect(master); n.start(t); n.stop(t+0.55);
+    const o=ctx.createOscillator(), og=ctx.createGain();
+    o.type="square"; o.frequency.value=320;
+    env(og,t,0.05,0.4); o.connect(og).connect(master); o.start(t); o.stop(t+0.42);
+  },
+  tomLow(t){ tom(t,110); }, tomMid(t){ tom(t,165); }, tomHigh(t){ tom(t,235); }
+};
+function tom(t,freq){
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.type="sine"; o.frequency.setValueAtTime(freq,t);
+  o.frequency.exponentialRampToValueAtTime(freq*0.55,t+0.3);
+  env(g,t,0.7,0.34); o.connect(g).connect(master); o.start(t); o.stop(t+0.36);
+}
+
+/* ============================ INSTRUMENTS / LAYOUTS ============================ */
+const INSTRUMENTS = {
+  crash:    {name:"Crash",       color:"#6FE3D6"},
+  crash2:   {name:"Crash 2",     color:"#8FE3A8"},
+  ride:     {name:"Ride",        color:"#5BC8E0"},
+  hatOpen:  {name:"Open Hat",    color:"#7FD0EC"},
+  hatClosed:{name:"Closed Hat",  color:"#9AD8C7"},
+  snare:    {name:"Snare",       color:"#FF6B7A"},
+  rim:      {name:"Cross-Stick", color:"#C99BF0"},
+  tomHigh:  {name:"Tom 1",       color:"#F0C45B"},
+  tomMid:   {name:"Tom 2",       color:"#F0A93E"},
+  tomLow:   {name:"Tom 3",       color:"#F08A3E"},
+  kick:     {name:"Kick",        color:"#FF6A2A"}
+};
+// Layouts reflect the Roland TD-07DMK (3-cymbal option): hi-hat, crash, crash 2,
+// ride, dual-zone snare (head + cross-stick rim), three toms, and kick.
+// The fixed Roland TD-07DMK kit (3-cymbal option), ordered top-to-bottom in the
+// sequencer: crash, second crash, ride, hi-hat (open/closed), snare + cross-stick,
+// three toms, and kick. This is the only configuration — no layout switching.
+const KIT = ["crash","crash2","ride","hatOpen","hatClosed","snare","rim","tomHigh","tomMid","tomLow","kick"];
+
+/* ============================ PRESETS ============================ */
+const PRESETS = [
+  { name:"Four on the Floor", diff:"easy", layout:"standard",
+    tip:"Disco's heartbeat. Kick on every beat — feel it in your feet — while the open hats hiss back on every offbeat. Count loud: 1, 2, 3, 4.",
+    pat:{ kick:[0,4,8,12], snare:[4,12], hatOpen:[2,6,10,14], hatClosed:[0,4,8,12] } },
+  { name:"Basic Rock Beat", diff:"easy", layout:"essentials",
+    tip:"The backbone of nearly every rock song. Kick on 1 and 3, snare on 2 and 4, steady eighth notes on the hat. Lock the hat first, then drop the rest in.",
+    pat:{ kick:[0,8], snare:[4,12], hatClosed:[0,2,4,6,8,10,12,14] } },
+  { name:"Boom Bap", diff:"med", layout:"standard",
+    tip:"Classic hip-hop knock. Hard kick on 1 and the '&' of 3, fat snare on 2 and 4. Lay slightly behind the beat — let it breathe instead of rushing.",
+    pat:{ kick:[0,10], snare:[4,12], hatClosed:[0,2,4,6,8,10,12,14] } },
+  { name:"Half-Time", diff:"easy", layout:"standard",
+    tip:"Feels huge and slow even at fast tempos. The snare lands just once, on beat 3. Great for big breakdowns. Resist the urge to add a second snare.",
+    pat:{ kick:[0], snare:[8], hatClosed:[0,2,4,6,8,10,12,14] } },
+  { name:"Funk Groove", diff:"med", layout:"standard",
+    tip:"Sixteenth-note feel. The kicks syncopate around the backbone while the snare holds 2 and 4. Keep the closed hats perfectly even — that's the glue.",
+    pat:{ kick:[0,3,6,10], snare:[4,12], hatClosed:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15] } },
+  { name:"Dembow / Reggaeton", diff:"med", layout:"standard",
+    tip:"That 'boom-ch-boom-chick' bounce. The snare pattern is the signature — once your hand finds it, it's automatic.",
+    pat:{ kick:[0,8], snare:[3,6,11,14], hatClosed:[0,2,4,6,8,10,12,14] } },
+  { name:"Bossa Feel", diff:"med", layout:"full",
+    tip:"A light Latin lilt. The rim taps a clave-style pattern over a soft, steady kick. Play it quiet — bossa is about touch, not power.",
+    pat:{ kick:[0,6,8,14], rim:[0,3,6,10,12], hatClosed:[0,2,4,6,8,10,12,14] } },
+  { name:"Tom Groove", diff:"med", layout:"full",
+    tip:"A melodic pattern that walks down all three toms — great for getting comfortable moving across the kit. Keep your strokes even as you travel; the second crash accents beat 3.",
+    pat:{ kick:[0,8], tomHigh:[2,6], tomMid:[4,10], tomLow:[12,14], crash:[0], crash2:[8] } }
+];
+const COUNTS = ["1","e","&","a","2","e","&","a","3","e","&","a","4","e","&","a"];
+
+/* ============================ STATE ============================ */
+const STEPS = 16;
+const pattern = {}; // soundId -> bool[16] (master, persists across layouts)
+Object.keys(INSTRUMENTS).forEach(id => pattern[id] = new Array(STEPS).fill(false));
+
+const state = {
+  playing:false,
+  bpm:100,
+  swing:0,
+  current:-1,
+  activePreset:-1,
+  drill:{ on:false, target:130, step:6, bars:2, barAcc:0 }
+};
+
+/* ============================ DOM ============================ */
+const $ = id => document.getElementById(id);
+const seqEl = $("seq"), bpmNum = $("bpmNum"), tempo = $("tempo"), tempoVal = $("tempoVal");
+
+function buildGrid(){
+  const ids = KIT;
+  seqEl.innerHTML = "";
+  // count header
+  const cr = document.createElement("div"); cr.className="count-row";
+  const sp = document.createElement("div"); sp.className="count-spacer"; cr.appendChild(sp);
+  COUNTS.forEach((c,i)=>{
+    const cell=document.createElement("div");
+    cell.className="count-cell"+(i%4===0?" beat":"");
+    cell.textContent=c; cr.appendChild(cell);
+  });
+  seqEl.appendChild(cr);
+
+  ids.forEach(id=>{
+    const inst = INSTRUMENTS[id];
+    const label=document.createElement("button");
+    label.className="row-label"; label.type="button";
+    label.innerHTML = `<span class="dot" style="background:${inst.color}"></span><span class="name">${inst.name}</span>`;
+    label.addEventListener("click",()=>{ initAudio(); resume(); VOICES[id](ctx.currentTime+0.01); lightPart(id); });
+    seqEl.appendChild(label);
+
+    for(let s=0;s<STEPS;s++){
+      const pad=document.createElement("div");
+      pad.className="pad"+(s%4===0?" beat":"");
+      pad.style.setProperty("--rc", inst.color);
+      pad.dataset.id=id; pad.dataset.step=s;
+      if(pattern[id][s]) pad.classList.add("on");
+      pad.addEventListener("click",()=>{
+        pattern[id][s] = !pattern[id][s];
+        pad.classList.toggle("on", pattern[id][s]);
+        clearActivePreset();
+        if(pattern[id][s]){ initAudio(); resume(); VOICES[id](ctx.currentTime+0.01); lightPart(id); }
+      });
+      seqEl.appendChild(pad);
+    }
+  });
+}
+
+function paintCursor(step){
+  const pads = seqEl.querySelectorAll(".pad");
+  pads.forEach(p=>{
+    const isCur = (+p.dataset.step===step);
+    p.classList.toggle("cursor", isCur);
+    if(isCur && p.classList.contains("on")){
+      p.classList.add("flash");
+      setTimeout(()=>p.classList.remove("flash"),90);
+    }
+  });
+}
+function clearCursor(){ seqEl.querySelectorAll(".pad.cursor").forEach(p=>p.classList.remove("cursor")); }
+
+/* ============================ SCHEDULER ============================ */
+let nextStepTime=0, schedStep=0, timerId=null;
+const LOOKAHEAD=0.1, TICK=25;
+const visQ=[]; // {step,time}
+
+function resume(){ if(ctx && ctx.state==="suspended") ctx.resume(); }
+function secPerStep(){ return (60/state.bpm)/4; }
+
+function scheduleStep(step,time){
+  const ids = KIT;
+  const hits=[];
+  ids.forEach(id=>{ if(pattern[id][step]){ VOICES[id](time); hits.push(id); } });
+  visQ.push({step,time,hits});
+}
+function scheduler(){
+  while(nextStepTime < ctx.currentTime + LOOKAHEAD){
+    const isOdd = (schedStep % 2)===1;
+    const swingDelay = isOdd ? (state.swing/100)*secPerStep() : 0;
+    scheduleStep(schedStep, nextStepTime + swingDelay);
+    const wrapped = (schedStep===STEPS-1);
+    nextStepTime += secPerStep();
+    schedStep = (schedStep+1)%STEPS;
+    if(wrapped) onBarComplete();
+  }
+  timerId = setTimeout(scheduler, TICK);
+}
+function onBarComplete(){
+  if(!state.drill.on) return;
+  state.drill.barAcc++;
+  if(state.drill.barAcc >= state.drill.bars){
+    state.drill.barAcc=0;
+    if(state.bpm < state.drill.target){
+      setBpm(Math.min(state.drill.target, state.bpm + state.drill.step));
+    }
+    updateDrillUI();
+    if(state.bpm >= state.drill.target){ finishDrill(); }
+  }
+}
+
+/* visual sync loop */
+function visLoop(){
+  if(ctx){
+    const now = ctx.currentTime;
+    while(visQ.length && visQ[0].time <= now){
+      const ev = visQ.shift();
+      state.current = ev.step;
+      paintCursor(state.current);
+      if(ev.hits) ev.hits.forEach(id=>lightPart(id));
+    }
+  }
+  requestAnimationFrame(visLoop);
+}
+requestAnimationFrame(visLoop);
+
+/* ============================ TRANSPORT ============================ */
+function play(){
+  initAudio(); resume();
+  state.playing=true;
+  schedStep=0; nextStepTime=ctx.currentTime+0.06; visQ.length=0;
+  scheduler();
+  $("playBtn").classList.add("playing");
+  $("playIcon").innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+}
+function stop(){
+  state.playing=false;
+  clearTimeout(timerId); visQ.length=0; clearCursor();
+  state.current=-1;
+  $("playBtn").classList.remove("playing");
+  $("playIcon").innerHTML = '<path d="M8 5v14l11-7z"/>';
+  if(state.drill.on) finishDrill();
+}
+function toggle(){ state.playing ? stop() : play(); }
+
+/* ============================ CONTROLS ============================ */
+function setBpm(v){
+  state.bpm = Math.max(40, Math.min(220, Math.round(v)));
+  tempo.value = state.bpm;
+  bpmNum.textContent = state.bpm;
+  tempoVal.textContent = state.bpm + " bpm";
+}
+tempo.addEventListener("input", e=>{ setBpm(+e.target.value); if(state.drill.on) finishDrill(); });
+$("swing").addEventListener("input", e=>{ state.swing=+e.target.value; $("swingVal").textContent=state.swing+"%"; });
+$("vol").addEventListener("input", e=>{ const v=+e.target.value; $("volVal").textContent=v+"%"; if(master) master.gain.value=v/100; });
+$("playBtn").addEventListener("click", toggle);
+document.addEventListener("keydown", e=>{
+  if(e.code==="Space" && e.target.tagName!=="INPUT"){ e.preventDefault(); toggle(); }
+});
+$("clearBtn").addEventListener("click", ()=>{
+  Object.keys(pattern).forEach(id=>pattern[id].fill(false));
+  clearActivePreset(); buildGrid();
+});
+$("randBtn").addEventListener("click", ()=>{
+  const ids=KIT;
+  Object.keys(pattern).forEach(id=>pattern[id].fill(false));
+  ids.forEach(id=>{
+    const density = id==="kick"?0.28 : id==="snare"?0.18 : id.startsWith("hat")?0.5 : 0.12;
+    for(let s=0;s<STEPS;s++) if(Math.random()<density) pattern[id][s]=true;
+  });
+  clearActivePreset(); buildGrid();
+});
+
+/* presets */
+const presetList=$("presetList");
+PRESETS.forEach((p,idx)=>{
+  const b=document.createElement("button");
+  b.className="preset"; b.type="button";
+  b.innerHTML=`<span class="pname">${p.name}</span><span class="diff ${p.diff}">${p.diff==="easy"?"EASY":"MED"}</span>`;
+  b.addEventListener("click", ()=>applyPreset(idx));
+  presetList.appendChild(b);
+});
+function applyPreset(idx){
+  const p=PRESETS[idx];
+  Object.keys(pattern).forEach(id=>pattern[id].fill(false));
+  Object.entries(p.pat).forEach(([id,steps])=>{ steps.forEach(s=>{ if(pattern[id]) pattern[id][s]=true; }); });
+  state.activePreset=idx;
+  [...presetList.children].forEach((b,i)=>b.classList.toggle("active", i===idx));
+  $("guide").hidden=false; $("guideText").textContent=p.tip;
+  buildGrid();
+}
+function clearActivePreset(){
+  state.activePreset=-1;
+  [...presetList.children].forEach(b=>b.classList.remove("active"));
+}
+
+/* ============================ DRILL ============================ */
+function updateDrillUI(){
+  const start=clampNum($("dStart").value,40,220);
+  const target=state.drill.target;
+  const span=Math.max(1, target-start);
+  const prog=Math.max(0, Math.min(1, (state.bpm-start)/span));
+  $("drillFill").style.width=(prog*100)+"%";
+  if(state.drill.on){
+    $("drillStatus").innerHTML = state.bpm>=target
+      ? `Top speed reached — holding at <b>${target} bpm</b>.`
+      : `Climbing: <b>${state.bpm}</b> → ${target} bpm · +${state.drill.step} every ${state.drill.bars} bar(s).`;
+  }
+}
+function clampNum(v,lo,hi){ v=parseInt(v,10); if(isNaN(v)) v=lo; return Math.max(lo,Math.min(hi,v)); }
+function startDrill(){
+  const start=clampNum($("dStart").value,40,220);
+  state.drill.target=clampNum($("dTarget").value,40,220);
+  state.drill.step=clampNum($("dStep").value,1,40);
+  state.drill.bars=clampNum($("dBars").value,1,16);
+  if(state.drill.target<=start){ $("drillStatus").innerHTML="Target should be higher than the start. Bump it up."; return; }
+  state.drill.on=true; state.drill.barAcc=0;
+  setBpm(start);
+  $("drillFlag").classList.add("on");
+  $("drillBtn").classList.add("active"); $("drillBtn").textContent="Stop drill";
+  updateDrillUI();
+  if(!state.playing) play();
+}
+function finishDrill(){
+  state.drill.on=false;
+  $("drillFlag").classList.remove("on");
+  $("drillBtn").classList.remove("active"); $("drillBtn").textContent="Start drill";
+  if(state.bpm>=state.drill.target) $("drillStatus").innerHTML=`Nice — held <b>${state.drill.target} bpm</b>. Run it again or push the target.`;
+}
+$("drillBtn").addEventListener("click", ()=>{ state.drill.on ? finishDrill() : startDrill(); });
+
+/* ============================ KIT DIAGRAM ============================ */
+const PART_OF = {
+  kick:"kick", snare:"snare", rim:"snare",
+  hatClosed:"hihat", hatOpen:"hihat",
+  crash:"crash", crash2:"crash2", ride:"ride",
+  tomHigh:"tomHigh", tomMid:"tomMid", tomLow:"tomLow"
+};
+const partEls = {};
+["kick","snare","hihat","crash","crash2","ride","tomHigh","tomMid","tomLow"]
+  .forEach(p => partEls[p] = document.getElementById("p-"+p));
+
+function lightPart(instId){
+  const g = partEls[PART_OF[instId]];
+  if(!g) return;
+  g.style.setProperty("--glow", INSTRUMENTS[instId].color);
+  g.classList.remove("lit");
+  g.getBoundingClientRect(); // force reflow so the animation re-triggers
+  g.classList.add("lit");
+}
+
+/* ============================ CURRICULUM ============================ */
+const LESSONS = [
+  { n:1, name:"Basic Rock Beat", line:"The foundation — independence, timekeeping, a steady backbeat.",
+    notation:[["HH","x x x x x x x x"],["SD","- - o - - - o -"],["BD","o - - - o - - -"]],
+    count:"1 & 2 & 3 & 4 &", skills:["Independence","Timekeeping","Backbeat"], bpm:[60,120],
+    tip:"Lock the hi-hat eighths first, then add the kick on 1 and 3 and the snare on 2 and 4. This one beat underpins most rock and pop.",
+    load:{layout:"essentials", pat:{hatClosed:[0,2,4,6,8,10,12,14], snare:[4,12], kick:[0,8]}} },
+
+  { n:2, name:"Eighth-Note Kick Variations", line:"Keep the hats and snare fixed; move only the kick. Pure coordination.",
+    notation:[["HH","x x x x x x x x"],["SD","- - o - - - o -"],["BD","move it around"]],
+    count:"1 & 2 & 3 & 4 &", skills:["Coordination","Foot control"], bpm:[60,100],
+    tip:"Hats stay even, snare stays on 2 and 4 — only the bass drum changes. Loop each variation until it's automatic, then take the next.",
+    base:{layout:"essentials", pat:{hatClosed:[0,2,4,6,8,10,12,14], snare:[4,12]}},
+    variations:[
+      {name:"1, 3", pat:{kick:[0,8]}},
+      {name:"1, 3&, 4&", pat:{kick:[0,10,14]}},
+      {name:"1&, 3", pat:{kick:[0,2,8]}},
+      {name:"1, 2&, 3", pat:{kick:[0,6,8]}}
+    ] },
+
+  { n:3, name:"Four-on-the-Floor", line:"Kick on every beat. Pop, disco, dance, house — and great for endurance.",
+    notation:[["HH","x x x x x x x x"],["SD","- - o - - - o -"],["BD","o - o - o - o -"]],
+    count:"1 & 2 & 3 & 4 &", skills:["Endurance","Steady pulse"], bpm:[100,130],
+    tip:"The kick drives all four beats while the snare answers on 2 and 4. Keep that foot relaxed — it has to last a whole song.",
+    load:{layout:"standard", pat:{hatClosed:[0,2,4,6,8,10,12,14], snare:[4,12], kick:[0,4,8,12]}} },
+
+  { n:4, name:"Shuffle Beat", line:"Triplet feel — long-short hi-hat, snare on 2 and 4. Builds swing.",
+    notation:[["Feel","1-trip-let  2-trip-let …"],["HH","long – short, long – short"],["SD","on 2 and 4"],["BD","on 1 and 3"]],
+    count:"1 trip let, 2 trip let …", skills:["Swing feel","Triplets"], bpm:[80,120],
+    tip:"Feel the triplet under every beat and play only the first and last note of it on the hats. That gap is the bounce.",
+    note:"On the 16-step grid the shuffle is approximated by placing the hats at the start and final third of each beat. The real feel is triplet-based.",
+    load:{layout:"standard", pat:{hatClosed:[0,3,4,7,8,11,12,15], snare:[4,12], kick:[0,8]}} },
+
+  { n:5, name:"16th-Note Groove", line:"Steady sixteenths on the hat, kick variations underneath. Funk, gospel, fusion.",
+    notation:[["HH","x x x x x x x x x x x x x x x x"],["SD","on 2 and 4"],["BD","start on 1 & 3, then vary"]],
+    count:"1 e & a 2 e & a 3 e & a 4 e & a", skills:["16th control","Stamina"], bpm:[70,110],
+    tip:"Get the sixteenth hats perfectly even — that's the glue. Once they're locked, start sliding the kick onto the e's and a's.",
+    load:{layout:"standard", pat:{hatClosed:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], snare:[4,12], kick:[0,8]}} },
+
+  { n:6, name:"Half-Time Groove", line:"Snare on beat 3 only. Spacious feel for rock, hip-hop, ballads.",
+    notation:[["HH","x x x x x x x x"],["SD","- - - - o - - -"],["BD","o - - - - - - -"]],
+    count:"1 & 2 & 3 & 4 &", skills:["Space","Feel"], bpm:[70,140],
+    tip:"The snare lands just once, on beat 3. It makes a fast tempo feel huge and slow — resist adding a second snare.",
+    load:{layout:"standard", pat:{hatClosed:[0,2,4,6,8,10,12,14], snare:[8], kick:[0]}} },
+
+  { n:7, name:"Basic Funk Beat", line:"Ghost notes around the backbeat plus a syncopated kick. Builds dynamics.",
+    notation:[["HH","x x x x x x x x x x x x x x x x"],["SD","ghost  · 2 ·  ghost  · 4 ·"],["BD","syncopated"]],
+    count:"1 e & a 2 e & a 3 e & a 4 e & a", skills:["Dynamics","Syncopation"], bpm:[80,110],
+    tip:"Strong snare on 2 and 4, quiet ghost notes filling the gaps, kick weaving around them. The contrast in volume is the whole point.",
+    note:"Ghost notes should be much quieter than the backbeat. This grid plays every hit at one volume, so keep them soft on a real kit.",
+    load:{layout:"standard", pat:{hatClosed:[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15], snare:[2,4,7,10,12], kick:[0,3,8,11]}} },
+
+  { n:8, name:"Jazz Ride Pattern", line:"The spang-a-lang ride with the hi-hat foot closing on 2 and 4.",
+    notation:[["Ride","ding   ding-da   ding   ding-da"],["HH foot","—  on 2 and 4  —"],["BD","feathered, all four beats"]],
+    count:"1  2 a  3  4 a", skills:["Independence","Feel"], bpm:[100,180],
+    tip:"Even if you never play jazz, this pattern transforms your feel and limb independence. Let the ride sing and keep the hi-hat foot crisp.",
+    note:"Jazz swings in triplets; this is a straight-grid approximation. Drill it for the independence, not the exact ride phrasing.",
+    load:{layout:"full", pat:{ride:[0,4,7,8,12,15], hatClosed:[4,12], kick:[0,4,8,12]}} },
+
+  { n:9, name:"Bossa Nova", line:"Hands and feet each play a different rhythm. A superb independence study.",
+    notation:[["Cross-stick","clave pattern"],["BD","steady bossa pulse"],["HH foot","on the beats"]],
+    count:"1 e & a 2 e & a 3 e & a 4 e & a", skills:["Independence","Limb separation"], bpm:[90,140],
+    tip:"Four limbs, four jobs. Build it one layer at a time — kick and hat foot first, then lay the clave on top with the cross-stick.",
+    load:{layout:"full", pat:{rim:[0,3,6,10,12], kick:[0,6,8,14], hatClosed:[0,2,4,6,8,10,12,14]}} },
+
+  { n:10, name:"Basic 12/8 Groove", line:"Triplet feel for blues, gospel, and slow rock.",
+    notation:[["Count","1 · ·  2 · ·  3 · ·  4 · · (triplets)"],["HH","every triplet"],["SD","on 2 and 4"],["BD","on 1 and 3"]],
+    count:"1 trip let, 2 trip let …", skills:["Triplet feel","Compound time"], bpm:[50,90],
+    tip:"Count three even subdivisions per beat and ride them on the hat. Snare on 2 and 4 keeps it grounded under the rolling triplets.",
+    note:"12/8 is triplet-based; here it's mapped onto the 16-step grid by skipping the last sixteenth of each beat to suggest the triplet pulse.",
+    load:{layout:"standard", pat:{hatClosed:[0,1,3,4,5,7,8,9,11,12,13,15], snare:[4,12], kick:[0,8]}} }
+];
+
+function loadKitPattern(patObj, opts){
+  opts = opts || {};
+  Object.keys(pattern).forEach(id=>pattern[id].fill(false));
+  Object.entries(patObj).forEach(([id,steps])=>{ steps.forEach(s=>{ if(pattern[id]) pattern[id][s]=true; }); });
+  state.swing = opts.swing||0;
+  $("swing").value = state.swing; $("swingVal").textContent = state.swing+"%";
+  clearActivePreset();
+  buildGrid();
+  if(opts.bpm){
+    if(state.drill.on) finishDrill();
+    setBpm(opts.bpm[0]);
+    $("dStart").value = opts.bpm[0]; $("dTarget").value = opts.bpm[1];
+  }
+  if(opts.guide){ $("guide").hidden=false; $("guideText").textContent = opts.guide; }
+  const sp = document.querySelector(".seq-panel");
+  if(sp) sp.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function renderLessons(){
+  const root = $("lessons");
+  LESSONS.forEach(L=>{
+    const item = document.createElement("div"); item.className="lesson";
+    const head = document.createElement("button"); head.className="lesson-head"; head.type="button"; head.setAttribute("aria-expanded","false");
+    head.innerHTML = `<span class="lnum">${String(L.n).padStart(2,"0")}</span><span class="lname">${L.name}</span><span class="lline">${L.line}</span><span class="lchev">+</span>`;
+    const body = document.createElement("div"); body.className="lesson-body"; body.hidden=true;
+    const notHtml = L.notation.map(r=>`<span class="nlab">${r[0]}</span>  ${r[1]}`).join("\n");
+    const chips = L.skills.map(s=>`<span class="chip">${s}</span>`).join("");
+    let loadHtml = "";
+    if(L.variations){
+      loadHtml = `<div class="load-row">`+L.variations.map((v,i)=>`<button class="load-btn var" data-l="${L.n}" data-v="${i}">${v.name}</button>`).join("")+`</div>`;
+    } else if(L.load){
+      loadHtml = `<div class="load-row"><button class="load-btn" data-l="${L.n}">Load into sequencer</button></div>`;
+    }
+    body.innerHTML = `<div class="inner">
+        <div>
+          <div class="notation">${notHtml}</div>
+          <div class="ncount">count:  ${L.count}</div>
+        </div>
+        <div class="lmeta">
+          <div class="chips">${chips}</div>
+          <div class="lbpm">${L.bpm[0]}–${L.bpm[1]} BPM · start slow</div>
+          <div class="ltip">${L.tip}</div>
+          ${L.note?`<div class="lnote">${L.note}</div>`:""}
+          ${loadHtml}
+        </div>
+      </div>`;
+    head.addEventListener("click",()=>{
+      const open = item.classList.toggle("open");
+      body.hidden = !open;
+      head.setAttribute("aria-expanded", open?"true":"false");
+    });
+    item.appendChild(head); item.appendChild(body); root.appendChild(item);
+  });
+  root.addEventListener("click", e=>{
+    const btn = e.target.closest(".load-btn"); if(!btn || !btn.dataset.l) return;
+    const L = LESSONS.find(x=>x.n===+btn.dataset.l); if(!L) return;
+    if(btn.dataset.v!==undefined){
+      const v = L.variations[+btn.dataset.v];
+      const merged = {};
+      Object.entries(L.base.pat).forEach(([k,a])=>merged[k]=a.slice());
+      Object.entries(v.pat).forEach(([k,a])=>{ merged[k]=(merged[k]||[]).concat(a); });
+      loadKitPattern(merged, {bpm:L.bpm, guide:`${L.name} — kick on ${v.name}. ${L.tip}`});
+    } else {
+      loadKitPattern(L.load.pat, {bpm:L.bpm, swing:L.load.swing||0, guide:`${L.name}. ${L.tip}`});
+    }
+  });
+}
+
+/* ============================ INIT ============================ */
+renderLessons();
+document.getElementById("fillLoad").addEventListener("click", ()=>{
+  loadKitPattern(
+    {snare:[0,2], tomHigh:[4,6], tomMid:[8], tomLow:[10], kick:[12], crash:[14]},
+    {bpm:[60,120], guide:"One-bar fill — single strokes walking down the kit (R L R L R L, then Kick + Crash). Keep every stroke even in volume."});
+});
+buildGrid();
+setBpm(100);
+</script>
+</body>
+</html>
