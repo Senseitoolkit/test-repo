@@ -61,6 +61,15 @@
     padding:34px 30px;margin-bottom:26px;
   }
 
+  /* interval counter */
+  .interval-counter{
+    text-align:center;margin-bottom:20px;
+  }
+  .interval-counter .count{
+    font-family:'Space Mono',monospace;font-size:20px;font-weight:700;letter-spacing:.1em;
+    color:var(--accent-2);
+  }
+
   /* big display */
   .display{
     text-align:center;position:relative;
@@ -104,6 +113,9 @@
   .presets button:hover{background:var(--gold);border-color:var(--gold)}
   .presets button.chosen{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 
+  /* hidden sections */
+  .hide{display:none!important}
+
   /* controls */
   .controls{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:8px}
   .controls button{
@@ -139,6 +151,7 @@
     color:var(--paper);text-align:center;padding:4vh 4vw;
   }
   #stage.show{display:flex}
+  #stageCounter{font-family:'Space Mono',monospace;font-size:clamp(20px,4vw,48px);font-weight:700;opacity:.7;margin-bottom:1vh;letter-spacing:.1em}
   #stageLabel{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(26px,5vw,64px);margin-bottom:2vh;opacity:.92}
   #stageTime{
     font-family:'Space Mono',monospace;font-weight:700;font-variant-numeric:tabular-nums;
@@ -183,9 +196,14 @@
   <div class="modes" id="modes">
     <button data-mode="down" class="active">↓ Count&nbsp;Down</button>
     <button data-mode="up">↑ Count&nbsp;Up</button>
+    <button data-mode="interval">⟲ Intervals</button>
   </div>
 
   <div class="card">
+    <div class="interval-counter hide" id="intervalCounter">
+      <div class="count">Intervals: <span id="completedCount">0</span></div>
+    </div>
+
     <div class="display">
       <div class="label-in" id="modeLabel">Time Remaining</div>
       <div class="time" id="time">10:00</div>
@@ -201,6 +219,15 @@
       <button data-sec="1200">20 min</button>
       <button data-sec="1800">30 min</button>
       <button data-sec="2700">45 min</button>
+    </div>
+
+    <div class="presets hide" id="intervalPresets">
+      <button data-sec="60">1 min</button>
+      <button data-sec="120">2 min</button>
+      <button data-sec="300">5 min</button>
+      <button data-sec="600">10 min</button>
+      <button data-sec="900">15 min</button>
+      <button data-sec="1200">20 min</button>
     </div>
 
     <div class="label-row">
@@ -223,6 +250,7 @@
 <!-- Projection stage -->
 <div id="stage">
   <div class="esc-hint">ESC to exit</div>
+  <div id="stageCounter" class="hide"></div>
   <div id="stageLabel">Time Remaining</div>
   <div id="stageTime">10:00</div>
   <div id="stageBar"><i></i></div>
@@ -240,10 +268,11 @@
 <script>
 (function(){
   const $=id=>document.getElementById(id);
-  let mode='down';          // 'down' or 'up'
-  let total=600;            // configured seconds (target / start)
+  let mode='down';          // 'down', 'up', or 'interval'
+  let total=600;            // configured seconds (target / start / interval duration)
   let remaining=600;        // for down mode
-  let elapsed=0;            // for up mode
+  let elapsed=0;            // for up mode and interval elapsed time
+  let intervalCount=0;      // completed intervals in interval mode
   let running=false, tick=null, soundOn=true;
 
   const fmt=s=>{
@@ -261,26 +290,42 @@
     render();
   }
 
-  function curDisplay(){ return mode==='down' ? remaining : elapsed; }
+  function curDisplay(){ 
+    if(mode==='down') return remaining;
+    if(mode==='up') return elapsed;
+    if(mode==='interval') return total-elapsed; // show time remaining in current interval
+  }
+  
   function curFraction(){
     if(mode==='down') return total>0 ? remaining/total : 0;
-    return total>0 ? clamp(elapsed/total,0,1) : 0; // up-mode bar fills toward optional target
+    if(mode==='up') return 0; // no progress bar in up mode
+    if(mode==='interval') return elapsed/total; // fill bar based on current interval
   }
 
   function render(){
     const v=curDisplay();
     const t=fmt(v), labelText=$('taskLabel').value.trim();
-    const baseLabel = mode==='down' ? 'Time Remaining' : 'Time Elapsed';
+    let baseLabel = 'Time Remaining';
+    
+    if(mode==='down') baseLabel='Time Remaining';
+    else if(mode==='up') baseLabel='Time Elapsed';
+    else if(mode==='interval') baseLabel='Interval Time';
+    
     $('modeLabel').textContent = labelText || baseLabel;
     $('time').textContent=t;
     $('stageTime').textContent=t;
     $('stageLabel').textContent= labelText || baseLabel;
-    $('stageDir').textContent = mode==='down' ? 'Counting Down' : 'Counting Up';
+    
+    if(mode==='down') $('stageDir').textContent = 'Counting Down';
+    else if(mode==='up') $('stageDir').textContent = 'Counting Up';
+    else if(mode==='interval') $('stageDir').textContent = `Interval ${intervalCount+1}`;
 
-    // progress
+    // progress bar
     let frac;
     if(mode==='down'){ frac=total>0?remaining/total:0; }
-    else { frac=total>0?clamp(elapsed/total,0,1):0; }
+    else if(mode==='up') { frac=0; } // no bar for count up
+    else if(mode==='interval') { frac=elapsed/total; } // bar fills for interval
+    
     const pct=clamp(frac*100,0,100);
     $('bar').style.width=pct+'%';
     $('stageBar').firstElementChild.style.width=pct+'%';
@@ -289,11 +334,13 @@
     const tEl=$('time'), sEl=$('stageTime');
     tEl.classList.remove('warn','danger'); sEl.classList.remove('warn','danger');
     let col=getComputedStyle(document.documentElement).getPropertyValue('--accent');
+    
     if(mode==='down'){
       if(remaining<=10 && remaining>0){tEl.classList.add('danger');sEl.classList.add('danger');col='#ff6a52';}
       else if(remaining<=Math.max(30,total*0.15)){tEl.classList.add('warn');sEl.classList.add('warn');col='#d9a441';}
       else col='#3a7563';
     } else col='#3a7563';
+    
     $('bar').style.background=col;
     $('stageBar').firstElementChild.style.background=col;
 
@@ -304,9 +351,21 @@
     if(mode==='down'){
       remaining--;
       if(remaining<=0){ remaining=0; render(); finish(); return; }
-    } else {
+    } 
+    else if(mode==='up'){
       elapsed++;
-      if(total>0 && elapsed>=total){ render(); finish(); return; }
+    }
+    else if(mode==='interval'){
+      elapsed++;
+      if(elapsed>=total){ 
+        intervalCount++;
+        $('completedCount').textContent=intervalCount;
+        $('stageCounter').textContent=`Interval ${intervalCount} Complete`;
+        elapsed=0;
+        render(); 
+        finish();
+        return;
+      }
     }
     render();
   }
@@ -318,10 +377,23 @@
     tick=setInterval(step,1000);
     syncStageBtns();
   }
+  
   function pause(){ running=false; clearInterval(tick); syncStageBtns(); }
+  
   function reset(){
     pause();
-    remaining=total; elapsed=0;
+    if(mode==='down'){
+      remaining=total;
+    }
+    else if(mode==='up'){
+      elapsed=0;
+    }
+    else if(mode==='interval'){
+      elapsed=0;
+      intervalCount=0;
+      $('completedCount').textContent='0';
+      $('stageCounter').classList.add('hide');
+    }
     render();
   }
 
@@ -355,13 +427,27 @@
     const b=e.target.closest('button'); if(!b) return;
     mode=b.dataset.mode;
     [...$('modes').children].forEach(x=>x.classList.toggle('active',x===b));
+    
+    // show/hide relevant preset buttons
+    $('presets').classList.toggle('hide', mode!=='down');
+    $('intervalPresets').classList.toggle('hide', mode!=='interval');
+    $('intervalCounter').classList.toggle('hide', mode!=='interval');
+    $('stageCounter').classList.toggle('hide', mode!=='interval');
+    
     reset();
   });
 
-  // --- presets ---
+  // --- regular presets (countdown) ---
   $('presets').addEventListener('click',e=>{
     const b=e.target.closest('button'); if(!b) return;
     [...$('presets').children].forEach(x=>x.classList.toggle('chosen',x===b));
+    setTotal(parseInt(b.dataset.sec));
+  });
+
+  // --- interval presets ---
+  $('intervalPresets').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    [...$('intervalPresets').children].forEach(x=>x.classList.toggle('chosen',x===b));
     setTotal(parseInt(b.dataset.sec));
   });
 
@@ -402,6 +488,7 @@
     const typing = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
     if(e.key===' ' && !typing){ e.preventDefault(); running?pause():start(); }
   });
+  
   document.addEventListener('fullscreenchange',()=>{
     if(!document.fullscreenElement) stage.classList.remove('show');
   });
