@@ -164,6 +164,80 @@
   };
   const MASTER=new Set(); Object.values(LEVELS).forEach(a=>a.forEach(w=>MASTER.add(w.toLowerCase())));
 
+  /* Common misspellings database - real student mistakes */
+  const COMMON_MISSPELLINGS={
+    'here':['heer','hear','hear'],
+    'little':['littel','litle','littl'],
+    'said':['siad','sed','said'],
+    'where':['wher','were','ware'],
+    'there':['ther','their','thier'],
+    'their':['ther','there','thier'],
+    'these':['thse','theese','thease'],
+    'those':['thos','thoes','thous'],
+    'when':['wen','whin','whne'],
+    'then':['than','thn','thne'],
+    'which':['wich','whick','whitch'],
+    'what':['wht','whut','wat'],
+    'they':['thay','tha','thy'],
+    'them':['tham','thme','tem'],
+    'think':['thnk','think','thikn'],
+    'thank':'thnak',
+    'right':['rite','rigt','rightt'],
+    'write':['rite','wriet','writ'],
+    'from':['form','fro','frm'],
+    'come':['cum','com','comm'],
+    'because':['becaus','becuz','becuase','becasue'],
+    'would':['wud','would','wouldv'],
+    'could':['cud','culd','coudl'],
+    'should':['shud','shuld','shoudl'],
+    'before':['befor','bfore','befroe'],
+    'after':['aftr','afte','aftr'],
+    'about':['abut','abot','abou'],
+    'around':['arund','aorund','arond'],
+    'through':['thru','thrugh','through'],
+    'thought':['thoght','thougth','taught'],
+    'brought':['brough','broght','brougth'],
+    'every':['evry','ever','evrry'],
+    'know':['no','now','noe'],
+    'knew':['new','knwe','nue'],
+    'gone':['gon','gone','gan'],
+    'good':['gud','gode','goud'],
+    'too':['to','tow','too'],
+    'two':['to','tue','tow'],
+    'have':['hav','hve','havv'],
+    'been':['ben','bin','bean'],
+    'because':['becuz','becaus','becuz'],
+    'always':['alway','alwayz','allways'],
+    'friend':['frend','fren','firend'],
+    'again':['agan','agen','agian'],
+    'done':['don','dun','donn'],
+    'going':['goin','goign','goin'],
+    'trying':['tring','triing','tryin'],
+    'play':['ply','plya','plai'],
+    'red':['redd','redde','read'],
+    'said':['siad','sed','sayed'],
+    'see':['sea','see','se'],
+    'are':['ar','arr','arr'],
+    'was':['wuz','waz','wus'],
+    'were':['wer','wre','werre'],
+    'one':['wan','won','wun'],
+    'of':['ov','uv','uf'],
+    'her':['hir','hur','hre'],
+    'him':['hem','hm','hym'],
+    'his':['hiz','hys','his'],
+    'just':['jus','jest','jstu'],
+    'also':['alco','alsoe','also'],
+    'take':['tak','tack','taek'],
+    'make':['mak','makk','maek'],
+    'over':['ovre','over','ove'],
+    'work':['wok','wrk','wrok'],
+    'first':['firs','forst','frist'],
+    'place':['plac','plaice','plase'],
+    'right':['rite','rigt','write'],
+    'small':['smal','smale','smal'],
+    'very':['vry','verry','vry']
+  };
+
   let level='preprimer', muted=false;
   let busy=false, won=false, splatCount=0;
   let positions=[], germEls=[], targetIdx=-1, correctWord='', lastTarget='', fbTimer=null;
@@ -172,27 +246,148 @@
   const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 
   const VOWELS='aeiou';
-  function transpose(w){const idx=[];for(let i=0;i<w.length-1;i++)if(w[i]!==w[i+1])idx.push(i);
-    if(!idx.length)return null;const i=idx[rint(0,idx.length-1)];return w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2);}
-  function dropLetter(w){const i=rint(1,w.length-1);return w.slice(0,i)+w.slice(i+1);}
-  function doubleLetter(w){const i=rint(0,w.length-1);return w.slice(0,i+1)+w[i]+w.slice(i+1);}
-  function swapVowel(w){const idx=[];for(let i=0;i<w.length;i++)if(VOWELS.includes(w[i]))idx.push(i);
-    if(!idx.length)return null;const i=idx[rint(0,idx.length-1)];let v=VOWELS[rint(0,4)];
-    let guard=0;while(v===w[i]&&guard++<10)v=VOWELS[rint(0,4)];return w.slice(0,i)+v+w.slice(i+1);}
+  
+  /* Improved misspelling generation */
   function makeMisspelling(word,shown){
     const w=word.toLowerCase();
-    const strat=shuffle(['transpose','vowel','double','drop','transpose','vowel']);
-    for(const s of strat){
-      let r=null;
-      if(s==='transpose'&&w.length>=3)r=transpose(w);
-      else if(s==='vowel')r=swapVowel(w);
-      else if(s==='double')r=doubleLetter(w);
-      else if(s==='drop'&&w.length>=4)r=dropLetter(w);
-      if(r&&r!==w&&!shown.has(r)&&!MASTER.has(r))return r;
+    
+    // First priority: use known common misspellings
+    if(COMMON_MISSPELLINGS[w]){
+      const options=Array.isArray(COMMON_MISSPELLINGS[w]) ? COMMON_MISSPELLINGS[w] : [COMMON_MISSPELLINGS[w]];
+      const shuffledOpts=shuffle(options.slice());
+      for(const mis of shuffledOpts){
+        if(mis!==w && !shown.has(mis) && !MASTER.has(mis)){
+          return mis;
+        }
+      }
     }
-    let r=w[0]+w[0]+w.slice(1);
-    if(r!==w&&!MASTER.has(r))return r;
-    return w+w[w.length-1];
+
+    // Fallback to algorithmic generation with improved strategies
+    const strategies=[
+      ()=>commonVowelSwap(w),           // a/e confusion, o/u confusion
+      ()=>missedDoubleConsonant(w),     // little→litle, happy→hapy
+      ()=>extraVowel(w),                // friend→freind
+      ()=>droppedSilentLetter(w),       // know→no, would→wud
+      ()=>phoneticMisspelling(w),       // said→sed, come→cum
+      ()=>transposedLetters(w),         // then→thn, with→whit
+      ()=>addedVowel(w),                // to→too, red→reed
+      ()=>droppedVowel(w),              // going→goin, make→mak
+    ];
+    
+    const shuffled=shuffle(strategies);
+    for(const strategy of shuffled){
+      const result=strategy();
+      if(result && result!==w && !shown.has(result) && !MASTER.has(result)){
+        return result;
+      }
+    }
+    
+    // Final fallback
+    return w+'e';
+  }
+
+  function commonVowelSwap(w){
+    // Common vowel confusions: a↔e, i↔e, o↔u, ee↔ea
+    const vowelConfusions={'a':'e','e':'a','i':'e','o':'u','u':'o'};
+    const idx=[];
+    for(let i=0;i<w.length;i++){
+      if(vowelConfusions[w[i]]) idx.push(i);
+    }
+    if(!idx.length) return null;
+    const i=idx[rint(0,idx.length-1)];
+    return w.slice(0,i)+vowelConfusions[w[i]]+w.slice(i+1);
+  }
+
+  function missedDoubleConsonant(w){
+    // little→litle, happy→hapy, running→runing (drop one consonant)
+    const doubles=['ll','tt','ss','pp','rr','nn','mm'];
+    for(let i=0;i<w.length-1;i++){
+      const pair=w[i]+w[i+1];
+      if(doubles.includes(pair)){
+        return w.slice(0,i)+w.slice(i+1); // drop one
+      }
+    }
+    return null;
+  }
+
+  function extraVowel(w){
+    // friend→freind, said→seaid (insert extra vowel)
+    const vowels='aeiou';
+    let candidates=[];
+    for(let i=1;i<w.length-1;i++){
+      if(vowels.includes(w[i]) && !vowels.includes(w[i+1])){
+        candidates.push(i+1);
+      }
+    }
+    if(!candidates.length) return null;
+    const i=candidates[rint(0,candidates.length-1)];
+    const v=vowels[rint(0,4)];
+    return w.slice(0,i)+v+w.slice(i);
+  }
+
+  function droppedSilentLetter(w){
+    // know→no, would→wud, could→cud, island→isand
+    const silentPatterns=[
+      {pattern:'kn',replace:'n'},    // know→no, knock→nock
+      {pattern:'wr',replace:'r'},    // write→rite, wrong→rong
+      {pattern:'gh',replace:''},     // though→tho, through→thru
+    ];
+    for(const {pattern,replace} of silentPatterns){
+      const idx=w.indexOf(pattern);
+      if(idx>=0){
+        return w.slice(0,idx)+replace+w.slice(idx+pattern.length);
+      }
+    }
+    return null;
+  }
+
+  function phoneticMisspelling(w){
+    // said→sed, come→cum, one→wun, your→yur
+    const phoneticMap={
+      'said':'sed','said':'seid',
+      'come':'cum','come':'com',
+      'one':'won','one':'wun',
+      'your':'yur','your':'yor',
+      'been':'ben','been':'bin',
+      'have':'hav',
+      'are':'ar',
+      'was':'wuz','was':'waz',
+      'who':'hoo','who':'whoo'
+    };
+    return phoneticMap[w] || null;
+  }
+
+  function transposedLetters(w){
+    // Swap adjacent letters: then→thn, with→whit
+    const idx=[];
+    for(let i=0;i<w.length-1;i++){
+      if(w[i]!==w[i+1]) idx.push(i);
+    }
+    if(!idx.length) return null;
+    const i=idx[rint(0,idx.length-1)];
+    return w.slice(0,i)+w[i+1]+w[i]+w.slice(i+2);
+  }
+
+  function addedVowel(w){
+    // to→too, read→reed (double vowel)
+    const idx=[];
+    for(let i=0;i<w.length;i++){
+      if(VOWELS.includes(w[i])) idx.push(i);
+    }
+    if(!idx.length) return null;
+    const i=idx[rint(0,idx.length-1)];
+    return w.slice(0,i+1)+w[i]+w.slice(i+1);
+  }
+
+  function droppedVowel(w){
+    // going→goin, make→mak (drop vowel)
+    const idx=[];
+    for(let i=0;i<w.length;i++){
+      if(VOWELS.includes(w[i])) idx.push(i);
+    }
+    if(!idx.length) return null;
+    const i=idx[rint(0,idx.length-1)];
+    return w.slice(0,i)+w.slice(i+1);
   }
 
   /* ---------- germ art ---------- */
