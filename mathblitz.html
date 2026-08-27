@@ -143,24 +143,7 @@
   }
   .chip-icon { font-size: 16px; }
 
-  .diff-buttons { display: flex; gap: 8px; }
-  .diff-btn {
-    padding: 7px 20px;
-    border-radius: 99px;
-    border: 2px solid #e0e0e5;
-    background: transparent;
-    color: #777;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .diff-btn.active-easy { border-color: #34a853; background: #34a853; color: #fff; }
-  .diff-btn.active-medium { border-color: #f5a623; background: #f5a623; color: #fff; }
-  .diff-btn.active-hard { border-color: #e74c3c; background: #e74c3c; color: #fff; }
+
 
   .card {
     max-width: 520px;
@@ -384,10 +367,6 @@
     <div class="timer-buttons" id="timerButtons"></div>
   </div>
   <div style="margin-top: 16px;">
-    <div class="section-label">Difficulty</div>
-    <div class="diff-buttons" id="diffButtons"></div>
-  </div>
-  <div style="margin-top: 16px;">
     <div class="section-label">Practice Topics</div>
     <div class="chips" id="topicChips"></div>
   </div>
@@ -399,13 +378,15 @@
 
 <script>
 const CATEGORIES = {
-  numberBonds10:      { label: "Number Bonds to 10",       icon: "🔗",  active: true },
-  numberBonds20:      { label: "Number Bonds to 20",       icon: "🔗",  active: false },
-  timesTables:        { label: "Times Tables (to 12)",     icon: "✖️",  active: false },
-  missingAddends:     { label: "Missing Addends",          icon: "➕",  active: false },
-  missingSubtrahends: { label: "Missing Subtrahends",      icon: "➖",  active: false },
-  addition3Digit:     { label: "Addition (up to 3 digits)",icon: "🧮",  active: false },
-  subtraction3Digit:  { label: "Subtraction (up to 3 digits)", icon: "📉", active: false },
+  numberBonds10:         { label: "Number Bonds to 10",         icon: "🔗",  active: true },
+  numberBonds20:         { label: "Number Bonds to 20",         icon: "🔗",  active: false },
+  timesTablesEasy:       { label: "Times Tables Easy (2,5,10)",  icon: "✖️",  active: false },
+  timesTablesMedium:     { label: "Times Tables Medium (3,4,6,11)", icon: "✖️",  active: false },
+  timesTablesHard:       { label: "Times Tables Hard (7,8,9,12)", icon: "✖️",  active: false },
+  missingAddends:        { label: "Missing Addends",            icon: "➕",  active: false },
+  missingSubtrahends:    { label: "Missing Subtrahends",        icon: "➖",  active: false },
+  addition3Digit:        { label: "Addition (up to 3 digits)",  icon: "🧮",  active: false },
+  subtraction3Digit:     { label: "Subtraction (up to 3 digits)", icon: "📉", active: false },
 };
 
 let difficulty = "easy";
@@ -443,9 +424,29 @@ function generateProblem(cat) {
         ? { display: `${a} + ? = 20`, answer: b }
         : { display: `? + ${b} = 20`, answer: a };
     }
-    case "timesTables": {
-      const mx = d === "easy" ? 5 : d === "medium" ? 9 : 12;
-      const a = rand(1, mx), b = rand(1, 12), v = rand(0, 2);
+    case "timesTablesEasy": {
+      const tables = [2, 5, 10];
+      const a = tables[rand(0, 2)];
+      const b = rand(1, 12);
+      const v = rand(0, 2);
+      if (v === 0) return { display: `${a} × ${b} = ?`, answer: a * b };
+      if (v === 1) return { display: `? × ${b} = ${a * b}`, answer: a };
+      return { display: `${a} × ? = ${a * b}`, answer: b };
+    }
+    case "timesTablesMedium": {
+      const tables = [3, 4, 6, 11];
+      const a = tables[rand(0, 3)];
+      const b = rand(1, 12);
+      const v = rand(0, 2);
+      if (v === 0) return { display: `${a} × ${b} = ?`, answer: a * b };
+      if (v === 1) return { display: `? × ${b} = ${a * b}`, answer: a };
+      return { display: `${a} × ? = ${a * b}`, answer: b };
+    }
+    case "timesTablesHard": {
+      const tables = [7, 8, 9, 12];
+      const a = tables[rand(0, 3)];
+      const b = rand(1, 12);
+      const v = rand(0, 2);
       if (v === 0) return { display: `${a} × ${b} = ?`, answer: a * b };
       if (v === 1) return { display: `? × ${b} = ${a * b}`, answer: a };
       return { display: `${a} × ? = ${a * b}`, answer: b };
@@ -497,21 +498,6 @@ function renderChips() {
       CATEGORIES[key].active = !CATEGORIES[key].active;
       renderChips();
       checkEmpty();
-    });
-    container.appendChild(btn);
-  });
-}
-
-function renderDiffButtons() {
-  const container = document.getElementById("diffButtons");
-  container.innerHTML = "";
-  ["easy", "medium", "hard"].forEach((d) => {
-    const btn = document.createElement("button");
-    btn.className = "diff-btn" + (difficulty === d ? ` active-${d}` : "");
-    btn.textContent = d;
-    btn.addEventListener("click", () => {
-      difficulty = d;
-      renderDiffButtons();
     });
     container.appendChild(btn);
   });
@@ -831,7 +817,6 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 
 // --- Init ---
 renderChips();
-renderDiffButtons();
 renderTimerButtons();
 updateScore();
 checkEmpty();
