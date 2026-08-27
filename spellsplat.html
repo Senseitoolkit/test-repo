@@ -164,6 +164,33 @@
   };
   const MASTER=new Set(); Object.values(LEVELS).forEach(a=>a.forEach(w=>MASTER.add(w.toLowerCase())));
 
+  /* Homophones to exclude from misspellings */
+  const HOMOPHONES={
+    'to':['too','two'],
+    'too':['to','two'],
+    'two':['to','too'],
+    'see':['sea'],
+    'be':['bee'],
+    'know':['no'],
+    'one':['won'],
+    'ate':['eight'],
+    'hear':['here'],
+    'here':['hear'],
+    'read':['red'],
+    'red':['read'],
+    'there':['their','they'],
+    'their':['there','they'],
+    'right':['write'],
+    'write':['right'],
+    'for':['four','fore'],
+    'four':['for','fore'],
+    'no':['know'],
+    'won':['one'],
+    'eight':['ate'],
+    'sea':['see'],
+    'bee':['be'],
+  };
+
   /* Common misspellings database - real student mistakes */
   const COMMON_MISSPELLINGS={
     'here':['heer','hear','hear'],
@@ -250,13 +277,14 @@
   /* Improved misspelling generation */
   function makeMisspelling(word,shown){
     const w=word.toLowerCase();
+    const isHomophone=(candidate)=>HOMOPHONES[w] && HOMOPHONES[w].includes(candidate);
     
     // First priority: use known common misspellings
     if(COMMON_MISSPELLINGS[w]){
       const options=Array.isArray(COMMON_MISSPELLINGS[w]) ? COMMON_MISSPELLINGS[w] : [COMMON_MISSPELLINGS[w]];
       const shuffledOpts=shuffle(options.slice());
       for(const mis of shuffledOpts){
-        if(mis!==w && !shown.has(mis) && !MASTER.has(mis)){
+        if(mis!==w && !shown.has(mis) && !MASTER.has(mis) && !isHomophone(mis)){
           return mis;
         }
       }
@@ -277,13 +305,17 @@
     const shuffled=shuffle(strategies);
     for(const strategy of shuffled){
       const result=strategy();
-      if(result && result!==w && !shown.has(result) && !MASTER.has(result)){
+      if(result && result!==w && !shown.has(result) && !MASTER.has(result) && !isHomophone(result)){
         return result;
       }
     }
     
-    // Final fallback
-    return w+'e';
+    // Final fallback: add a letter that's unlikely to create a homophone
+    const fallback=w+'e';
+    if(!isHomophone(fallback)){
+      return fallback;
+    }
+    return w+'r';
   }
 
   function commonVowelSwap(w){
