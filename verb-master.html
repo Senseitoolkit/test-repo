@@ -210,9 +210,54 @@ function show(scr){document.querySelectorAll('.screen').forEach(s=>s.classList.r
 function setStats(){$('starCount').textContent=totalStars;$('streakCount').textContent=streak;}
 function rand(a){return a[Math.random()*a.length|0];}
 
+/* ---- Verb-form heading: tells the player which tense/form is wanted ---- */
+const PARTICIPLES=new Set(['written','eaten','gone','seen','done','been','broken','grown','taken','given','driven','ridden','flown','sung','drunk','thrown','spoken']);
+const IRREGULAR_PAST=new Set(['was','were','went','saw','gave','sent','found','did','lost','bought','ate','sang','drank','came','took','swam','fell','rode','flew','grew','drove','broke','thought','caught','taught','built','made','wrote','spoke','ran','sat','had','stood','won','met','held','left','felt','kept','told','heard']);
+function tenseName(s,topic){
+  s=(s||'').trim();const low=s.toLowerCase();const w=low.split(/\s+/);
+  // Special grammar points where "tense" isn't the teaching focus
+  if(/subjunctive/.test((topic||'').toLowerCase())) return 'Subjunctive';
+  if(/conditional/.test((topic||'').toLowerCase())) return 'Conditional';
+  if(/reported/.test((topic||'').toLowerCase()))    return 'Reported speech';
+  if(/causative/.test((topic||'').toLowerCase()))   return 'Causative';
+  if(/agreement/.test((topic||'').toLowerCase()))   return 'Subject–verb agreement';
+  // Multi-word forms
+  if(/^will have\b/.test(low))            return 'Future perfect';
+  if(/^will be \w+ing$/.test(low))        return 'Future continuous';
+  if(/^will be$/.test(low))               return 'Passive';
+  if(/^will\b/.test(low))                 return 'Future';
+  if(/\bbeen \w+ing$/.test(low))          return 'Present perfect continuous';
+  if(/^(has|have) been\b/.test(low))      return 'Present perfect';
+  if(/^(has|have)\b/.test(low))           return 'Present perfect';
+  if(/^had\b/.test(low)&&w.length>1)      return 'Past perfect';
+  if(/\bbeing\b/.test(low))               return 'Passive';
+  if(/^(am|is|are) \w+ing$/.test(low))    return 'Present continuous';
+  if(/^(was|were) \w+ing$/.test(low))     return 'Past continuous';
+  if(w.length>1&&/^(was|were)\b/.test(low)) return 'Passive';
+  // Single word
+  if(PARTICIPLES.has(low))                return 'Past participle';
+  if(IRREGULAR_PAST.has(low))             return 'Past simple';
+  if(/ed$/.test(low))                     return 'Past simple';
+  if(low==='am'||low==='is'||low==='are') return 'Present simple';
+  return 'Present simple'; // base form, 3rd-person -s, has, does, etc.
+}
+function formLabel(q){
+  const correct=q.words?q.fix:q.answer;
+  // Error sentences with a bare "to be" fix that actually sit in a continuous sentence
+  if(q.words){
+    const bare=/^(am|is|are|was|were)$/.test(correct||'');
+    const hasIng=q.words.some(x=>/ing$/.test(x)&&x.length>4);
+    if(bare&&hasIng) return /^(was|were)$/.test(correct)?'Past continuous':'Present continuous';
+  }
+  const t=(q.topic||'').toLowerCase();
+  const map={'now':'Present continuous','past prog':'Past continuous','future':'Future','future cont':'Future continuous','future perfect':'Future perfect','perfect':'Present perfect','past perfect':'Past perfect','perfect cont':'Present perfect continuous','passive':'Passive','passive prog':'Passive','reported speech':'Reported speech','conditional':'Conditional','subjunctive':'Subjunctive','causative':'Causative','agreement':'Subject–verb agreement'};
+  if(map[t]) return map[t];
+  return tenseName(correct,q.topic);
+}
+
 function startGame(){const L=LEVELS[selectedLevel];let q=shuffle([...L.mc,...L.error]).slice(0,PER_GAME);game={queue:q,idx:0,correct:0,total:q.length};stage=0;$('qTot').textContent=game.total;show('game');renderQuestion();}
 
-function renderQuestion(){const q=game.queue[game.idx];$('qNum').textContent=game.idx+1;$('progFill').style.width=game.idx/game.total*100+'%';$('qTag').textContent=q.topic;$('fb').className='fb';$('actions').innerHTML='';const b=$('qBody');b.innerHTML='';stage=0;if(q.options&&!q.words)renderMC(q,b);else if(q.words)renderErrorSpotting(q,b);}
+function renderQuestion(){const q=game.queue[game.idx];$('qNum').textContent=game.idx+1;$('progFill').style.width=game.idx/game.total*100+'%';$('qTag').textContent=formLabel(q);$('fb').className='fb';$('actions').innerHTML='';const b=$('qBody');b.innerHTML='';stage=0;if(q.options&&!q.words)renderMC(q,b);else if(q.words)renderErrorSpotting(q,b);}
 
 function renderMC(q,body){$('qPrompt').textContent=q.prompt;const w=document.createElement('div');w.className='opts';shuffle(q.options).forEach(opt=>{const b=document.createElement('button');b.className='opt';b.textContent=opt;b.onclick=()=>{[...w.children].forEach(c=>c.disabled=true);const ok=opt===q.answer;b.classList.add(ok?'good':'bad');if(!ok)[...w.children].forEach(c=>{if(c.textContent===q.answer)c.classList.add('good');});finish(ok,q.explain);};w.appendChild(b);});body.appendChild(w);}
 
