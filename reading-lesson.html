@@ -301,7 +301,7 @@ function startLesson(){
   document.getElementById('app').classList.add('active');
   show(0);
 }
-function backToMenu(){ clearTimers(); currentSkip = null; document.getElementById('fw-overlay').classList.remove('active'); document.getElementById('app').classList.remove('active'); document.getElementById('menu').classList.add('active'); }
+function backToMenu(){ clearTimers(); currentSkip = null; document.getElementById('fw-overlay').classList.remove('active'); document.getElementById('app').classList.remove('active'); document.getElementById('menu').classList.add('active'); requestAnimationFrame(fitToScreen); }
 function next(){ if(idx < pages.length-1) show(idx+1); }
 function show(i){
   clearTimers(); currentSkip = null; idx = i;
@@ -310,6 +310,7 @@ function show(i){
   app.innerHTML = pg.html();
   if(pg.onShow) pg.onShow();
   window.scrollTo(0,0);
+  requestAnimationFrame(fitToScreen);
 }
 function buildPages(){ return [ overviewPage(), focusPage(), fluencyPage(), readworkPage(), reviewPage(), celebratePage() ]; }
 
@@ -449,6 +450,7 @@ function toggleViper(el){
   el.classList.toggle('checked');
   const d = document.getElementById('rev-done');
   if(d) d.disabled = document.querySelectorAll('.viper-item.checked').length < 1;
+  fitToScreen();
 }
 
 /* ---------- CELEBRATE ---------- */
@@ -477,7 +479,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* ---------- FULL SCREEN ---------- */
+/* ---------- FULL SCREEN (fit everything on screen, no scrolling) ---------- */
 function toggleFullscreen(){
   const fs = document.fullscreenElement || document.webkitFullscreenElement;
   try {
@@ -486,8 +488,32 @@ function toggleFullscreen(){
   } catch(e){}
 }
 function syncFsBtn(){ const b = document.getElementById('fsBtn'); if(b) b.innerHTML = (document.fullscreenElement || document.webkitFullscreenElement) ? '&#10005;' : '&#9974;'; }
-document.addEventListener('fullscreenchange', syncFsBtn);
-document.addEventListener('webkitfullscreenchange', syncFsBtn);
+function currentInner(){
+  const menuEl = document.getElementById('menu'), appEl = document.getElementById('app');
+  if(appEl.classList.contains('active')) return [appEl, appEl.firstElementChild];
+  if(menuEl.classList.contains('active')) return [menuEl, menuEl.firstElementChild];
+  return [null, null];
+}
+function fitToScreen(){
+  [document.getElementById('menu'), document.getElementById('app')].forEach(scr => {
+    scr.style.height = ''; scr.style.overflow = '';
+    const inr = scr.firstElementChild; if(inr){ inr.style.transform = ''; inr.style.transformOrigin = ''; }
+  });
+  if(!(document.fullscreenElement || document.webkitFullscreenElement)) return;
+  const pair = currentInner(), scr = pair[0], inner = pair[1];
+  if(!scr || !inner) return;
+  scr.style.height = '100vh'; scr.style.overflow = 'hidden';
+  const natH = inner.offsetHeight, natW = inner.offsetWidth;
+  if(!natH || !natW) return;
+  const f = Math.min(1, window.innerHeight / natH, window.innerWidth / natW);
+  if(f < 1){ inner.style.transformOrigin = 'top center'; inner.style.transform = 'scale(' + f.toFixed(4) + ')'; }
+}
+function onFsChange(){ syncFsBtn(); setTimeout(fitToScreen, 60); }
+document.addEventListener('fullscreenchange', onFsChange);
+document.addEventListener('webkitfullscreenchange', onFsChange);
+window.addEventListener('resize', fitToScreen);
+window.addEventListener('load', () => setTimeout(fitToScreen, 50));
+if(document.fonts && document.fonts.ready){ document.fonts.ready.then(() => fitToScreen()); }
 
 /* ---------- FIREWORKS ---------- */
 function triggerFireworks(){
