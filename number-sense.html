@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Sense Workout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1f2733; --ink-soft:#5b6472; --bg:#eef2f7; --paper:#ffffff; --line:#dbe1ea;
+    --sc:#3b82f6; --sb:#dbeafe;
+    --ok:#16a34a; --ok-bg:#e7f7ec; --no:#e0574c; --no-bg:#fdecea;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:'Lexend',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);
+    min-height:100vh;padding:22px 16px 40px;display:flex;justify-content:center;}
+  .app{width:100%;max-width:560px;}
+
+  .brand{font-family:'Fredoka';font-weight:700;font-size:26px;letter-spacing:-.01em;}
+  .brand .sub{display:block;font-family:'Lexend';font-weight:500;font-size:13.5px;color:var(--ink-soft);margin-top:2px;}
+  .lvl{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .lvl b{color:var(--ink);}
+
+  .stats{display:flex;gap:8px;margin:14px 0 12px;}
+  .stat{flex:1;background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:9px 6px 7px;text-align:center;}
+  .stat .v{font-family:'Fredoka';font-weight:700;font-size:23px;line-height:1;}
+  .stat .k{font-size:10.5px;color:var(--ink-soft);margin-top:3px;}
+  .stat .k .e{font-style:normal;}
+  #streak.hot .v{color:#ef7a17;}
+
+  .pips{display:flex;gap:5px;justify-content:center;margin:2px 0 14px;}
+  .pip{flex:1;max-width:46px;height:8px;border-radius:6px;background:#dde3ec;transition:background .2s,transform .2s;}
+  .pip.active{transform:scaleY(1.9);}
+  .pip.correct{background:var(--ok);}
+  .pip.wrong{background:var(--no);}
+
+  .card{background:var(--paper);border:2px solid var(--sc);border-radius:20px;overflow:hidden;
+        box-shadow:0 10px 26px -18px rgba(31,39,51,.4);}
+  .card .top{background:var(--sb);display:flex;align-items:center;gap:9px;padding:11px 16px;}
+  .card .top .ic{font-size:20px;}
+  .card .top .tt{font-family:'Fredoka';font-weight:700;font-size:16px;color:#233;}
+  .card .top .pill{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--ink-soft);
+        background:rgba(255,255,255,.7);border-radius:20px;padding:3px 10px;}
+  .card .mid{padding:24px 20px 6px;text-align:center;}
+  .prompt{font-size:21px;line-height:1.45;}
+  .prompt b{font-family:'Fredoka';font-weight:700;}
+  .prompt .tag{display:inline-block;font-family:'Lexend';font-weight:600;font-size:11px;color:var(--ink-soft);
+        background:#eef1f6;border-radius:20px;padding:2px 9px;margin-left:8px;vertical-align:middle;}
+
+  .ansarea{padding:14px 20px 4px;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  input.ans{font-family:'Fredoka';font-weight:600;font-size:30px;text-align:center;width:170px;height:60px;
+        border:2px solid var(--line);border-radius:14px;color:var(--ink);background:#fff;outline:none;}
+  input.ans:focus{border-color:var(--sc);box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 22%,transparent);}
+  input.ans::-webkit-outer-spin-button,input.ans::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  input.ans[type=number]{-moz-appearance:textfield;}
+  .choices{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+  button.choice{font-family:'Fredoka';font-weight:600;font-size:22px;min-width:82px;padding:14px 18px;
+        border:2px solid var(--line);border-radius:16px;background:#fff;color:var(--ink);cursor:pointer;}
+  button.choice:hover:not(:disabled){border-color:var(--sc);}
+  button.choice:disabled{cursor:default;}
+  button.choice.pick-ok{border-color:var(--ok);background:var(--ok-bg);}
+  button.choice.pick-no{border-color:var(--no);background:var(--no-bg);}
+  button.choice.reveal{border-color:var(--ok);background:var(--ok-bg);}
+
+  /* order (drag to sort) */
+  .sortable{display:flex;flex-direction:column;gap:8px;width:100%;max-width:320px;}
+  .drow{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid var(--line);border-radius:12px;
+        padding:8px 10px;cursor:grab;font-family:'Fredoka';font-weight:600;font-size:20px;user-select:none;}
+  .drow.dragging{opacity:.55;border-color:var(--sc);}
+  .drow .grip{color:#b9c1cd;font-size:14px;letter-spacing:-1px;}
+  .drow .dnum{flex:1;}
+  .drow .darr{display:flex;gap:4px;}
+  .drow .darr button{font-family:'Lexend';font-size:12px;line-height:1;border:1.5px solid var(--line);
+        background:#f4f7fb;border-radius:8px;padding:5px 8px;cursor:pointer;color:var(--ink-soft);}
+
+  /* place (drag / tap into slots) */
+  .slots{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  .slot{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .slot .slabel{font-size:11px;font-weight:700;color:var(--ink-soft);}
+  .drop{width:74px;height:60px;border:2px dashed #b9c1cd;border-radius:14px;display:flex;align-items:center;justify-content:center;background:#fbfdff;}
+  .tray{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px;min-height:60px;}
+  .tile{min-width:66px;height:56px;padding:0 8px;display:flex;align-items:center;justify-content:center;background:#fff;
+        border:2px solid var(--sc);border-radius:14px;font-family:'Fredoka';font-weight:700;font-size:22px;cursor:grab;color:var(--ink);user-select:none;}
+  .tile.sel{box-shadow:0 0 0 4px color-mix(in srgb,var(--sc) 30%,transparent);}
+
+  .fb{min-height:24px;margin:8px 20px 0;text-align:center;font-weight:600;font-size:15px;}
+  .fb.ok{color:var(--ok);} .fb.no{color:var(--no);}
+
+  .foot{padding:14px 20px 20px;display:flex;justify-content:center;}
+  button.btn{font-family:'Fredoka';font-weight:600;font-size:18px;color:#fff;background:var(--sc);
+        border:none;border-radius:14px;padding:13px 30px;cursor:pointer;}
+  button.btn:hover{filter:brightness(1.05);}
+  button.btn:active{transform:translateY(1px);}
+
+  .celebrate{text-align:center;padding:30px 20px 10px;}
+  .celebrate .burst{font-size:40px;}
+  .celebrate h2{font-family:'Fredoka';font-weight:700;font-size:26px;margin:8px 0 4px;}
+  .celebrate p{margin:0;color:var(--ink-soft);font-size:15px;}
+  @media (prefers-reduced-motion: no-preference){
+    .celebrate .burst{animation:pop .5s ease;}
+    @keyframes pop{0%{transform:scale(.4);opacity:0;}60%{transform:scale(1.15);}100%{transform:scale(1);opacity:1;}}
+  }
+
+  .reset{display:block;margin:18px auto 0;background:none;border:none;color:var(--ink-soft);
+        font-family:'Lexend';font-size:12.5px;text-decoration:underline;cursor:pointer;}
+  .hint{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="brand">Number Sense Workout
+    <span class="sub">Answer all ten routines to finish one cycle.</span>
+    <div class="lvl">Difficulty rises as you go — <b>Level <span id="lvl">1</span></b></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="v" id="cycles">0</div><div class="k"><span class="e">🔁</span> Cycles</div></div>
+    <div class="stat"><div class="v" id="correct">0</div><div class="k"><span class="e">✅</span> Correct</div></div>
+    <div class="stat" id="streak"><div class="v" id="streakv">0</div><div class="k"><span class="e">🔥</span> Streak</div></div>
+    <div class="stat"><div class="v" id="best">0</div><div class="k"><span class="e">⭐</span> Best</div></div>
+  </div>
+
+  <div class="pips" id="pips"></div>
+  <div class="card" id="card"></div>
+
+  <button class="reset" id="resetBtn">Reset progress</button>
+  <div class="hint">Enter checks your answer, then Enter again moves on. Drag steps also have ▲▼ / tap.</div>
+</div>
+
+<script>
+// ============ helpers ============
+function randInt(a,b){return Math.floor(Math.random()*(b-a+1))+a;}
+function pick(a){return a[Math.floor(Math.random()*a.length)];}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+const arrEq=(a,b)=>a.length===b.length&&a.every((x,i)=>x===b[i]);
+const sameSet=(a,b)=>{const x=a.slice().sort((p,q)=>p-q),y=b.slice().sort((p,q)=>p-q);return x.length===y.length&&x.every((v,i)=>v===y[i]);};
+
+// ============ generators (level-scaled) ============
+function g1(L){const hi=Math.min(999,200+L*120);const N=randInt(100,hi);const v=pick(['1more','1less','10more','10less','100more','100less','odd']);
+  if(v==='odd')return{prompt:`Is <b>${N}</b> odd or even?`,type:'choice',choices:['Odd','Even'],answer:N%2?'Odd':'Even'};
+  const d={'1more':1,'1less':-1,'10more':10,'10less':-10,'100more':100,'100less':-100}[v];
+  const label={'1more':'1 more than','1less':'1 less than','10more':'10 more than','10less':'10 less than','100more':'100 more than','100less':'100 less than'}[v];
+  return{prompt:`What is <b>${label} ${N}</b>?`,type:'number',answer:N+d};}
+function g2(L){const pool=[2,5,10];if(L>=1)pool.push(3);if(L>=2)pool.push(4,6);if(L>=3)pool.push(7,8,9);if(L>=4)pool.push(25,50);if(L>=5)pool.push(100);
+  const step=pick(pool);const v=pick(['fwd','fwd','back','missing']);
+  if(v==='back'){const s=step*randInt(5,9+L);const q=[s,s-step,s-2*step,s-3*step];return{prompt:`Count back by ${step}s:<br><b>${q.join(', ')}, ?</b>`,type:'number',answer:s-4*step};}
+  if(v==='missing'){const s=step*randInt(1,4+L);const t=[s,s+step,s+2*step,s+3*step,s+4*step];const h=randInt(1,3);const disp=t.map((x,i)=>i===h?'?':x);return{prompt:`Find the missing number:<br><b>${disp.join(', ')}</b>`,type:'number',answer:t[h]};}
+  const s=step*randInt(1,5+L);const q=[s,s+step,s+2*step,s+3*step];return{prompt:`Count on by ${step}s:<br><b>${q.join(', ')}, ?</b>`,type:'number',answer:s+4*step};}
+function g3(L){const hi=[99,199,399,599,799,999][Math.min(L,5)];const N=randInt(11,hi);const opts=['ones','tensplace','build'];if(N>=100)opts.push('hundreds');const v=pick(opts);
+  if(v==='ones')return{prompt:`What digit is in the <b>ones place</b> of <b>${N}</b>?`,type:'number',answer:N%10};
+  if(v==='tensplace')return{prompt:`What digit is in the <b>tens place</b> of <b>${N}</b>?`,type:'number',answer:Math.floor(N/10)%10};
+  if(v==='hundreds')return{prompt:`What digit is in the <b>hundreds place</b> of <b>${N}</b>?`,type:'number',answer:Math.floor(N/100)%10};
+  if(N>=100)return{prompt:`<b>${Math.floor(N/100)} hundreds</b>, <b>${Math.floor(N/10)%10} tens</b> and <b>${N%10} ones</b> make ?`,type:'number',answer:N};
+  return{prompt:`<b>${Math.floor(N/10)} tens</b> and <b>${N%10} ones</b> make ?`,type:'number',answer:N};}
+function g4(L){const hi=L<2?99:(L<4?299:999);const v=pick(['greater','smaller','sign','big3','order','order']);
+  if(v==='order'){const n=L<2?3:(L<4?4:5);const set=new Set();while(set.size<n)set.add(randInt(10,hi));const items0=[...set];const dir=pick(['asc','desc']);
+    const answer=[...items0].sort((a,b)=>dir==='asc'?a-b:b-a);let items=shuffle(items0),g=0;while(JSON.stringify(items)===JSON.stringify(answer)&&g++<20)items=shuffle(items0);
+    return{prompt:`Drag the numbers into order — <b>${dir==='asc'?'smallest first':'largest first'}</b>.`,type:'order',items:items,answer:answer};}
+  if(v==='sign'){let A=randInt(10,hi),B=randInt(10,hi);if(Math.random()<0.2)B=A;const ans=A<B?'<':(A>B?'>':'=');return{prompt:`Choose the correct sign:<br><b>${A} &nbsp;?&nbsp; ${B}</b>`,type:'choice',choices:['<','>','='],answer:ans};}
+  if(v==='big3'){const set=new Set();while(set.size<3)set.add(randInt(10,hi));const arr=[...set];return{prompt:`Which is the <b>biggest</b>?`,type:'choice',choices:arr.map(String),answer:String(Math.max(...arr))};}
+  let A=randInt(10,hi),B=randInt(10,hi);while(B===A)B=randInt(10,hi);const ans=v==='greater'?Math.max(A,B):Math.min(A,B);
+  return{prompt:`Which number is <b>${v==='greater'?'greater':'smaller'}</b>?`,type:'choice',choices:[String(A),String(B)],answer:String(ans)};}
+function g5(L){const use100=L>=2&&(L>=4||Math.random()<0.5);
+  if(use100){let N=randInt(101,999);while(N%100===0||N%100===50)N=randInt(101,999);const lower=Math.floor(N/100)*100,upper=lower+100,near=Math.round(N/100)*100;
+    if(Math.random()<0.4)return{prompt:`Is <b>${N}</b> closer to ${lower} or ${upper}?`,type:'choice',choices:[String(lower),String(upper)],answer:String(near)};
+    return{prompt:`Round <b>${N}</b> to the nearest <b>100</b>.`,type:'number',answer:near};}
+  let N=randInt(11,98);while(N%10===0||N%10===5)N=randInt(11,98);const lower=Math.floor(N/10)*10,upper=lower+10,near=Math.round(N/10)*10;
+  if(Math.random()<0.4)return{prompt:`Is <b>${N}</b> closer to ${lower} or ${upper}?`,type:'choice',choices:[String(lower),String(upper)],answer:String(near)};
+  return{prompt:`Round <b>${N}</b> to the nearest <b>10</b>.`,type:'number',answer:near};}
+function g6(L){let a,b;if(L>=3){a=randInt(100,499);b=randInt(100,499);}else if(L>=1){a=randInt(10,59);b=randInt(10,59);}else{a=randInt(3,12);b=randInt(2,8);}
+  const v=pick(['sum','sum','missing','round']);
+  if(v==='missing')return{prompt:`<b>${a} + ? = ${a+b}</b>`,type:'number',answer:b};
+  if(v==='round'){const r=L>=3?100:10;const M=L>=3?randInt(100,899):randInt(10,89);return{prompt:`<b>${M} + ${r}</b> = ?`,type:'number',answer:M+r};}
+  return{prompt:`<b>${a} + ${b}</b> = ?`,type:'number',answer:a+b};}
+function g7(L){let a,b;if(L>=3){a=randInt(300,899);b=randInt(100,499);}else if(L>=1){a=randInt(20,80);b=randInt(5,40);}else{a=randInt(8,20);b=randInt(2,8);}
+  if(b>a){const t=a;a=b;b=t;}const v=pick(['diff','diff','missing','round']);
+  if(v==='missing'){const ans=randInt(2,Math.min(9,a-1));return{prompt:`<b>${a} &minus; ? = ${ans}</b>`,type:'number',answer:a-ans};}
+  if(v==='round'){const r=L>=3?100:10;const M=L>=3?randInt(200,999):randInt(20,99);return{prompt:`<b>${M} &minus; ${r}</b> = ?`,type:'number',answer:M-r};}
+  return{prompt:`<b>${a} &minus; ${b}</b> = ?`,type:'number',answer:a-b};}
+function g8(L){let target;if(L<=0)target=10;else if(L===1)target=20;else if(L<=3)target=100;else target=pick([100,1000]);
+  if((target===10||target===20)&&Math.random()<0.3){const p=randInt(1,target-1);const correct=`${p} + ${target-p}`;const set=new Set([correct]);
+    while(set.size<3){const x=randInt(1,target-1),y=randInt(1,target-1);if(x+y!==target)set.add(`${x} + ${y}`);}
+    return{prompt:`Which pair makes <b>${target}</b>?`,type:'choice',choices:shuffle([...set]),answer:correct};}
+  let part;if(target===10||target===20)part=randInt(1,target-1);else if(target===100)part=L<=2?randInt(1,19)*5:randInt(1,99);else part=L<5?randInt(1,99)*10:randInt(1,999);
+  return{prompt:`<b>${part} + ? = ${target}</b>`,type:'number',answer:target-part};}
+function g9(L){const hi=[12,25,50,100,250,500][Math.min(L,5)];const v=pick(['double','double','halve','findn']);
+  if(v==='halve'){const n=randInt(1,hi)*2;return{prompt:`Half of <b>${n}</b> = ?`,type:'number',answer:n/2};}
+  if(v==='findn'){const n=randInt(2,hi);return{prompt:`Double a number is <b>${2*n}</b>. What is the number?`,type:'number',answer:n};}
+  const n=randInt(2,hi);return{prompt:`Double <b>${n}</b> = ?`,type:'number',answer:2*n};}
+function g10(L){const hi=[9,20,50,100,300,500][Math.min(L,5)];const a=randInt(2,hi),b=randInt(2,hi),c=a+b;
+  return{prompt:`Drag each number into its place in the fact family.`,type:'place',slots:['Whole','Part','Part'],tiles:shuffle([a,b,c]),whole:c,parts:[a,b]};}
+
+// ============ step meta ============
+const STEPS=[
+  {ic:'🔢',t:'Number of the Day',    sc:'#f59e0b',sb:'#fef3c7',gen:g1},
+  {ic:'🦘',t:'Counting & Sequences', sc:'#f97316',sb:'#ffedd5',gen:g2},
+  {ic:'🏠',t:'Place Value',          sc:'#3b82f6',sb:'#dbeafe',gen:g3},
+  {ic:'⚖️',t:'Comparing & Ordering', sc:'#8b5cf6',sb:'#ede9fe',gen:g4},
+  {ic:'🎯',t:'Rounding & Estimation', sc:'#14b8a6',sb:'#ccfbf1',gen:g5},
+  {ic:'➕',t:'Addition',              sc:'#22c55e',sb:'#dcfce7',gen:g6},
+  {ic:'➖',t:'Subtraction',           sc:'#ef4444',sb:'#fee2e2',gen:g7},
+  {ic:'🔗',t:'Number Bonds',         sc:'#ec4899',sb:'#fce7f3',gen:g8},
+  {ic:'🪞',t:'Doubles & Halves',     sc:'#06b6d4',sb:'#cffafe',gen:g9},
+  {ic:'🪜',t:'Fact Families',        sc:'#6366f1',sb:'#e0e7ff',gen:g10},
+];
+const PRAISE=['Correct!','Nice work!','Spot on!','Well done!','Brilliant!'];
+const N_STEPS=STEPS.length;
+
+// ============ persistence ============
+const store={read(){try{const s=localStorage.getItem('ns_stats');return s?JSON.parse(s):null;}catch(e){return null;}},
+  write(v){try{localStorage.setItem('ns_stats',JSON.stringify(v));}catch(e){}},clear(){try{localStorage.removeItem('ns_stats');}catch(e){}}};
+
+// ============ state ============
+let stats={cycles:0,correct:0,attempts:0,streak:0,best:0};
+const saved=store.read(); if(saved) stats=Object.assign(stats,saved);
+let cycle=[], idx=0, cycleCorrect=0, phase='answer', dragTile=null;
+const card=document.getElementById('card');
+const pipsEl=document.getElementById('pips');
+
+function level(){return Math.min(8, stats.cycles + Math.floor(stats.streak/5));}
+function buildCycle(){cycle=STEPS.map(s=>({...s,q:null,result:null}));idx=0;cycleCorrect=0;}
+function setTheme(sc,sb){document.documentElement.style.setProperty('--sc',sc);document.documentElement.style.setProperty('--sb',sb);}
+
+function renderPips(){pipsEl.innerHTML='';for(let i=0;i<N_STEPS;i++){const p=document.createElement('div');
+  p.className='pip'+(cycle[i].result?(' '+cycle[i].result):'')+(i===idx&&phase!=='celebrate'?' active':'');
+  if(i===idx&&phase!=='celebrate')p.style.background=cycle[i].sc;pipsEl.appendChild(p);}}
+function updateStats(){document.getElementById('cycles').textContent=stats.cycles;document.getElementById('correct').textContent=stats.correct;
+  document.getElementById('streakv').textContent=stats.streak;document.getElementById('best').textContent=stats.best;
+  document.getElementById('streak').classList.toggle('hot',stats.streak>=3);document.getElementById('lvl').textContent=level()+1;}
+
+function render(){
+  const s=cycle[idx];
+  if(!s.q) s.q=s.gen(level());          // generate lazily at current level
+  const q=s.q; phase='answer';
+  setTheme(s.sc,s.sb);
+  let ans='';
+  if(q.type==='number'){
+    ans=`<div class="ansarea"><input class="ans" id="ansInput" type="number" inputmode="numeric" autocomplete="off" aria-label="Your answer"></div>`;
+  }else if(q.type==='choice'){
+    ans=`<div class="ansarea"><div class="choices">`+q.choices.map(c=>`<button class="choice" data-val="${esc(c)}">${esc(c)}</button>`).join('')+`</div></div>`;
+  }else if(q.type==='order'){
+    ans=`<div class="ansarea"><div class="sortable" id="sortable">`+q.items.map(v=>
+      `<div class="drow" draggable="true" data-val="${v}"><span class="grip" aria-hidden="true">⠿</span><span class="dnum">${v}</span><span class="darr"><button type="button" class="up" aria-label="Move up">▲</button><button type="button" class="down" aria-label="Move down">▼</button></span></div>`).join('')+`</div></div>`;
+  }else if(q.type==='place'){
+    ans=`<div class="ansarea"><div class="slots">`+q.slots.map((lab,i)=>
+      `<div class="slot"><span class="slabel">${lab}</span><span class="drop" data-slot="${i}"></span></div>`).join('')+
+      `</div><div class="tray" id="tray">`+q.tiles.map(v=>`<div class="tile" draggable="true" data-val="${v}">${v}</div>`).join('')+`</div></div>`;
+  }
+  card.innerHTML=`
+    <div class="top"><span class="ic">${s.ic}</span><span class="tt">Step ${idx+1} · ${s.t}</span><span class="pill">Question ${idx+1} of ${N_STEPS}</span></div>
+    <div class="mid"><div class="prompt">${q.prompt}</div></div>
+    ${ans}
+    <div class="fb" id="fb"></div>
+    <div class="foot">
+      <button class="btn" id="checkBtn"${q.type==='choice'?' hidden':''}>Check</button>
+      <button class="btn" id="nextBtn" hidden>${idx<N_STEPS-1?'Next step':'Finish cycle'}</button>
+    </div>`;
+  renderPips();
+  if(q.type==='number'){const inp=document.getElementById('ansInput');inp.focus();document.getElementById('checkBtn').addEventListener('click',()=>submit());}
+  else if(q.type==='choice'){card.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>submit(b.dataset.val)));}
+  else if(q.type==='order'){enableOrder();document.getElementById('checkBtn').addEventListener('click',()=>submit());}
+  else if(q.type==='place'){enablePlace();document.getElementById('checkBtn').addEventListener('click',()=>submit());}
+}
+
+// ---- order interactions: drag + ▲▼ ----
+function afterEl(list,y){const els=[...list.querySelectorAll('.drow:not(.dragging)')];let res=null,off=-Infinity;
+  for(const el of els){const box=el.getBoundingClientRect();const o=y-(box.top+box.height/2);if(o<0&&o>off){off=o;res=el;}}return res;}
+function enableOrder(){
+  const list=document.getElementById('sortable');
+  list.querySelectorAll('.drow').forEach(row=>{
+    row.querySelector('.up').addEventListener('click',()=>{if(phase!=='answer')return;const p=row.previousElementSibling;if(p)list.insertBefore(row,p);});
+    row.querySelector('.down').addEventListener('click',()=>{if(phase!=='answer')return;const n=row.nextElementSibling;if(n)list.insertBefore(n,row);});
+    row.addEventListener('dragstart',e=>{if(phase!=='answer'){e.preventDefault();return;}row.classList.add('dragging');});
+    row.addEventListener('dragend',()=>row.classList.remove('dragging'));
+  });
+  list.addEventListener('dragover',e=>{if(phase!=='answer')return;e.preventDefault();const drag=list.querySelector('.dragging');if(!drag)return;const after=afterEl(list,e.clientY);if(after==null)list.appendChild(drag);else list.insertBefore(drag,after);});
+}
+// ---- place interactions: drag + tap ----
+function enablePlace(){
+  const tray=document.getElementById('tray');let selected=null;
+  const clearSel=()=>{if(selected){selected.classList.remove('sel');selected=null;}};
+  card.querySelectorAll('.tile').forEach(t=>{
+    t.addEventListener('click',()=>{if(phase!=='answer')return;
+      if(t.parentElement.classList.contains('drop')){tray.appendChild(t);clearSel();return;}
+      if(selected===t){clearSel();return;} clearSel(); selected=t; t.classList.add('sel');});
+    t.addEventListener('dragstart',e=>{if(phase!=='answer'){e.preventDefault();return;}dragTile=t;t.classList.add('dragging');});
+    t.addEventListener('dragend',()=>{t.classList.remove('dragging');});
+  });
+  card.querySelectorAll('.drop').forEach(drop=>{
+    drop.addEventListener('click',()=>{if(phase!=='answer'||!selected)return;const ex=drop.querySelector('.tile');if(ex)tray.appendChild(ex);drop.appendChild(selected);clearSel();});
+    drop.addEventListener('dragover',e=>{if(phase!=='answer')return;e.preventDefault();});
+    drop.addEventListener('drop',e=>{if(phase!=='answer'||!dragTile)return;e.preventDefault();const ex=drop.querySelector('.tile');if(ex)tray.appendChild(ex);drop.appendChild(dragTile);dragTile=null;});
+  });
+  tray.addEventListener('dragover',e=>{if(phase!=='answer')return;e.preventDefault();});
+  tray.addEventListener('drop',e=>{if(phase!=='answer'||!dragTile)return;e.preventDefault();tray.appendChild(dragTile);dragTile=null;});
+}
+function readPlacement(){const out=[];for(let i=0;i<3;i++){const d=card.querySelector('.drop[data-slot="'+i+'"]');const t=d&&d.querySelector('.tile');out.push(t?Number(t.dataset.val):null);}return out;}
+
+function submit(explicit){
+  if(phase!=='answer')return;
+  const q=cycle[idx].q; let correct, reveal='';
+  if(q.type==='choice'){correct=String(explicit)===String(q.answer);}
+  else if(q.type==='number'){const inp=document.getElementById('ansInput');const val=inp.value;
+    if(val===''||!Number.isFinite(Number(val))){inp.focus();inp.style.borderColor='var(--no)';setTimeout(()=>inp.style.borderColor='',600);return;}
+    correct=Number(val)===Number(q.answer);}
+  else if(q.type==='order'){const cur=[...document.querySelectorAll('#sortable .drow')].map(r=>Number(r.dataset.val));correct=arrEq(cur,q.answer);reveal=`Correct order: ${q.answer.join(', ')}.`;}
+  else if(q.type==='place'){const pl=readPlacement();if(pl.some(x=>x===null)){const tr=document.getElementById('tray');tr.style.outline='2px solid var(--no)';setTimeout(()=>tr.style.outline='',600);return;}
+    correct=Number(pl[0])===Number(q.whole)&&sameSet([pl[1],pl[2]],q.parts);reveal=`Whole is ${q.whole}. Parts are ${q.parts[0]} and ${q.parts[1]}.`;}
+
+  cycle[idx].result=correct?'correct':'wrong';
+  stats.attempts++;
+  if(correct){stats.correct++;stats.streak++;cycleCorrect++;if(stats.streak>stats.best)stats.best=stats.streak;}else stats.streak=0;
+  store.write(stats); updateStats(); renderPips();
+
+  const fb=document.getElementById('fb');
+  if(correct){fb.className='fb ok';fb.textContent=pick(PRAISE);}
+  else{fb.className='fb no';fb.innerHTML=(q.type==='number'||q.type==='choice')?`Not quite — the answer is <b>${esc(q.answer)}</b>.`:`Not quite — ${esc(reveal)}`;}
+
+  if(q.type==='choice'){card.querySelectorAll('.choice').forEach(b=>{b.disabled=true;
+    if(String(b.dataset.val)===String(q.answer))b.classList.add(String(explicit)===String(q.answer)?'pick-ok':'reveal');
+    else if(String(b.dataset.val)===String(explicit))b.classList.add('pick-no');});}
+  else if(q.type==='number'){document.getElementById('ansInput').disabled=true;}
+
+  phase='feedback';
+  document.getElementById('checkBtn').hidden=true;
+  const nb=document.getElementById('nextBtn');nb.hidden=false;nb.focus();nb.addEventListener('click',next,{once:true});
+}
+
+function next(){
+  if(phase==='celebrate'){buildCycle();render();return;}
+  if(phase!=='feedback')return;
+  if(idx<N_STEPS-1){idx++;render();}
+  else{stats.cycles++;store.write(stats);updateStats();celebrate();}
+}
+function celebrate(){phase='celebrate';setTheme('#f59e0b','#fff7ed');
+  card.innerHTML=`<div class="celebrate"><div class="burst">🎉</div><h2>Cycle ${stats.cycles} complete!</h2>
+    <p>You got <b>${cycleCorrect} of ${N_STEPS}</b> right this time · streak ${stats.streak}.</p></div>
+    <div class="foot"><button class="btn" id="nextBtn">Start next cycle</button></div>`;
+  renderPips();const nb=document.getElementById('nextBtn');nb.focus();nb.addEventListener('click',next,{once:true});}
+
+document.getElementById('resetBtn').addEventListener('click',()=>{if(!confirm('Reset all progress — cycles, correct answers and streak?'))return;
+  stats={cycles:0,correct:0,attempts:0,streak:0,best:0};store.clear();store.write(stats);updateStats();buildCycle();render();});
+document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;
+  if(phase==='answer'){const cb=document.getElementById('checkBtn');if(cb&&!cb.hidden){e.preventDefault();submit();}}
+  else{e.preventDefault();next();}});
+
+// debug hook for automated tests (harmless)
+window.__ns={peek:()=>cycle[idx].q, level};
+
+updateStats(); buildCycle(); render();
+</script>
+</body>
+</html>
