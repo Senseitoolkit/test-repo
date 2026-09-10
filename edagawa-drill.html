@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>枝川ドリル — Edagawa Drill</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#FBF7EE; --card:#FFFDF8; --grid:#EFD9C8;
+    --ink:#2B3440; --ink-soft:#6B7280;
+    --shu:#C73E2E; --shu-soft:#F6E3DE;
+    --ai:#33518E; --ai-soft:#E4EAF5;
+    --gold:#C99A2E; --gold-soft:#F6EDD8;
+    --ok:#C73E2E; --ng:#5B6B8C;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    font-family:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+    color:var(--ink);
+    background:
+      repeating-linear-gradient(to right, transparent 0 27px, rgba(199,62,46,.07) 27px 28px),
+      repeating-linear-gradient(to bottom, transparent 0 27px, rgba(199,62,46,.07) 27px 28px),
+      var(--paper);
+    min-height:100vh; padding:14px 12px 48px;
+    overflow-x:hidden;
+  }
+  .wrap{max-width:560px; margin:0 auto;}
+
+  /* ---------- header / level ---------- */
+  header{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:4px 4px 12px;}
+  .title-jp{font-family:'Shippori Mincho',serif; font-weight:800; font-size:26px; letter-spacing:.06em;}
+  .title-jp .accent{color:var(--shu);}
+  .title-en{font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft);}
+  .lvl-box{text-align:right; min-width:120px;}
+  .lvl-line{font-size:12.5px; font-weight:700; color:var(--ink);}
+  .lvl-line b{color:var(--shu);}
+  .lvl-line .xp{color:var(--ink-soft); font-weight:500;}
+  .xpbar{height:8px; border:1.5px solid var(--grid); border-radius:99px; background:#fff; margin-top:4px; overflow:hidden;}
+  .xpbar i{display:block; height:100%; background:linear-gradient(90deg,var(--shu),var(--gold)); width:0%; transition:width .5s ease; border-radius:99px;}
+
+  /* ---------- panels & controls ---------- */
+  .panel{background:var(--card); border:1.5px solid var(--grid); border-radius:14px;
+    padding:14px; box-shadow:0 2px 0 rgba(43,52,64,.05); margin-bottom:14px;}
+  .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px;}
+  .row:last-child{margin-bottom:0;}
+  .lbl{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); width:100%;}
+  .seg{display:flex; background:var(--ai-soft); border-radius:10px; padding:3px; gap:3px; flex:1; min-width:0;}
+  .seg button{flex:1; border:none; background:transparent; border-radius:8px; padding:9px 6px;
+    font-family:inherit; font-size:13.5px; font-weight:700; color:var(--ai); cursor:pointer; white-space:nowrap;}
+  .seg button.on{background:var(--ai); color:#fff;}
+  .chip{border:1.5px solid var(--grid); background:var(--card); color:var(--ink);
+    border-radius:999px; padding:8px 13px; font-family:inherit; font-size:13px; font-weight:700; cursor:pointer;}
+  .chip.on{border-color:var(--shu); background:var(--shu-soft); color:var(--shu);}
+  .chip.game{border-color:var(--ai-soft); }
+  .chip.game.on{border-color:var(--ai); background:var(--ai-soft); color:var(--ai);}
+  select{font-family:inherit; font-size:14px; font-weight:700; color:var(--ink);
+    border:1.5px solid var(--grid); border-radius:10px; padding:9px 12px; background:var(--card); flex:1; min-width:0;}
+  .start-btn{flex:1; border:none; border-radius:12px; padding:15px; background:var(--shu); color:#fff;
+    font-family:inherit; font-size:16px; font-weight:700; letter-spacing:.08em; cursor:pointer; box-shadow:0 3px 0 #9E2F22;}
+  .start-btn:active{transform:translateY(2px); box-shadow:0 1px 0 #9E2F22;}
+  .ghost-btn{border:1.5px solid var(--ai); border-radius:12px; padding:15px 16px;
+    background:var(--ai-soft); color:var(--ai); font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;}
+
+  /* ---------- lesson top bar ---------- */
+  .lesson-top{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .quit-x{border:none; background:none; color:var(--ink-soft); font-size:22px; cursor:pointer; line-height:1; padding:4px;}
+  .lessonbar{flex:1; height:14px; border:1.5px solid var(--grid); border-radius:99px; background:#fff; overflow:hidden;}
+  .lessonbar i{display:block; height:100%; width:0%; background:var(--shu); border-radius:99px; transition:width .4s ease;}
+  .combo{font-size:14px; font-weight:800; color:var(--gold); min-width:52px; text-align:right; visibility:hidden;}
+  .combo.show{visibility:visible; animation:pop .3s ease;}
+  @keyframes pop{0%{transform:scale(.6);} 60%{transform:scale(1.25);} 100%{transform:scale(1);}}
+
+  /* ---------- quiz card ---------- */
+  .qcard{position:relative; background:var(--card); border:1.5px solid var(--grid); border-radius:14px;
+    padding:20px 18px 18px 26px; box-shadow:0 2px 0 rgba(43,52,64,.05); overflow:hidden;}
+  .qcard::before{content:""; position:absolute; top:0; bottom:0; left:14px; width:1.5px; background:rgba(199,62,46,.35);}
+  .meta{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:8px;}
+  .type-tag{font-size:11.5px; font-weight:800; color:var(--ai); background:var(--ai-soft); border-radius:6px; padding:3px 9px; letter-spacing:.04em;}
+  .again-tag{font-size:11px; font-weight:700; color:var(--gold); background:var(--gold-soft); border-radius:6px; padding:2px 8px;}
+  .cat-tag{font-size:12px; font-weight:700; color:var(--shu); border:1.5px solid rgba(199,62,46,.4); border-radius:6px; padding:2px 8px;}
+  .prompt-lbl{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:8px;}
+  .prompt-row{display:flex; align-items:flex-start; gap:8px;}
+  .prompt{font-family:'Shippori Mincho',serif; font-weight:700; font-size:23px; line-height:1.85; margin-bottom:4px; flex:1;}
+  .prompt.en-text{font-size:20px; line-height:1.5;}
+  ruby{ruby-position:over;}
+  rt{font-size:.45em; color:var(--shu); font-weight:500;}
+  body.no-furi rt{display:none;}
+  .romaji{font-size:14px; color:var(--ink-soft); font-style:italic; margin-bottom:2px;}
+  body.no-romaji .romaji{display:none;}
+  .spk{flex:none; border:1.5px solid var(--grid); background:#fff; color:var(--ai); border-radius:999px;
+    width:38px; height:38px; cursor:pointer; font-size:17px; display:flex; align-items:center; justify-content:center; margin-top:2px;}
+  .spk.talking{border-color:var(--shu); color:var(--shu); background:var(--shu-soft);}
+  .spk.big{width:74px; height:74px; font-size:32px; margin:8px auto 4px; border-width:2px; border-color:var(--ai);}
+  .hint-line{text-align:center; font-size:12.5px; color:var(--ink-soft); margin-bottom:6px;}
+
+  /* choices */
+  .choices{display:flex; flex-direction:column; gap:9px; margin-top:14px;}
+  .choice{text-align:left; border:1.5px solid var(--grid); background:#fff; border-radius:11px;
+    padding:12px 14px; font-family:inherit; font-size:15.5px; line-height:1.8; color:var(--ink);
+    cursor:pointer; display:flex; gap:10px; align-items:baseline;}
+  .choice .key{font-size:12px; font-weight:700; color:var(--ai); border:1.5px solid var(--ai-soft);
+    background:var(--ai-soft); border-radius:6px; padding:1px 7px; flex:none;}
+  .choice:not(:disabled):hover{border-color:var(--ai);}
+  .choice.correct{border-color:var(--ok); background:var(--shu-soft);}
+  .choice.wrong{border-color:var(--ng); background:#EDF0F6; opacity:.9;}
+  .choice:disabled{cursor:default;}
+
+  /* build (tile) exercise */
+  .answer-line{min-height:52px; border-bottom:2px dashed var(--grid); display:flex; flex-wrap:wrap;
+    gap:7px; padding:6px 2px 10px; margin-top:12px; align-items:flex-start;}
+  .tile-bank{display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; min-height:44px;}
+  .tile{border:1.5px solid var(--grid); border-bottom-width:3px; background:#fff; color:var(--ink);
+    border-radius:9px; padding:8px 13px; font-family:inherit; font-size:15.5px; font-weight:700; cursor:pointer;}
+  .tile:hover{border-color:var(--ai);}
+  .tile.ghost{opacity:.25; pointer-events:none;}
+  .answer-line .tile{border-color:var(--ai); background:var(--ai-soft); color:var(--ai);}
+  .check-btn{margin-top:14px; width:100%; border:none; border-radius:11px; padding:14px;
+    background:var(--ai); color:#fff; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;}
+  .check-btn:disabled{background:#C6CEDD; cursor:default;}
+
+  /* match exercise */
+  .match-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px;}
+  .mbtn{border:1.5px solid var(--grid); background:#fff; border-radius:11px; padding:11px 10px;
+    font-family:inherit; font-size:14.5px; line-height:1.7; color:var(--ink); cursor:pointer; min-height:56px;}
+  .mbtn.sel{border-color:var(--ai); background:var(--ai-soft);}
+  .mbtn.done{border-color:rgba(199,62,46,.45); background:var(--shu-soft); color:var(--shu); pointer-events:none; opacity:.85;}
+  .mbtn.shake{animation:shake .3s ease;}
+  @keyframes shake{0%,100%{transform:translateX(0);} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);}}
+
+  /* spot exercise */
+  .spot-opts{display:flex; flex-direction:column; gap:10px; margin-top:14px;}
+  .spot-btn{border:1.5px solid var(--grid); background:#fff; border-radius:11px; padding:14px;
+    font-family:'Shippori Mincho',serif; font-weight:700; font-size:19px; line-height:2; text-align:left; cursor:pointer; color:var(--ink);}
+  .spot-btn:not(:disabled):hover{border-color:var(--ai);}
+  .spot-btn.correct{border-color:var(--ok); background:var(--shu-soft);}
+  .spot-btn.wrong{border-color:var(--ng); background:#EDF0F6;}
+  .spot-btn:disabled{cursor:default;}
+
+  /* flashcard */
+  .reveal-btn{margin-top:14px; width:100%; border:1.5px dashed var(--ai); background:var(--ai-soft);
+    color:var(--ai); font-family:inherit; font-weight:700; font-size:15px; border-radius:11px; padding:14px; cursor:pointer;}
+  .answer-box{margin-top:14px; border-top:1.5px solid var(--grid); padding-top:12px;}
+  .self-grade{display:flex; gap:9px; margin-top:12px;}
+  .self-grade button{flex:1; border-radius:11px; padding:13px; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;}
+  .btn-got{border:1.5px solid var(--ok); background:var(--shu-soft); color:var(--ok);}
+  .btn-not{border:1.5px solid var(--ng); background:#EDF0F6; color:var(--ng);}
+
+  /* teacher's note */
+  .explain{margin-top:14px; border:1.5px solid rgba(199,62,46,.35); border-radius:11px;
+    background:var(--shu-soft); padding:12px 14px; font-size:14px; line-height:1.7;}
+  .explain .ex-lbl{font-size:11px; letter-spacing:.14em; text-transform:uppercase; font-weight:700; color:var(--shu); margin-bottom:6px;}
+  .explain .picked{border-left:3px solid var(--ng); padding-left:10px; margin-bottom:10px;}
+  .explain .picked b{color:var(--ng);}
+  .explain .reveal-jp{font-family:'Shippori Mincho',serif; font-weight:700; font-size:19px; line-height:2; margin-bottom:2px;}
+
+  .next-btn{margin-top:14px; width:100%; border:none; border-radius:11px; padding:14px;
+    background:var(--ink); color:#fff; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;}
+
+  /* XP float */
+  .xp-float{position:absolute; top:14px; right:16px; font-weight:800; font-size:17px; color:var(--gold);
+    opacity:0; pointer-events:none;}
+  .xp-float.go{animation:xpfly 1s ease forwards;}
+  @keyframes xpfly{0%{opacity:0; transform:translateY(8px);} 20%{opacity:1;} 100%{opacity:0; transform:translateY(-26px);}}
+
+  /* progress cells */
+  .prog{display:flex; flex-wrap:wrap; gap:5px; margin:12px 2px 0;}
+  .cell{width:20px; height:20px; border:1.5px solid var(--grid); border-radius:5px; background:var(--card);
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;}
+  .cell.ok{color:var(--ok); border-color:rgba(199,62,46,.5);}
+  .cell.ng{color:var(--ng); border-color:rgba(91,107,140,.5);}
+  .cell.now{border-color:var(--ink); border-style:dashed;}
+  .cell.again{background:var(--gold-soft);}
+
+  /* mark overlay */
+  .mark{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;}
+  .mark svg{width:140px; height:140px; opacity:.92;}
+  .mark path{fill:none; stroke-linecap:round; stroke-dasharray:600; stroke-dashoffset:600; animation:draw .5s ease forwards;}
+  .mark.ok path{stroke:var(--ok); stroke-width:9;}
+  .mark.ng path{stroke:var(--ng); stroke-width:9;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+
+  /* results */
+  .results{text-align:center; padding:24px 18px; position:relative; overflow:hidden;}
+  .hanamaru{width:160px; height:160px; margin:0 auto 6px; display:block;}
+  .hanamaru path{fill:none; stroke:var(--shu); stroke-linecap:round; stroke-dasharray:2400; stroke-dashoffset:2400; animation:draw 1.4s ease forwards;}
+  .score-line{font-family:'Shippori Mincho',serif; font-size:25px; font-weight:800; margin:4px 0 2px;}
+  .score-sub{color:var(--ink-soft); font-size:14px; margin-bottom:8px;}
+  .res-stats{display:flex; justify-content:center; gap:10px; margin:10px 0 18px; flex-wrap:wrap;}
+  .stat{border:1.5px solid var(--grid); border-radius:10px; background:#fff; padding:8px 14px; min-width:86px;}
+  .stat b{display:block; font-size:19px; color:var(--shu); font-family:'Shippori Mincho',serif;}
+  .stat span{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft);}
+  .lvlup{font-weight:800; color:var(--gold); font-size:16px; margin-bottom:10px; animation:pop .5s ease;}
+  .res-btns{display:flex; gap:9px; flex-wrap:wrap;}
+  .miss-list{text-align:left; margin:4px 0 18px;}
+  .miss-list h3{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-soft); margin-bottom:8px;}
+  .miss-item{border:1.5px solid var(--grid); border-left:4px solid var(--ng); border-radius:9px;
+    padding:10px 12px; margin-bottom:8px; background:#fff; display:flex; gap:8px; align-items:flex-start;}
+  .miss-item .txt{flex:1;}
+  .miss-jp{font-family:'Shippori Mincho',serif; font-weight:700; font-size:17px; line-height:2;}
+  .miss-en{font-size:13.5px; color:var(--ink-soft);}
+  .miss-note{font-size:13px; line-height:1.6; background:var(--shu-soft); border-radius:7px; padding:8px 10px; margin-top:7px;}
+  .miss-item .spk{width:32px; height:32px; font-size:14px;}
+
+  /* confetti */
+  .confetti{position:fixed; top:-14px; width:10px; height:14px; border-radius:2px; pointer-events:none; z-index:50;
+    animation:fall linear forwards;}
+  @keyframes fall{to{transform:translateY(105vh) rotate(720deg); opacity:.8;}}
+
+  /* study list */
+  .study-item{border:1.5px solid var(--grid); border-radius:11px; background:#fff; padding:12px 14px;
+    margin-bottom:9px; display:flex; gap:10px; align-items:flex-start;}
+  .study-item .txt{flex:1;}
+  .study-jp{font-family:'Shippori Mincho',serif; font-weight:700; font-size:19px; line-height:2;}
+  .study-en{font-size:14px; color:var(--ink-soft); margin-top:2px;}
+  .study-cat{font-family:'Shippori Mincho',serif; font-weight:800; font-size:16px; color:var(--shu);
+    margin:16px 2px 8px; padding-bottom:4px; border-bottom:1.5px solid var(--grid);}
+  .back-btn{width:100%; border:none; border-radius:12px; padding:14px; margin-top:6px;
+    background:var(--ink); color:#fff; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;}
+
+  .hidden{display:none !important;}
+  .sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0);}
+  footer{margin-top:24px; text-align:center; font-size:12px; color:var(--ink-soft);}
+  @media (max-width:400px){ .prompt{font-size:20px;} .title-jp{font-size:23px;} }
+  @media (prefers-reduced-motion: reduce){
+    .mark path,.hanamaru path{animation:none; stroke-dashoffset:0;}
+    .confetti{display:none;} .combo.show,.lvlup{animation:none;}
+  }
+  button:focus-visible, select:focus-visible{outline:3px solid var(--ai); outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="title-jp">枝川<span class="accent">ドリル</span></div>
+      <div class="title-en">Edagawa Drill · arcade</div>
+    </div>
+    <div class="lvl-box">
+      <div class="lvl-line">Lv <b id="lvlNum">1</b> <span class="xp" id="xpTxt">0 XP</span></div>
+      <div class="xpbar"><i id="xpFill"></i></div>
+    </div>
+  </header>
+
+  <!-- SETTINGS -->
+  <section class="panel" id="settings">
+    <div class="row">
+      <span class="lbl">Games · ゲーム (tap to mix &amp; match)</span>
+      <button class="chip game on" data-g="mc">選択 Choice</button>
+      <button class="chip game on" data-g="listen">🔊 Listening</button>
+      <button class="chip game on" data-g="build">並べ替え Build</button>
+      <button class="chip game on" data-g="spot">間違い Spot it</button>
+      <button class="chip game on" data-g="match">マッチ Match</button>
+      <button class="chip game" data-g="card">カード Cards</button>
+    </div>
+    <div class="row">
+      <span class="lbl">Direction (Choice/Cards) · 方向</span>
+      <div class="seg" id="dirSeg">
+        <button data-v="mix" class="on">Mixed</button>
+        <button data-v="en2jp">EN → 日</button>
+        <button data-v="jp2en">日 → EN</button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="lbl">Options · オプション</span>
+      <button class="chip on" id="furiChip" aria-pressed="true">ふりがな</button>
+      <button class="chip on" id="romaChip" aria-pressed="true">Rōmaji</button>
+      <button class="chip on" id="repeatChip" aria-pressed="true">Retry misses</button>
+      <button class="chip on" id="fxChip" aria-pressed="true">🔔 FX</button>
+    </div>
+    <div class="row">
+      <span class="lbl">Topic &amp; length</span>
+      <select id="catSel" aria-label="Topic"></select>
+      <select id="lenSel" aria-label="Lesson length">
+        <option value="8" selected>Quick · 8</option>
+        <option value="14">Standard · 14</option>
+        <option value="20">Long · 20</option>
+      </select>
+    </div>
+    <div class="row">
+      <button class="start-btn" id="startBtn">プレイ — Play</button>
+      <button class="ghost-btn" id="studyBtn">一覧 Study</button>
+    </div>
+  </section>
+
+  <!-- STUDY LIST -->
+  <section id="study" class="hidden">
+    <div class="panel" id="studyList"></div>
+    <button class="back-btn" id="studyBack">← 戻る — Back</button>
+  </section>
+
+  <!-- LESSON -->
+  <section id="quiz" class="hidden">
+    <div class="lesson-top">
+      <button class="quit-x" id="quitBtn" aria-label="End lesson">✕</button>
+      <div class="lessonbar"><i id="lessonFill"></i></div>
+      <div class="combo" id="combo">🔥×2</div>
+    </div>
+
+    <div class="qcard" id="qcard">
+      <div class="meta">
+        <span class="type-tag" id="typeTag">選択</span>
+        <span class="again-tag hidden" id="againTag">retry</span>
+        <span class="cat-tag" id="catTag">家族</span>
+      </div>
+      <div class="prompt-lbl" id="promptLbl"></div>
+      <div id="exArea"></div>
+      <div class="explain hidden" id="explain"></div>
+      <button class="next-btn hidden" id="nextBtn">次へ — Next</button>
+      <div class="mark hidden" id="mark" aria-hidden="true"></div>
+      <div class="xp-float" id="xpFloat">+10 XP</div>
+    </div>
+    <div class="prog" id="prog"></div>
+    <div class="sr-only" aria-live="polite" id="live"></div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="panel results hidden" id="results">
+    <svg class="hanamaru" id="hanaSvg" viewBox="0 0 200 200" aria-hidden="true"></svg>
+    <div class="score-line" id="scoreLine"></div>
+    <div class="score-sub" id="scoreSub"></div>
+    <div class="lvlup hidden" id="lvlUp">⤴ LEVEL UP!</div>
+    <div class="res-stats">
+      <div class="stat"><b id="stAcc">–</b><span>accuracy</span></div>
+      <div class="stat"><b id="stXp">–</b><span>xp earned</span></div>
+      <div class="stat"><b id="stCombo">–</b><span>best combo</span></div>
+    </div>
+    <div class="miss-list hidden" id="missList"></div>
+    <div class="res-btns">
+      <button class="ghost-btn hidden" id="reviewBtn" style="flex:1">Review misses · 復習</button>
+      <button class="start-btn" id="againBtn">もう一度 — Play again</button>
+    </div>
+  </section>
+
+  <footer>がんばってください！ · Edagawa self-intro trainer</footer>
+</div>
+
+<script>
+/* ================= DATA ================= */
+const R=(k,f)=>[k,f];
+const PHRASES = [
+ // family
+ {cat:"family", jp:[R("子","こ"),"どもが",R("2人","ふたり"),"います。"], ro:"Kodomo ga futari imasu.", en:"I have two kids."},
+ {cat:"family", jp:[R("7歳","ななさい"),"の",R("娘","むすめ"),"と",R("9歳","きゅうさい"),"の",R("息子","むすこ"),"がいます。"], ro:"Nanasai no musume to kyūsai no musuko ga imasu.", en:"I have a 7-year-old daughter and a 9-year-old son."},
+ {cat:"family", jp:[R("私","わたし"),"は",R("双子","ふたご"),"です。"], ro:"Watashi wa futago desu.", en:"I'm a twin."},
+ {cat:"family", jp:[R("兄弟","きょうだい"),"が",R("3人","さんにん"),"います。"], ro:"Kyōdai ga sannin imasu.", en:"I have three brothers."},
+ {cat:"family", jp:[R("妻","つま"),"は",R("日本人","にほんじん"),"です。"], ro:"Tsuma wa nihonjin desu.", en:"My wife is Japanese."},
+ {cat:"family", jp:[R("上","うえ"),"の",R("子","こ"),"は",R("息子","むすこ"),"で、",R("下","した"),"の",R("子","こ"),"は",R("娘","むすめ"),"です。"], ro:"Ue no ko wa musuko de, shita no ko wa musume desu.", en:"The older one is my son, the younger is my daughter."},
+ {cat:"family", jp:[R("子育","こそだ"),"ては",R("大変","たいへん"),"ですが、",R("楽","たの"),"しいです。"], ro:"Kosodate wa taihen desu ga, tanoshii desu.", en:"Parenting is hard work, but fun."},
+ // school
+ {cat:"school", jp:["インターナショナルスクールで",R("教","おし"),"えています。"], ro:"Intānashonaru sukūru de oshiete imasu.", en:"I teach at an international school."},
+ {cat:"school", jp:[R("子","こ"),"どもたちも",R("同","おな"),"じ",R("学校","がっこう"),"に",R("通","かよ"),"っています。"], ro:"Kodomotachi mo onaji gakkō ni kayotte imasu.", en:"My kids go to the same school."},
+ {cat:"school", jp:[R("夏","なつ"),"は",R("日本","にほん"),"の",R("学校","がっこう"),"に",R("行","い"),"きます。"], ro:"Natsu wa nihon no gakkō ni ikimasu.", en:"In summer they go to Japanese school."},
+ {cat:"school", jp:[R("英語","えいご"),"の",R("先生","せんせい"),"です。"], ro:"Eigo no sensei desu.", en:"I'm an English teacher."},
+ {cat:"school", jp:[R("仕事","しごと"),"は",R("楽","たの"),"しいです。"], ro:"Shigoto wa tanoshii desu.", en:"I enjoy my work."},
+ // hobby
+ {cat:"hobby", jp:[R("自転車","じてんしゃ"),"に",R("乗","の"),"るのが",R("好","す"),"きです。"], ro:"Jitensha ni noru no ga suki desu.", en:"I like riding my bike."},
+ {cat:"hobby", jp:[R("運動","うんどう"),"が",R("好","す"),"きです。"], ro:"Undō ga suki desu.", en:"I like exercising."},
+ {cat:"hobby", jp:[R("新","あたら"),"しいことを",R("学","まな"),"ぶのが",R("好","す"),"きです。"], ro:"Atarashii koto o manabu no ga suki desu.", en:"I like learning new things."},
+ {cat:"hobby", jp:["SF",R("小説","しょうせつ"),"を",R("読","よ"),"むのが",R("好","す"),"きです。"], ro:"Esu-efu shōsetsu o yomu no ga suki desu.", en:"I enjoy reading science fiction."},
+ {cat:"hobby", jp:[R("家族","かぞく"),"とボードゲームをします。"], ro:"Kazoku to bōdo gēmu o shimasu.", en:"I play board games with my family."},
+ {cat:"hobby", jp:[R("家族","かぞく"),"と",R("映画","えいが"),"を",R("見","み"),"ます。"], ro:"Kazoku to eiga o mimasu.", en:"I watch movies with my family."},
+ {cat:"hobby", jp:[R("子","こ"),"どもたちとワンピースが",R("大好","だいす"),"きです。"], ro:"Kodomotachi to Wan Pīsu ga daisuki desu.", en:"My kids and I love One Piece."},
+ {cat:"hobby", jp:[R("週末","しゅうまつ"),"はよく",R("家族","かぞく"),"と",R("出","で"),"かけます。"], ro:"Shūmatsu wa yoku kazoku to dekakemasu.", en:"On weekends we often go out as a family."},
+ {cat:"hobby", jp:["おすすめの",R("本","ほん"),"はありますか？"], ro:"Osusume no hon wa arimasu ka?", en:"Do you have any book recommendations?"},
+ // home
+ {cat:"home", jp:[R("枝川","えだがわ"),"に",R("住","す"),"んでいます。"], ro:"Edagawa ni sunde imasu.", en:"I live in Edagawa."},
+ {cat:"home", jp:[R("枝川","えだがわ"),"は",R("妻","つま"),"の",R("地元","じもと"),"です。"], ro:"Edagawa wa tsuma no jimoto desu.", en:"Edagawa is my wife's hometown."},
+ {cat:"home", jp:["カリフォルニア",R("出身","しゅっしん"),"です。"], ro:"Kariforunia shusshin desu.", en:"I'm from California."},
+ {cat:"home", jp:["サンフランシスコの",R("近","ちか"),"くです。"], ro:"San Furanshisuko no chikaku desu.", en:"It's near San Francisco."},
+ {cat:"home", jp:[R("農場","のうじょう"),"で",R("育","そだ"),"ちました。"], ro:"Nōjō de sodachimashita.", en:"I grew up on a farm."},
+ {cat:"home", jp:[R("鶏","にわとり"),"とアヒルを",R("飼","か"),"っていました。"], ro:"Niwatori to ahiru o katte imashita.", en:"We kept chickens and ducks."},
+ {cat:"home", jp:["カリフォルニアは",R("天気","てんき"),"がいいですよ。"], ro:"Kariforunia wa tenki ga ii desu yo.", en:"The weather in California is great, you know."},
+ {cat:"home", jp:[R("東京","とうきょう"),"の",R("生活","せいかつ"),"が",R("好","す"),"きです。"], ro:"Tōkyō no seikatsu ga suki desu.", en:"I like life in Tokyo."},
+ // fest
+ {cat:"fest", jp:[R("参加","さんか"),"できて",R("嬉","うれ"),"しいです。"], ro:"Sanka dekite ureshii desu.", en:"I'm happy to join."},
+ {cat:"fest", jp:[R("神輿","みこし"),"が",R("好","す"),"きです。"], ro:"Mikoshi ga suki desu.", en:"I like mikoshi."},
+ {cat:"fest", jp:[R("楽","たの"),"しみにしています。"], ro:"Tanoshimi ni shite imasu.", en:"I'm looking forward to it."},
+ {cat:"fest", jp:["よろしくお",R("願","ねが"),"いします。"], ro:"Yoroshiku onegai shimasu.", en:"Nice to meet you — please look after me."},
+ {cat:"fest", jp:[R("神輿","みこし"),"を",R("担","かつ"),"ぐのは",R("初","はじ"),"めてです。"], ro:"Mikoshi o katsugu no wa hajimete desu.", en:"It's my first time carrying a mikoshi."},
+ {cat:"fest", jp:[R("重","おも"),"かったですが、",R("楽","たの"),"しかったです！"], ro:"Omokatta desu ga, tanoshikatta desu!", en:"It was heavy, but so much fun!"},
+ {cat:"fest", jp:["お",R("祭","まつ"),"りの",R("雰囲気","ふんいき"),"が",R("大好","だいす"),"きです。"], ro:"Omatsuri no fun'iki ga daisuki desu.", en:"I love the festival atmosphere."},
+ // study
+ {cat:"study", jp:[R("日本語","にほんご"),"を",R("勉強","べんきょう"),"しています。"], ro:"Nihongo o benkyō shite imasu.", en:"I'm studying Japanese."},
+ {cat:"study", jp:[R("子","こ"),"どもと",R("一緒","いっしょ"),"に",R("勉強","べんきょう"),"しています。"], ro:"Kodomo to issho ni benkyō shite imasu.", en:"I study together with my kids."},
+ {cat:"study", jp:[R("日本語","にほんご"),"は",R("難","むずか"),"しいです。"], ro:"Nihongo wa muzukashii desu.", en:"Japanese is difficult."},
+ {cat:"study", jp:["もう",R("一度","いちど"),R("言","い"),"ってください。"], ro:"Mō ichido itte kudasai.", en:"Please say that again."},
+ {cat:"study", jp:["まだまだです。"], ro:"Madamada desu.", en:"I still have a long way to go. (humble reply to a compliment)"},
+ {cat:"study", jp:[R("毎日","まいにち"),R("少","すこ"),"しずつ",R("勉強","べんきょう"),"しています。"], ro:"Mainichi sukoshi zutsu benkyō shite imasu.", en:"I study a little bit every day."},
+ {cat:"study", jp:[R("漢字","かんじ"),"が",R("一番","いちばん"),R("難","むずか"),"しいです。"], ro:"Kanji ga ichiban muzukashii desu.", en:"Kanji is the hardest part."},
+ // health
+ {cat:"health", jp:["ハムストリングが",R("痛","いた"),"いです。"], ro:"Hamusutoringu ga itai desu.", en:"My hamstring hurts."},
+ {cat:"health", jp:[R("太","ふと"),"ももの",R("裏","うら"),"が",R("痛","いた"),"いです。"], ro:"Futomomo no ura ga itai desu.", en:"The back of my thigh hurts."},
+ {cat:"health", jp:[R("運動","うんどう"),"の",R("後","あと"),"で",R("痛","いた"),"くなりました。"], ro:"Undō no ato de itaku narimashita.", en:"It started hurting after exercise."},
+ {cat:"health", jp:["ストレッチをしています。"], ro:"Sutoretchi o shite imasu.", en:"I'm stretching."},
+ {cat:"health", jp:[R("大丈夫","だいじょうぶ"),"です。"], ro:"Daijōbu desu.", en:"I'm okay."},
+ {cat:"health", jp:[R("少","すこ"),"し",R("休","やす"),"みます。"], ro:"Sukoshi yasumimasu.", en:"I'll rest a little."},
+ // react
+ {cat:"react", jp:["そうですね。"], ro:"Sō desu ne.", en:"That's right. / Let me see…"},
+ {cat:"react", jp:[R("本当","ほんとう"),"ですか？"], ro:"Hontō desu ka?", en:"Really?"},
+ {cat:"react", jp:["いいですね！"], ro:"Ii desu ne!", en:"That sounds great!"},
+ {cat:"react", jp:["なるほど。"], ro:"Naruhodo.", en:"I see. / That makes sense."},
+ {cat:"react", jp:["すごいですね！"], ro:"Sugoi desu ne!", en:"That's amazing!"},
+ {cat:"react", jp:[R("面白","おもしろ"),"いですね。"], ro:"Omoshiroi desu ne.", en:"That's interesting."},
+ {cat:"react", jp:["そうなんです。"], ro:"Sō nan desu.", en:"That's right! (agreeing about your own story)"},
+ {cat:"react", jp:[R("大変","たいへん"),"ですね。"], ro:"Taihen desu ne.", en:"That sounds tough."},
+ // ask
+ {cat:"ask", jp:["お",R("子","こ"),"さんはいますか？"], ro:"Okosan wa imasu ka?", en:"Do you have kids?"},
+ {cat:"ask", jp:["ご",R("出身","しゅっしん"),"はどちらですか？"], ro:"Go-shusshin wa dochira desu ka?", en:"Where are you from?"},
+ {cat:"ask", jp:["お",R("仕事","しごと"),"は",R("何","なん"),"ですか？"], ro:"O-shigoto wa nan desu ka?", en:"What do you do for work?"},
+ {cat:"ask", jp:[R("趣味","しゅみ"),"は",R("何","なん"),"ですか？"], ro:"Shumi wa nan desu ka?", en:"What are your hobbies?"},
+ {cat:"ask", jp:[R("枝川","えだがわ"),"は",R("長","なが"),"いですか？"], ro:"Edagawa wa nagai desu ka?", en:"Have you lived in Edagawa long?"},
+ {cat:"ask", jp:["そちらはどうですか？"], ro:"Sochira wa dō desu ka?", en:"How about you?"},
+ {cat:"ask", jp:[R("週末","しゅうまつ"),"は",R("何","なに"),"をしましたか？"], ro:"Shūmatsu wa nani o shimashita ka?", en:"What did you do over the weekend?"},
+ // talk
+ {cat:"talk", jp:[R("今日","きょう"),"は",R("暑","あつ"),"いですね。"], ro:"Kyō wa atsui desu ne.", en:"It's hot today, isn't it?"},
+ {cat:"talk", jp:[R("久","ひさ"),"しぶりですね！"], ro:"Hisashiburi desu ne!", en:"Long time no see!"},
+ {cat:"talk", jp:["すみません、よく",R("分","わ"),"かりません。"], ro:"Sumimasen, yoku wakarimasen.", en:"Sorry, I don't quite understand."},
+ {cat:"talk", jp:["ゆっくり",R("話","はな"),"してください。"], ro:"Yukkuri hanashite kudasai.", en:"Please speak slowly."},
+ {cat:"talk", jp:["これは",R("日本語","にほんご"),"で",R("何","なん"),"ですか？"], ro:"Kore wa nihongo de nan desu ka?", en:"What is this called in Japanese?"},
+ {cat:"talk", jp:[R("少","すこ"),"しだけ",R("話","はな"),"せます。"], ro:"Sukoshi dake hanasemasu.", en:"I can speak a little."},
+ {cat:"talk", jp:["また",R("今度","こんど"),"、ぜひ。"], ro:"Mata kondo, zehi.", en:"Definitely next time."},
+ {cat:"talk", jp:["お",R("先","さき"),"に",R("失礼","しつれい"),"します。"], ro:"Osaki ni shitsurei shimasu.", en:"Excuse me, I'm heading out first."},
+];
+const CAT_JP = {family:"家族", school:"学校", hobby:"趣味", home:"地元", fest:"お祭り", study:"勉強", health:"体", react:"相槌", ask:"質問", talk:"会話"};
+const CAT_EN = {family:"Family", school:"Work & School", hobby:"Hobbies", home:"Home & Origins", fest:"Festival & Joining", study:"Studying Japanese", health:"Health", react:"Reactions & aizuchi", ask:"Asking others", talk:"Small talk & survival"};
+
+const NOTES = [
+ "〜がいます = \"there is/are\" for people & animals (things use あります). 2人 (futari) is the special word for two people.",
+ "の links age to person: 7歳の娘 = \"7-year-old daughter.\" と joins nouns: \"and.\"",
+ "双子 (futago) = twins. AはBです is the basic \"A is B\" pattern.",
+ "兄弟 (kyōdai) = siblings/brothers. Count people with 〜人: 3人 = sannin (but 1人 hitori, 2人 futari are irregular).",
+ "妻 (tsuma) = my own wife. Someone else's wife is 奥さん (okusan) — mixing these up is a classic slip.",
+ "上の子 / 下の子 = older / younger child. 〜で connects two \"is\" statements: \"...and...\"",
+ "〜ですが = \"but.\" 大変 (taihen) = tough · 楽しい (tanoshii) = fun.",
+ "で marks where an action happens. 〜ています = ongoing or habitual: \"I teach (as my job).\"",
+ "も = \"also\" (it replaces は/が). 通う (kayou) = to attend / commute regularly.",
+ "夏は = \"as for summer...\" に marks the destination of 行きます (go).",
+ "AのB = \"B of A\": 英語の先生 = teacher of English.",
+ "楽しい is an i-adjective — just add です to make it polite.",
+ "verb + のが好きです = \"I like ~ing.\" Note 乗る takes に: ride ON the bike.",
+ "好き takes が, not を: 運動が好きです. A very common beginner slip.",
+ "新しいこと = \"new things\" — こと turns ideas into nouns. 学ぶ (manabu) = to learn.",
+ "小説 (shōsetsu) = novel. を marks the object of 読む (to read).",
+ "と = \"with (someone).\" ゲームをする = to play a game (する = do).",
+ "映画を見る = watch a movie — Japanese \"sees\" movies rather than watches them.",
+ "大好き (daisuki) = 大 (big) + 好き (like) = love it.",
+ "よく = often. 出かける (dekakeru) = to go out.",
+ "おすすめ = recommendation. 〜はありますか = \"is there / do you have ~?\"",
+ "住む (to live) always takes に + 〜ています for where you live now: 枝川に住んでいます.",
+ "地元 (jimoto) = hometown / home turf — warmer and more common in speech than 故郷 (kokyō).",
+ "出身 (shusshin) = \"originally from\" — attach it right after the place, no particle needed.",
+ "Xの近く = near X. The adjective 近い becomes the noun 近く.",
+ "育ちました = grew up (past of 育つ sodatsu). で = where it happened.",
+ "飼う (kau) = to keep/raise animals. 〜ていました = \"used to keep\" (past ongoing).",
+ "Sentence-final よ = \"I'm telling you / you know\" — adds friendly emphasis.",
+ "生活 (seikatsu) = daily life, lifestyle.",
+ "できて = te-form of できる (can) linking to 嬉しい: \"happy that I'm able to join.\"",
+ "神輿 (mikoshi) = portable shrine carried at festivals. Sometimes お神輿 (o-mikoshi) for politeness.",
+ "Set phrase — 楽しみ = \"a thing to look forward to.\" Memorize it whole.",
+ "The all-purpose joining-a-group greeting. There's no direct English equivalent — it smooths every first meeting.",
+ "担ぐ (katsugu) = carry on the shoulder. 〜のは初めてです = \"it's my first time ~ing.\"",
+ "Past tense of i-adjectives: 重い → 重かった (was heavy), 楽しい → 楽しかった (was fun).",
+ "雰囲気 (fun'iki) = atmosphere / vibe — a word that instantly makes you sound natural.",
+ "勉強する = to study. 〜ています here = \"these days I'm studying.\"",
+ "一緒に (issho ni) = together.",
+ "難しい (muzukashii) = difficult. i-adjective + です.",
+ "もう一度 = one more time. verb te-form + ください = \"please do ~.\"",
+ "The humble deflection when someone says 日本語上手ですね! Doubling まだ (\"still\") softens it: \"oh, I've a long way to go.\"",
+ "少しずつ (sukoshi zutsu) = little by little. ずつ = \"each / at a time.\"",
+ "一番 (ichiban) = number one → \"the most\": 一番難しい = the most difficult.",
+ "[body part] + が痛い = \"my ___ hurts.\" 痛い (itai) is also what you yell when you stub your toe.",
+ "太もも = thigh · 裏 (ura) = back/underside. More natural than the katakana loanword.",
+ "〜の後で = after ~. Adjective + くなる = \"to become\": 痛くなりました = it became painful.",
+ "Loanword + する: ストレッチをする = to stretch.",
+ "大丈夫 (daijōbu) = fine / no problem. As a question — 大丈夫ですか？ — it's \"are you okay?\"",
+ "休む (yasumu) = to rest. 少し = a little.",
+ "Agreement, or a \"hmm, let me see…\" filler while you think. ね invites shared feeling.",
+ "本当 (hontō) = true / real. Rising intonation = \"Really?!\"",
+ "The go-to positive reaction: \"nice!\" Use it whenever someone shares good news or a plan.",
+ "\"Ah, I see\" — shows you followed the explanation. Works completely on its own.",
+ "すごい = amazing / incredible. You'll hear (and say) this constantly.",
+ "面白い (omoshiroi) covers both \"interesting\" AND \"funny.\"",
+ "\"Yes, exactly!\" — confirms something about your own situation. なん adds warm emphasis.",
+ "The sympathy response: \"that sounds rough.\" Pairs with a slow nod.",
+ "お子さん = polite word for someone else's child. Your own kids are just 子ども.",
+ "ご/お prefixes make it respectful; どちら = polite \"where.\" More polite than どこ.",
+ "お仕事 = polite \"work.\" 何 is read なん before です.",
+ "趣味 (shumi) = hobby. The standard getting-to-know-you question.",
+ "長い (\"long\") used idiomatically: \"have you been here long?\"",
+ "そちら = polite \"you / your side.\" The easiest way to bounce any question back.",
+ "〜ましたか = past-tense question. Perfect Monday small talk.",
+ "Weather + ね is the classic opener. 暑い (atsui) = hot — you'll use this daily in August.",
+ "久しぶり (hisashiburi) = \"it's been a while.\" Casual version: 久しぶり！",
+ "分かる (wakaru) = to understand. よく〜ません = \"not quite ~.\"",
+ "ゆっくり = slowly. 話して (te-form of 話す) + ください = \"please speak.\"",
+ "で = \"in (a language).\" Point at anything and swap これ (this) for the word you need.",
+ "話せる = potential form of 話す: \"can speak.\" だけ = only.",
+ "また今度 = \"next time\" · ぜひ = \"by all means.\" The polite yes-but-later.",
+ "Set phrase for leaving before others — at work, practice, or a gathering: \"excuse me for going first.\"",
+];
+PHRASES.forEach((p,i)=>p.note=NOTES[i]);
+
+/* ================= HELPERS ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rubyHTML=segs=>segs.map(s=>typeof s==='string'?esc(s):`<ruby>${esc(s[0])}<rt>${esc(s[1])}</rt></ruby>`).join('');
+const jpPlain=segs=>segs.map(s=>typeof s==='string'?s:s[0]).join('');
+const shuffle=a=>{a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a;};
+const roTiles=ro=>ro.replace(/[.,!?！？。、…—"]/g,'').trim().split(/\s+/);
+const roNorm=ro=>roTiles(ro).join(' ').toLowerCase();
+
+/* ================= SPEECH ================= */
+let jpVoice=null, canSpeak=('speechSynthesis' in window);
+function pickVoice(){ if(!canSpeak) return;
+  const vs=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.startsWith('ja'));
+  jpVoice=vs.find(v=>/Google|Kyoko|Otoya/i.test(v.name))||vs[0]||null; }
+if(canSpeak){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+function speak(text,btn){ if(!canSpeak) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text); u.lang='ja-JP'; u.rate=0.85;
+  if(jpVoice) u.voice=jpVoice;
+  if(btn){ btn.classList.add('talking'); u.onend=u.onerror=()=>btn.classList.remove('talking'); }
+  speechSynthesis.speak(u); }
+
+/* ================= SOUND FX + HAPTICS ================= */
+let fxOn=true, actx=null;
+function tone(freq,dur,delay=0,type='sine',vol=.15){
+  if(!fxOn) return;
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0.0001,actx.currentTime+delay);
+    g.gain.linearRampToValueAtTime(vol,actx.currentTime+delay+.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+delay+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(actx.currentTime+delay); o.stop(actx.currentTime+delay+dur+.05);
+  }catch(e){}
+}
+const sfx={
+  correct(){ tone(660,.12); tone(880,.16,.09); buzz(18); },
+  wrong(){ tone(190,.22,0,'square',.09); buzz([40,40,40]); },
+  tap(){ tone(520,.05,0,'sine',.06); },
+  match(){ tone(740,.1); tone(988,.14,.07); buzz(15); },
+  fanfare(){ [523,659,784,1047].forEach((f,i)=>tone(f,.18,i*.11)); buzz([30,40,60]); },
+  levelup(){ [659,784,988,1319].forEach((f,i)=>tone(f,.2,i*.1)); }
+};
+function buzz(p){ if(fxOn && navigator.vibrate) try{navigator.vibrate(p);}catch(e){} }
+
+/* ================= STATE ================= */
+let settings={dir:'mix', cat:'all', len:'8', repeat:true, games:{mc:true,listen:true,build:true,spot:true,match:true,card:false}};
+let lesson=[], idx=0, marks=[], missedSet=new Set(), answered=false;
+let combo=0, bestCombo=0, lessonXP=0;
+let totalXP=0, level=1;
+
+/* ================= SETTINGS UI ================= */
+document.querySelectorAll('.chip.game').forEach(ch=>{
+  ch.addEventListener('click',()=>{
+    const g=ch.dataset.g, next=!settings.games[g];
+    const onCount=Object.values(settings.games).filter(Boolean).length;
+    if(!next && onCount<=1) return;                 /* keep at least one game */
+    settings.games[g]=next; ch.classList.toggle('on',next); sfx.tap();
+  });
+});
+(function(){ const seg=$('dirSeg');
+  seg.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    settings.dir=b.dataset.v; [...seg.children].forEach(x=>x.classList.toggle('on',x===b)); });
+})();
+function chipInit(id,fn){ $(id).addEventListener('click',()=>{
+  const on=!$(id).classList.contains('on');
+  $(id).classList.toggle('on',on); $(id).setAttribute('aria-pressed',on); fn(on); }); }
+chipInit('furiChip',on=>document.body.classList.toggle('no-furi',!on));
+chipInit('romaChip',on=>document.body.classList.toggle('no-romaji',!on));
+chipInit('repeatChip',on=>settings.repeat=on);
+chipInit('fxChip',on=>fxOn=on);
+(function buildCatSel(){
+  const counts={}; PHRASES.forEach(p=>counts[p.cat]=(counts[p.cat]||0)+1);
+  $('catSel').innerHTML=`<option value="all">All topics · ぜんぶ (${PHRASES.length})</option>`+
+    Object.keys(CAT_JP).map(c=>`<option value="${c}">${CAT_EN[c]} · ${CAT_JP[c]} (${counts[c]})</option>`).join('');
+})();
+$('catSel').addEventListener('change',e=>settings.cat=e.target.value);
+$('lenSel').addEventListener('change',e=>settings.len=e.target.value);
+
+function renderLevel(){
+  const need=100, into=totalXP%need;
+  $('lvlNum').textContent=level;
+  $('xpTxt').textContent=`${totalXP} XP`;
+  $('xpFill').style.width=(into/need*100)+'%';
+}
+renderLevel();
+
+/* ================= STUDY LIST ================= */
+$('studyBtn').addEventListener('click',()=>{
+  const pool=settings.cat==='all'?PHRASES:PHRASES.filter(p=>p.cat===settings.cat);
+  const box=$('studyList'); box.innerHTML=''; let last=null;
+  pool.forEach(p=>{
+    if(p.cat!==last){ last=p.cat;
+      const h=document.createElement('div'); h.className='study-cat';
+      h.textContent=`${CAT_JP[p.cat]} · ${CAT_EN[p.cat]}`; box.appendChild(h); }
+    const it=document.createElement('div'); it.className='study-item';
+    it.innerHTML=`<div class="txt"><div class="study-jp">${rubyHTML(p.jp)}</div><div class="romaji">${esc(p.ro)}</div><div class="study-en">${esc(p.en)}</div></div>`;
+    if(canSpeak){ const b=document.createElement('button'); b.className='spk'; b.textContent='🔊';
+      b.setAttribute('aria-label','Play audio'); b.onclick=()=>speak(jpPlain(p.jp),b); it.appendChild(b); }
+    box.appendChild(it);
+  });
+  $('settings').classList.add('hidden'); $('study').classList.remove('hidden'); window.scrollTo(0,0);
+});
+$('studyBack').addEventListener('click',()=>{ $('study').classList.add('hidden'); $('settings').classList.remove('hidden'); window.scrollTo(0,0); });
+
+/* ================= SPOT-THE-MISTAKE CORRUPTION ================= */
+const SWAPS=[['が','を'],['を','に'],['は','を'],['に','で'],['で','に'],['と','を']];
+function corrupt(p){
+  for(const [from,to] of shuffle(SWAPS)){
+    for(let si=0; si<p.jp.length; si++){
+      const seg=p.jp[si]; if(typeof seg!=='string') continue;
+      const pos=seg.indexOf(from);
+      if(pos===-1) continue;
+      if(from==='で' && seg[pos+1]==='す') continue;      /* don't break です */
+      if(from==='に' && seg.slice(pos,pos+3)==='にち') continue;
+      const segs=p.jp.slice();
+      segs[si]=seg.slice(0,pos)+to+seg.slice(pos+from.length);
+      return {segs, from, to};
+    }
+  }
+  return null;
+}
+
+/* ================= LESSON BUILDER ================= */
+function poolFor(){ return settings.cat==='all'?PHRASES:PHRASES.filter(p=>p.cat===settings.cat); }
+function makeTaker(pool){
+  let bag=shuffle(pool), i=0;
+  return n=>{ const out=[];
+    while(out.length<n){ if(i>=bag.length){ bag=shuffle(pool); i=0; }
+      if(!out.includes(bag[i])) out.push(bag[i]);
+      i++; }
+    return out; };
+}
+function buildLesson(pool, count){
+  const take=makeTaker(pool);
+  let enabled=Object.keys(settings.games).filter(g=>settings.games[g]&&(g!=='listen'||canSpeak)&&(g!=='match'||pool.length>=4));
+  if(!enabled.length) enabled=['mc'];
+  const list=[];
+  for(let i=0;i<count;i++){
+    let g=enabled[Math.floor(Math.random()*enabled.length)];
+    if(g==='match'){ list.push({type:'match', ps:take(4)}); continue; }
+    const p=take(1)[0];
+    let dir=settings.dir==='mix'?(Math.random()<.5?'en2jp':'jp2en'):settings.dir;
+    if(g==='spot'){ const c=corrupt(p); if(!c){ g='mc'; } else { list.push({type:'spot', p, c}); continue; } }
+    if(g==='build' && roTiles(p.ro).length<2){ g='mc'; }
+    list.push({type:g, p, dir});
+  }
+  return list;
+}
+
+/* ================= LESSON FLOW ================= */
+$('startBtn').addEventListener('click',()=>startLesson());
+$('againBtn').addEventListener('click',()=>{ $('results').classList.add('hidden'); $('settings').classList.remove('hidden'); window.scrollTo(0,0); });
+$('reviewBtn').addEventListener('click',()=>{
+  const pool=[...missedSet];
+  startLesson(buildLesson(pool, Math.max(pool.length, 4)));
+});
+$('quitBtn').addEventListener('click',()=>{
+  if(marks.length) showResults();
+  else { $('quiz').classList.add('hidden'); $('settings').classList.remove('hidden'); }
+});
+
+function startLesson(customLesson){
+  const pool=poolFor();
+  lesson=customLesson||buildLesson(pool, +settings.len);
+  idx=0; marks=[]; missedSet=new Set(); combo=0; bestCombo=0; lessonXP=0;
+  $('settings').classList.add('hidden'); $('results').classList.add('hidden');
+  $('quiz').classList.remove('hidden'); window.scrollTo(0,0);
+  renderEx();
+}
+
+const TYPE_LABEL={mc:'選択 Choice', listen:'🔊 Listening', build:'並べ替え Build', spot:'間違い Spot it', match:'マッチ Match', card:'カード Cards'};
+
+function renderEx(){
+  answered=false;
+  const ex=lesson[idx];
+  $('typeTag').textContent=TYPE_LABEL[ex.type];
+  $('againTag').classList.toggle('hidden',!ex.retry);
+  $('catTag').textContent=ex.type==='match'?'ミックス':CAT_JP[ex.p.cat];
+  $('mark').classList.add('hidden'); $('mark').innerHTML='';
+  $('explain').classList.add('hidden'); $('explain').innerHTML='';
+  $('nextBtn').classList.add('hidden');
+  $('lessonFill').style.width=(idx/lesson.length*100)+'%';
+  renderProg();
+  const area=$('exArea'); area.innerHTML='';
+  ({mc:renderMC, listen:renderListen, build:renderBuild, spot:renderSpot, match:renderMatch, card:renderCard})[ex.type](ex,area);
+}
+
+/* ---------- shared finish ---------- */
+function finishEx(correct, phrase, pickedWrong, extraExplain){
+  if(answered) return; answered=true;
+  const ex=lesson[idx];
+  marks.push(correct);
+  if(correct){ combo++; bestCombo=Math.max(bestCombo,combo); sfx.correct(); }
+  else{
+    combo=0; sfx.wrong();
+    const missP=phrase||null;
+    if(missP && !ex.retry){
+      missedSet.add(missP);
+      if(settings.repeat) lesson.push({type:'mc', p:missP, dir: (ex.dir||'en2jp'), retry:true});
+    }
+  }
+  /* combo display */
+  const cb=$('combo');
+  if(combo>=2){ cb.textContent=`🔥×${combo}`; cb.classList.add('show'); }
+  else cb.classList.remove('show');
+  /* xp */
+  const mult=1+Math.min(combo,10)*0.1;
+  const gain=correct?Math.round(10*mult):2;
+  lessonXP+=gain; totalXP+=gain;
+  const newLevel=Math.floor(totalXP/100)+1;
+  if(newLevel>level){ level=newLevel; sfx.levelup(); }
+  renderLevel();
+  const xf=$('xpFloat'); xf.textContent=`+${gain} XP`; xf.classList.remove('go'); void xf.offsetWidth; xf.classList.add('go');
+  /* mark + explain */
+  drawMark(correct);
+  if(phrase) showExplain(phrase, pickedWrong, extraExplain);
+  else if(extraExplain){ $('explain').innerHTML=`<div class="ex-lbl">先生のメモ · Teacher's note</div><div class="note">${extraExplain}</div>`; $('explain').classList.remove('hidden'); }
+  $('live').textContent=correct?'Correct. 正解。':'Incorrect. 不正解。';
+  $('lessonFill').style.width=((idx+1)/lesson.length*100)+'%';
+  renderProg(true);
+  $('nextBtn').textContent=idx===lesson.length-1?'結果 — Results':'次へ — Next';
+  $('nextBtn').classList.remove('hidden');
+  $('nextBtn').focus();
+}
+$('nextBtn').addEventListener('click',()=>{
+  if(idx===lesson.length-1) return showResults();
+  idx++; renderEx();
+});
+
+function showExplain(p, pickedWrong, extra){
+  const ex=$('explain'); let html='';
+  if(pickedWrong){
+    html+=`<div class="picked"><b>Your pick</b> — ${pickedWrong.html}<br>…actually means ${pickedWrong.means}</div>`;
+  }
+  if(extra) html+=`<div class="picked">${extra}</div>`;
+  html+=`<div class="ex-lbl">先生のメモ · Teacher's note</div>
+    <div class="reveal-jp">${rubyHTML(p.jp)}</div>
+    <div class="romaji">${esc(p.ro)}</div>
+    <div style="font-size:13.5px;color:var(--ink-soft);margin-bottom:8px;">${esc(p.en)}</div>
+    <div class="note">${p.note}</div>`;
+  ex.innerHTML=html; ex.classList.remove('hidden');
+}
+
+/* ---------- exercise: multiple choice ---------- */
+function renderMC(ex,area){
+  const p=ex.p, en2jp=ex.dir==='en2jp';
+  $('promptLbl').textContent=en2jp?'Say it in Japanese · 日本語で':'What does it mean? · 英語で';
+  let html='';
+  if(en2jp) html+=`<div class="prompt-row"><div class="prompt en-text">${esc(p.en)}</div></div>`;
+  else{
+    html+=`<div class="prompt-row"><div class="prompt">${rubyHTML(p.jp)}</div>${canSpeak?'<button class="spk" id="pSpk" aria-label="Play">🔊</button>':''}</div><div class="romaji">${esc(p.ro)}</div>`;
+  }
+  html+='<div class="choices" id="mcChoices"></div>';
+  area.innerHTML=html;
+  if(!en2jp && canSpeak) $('pSpk').onclick=()=>speak(jpPlain(p.jp),$('pSpk'));
+  const same=shuffle(PHRASES.filter(x=>x!==p&&x.cat===p.cat));
+  const rest=shuffle(PHRASES.filter(x=>x!==p&&x.cat!==p.cat));
+  const opts=shuffle([p,...same.concat(rest).slice(0,3)]);
+  const box=$('mcChoices');
+  opts.forEach((o,i)=>{
+    const b=document.createElement('button'); b.className='choice';
+    b.innerHTML=`<span class="key">${i+1}</span>`+(en2jp
+      ?`<span>${rubyHTML(o.jp)}<div class="romaji">${esc(o.ro)}</div></span>`
+      :`<span>${esc(o.en)}</span>`);
+    b.onclick=()=>{
+      if(answered) return;
+      [...box.children].forEach((bb,j)=>{ bb.disabled=true;
+        if(opts[j]===p) bb.classList.add('correct');
+        else if(bb===b) bb.classList.add('wrong'); });
+      const correct=o===p;
+      let picked=null;
+      if(!correct) picked={ html:en2jp?rubyHTML(o.jp):esc(o.en),
+        means:en2jp?`"${esc(o.en)}"`:`${rubyHTML(o.jp)} (${esc(o.ro)})` };
+      if(en2jp&&canSpeak) speak(jpPlain(p.jp));
+      finishEx(correct,p,picked);
+    };
+    box.appendChild(b);
+  });
+}
+
+/* ---------- exercise: listening ---------- */
+function renderListen(ex,area){
+  const p=ex.p;
+  $('promptLbl').textContent='Listen — what did they say? · 聞き取り';
+  area.innerHTML=`<button class="spk big" id="bigSpk" aria-label="Play audio">🔊</button>
+    <div class="hint-line">Tap to replay · タップでもう一度</div>
+    <div class="choices" id="lChoices"></div>`;
+  const play=()=>speak(jpPlain(p.jp),$('bigSpk'));
+  $('bigSpk').onclick=play;
+  setTimeout(play,350);
+  const same=shuffle(PHRASES.filter(x=>x!==p&&x.cat===p.cat));
+  const rest=shuffle(PHRASES.filter(x=>x!==p&&x.cat!==p.cat));
+  const opts=shuffle([p,...same.concat(rest).slice(0,3)]);
+  const box=$('lChoices');
+  opts.forEach((o,i)=>{
+    const b=document.createElement('button'); b.className='choice';
+    b.innerHTML=`<span class="key">${i+1}</span><span>${esc(o.en)}</span>`;
+    b.onclick=()=>{
+      if(answered) return;
+      [...box.children].forEach((bb,j)=>{ bb.disabled=true;
+        if(opts[j]===p) bb.classList.add('correct');
+        else if(bb===b) bb.classList.add('wrong'); });
+      const correct=o===p;
+      const picked=correct?null:{ html:esc(o.en), means:`${rubyHTML(o.jp)} (${esc(o.ro)})` };
+      finishEx(correct,p,picked);
+    };
+    box.appendChild(b);
+  });
+}
+
+/* ---------- exercise: build the sentence ---------- */
+function renderBuild(ex,area){
+  const p=ex.p;
+  $('promptLbl').textContent='Build the sentence · 並べ替え';
+  area.innerHTML=`<div class="prompt-row"><div class="prompt en-text">${esc(p.en)}</div></div>
+    <div class="answer-line" id="ansLine"></div>
+    <div class="tile-bank" id="bank"></div>
+    <button class="check-btn" id="checkBtn" disabled>チェック — Check</button>`;
+  const words=roTiles(p.ro);
+  const order=shuffle(words.map((w,i)=>({w,i})));
+  const placed=[];
+  const bank=$('bank'), line=$('ansLine'), check=$('checkBtn');
+  order.forEach(t=>{
+    const b=document.createElement('button'); b.className='tile'; b.textContent=t.w;
+    b.onclick=()=>{
+      if(answered||b.classList.contains('ghost')) return;
+      sfx.tap(); b.classList.add('ghost');
+      const a=document.createElement('button'); a.className='tile'; a.textContent=t.w;
+      a.onclick=()=>{ if(answered) return; sfx.tap(); a.remove();
+        placed.splice(placed.indexOf(a),1); b.classList.remove('ghost');
+        check.disabled=placed.length===0; };
+      line.appendChild(a); placed.push(a); check.disabled=false;
+    };
+    bank.appendChild(b);
+  });
+  check.onclick=()=>{
+    if(answered) return;
+    const attempt=placed.map(a=>a.textContent).join(' ').toLowerCase();
+    const correct=attempt===roNorm(p.ro);
+    check.disabled=true;
+    const picked=correct?null:{ html:esc(placed.map(a=>a.textContent).join(' ')), means:'— not quite the natural order.' };
+    if(canSpeak) speak(jpPlain(p.jp));
+    finishEx(correct,p,picked);
+  };
+}
+
+/* ---------- exercise: spot the mistake ---------- */
+function renderSpot(ex,area){
+  const p=ex.p, c=ex.c;
+  $('promptLbl').textContent='Which one is natural? · どちらが正しい？';
+  area.innerHTML=`<div class="hint-line">"${esc(p.en)}"</div><div class="spot-opts" id="spotOpts"></div>`;
+  const goodFirst=Math.random()<.5;
+  const opts=goodFirst?[{segs:p.jp,good:true},{segs:c.segs,good:false}]:[{segs:c.segs,good:false},{segs:p.jp,good:true}];
+  const box=$('spotOpts');
+  opts.forEach((o,i)=>{
+    const b=document.createElement('button'); b.className='spot-btn';
+    b.innerHTML=`<span style="font-size:13px;color:var(--ai);font-family:'Zen Kaku Gothic New',sans-serif;">${'AB'[i]}　</span>${rubyHTML(o.segs)}`;
+    b.onclick=()=>{
+      if(answered) return;
+      [...box.children].forEach((bb,j)=>{ bb.disabled=true;
+        if(opts[j].good) bb.classList.add('correct'); else bb.classList.add('wrong'); });
+      const correct=o.good;
+      const extra=`The broken version swapped <b>${esc(c.from)}</b> → <b style="color:var(--ng)">${esc(c.to)}</b>. Correct particle here: <b>${esc(c.from)}</b>.`;
+      if(canSpeak) speak(jpPlain(p.jp));
+      finishEx(correct,p,null,extra);
+    };
+    box.appendChild(b);
+  });
+}
+
+/* ---------- exercise: match pairs ---------- */
+function renderMatch(ex,area){
+  const ps=ex.ps;
+  $('promptLbl').textContent='Match the pairs · マッチング';
+  area.innerHTML='<div class="match-grid" id="mGrid"></div><div class="hint-line" id="mHint">Tap a Japanese phrase, then its meaning</div>';
+  const grid=$('mGrid');
+  const left=shuffle(ps.map(p=>({p,side:'jp'})));
+  const right=shuffle(ps.map(p=>({p,side:'en'})));
+  let sel=null, misses=0, done=0;
+  function makeBtn(o){
+    const b=document.createElement('button'); b.className='mbtn';
+    b.innerHTML=o.side==='jp'?rubyHTML(o.p.jp):esc(o.p.en);
+    b.onclick=()=>{
+      if(answered||b.classList.contains('done')) return;
+      if(sel===b){ b.classList.remove('sel'); sel=null; sfx.tap(); return; }
+      if(!sel){ sel=b; b.classList.add('sel'); sfx.tap(); return; }
+      const a=sel; sel=null; a.classList.remove('sel');
+      if(a.dataset.side===o.side){ a.classList.remove('sel'); sel=b; b.classList.add('sel'); sfx.tap(); return; }
+      if(a.dataset.pi===String(ps.indexOf(o.p))){
+        a.classList.add('done'); b.classList.add('done'); sfx.match(); done++;
+        if(done===ps.length){
+          const correct=misses===0;
+          const extra=misses
+            ?`${misses} mismatch${misses>1?'es':''} along the way — all four pairs added to your review list. Clean sweep next time!`
+            :null;
+          if(!correct && !ex.retry){
+            ps.forEach(pp=>missedSet.add(pp));
+            if(settings.repeat) shuffle(ps).slice(0,2).forEach(pp=>lesson.push({type:'mc', p:pp, dir:'en2jp', retry:true}));
+          }
+          finishEx(correct, null, null, extra);
+        }
+      } else {
+        misses++; a.classList.add('shake'); b.classList.add('shake');
+        setTimeout(()=>{a.classList.remove('shake'); b.classList.remove('shake');},320);
+        sfx.wrong();
+      }
+    };
+    return b;
+  }
+  for(let i=0;i<ps.length;i++){
+    const lb=makeBtn(left[i]); lb.dataset.side='jp'; lb.dataset.pi=String(ps.indexOf(left[i].p)); grid.appendChild(lb);
+    const rb=makeBtn(right[i]); rb.dataset.side='en'; rb.dataset.pi=String(ps.indexOf(right[i].p)); grid.appendChild(rb);
+  }
+}
+
+/* ---------- exercise: flashcard ---------- */
+function renderCard(ex,area){
+  const p=ex.p, en2jp=ex.dir==='en2jp';
+  $('promptLbl').textContent=en2jp?'Say it in Japanese, then check · カード':'What does it mean? Then check · カード';
+  let html='';
+  if(en2jp) html+=`<div class="prompt-row"><div class="prompt en-text">${esc(p.en)}</div></div>`;
+  else html+=`<div class="prompt-row"><div class="prompt">${rubyHTML(p.jp)}</div>${canSpeak?'<button class="spk" id="pSpk" aria-label="Play">🔊</button>':''}</div><div class="romaji">${esc(p.ro)}</div>`;
+  html+=`<button class="reveal-btn" id="revealBtn">答えを見る — Show answer</button>
+    <div class="answer-box hidden" id="ansBox">
+      <div class="prompt-lbl">Answer · 答え</div>
+      <div id="ansContent"></div>
+      <div class="self-grade">
+        <button class="btn-got" id="gotBtn">○ Got it</button>
+        <button class="btn-not" id="notBtn">✗ Not yet</button>
+      </div>
+    </div>`;
+  area.innerHTML=html;
+  if(!en2jp&&canSpeak) $('pSpk').onclick=()=>speak(jpPlain(p.jp),$('pSpk'));
+  $('revealBtn').onclick=()=>{
+    $('revealBtn').classList.add('hidden');
+    $('ansContent').innerHTML=en2jp
+      ?`<div class="prompt">${rubyHTML(p.jp)}</div><div class="romaji">${esc(p.ro)}</div>`
+      :`<div class="prompt en-text">${esc(p.en)}</div>`;
+    $('ansBox').classList.remove('hidden');
+    if(en2jp&&canSpeak) speak(jpPlain(p.jp));
+  };
+  $('gotBtn')&&($('gotBtn').onclick=()=>finishEx(true,p,null));
+  $('notBtn')&&($('notBtn').onclick=()=>finishEx(false,p,null));
+}
+
+/* keyboard: 1-4 for choice-style games */
+document.addEventListener('keydown',e=>{
+  if($('quiz').classList.contains('hidden')) return;
+  const k=e.key;
+  if(!answered&&['1','2','3','4'].includes(k)){
+    const box=$('mcChoices')||$('lChoices');
+    if(box&&box.children[+k-1]){ e.preventDefault(); box.children[+k-1].click(); }
+  } else if((k===' '||k==='Enter')&&answered){ e.preventDefault(); $('nextBtn').click(); }
+});
+
+/* ---------- marks & progress ---------- */
+function drawMark(ok){
+  const m=$('mark');
+  m.className='mark '+(ok?'ok':'ng');
+  m.innerHTML=ok
+    ?`<svg viewBox="0 0 120 120"><path d="M60 14 C 90 12, 108 34, 106 60 C 104 90, 82 108, 56 106 C 28 104, 12 82, 14 56 C 16 30, 36 16, 58 15"/></svg>`
+    :`<svg viewBox="0 0 120 120"><path d="M26 24 C 45 44, 75 76, 96 98"/><path d="M94 26 C 74 46, 44 76, 24 96" style="animation-delay:.18s"/></svg>`;
+  m.classList.remove('hidden');
+}
+function renderProg(){
+  const box=$('prog'); box.innerHTML='';
+  lesson.forEach((ex,i)=>{
+    const c=document.createElement('div'); c.className='cell';
+    if(ex.retry) c.classList.add('again');
+    if(i<marks.length){ c.classList.add(marks[i]?'ok':'ng'); c.textContent=marks[i]?'○':'✗'; }
+    else if(i===idx) c.classList.add('now');
+    box.appendChild(c);
+  });
+}
+
+/* ---------- results ---------- */
+function showResults(){
+  $('quiz').classList.add('hidden');
+  const n=marks.filter(Boolean).length, t=marks.length, pct=t?n/t:0;
+  $('scoreLine').textContent=`${n} / ${t}`;
+  $('stAcc').textContent=Math.round(pct*100)+'%';
+  $('stXp').textContent='+'+lessonXP;
+  $('stCombo').textContent='🔥×'+bestCombo;
+  const prevLevel=Math.floor((totalXP-lessonXP)/100)+1;
+  const leveled=level>prevLevel;
+  $('lvlUp').classList.toggle('hidden',!leveled);
+  let sub,svg;
+  if(pct>=0.9){ sub='はなまる！ Hanamaru — perfect form. 素晴らしい！'; svg=hanamaruPath(); sfx.fanfare(); confetti(); }
+  else if(pct>=0.7){ sub='よくできました — Well done!'; svg=`<path d="M100 24 C 148 22, 178 58, 176 100 C 174 148, 138 178, 96 176 C 52 174, 24 138, 26 96 C 28 52, 60 26, 98 25" stroke-width="10"/>`; sfx.fanfare(); }
+  else { sub='もう少し — Almost! Run it again.'; svg=`<path d="M100 40 C 132 38, 152 62, 151 100 M100 40 C 68 42, 49 64, 50 100 M 60 140 C 85 122, 115 122, 140 140" stroke-width="9"/>`; }
+  if(leveled) confetti();
+  $('hanaSvg').innerHTML=svg;
+  $('scoreSub').textContent=sub;
+  const ml=$('missList'), missed=[...missedSet];
+  if(missed.length){
+    ml.innerHTML='<h3>Review these · 復習しましょう</h3>';
+    missed.forEach(p=>{
+      const it=document.createElement('div'); it.className='miss-item';
+      it.innerHTML=`<div class="txt"><div class="miss-jp">${rubyHTML(p.jp)}</div><div class="romaji">${esc(p.ro)}</div><div class="miss-en">${esc(p.en)}</div><div class="miss-note">${p.note}</div></div>`;
+      if(canSpeak){ const b=document.createElement('button'); b.className='spk'; b.textContent='🔊';
+        b.setAttribute('aria-label','Play audio'); b.onclick=()=>speak(jpPlain(p.jp),b); it.appendChild(b); }
+      ml.appendChild(it);
+    });
+    ml.classList.remove('hidden'); $('reviewBtn').classList.remove('hidden');
+  } else { ml.classList.add('hidden'); $('reviewBtn').classList.add('hidden'); }
+  $('results').classList.remove('hidden'); window.scrollTo(0,0);
+}
+function confetti(){
+  const colors=['#C73E2E','#33518E','#C99A2E','#E4EAF5','#F6E3DE'];
+  for(let i=0;i<56;i++){
+    const s=document.createElement('span'); s.className='confetti';
+    s.style.left=Math.random()*100+'vw';
+    s.style.background=colors[i%colors.length];
+    s.style.animationDuration=(1.8+Math.random()*1.6)+'s';
+    s.style.animationDelay=(Math.random()*.5)+'s';
+    s.style.transform=`rotate(${Math.random()*360}deg)`;
+    document.body.appendChild(s);
+    setTimeout(()=>s.remove(),4200);
+  }
+}
+function hanamaruPath(){
+  let d='M100 100 c6 -4 14 0 14 8 c0 12 -14 18 -24 12 c-14 -8 -12 -28 2 -36 c18 -11 40 -2 46 16 c7 22 -8 44 -32 48';
+  const petals=[]; const cx=100,cy=100,R1=62,R2=88;
+  for(let k=0;k<10;k++){
+    const a1=(k/10)*Math.PI*2-Math.PI/2, a2=((k+.5)/10)*Math.PI*2-Math.PI/2, a3=((k+1)/10)*Math.PI*2-Math.PI/2;
+    const x1=cx+R1*Math.cos(a1),y1=cy+R1*Math.sin(a1),x2=cx+R2*Math.cos(a2),y2=cy+R2*Math.sin(a2),x3=cx+R1*Math.cos(a3),y3=cy+R1*Math.sin(a3);
+    petals.push(`${k===0?`M${x1.toFixed(1)} ${y1.toFixed(1)}`:''} Q ${x2.toFixed(1)} ${y2.toFixed(1)}, ${x3.toFixed(1)} ${y3.toFixed(1)}`);
+  }
+  return `<path d="${d}" stroke-width="7"/><path d="${petals.join(' ')}" stroke-width="7" style="animation-delay:.3s"/>`;
+}
+</script>
+</body>
+</html>
