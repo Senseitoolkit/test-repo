@@ -207,6 +207,34 @@
   .answer::before{content:"✓ ";opacity:.8;}
   .editing .answer,.editing .nsent,.editing .hint{display:block;opacity:.85;}
 
+  /* ── ARITHMETIC PRACTICE MODE (4 quick questions) ── */
+  .arith{
+    display:none;
+    grid-template-columns:1fr;
+    gap:1.5vh 1.8vw;margin:1.2vh 0;
+    min-height:0;overflow-y:auto;flex:1 1 auto;align-content:space-evenly;
+  }
+  .challenge.arith-mode .arith{display:grid;}
+  .challenge.arith-mode .q,
+  .challenge.arith-mode .hint,
+  .challenge.arith-mode .nsent,
+  .challenge.arith-mode .answer{display:none !important;}
+  .aq{display:flex;flex-direction:column;gap:.15em;min-width:0;}
+  .aq .lab{
+    font-family:'Space Mono',monospace;font-size:calc(.62rem * var(--txt,1));
+    letter-spacing:.12em;text-transform:uppercase;color:var(--chal-soft);
+  }
+  .aq .sum{
+    font-family:'Space Mono',monospace;font-weight:700;color:var(--chal-ink);
+    font-size:calc(1.4rem * var(--txt,1));line-height:1.15;
+    white-space:nowrap;overflow:hidden;
+  }
+  .aq .sum .blank{color:var(--rust);}
+  .aq .sum .blank .bv{display:none;}
+  /* revealing swaps the box for the answer, so nothing changes height */
+  .challenge.arith-mode.show-ans .aq .sum .blank .bx{display:none;}
+  .challenge.arith-mode.show-ans .aq .sum .blank .bv{display:inline;}
+
   /* ── TALK (DISCUSSION) CARD ── */
   .talk{background:var(--card);color:var(--card-ink);}
   .talk h2{color:var(--rust);justify-content:flex-start;}
@@ -371,9 +399,9 @@
   .swatch[data-set="5"]{background:linear-gradient(135deg,#2b3a30 50%,#f6d56b 50%);}
 
   /* scrollbar styling — subtle */
-  ol.steps::-webkit-scrollbar,.challenge .q::-webkit-scrollbar,.talk .wprompt::-webkit-scrollbar{width:4px;}
-  ol.steps::-webkit-scrollbar-track,.challenge .q::-webkit-scrollbar-track,.talk .wprompt::-webkit-scrollbar-track{background:transparent;}
-  ol.steps::-webkit-scrollbar-thumb,.challenge .q::-webkit-scrollbar-thumb,.talk .wprompt::-webkit-scrollbar-thumb{background:var(--leaf);border-radius:4px;opacity:.5;}
+  ol.steps::-webkit-scrollbar,.challenge .q::-webkit-scrollbar,.talk .wprompt::-webkit-scrollbar,.arith::-webkit-scrollbar{width:4px;}
+  ol.steps::-webkit-scrollbar-track,.challenge .q::-webkit-scrollbar-track,.talk .wprompt::-webkit-scrollbar-track,.arith::-webkit-scrollbar-track{background:transparent;}
+  ol.steps::-webkit-scrollbar-thumb,.challenge .q::-webkit-scrollbar-thumb,.talk .wprompt::-webkit-scrollbar-thumb,.arith::-webkit-scrollbar-thumb{background:var(--leaf);border-radius:4px;opacity:.5;}
 </style>
 </head>
 <body>
@@ -408,12 +436,13 @@
 
       <!-- CHALLENGE (MATHS) CARD -->
       <div class="card challenge" id="mathcard">
-        <h2>Challenge Problem
+        <h2 id="mathh2">Challenge Problem
           <span id="cnum" class="cnum">#1</span>
           <button class="edit-toggle" id="editbtn" onclick="toggleEdit()">✎ Edit</button>
         </h2>
 
         <p class="q" id="cq"></p>
+        <div class="arith" id="arith"></div>
         <p class="hint" id="chint"></p>
         <button class="reveal-btn" id="revealbtn" onclick="cycleReveal()">Reveal number sentence</button>
         <p class="nsent" id="nsent"></p>
@@ -421,7 +450,7 @@
 
         <div class="dots" id="dots">
           <button class="nav" id="prevbtn" onclick="goPrev()" title="Previous problem">&larr;</button>
-          <button class="newbtn" onclick="newProblem()" title="Generate a fresh problem">&#127922; New problem</button>
+          <button class="newbtn" id="newbtn" onclick="newProblem()" title="Generate a fresh problem">&#127922; New problem</button>
           <span class="spacer"></span>
           <button class="nav" id="nextbtn" onclick="goNext()" title="Next problem">&rarr;</button>
         </div>
@@ -472,6 +501,13 @@
       <div class="set-btns">
         <button class="toggle" id="tg-math" onclick="toggleCard('math')">Maths</button>
         <button class="toggle" id="tg-talk" onclick="toggleCard('talk')">Talk</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span class="set-lab">Maths type</span>
+      <div class="set-btns">
+        <button class="toggle" id="tg-word" onclick="setMathMode('word')">Word</button>
+        <button class="toggle" id="tg-arith" onclick="setMathMode('arith')">Arithmetic</button>
       </div>
     </div>
     <div class="set-row">
@@ -977,6 +1013,46 @@
   };
 
   /* =========================================================
+     ARITHMETIC PRACTICE  — four quick questions
+       1. missing addend        a + ▢ = t
+       2. missing subtrahend    m − ▢ = d
+       3. division              (times tables to 12)
+       4. multiplication        (times tables to 12)
+     Number size for 1 & 2 scales with the Year setting.
+     Tables questions stay within 2–12 at every year.
+  ========================================================= */
+  const ARITH_CAP = {1:20, 2:100, 3:1000, 4:10000, 5:100000, 6:1000000};
+  const fmtN  = n=>n.toLocaleString();
+  const BLANK = v=>`<span class="blank"><span class="bx">▢</span><span class="bv">${v}</span></span>`;
+
+  function genArith(y){
+    const cap = ARITH_CAP[y] || 1000;
+
+    /* 1 — missing addend:  a + ▢ = t */
+    const t = R(Math.max(6,Math.floor(cap/2)), cap);
+    const a = R(1, t-1);
+
+    /* 2 — missing subtrahend:  m − ▢ = d */
+    const m = R(Math.max(6,Math.floor(cap/2)), cap);
+    const d = R(1, m-1);
+
+    /* 3 — division from the tables to 12 */
+    const dv = R(2,12), dq = R(2,12), dp = dv*dq;
+
+    /* 4 — multiplication from the tables to 12 */
+    const mx = R(2,12), my = R(2,12);
+
+    const items=[
+      {lab:'Missing addend',     plain:`${fmtN(a)} + ▢ = ${fmtN(t)}`,  val:fmtN(t-a)},
+      {lab:'Missing subtrahend', plain:`${fmtN(m)} − ▢ = ${fmtN(d)}`,  val:fmtN(m-d)},
+      {lab:'Division',           plain:`${fmtN(dp)} ÷ ${dv} = ▢`,      val:String(dq)},
+      {lab:'Multiplication',     plain:`${mx} × ${my} = ▢`,            val:String(mx*my)}
+    ];
+    items.forEach(it=>{ it.sum = it.plain.replace('▢',BLANK(it.val)); });
+    return items;
+  }
+
+  /* =========================================================
      TABLE-GROUP DISCUSSION PROMPTS  (Year 1 → Year 6)
      Shares the global Year setting with the maths generator.
      g = type of talk · p = the question · s = how to run it
@@ -1123,6 +1199,8 @@
   let history= [];
   let hi     = -1;
   let editing= false;
+  let mathMode = load('mm_mathmode','word');   /* 'word' | 'arith' */
+  let arithItems = [];
 
   const cq=document.getElementById('cq'),
         chint=document.getElementById('chint'),
@@ -1131,10 +1209,16 @@
         revealbtn=document.getElementById('revealbtn'),
         cnum=document.getElementById('cnum'),
         card=document.querySelector('.challenge'),
+        arithEl=document.getElementById('arith'),
+        mathh2=document.getElementById('mathh2'),
+        newbtn=document.getElementById('newbtn'),
         prevbtn=document.getElementById('prevbtn'),
         nextbtn=document.getElementById('nextbtn');
   let revealStage=0;
 
+  function markYear(y){
+    [...document.querySelectorAll('#yearpick button')].forEach(b=>b.classList.toggle('active',+b.dataset.y===y));
+  }
   function generate(y){
     const bank=GEN[y];
     const p=bank[Math.floor(Math.random()*bank.length)]();
@@ -1150,7 +1234,40 @@
     setReveal(editing?3:0);
     cnum.textContent=`#${hi+1}`;
     prevbtn.disabled=(hi<=0);
-    [...document.querySelectorAll('#yearpick button')].forEach(b=>b.classList.toggle('active',+b.dataset.y===p.year));
+    nextbtn.disabled=false;
+    markYear(p.year);
+  }
+  /* Shrink all four sums to the largest size that fits the card, measured with
+     the answers in place so revealing never changes the layout. */
+  function fitArith(){
+    if(!card.classList.contains('arith-mode'))return;
+    const sums=[...arithEl.querySelectorAll('.sum')];
+    if(!sums.length||!arithEl.clientWidth)return;
+    const scale=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--txt'))||1;
+    const wasHidden=!card.classList.contains('show-ans');
+    if(wasHidden)card.classList.add('show-ans');       /* widest state */
+    let s=Math.min(42,Math.max(16,arithEl.clientHeight/5.5))*scale;
+    for(let i=0;i<28;i++){
+      sums.forEach(el=>el.style.fontSize=s.toFixed(2)+'px');
+      const wide=sums.some(el=>el.scrollWidth>el.clientWidth+1);
+      const tall=arithEl.scrollHeight>arithEl.clientHeight+1;
+      if((!wide&&!tall)||s<=11)break;
+      s*=0.93;
+    }
+    if(wasHidden)card.classList.remove('show-ans');
+  }
+
+  function paintArith(){
+    arithEl.innerHTML=arithItems.map(it=>
+      `<div class="aq"><span class="lab">${it.lab}</span><span class="sum">${it.sum}</span></div>`
+    ).join('');
+    card.classList.remove('show-ans');
+    fitArith();
+    revealbtn.textContent='Reveal answers';
+    cnum.textContent='4 questions';
+    prevbtn.disabled=true;
+    nextbtn.disabled=true;
+    markYear(year);
   }
   function setReveal(stage){
     revealStage=stage;
@@ -1159,15 +1276,28 @@
     ans.classList.toggle('show',stage>=3);
     revealbtn.textContent = stage===0?'Reveal hint' : (stage===1?'Reveal number sentence' : (stage===2?'Reveal answer':'Hide'));
   }
-  function cycleReveal(){ setReveal((revealStage+1)%4); }
+  function cycleReveal(){
+    if(mathMode==='arith'){
+      const on=card.classList.toggle('show-ans');
+      revealbtn.textContent=on?'Hide answers':'Reveal answers';
+      return;
+    }
+    setReveal((revealStage+1)%4);
+  }
   function newProblem(){
+    if(mathMode==='arith'){
+      arithItems=genArith(year);
+      paintArith();
+      return;
+    }
     saveCurrentFields();
     history.push(generate(year));
     hi=history.length-1;
     paint();
   }
-  function goPrev(){ if(hi>0){saveCurrentFields();hi--;paint();} }
+  function goPrev(){ if(mathMode==='arith')return; if(hi>0){saveCurrentFields();hi--;paint();} }
   function goNext(){
+    if(mathMode==='arith')return;
     saveCurrentFields();
     if(hi<history.length-1){hi++;paint();}
     else newProblem();
@@ -1177,7 +1307,24 @@
     newProblem();
     buildTalkTypes();
     genTalk();
-    [...document.querySelectorAll('#yearpick button')].forEach(b=>b.classList.toggle('active',+b.dataset.y===y));
+    markYear(y);
+  }
+
+  /* Word problems ⇄ Arithmetic practice */
+  function setMathMode(m){
+    if(editing)toggleEdit();
+    mathMode=m;save('mm_mathmode',m);
+    const arith=(m==='arith');
+    card.classList.toggle('arith-mode',arith);
+    card.classList.remove('show-ans');
+    mathh2.childNodes[0].nodeValue = arith?'Arithmetic Practice ':'Challenge Problem ';
+    newbtn.textContent = arith?'🎲 New questions':'🎲 New problem';
+    newbtn.title = arith?'Generate four fresh questions':'Generate a fresh problem';
+    document.getElementById('editbtn').classList.toggle('hidden',arith);
+    document.getElementById('tg-word').classList.toggle('on',!arith);
+    document.getElementById('tg-arith').classList.toggle('on',arith);
+    if(arith||hi<0)newProblem();
+    else paint();
   }
 
   function saveCurrentFields(){
@@ -1188,6 +1335,7 @@
     history[hi].a=ans.textContent.trim();
   }
   function toggleEdit(){
+    if(mathMode==='arith')return;
     editing=!editing;
     const b=document.getElementById('editbtn');
     [cq,chint,nsent,ans].forEach(el=>el.setAttribute('contenteditable',editing));
@@ -1198,7 +1346,7 @@
     else{saveCurrentFields();paint();}
   }
 
-  newProblem();
+  setMathMode(mathMode);
 
   /* =========================================================
      Table talk controller
@@ -1252,6 +1400,7 @@
     const tm=document.getElementById('tg-math'), tt=document.getElementById('tg-talk');
     if(tm)tm.classList.toggle('on', showMath);
     if(tt)tt.classList.toggle('on', showTalk);
+    fitArith();
   }
   function toggleCard(which){
     if(which==='math'){ showMath=!showMath; save('mm_showmath',showMath); }
@@ -1329,6 +1478,11 @@
 
   function fs(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
 
+  /* re-fit the arithmetic sums when the window or the font changes under them */
+  let fitTimer=null;
+  addEventListener('resize',()=>{clearTimeout(fitTimer);fitTimer=setTimeout(fitArith,120);});
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitArith);
+
   /* =========================================================
      Text size — capped at 1.5× so text always stays inside cards
   ========================================================= */
@@ -1338,6 +1492,7 @@
     document.documentElement.style.setProperty('--txt',txt);
     const el=document.getElementById('txtnow');if(el)el.textContent=Math.round(txt*100)+'%';
     save('mm_txt',txt);
+    fitArith();
   }
   function bumpText(dir){txt+=dir*0.1;applyText();}
   applyText();
@@ -1367,6 +1522,7 @@
     if(e.key==='n'||e.key==='N'){e.preventDefault();if(showMath)newProblem();}
     if(e.key==='d'||e.key==='D'||e.key==='w'||e.key==='W'){e.preventDefault();if(showTalk)genTalk();}
     if(e.key==='r'||e.key==='R'){e.preventDefault();cycleReveal();}
+    if(e.key==='m'||e.key==='M'){e.preventDefault();setMathMode(mathMode==='arith'?'word':'arith');}
   });
 </script>
 </body>
