@@ -78,7 +78,8 @@ button{font:inherit;color:inherit}
 .card-no small{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;opacity:.9}
 .card-no b{font:800 17px/1 var(--display)}
 .probs{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column}
-.prob{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:14px;align-items:start;padding-block:18px;border-top:2px dashed var(--line)}
+.prob{padding-block:18px;border-top:2px dashed var(--line)}
+.fit{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:14px;align-items:start}
 .prob:first-child{border-top:0}
 .pnum{width:28px;height:28px;border-radius:50%;border:2px solid var(--accent);color:var(--accent);display:grid;place-items:center;font:800 15px/1 var(--display);padding-top:2px}
 .pbody{display:flex;flex-direction:column;gap:10px;min-width:0}
@@ -172,11 +173,33 @@ button{font:inherit;color:inherit}
   .strand-btn .n{display:none}
   .howto{display:none}
   .card{border-width:10px;padding:16px 16px 14px;border-radius:20px}
-  .prob{grid-template-columns:26px minmax(0,1fr);gap:10px}
+  .fit{grid-template-columns:26px minmax(0,1fr);gap:10px}
   .pmark{grid-column:2;justify-content:flex-start;min-width:0}
   .status{margin-left:0;width:100%}
   .tiles{gap:6px}
 }
+/* full-screen mode: whole card and tray fit one screen */
+.fs-btn{display:inline-flex;align-items:center;gap:8px}
+body.fs{overflow:hidden}
+body.fs .side,body.fs .curr,body.fs .tray-head{display:none}
+body.fs .app{display:block;max-width:none;padding:0}
+body.fs .main{position:fixed;inset:0;z-index:20;background:var(--bg);display:grid;grid-template-rows:minmax(0,1fr) auto;gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 0;--slot-size:clamp(40px,min(7.5vh,6.2vw),84px)}
+body.fs .card{min-height:0;border-width:10px;border-radius:22px;padding:10px 18px 10px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:4px}
+body.fs .card-head{align-items:center}
+body.fs .card-head h1{font-size:clamp(20px,2.6vh,30px)}
+body.fs .card-no{width:46px;height:46px}
+body.fs .probs{margin:0;min-height:0;display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));grid-auto-rows:minmax(0,1fr)}
+body.fs .prob{border-top:0;padding:12px 14px;min-height:0;min-width:0;overflow:hidden;position:relative}
+body.fs .prob.bt{border-top:2px dashed var(--line)}
+body.fs .prob.bl{border-left:2px dashed var(--line)}
+body.fs .prob.wide{grid-column:1/-1}
+body.fs .fit{transform-origin:top left}
+body.fs .q{max-width:none}
+body.fs .card-foot{padding-top:8px}
+body.fs .card-foot .btn{padding:7px 14px}
+body.fs .tray{border-radius:16px 16px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))}
+body.fs .tiles{gap:clamp(6px,1vw,12px);flex-wrap:nowrap}
+@media (max-width:860px){body.fs .card-foot{gap:6px}body.fs .card-foot .btn{padding:5px 9px;font-size:12.5px}body.fs .probs{--cols:1!important}body.fs .prob.bl{border-left:0}body.fs .prob+.prob{border-top:2px dashed var(--line)}body.fs .tiles{flex-wrap:wrap}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -210,6 +233,7 @@ button{font:inherit;color:inherit}
         <button type="button" class="btn" id="btn-new">New card</button>
         <button type="button" class="btn ghost" id="btn-clear">Clear tiles</button>
         <button type="button" class="btn ghost" id="btn-show">Show answers</button>
+        <button type="button" class="btn ghost fs-btn" id="btn-fs" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>Full screen</span></button>
         <span class="status" id="status" aria-live="polite"></span>
       </footer>
     </section>
@@ -577,8 +601,9 @@ function renderCard(){
   else $('probs').innerHTML=state.card.map((p,i)=>{
     const r=state.results[i];
     const pill=r==='ok'?`<span class="pill ok">${state.revealed?'Answer':'Correct'}</span>`:r==='bad'?'<span class="pill bad">Try again</span>':r==='todo'?'<span class="pill todo">Not finished</span>':'';
-    return`<li class="prob" data-state="${r||''}"><span class="pnum">${i+1}</span><div class="pbody"><p class="obj" ${state.notes?'':'hidden'}>${esc(p.obj)}</p><p class="q">${esc(p.q)}</p><div class="prow">${p.vis?`<div class="vis">${p.vis}</div>`:''}<div class="line">${p.parts.map(partHTML).join('')}</div></div></div><div class="pmark">${pill}</div></li>`;
+    return`<li class="prob" data-state="${r||''}"><div class="fit"><span class="pnum">${i+1}</span><div class="pbody"><p class="obj" ${state.notes?'':'hidden'}>${esc(p.obj)}</p><p class="q">${esc(p.q)}</p><div class="prow">${p.vis?`<div class="vis">${p.vis}</div>`:''}<div class="line">${p.parts.map(partHTML).join('')}</div></div></div><div class="pmark">${pill}</div></div></li>`;
   }).join('');
+  layoutFs();
   if(active){const el=document.querySelector(`[data-slot="${active}"]`);el&&el.focus()}
   const st=$('status');
   if(state.revealed){st.textContent='Answers shown. Start a new card to try again.';st.className='status'}
@@ -640,6 +665,42 @@ $('btn-check').onclick=check;
 $('btn-new').onclick=()=>newCard();
 $('btn-clear').onclick=()=>{state.fill={};state.results=[];state.revealed=false;state.selected=null;renderCard();renderTray()};
 $('btn-show').onclick=showAnswers;
+
+/* ---------- full screen ---------- */
+let fsOn=false;
+function setFs(on){
+  fsOn=on;document.body.classList.toggle('fs',on);
+  const b=$('btn-fs');b.setAttribute('aria-pressed',on);b.querySelector('span').textContent=on?'Exit full screen':'Full screen';
+  try{
+    if(on&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});
+    if(!on&&document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});
+  }catch(e){}
+  layoutFs();
+}
+function layoutFs(){
+  const lis=[...document.querySelectorAll('#probs .prob')];
+  lis.forEach(li=>{li.classList.remove('bt','bl','wide');const f=li.firstElementChild;if(f){f.style.width='';f.style.transform=''}});
+  if(!fsOn)return;
+  const n=lis.length,wideScreen=innerWidth>860;
+  const cols=!wideScreen?1:n<=2?n:2;
+  $('probs').style.setProperty('--cols',cols);
+  lis.forEach((li,i)=>{if(wideScreen){if(i>=cols)li.classList.add('bt');if(i%cols)li.classList.add('bl');if(n===3&&i===2)li.classList.add('wide')}});
+  requestAnimationFrame(fitProblems);
+}
+function fitProblems(){
+  if(!fsOn)return;
+  const items=[...document.querySelectorAll('#probs .prob')].map(li=>{const cs=getComputedStyle(li);return{li,f:li.firstElementChild,W:li.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),H:li.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)}}).filter(o=>o.f&&o.W>0&&o.H>0);
+  const fits=(o,k)=>{o.f.style.transform='';o.f.style.width=(o.W/k)+'px';return o.f.scrollHeight*k<=o.H&&o.f.scrollWidth*k<=o.W+1};
+  // one shared size so every problem on the card looks the same
+  let k=1.8;
+  items.forEach(o=>{if(fits(o,k))return;let lo=.3,hi=k;for(let i=0;i<9;i++){const m=(lo+hi)/2;if(fits(o,m))lo=m;else hi=m}k=lo});
+  items.forEach(o=>{o.f.style.width=(o.W/k)+'px';o.f.style.transform=`scale(${k})`});
+}
+$('btn-fs').onclick=()=>setFs(!fsOn);
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&fsOn)setFs(false);else layoutFs()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fsOn&&!document.fullscreenElement)setFs(false)});
+let rsz;addEventListener('resize',()=>{cancelAnimationFrame(rsz);rsz=requestAnimationFrame(layoutFs)});
+try{document.fonts&&document.fonts.ready.then(layoutFs)}catch(e){}
 document.addEventListener('keydown',e=>{
   const slot=e.target.closest?.('.slot');if(!slot)return;
   const id=slot.dataset.slot;const all=[...document.querySelectorAll('.slot')];const i=all.indexOf(slot);
