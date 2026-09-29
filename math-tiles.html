@@ -296,10 +296,11 @@ const T=v=>({t:'text',v:String(v)});
 const Tw=v=>({t:'word',v:String(v)});
 function N(str,mask){str=String(str);const cells=[];for(let i=0;i<str.length;i++){const ch=str[i];const m=mask?mask[i]:'_';if(/\d/.test(ch))cells.push(m==='_'?{k:'slot',d:ch}:{k:'fix',d:ch});else cells.push({k:'sym',d:ch})}return{t:'num',cells}}
 const Fx=s=>Object.assign(N(String(s),'x'.repeat(String(s).length)),{fixedOnly:true});
-const S=v=>({t:'num',cells:[{k:'slot',d:String(v)}]});
+// one square per digit: numbers of 10 or more become several squares (tiles are 0–9 only)
+const S=v=>N(String(v));
 const F=(n,d)=>({t:'frac',n,d});
 // an answer: a single square for 0–10 in Reception/Year 1, otherwise digit squares
-const A=v=>(CY<=1&&Number.isInteger(v)&&v>=0&&v<=10)?S(v):N(sp(v));
+const A=v=>N(sp(v));
 // answer with long numbers partly printed so a card never needs too many tiles
 function AL(v,maxSlots=4){const s=sp(v);const digits=s.replace(/\D/g,'').length;return digits>maxSlots?N(s,randMask(s,maxSlots)):N(s)}
 function lowFixed(str,k){let m='',c=0;for(let i=str.length-1;i>=0;i--){if(/\d/.test(str[i])){m=(c<k?'x':'_')+m;c++}else m=str[i]+m}return m}
@@ -577,7 +578,7 @@ function buildCard(){
 }
 
 /* ---------- state ---------- */
-const state={year:'6',term:'Autumn',strand:'npv',seed:1000+Math.floor(Math.random()*9000),unique:true,notes:false,card:[],fill:{},selected:null,results:[],revealed:false,done:false,finished:0};
+const state={year:'R',term:'Autumn',strand:'cnt',seed:1000+Math.floor(Math.random()*9000),unique:true,notes:false,card:[],fill:{},selected:null,results:[],revealed:false,done:false,finished:0};
 try{const m=location.hash.match(/^#y([R1-6])-(autumn|spring|summer)-([a-z]+)-(\d{1,6})$/i);if(m){state.year=m[1].toUpperCase();state.term=m[2][0].toUpperCase()+m[2].slice(1).toLowerCase();state.strand=m[3].toLowerCase();state.seed=+m[4]}}catch(e){}
 try{if(localStorage.getItem('tilecards-mode')==='reuse')state.unique=false;if(localStorage.getItem('tilecards-notes')==='1')state.notes=true}catch(e){}
 function strandsFor(){const t=(CURR[state.year]||{})[state.term]||{};return ORDER.filter(s=>t[s])}
@@ -650,10 +651,10 @@ function renderCurr(){
 }
 function renderTray(){
   const onCard=new Set(Object.values(state.fill));let h='';
-  for(let v=0;v<=10;v++){const used=state.unique&&onCard.has(v);h+=`<button type="button" class="tile${v===10?' ten':''}${used?' used':''}${state.selected===v?' sel':''}" data-val="${v}" ${used?'disabled aria-label="Tile '+v+' is on the card"':'aria-label="Tile '+v+'"'} aria-pressed="${state.selected===v}">${v}</button>`}
+  for(let v=0;v<=9;v++){const used=state.unique&&onCard.has(v);h+=`<button type="button" class="tile${v===10?' ten':''}${used?' used':''}${state.selected===v?' sel':''}" data-val="${v}" ${used?'disabled aria-label="Tile '+v+' is on the card"':'aria-label="Tile '+v+'"'} aria-pressed="${state.selected===v}">${v}</button>`}
   $('tiles').innerHTML=h;
   const slots=state.card.reduce((a,p)=>a+slotCells(p).length,0);
-  $('tray-note').innerHTML=state.unique?`<b>Each tile once</b> · ${slots} squares, 11 tiles`:`<b>Reuse tiles</b> · every tile can be used again`;
+  $('tray-note').innerHTML=state.unique?`<b>Each tile once</b> · ${slots} squares, 10 tiles`:`<b>Reuse tiles</b> · every tile can be used again`;
   $('done-count').textContent=state.finished;
 }
 function renderAll(){renderSide();renderCard();renderCurr();renderTray()}
