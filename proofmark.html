@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Proofmark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#E9EDF0; --surface:#F7F9FA; --ink:#15202B; --ink-2:#3C4957; --muted:#6F7C8A; --pending:#98A4B0;
+  --line:#D3DAE0; --accent:#2B50C8; --accent-soft:#DCE4FA; --on-accent:#FFFFFF;
+  --err:#C2362C; --err-soft:#F6D9D5; --fix:#A86B12; --fix-soft:#F4E6C6; --ok:#1E7F55;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1318; --surface:#151C23; --ink:#E3E9EF; --ink-2:#B4C0CB; --muted:#7D8A96; --pending:#56626E;
+    --line:#26313B; --accent:#86A2FF; --accent-soft:#1E2A4D; --on-accent:#0E1318;
+    --err:#FF7A6E; --err-soft:#46211E; --fix:#E5B45A; --fix-soft:#3A2D14; --ok:#5CCB94;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1318; --surface:#151C23; --ink:#E3E9EF; --ink-2:#B4C0CB; --muted:#7D8A96; --pending:#56626E;
+  --line:#26313B; --accent:#86A2FF; --accent-soft:#1E2A4D; --on-accent:#0E1318;
+  --err:#FF7A6E; --err-soft:#46211E; --fix:#E5B45A; --fix-soft:#3A2D14; --ok:#5CCB94;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+.app{max-width:980px;margin:0 auto;padding-inline:20px;padding-block:22px 56px;display:flex;flex-direction:column;gap:22px}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+kbd{font-family:var(--mono);font-size:.85em;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface);color:var(--ink)}
+.mono{font-family:var(--mono)}
+.muted{color:var(--muted)}
+
+/* header */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px}
+.brand{font-family:var(--display);font-weight:800;font-size:28px;letter-spacing:-.02em;line-height:1;display:flex;align-items:baseline;gap:6px}
+.brand .pil{color:var(--accent);font-weight:600}
+.brand small{font-family:var(--sans);font-weight:500;font-size:13px;color:var(--muted);letter-spacing:0;margin-left:8px}
+.tabs{display:flex;gap:22px}
+.tabs button{background:none;border:0;padding:6px 0 10px;margin-bottom:-11px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+/* controls */
+.controls{display:grid;grid-template-columns:1fr;gap:14px}
+.ctl{display:flex;flex-direction:column;gap:7px}
+.lbl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button,.btn,select{font-size:13.5px;font-weight:500;padding:7px 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.seg button:hover,.btn:hover{border-color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg .gl{font-family:var(--mono);font-size:12px;opacity:.7}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.custom{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.custom input{width:72px;font:500 13.5px var(--mono);padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--ink)}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+
+/* live bar */
+.live{display:flex;align-items:flex-end;gap:10px 30px;flex-wrap:wrap}
+.stat{display:flex;flex-direction:column;gap:0}
+.stat .v{font-family:var(--display);font-weight:800;font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat.time .v{color:var(--accent)}
+.live .spacer{flex:1}
+
+/* typing sheet */
+.typearea{position:relative;cursor:text}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px 26px}
+.passage{font-family:var(--mono);font-size:21px;line-height:1.9;height:calc(1.9em * 3);overflow:hidden;white-space:pre-wrap;overflow-wrap:break-word;position:relative;scroll-behavior:smooth}
+.passage.tall{height:calc(1.9em * 4)}
+.ch{color:var(--pending);border-radius:2px}
+.ch.ok{color:var(--ink)}
+.ch.ok.fixed{text-decoration:underline dotted var(--fix);text-underline-offset:4px}
+.ch.bad{color:var(--err);background:var(--err-soft)}
+.ch.nl{color:var(--line);font-size:.8em}
+.ch.nl.ok{color:var(--muted)}
+.ch.cur{box-shadow:-2px 0 0 var(--accent)}
+.ch.ghost{box-shadow:inset 0 -3px 0 var(--fix)}
+.ch.cur.ghost{box-shadow:-2px 0 0 var(--accent),inset 0 -3px 0 var(--fix)}
+.ch.shake{background:var(--err-soft);animation:shake .2s}
+.ch.dead{background:var(--err);color:var(--on-accent)}
+@keyframes shake{25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+.ch{display:inline}
+.veil{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:10px;background:color-mix(in srgb,var(--surface) 72%,transparent);backdrop-filter:blur(2px);font-weight:600;color:var(--ink-2);opacity:0;pointer-events:none;transition:opacity .15s;z-index:3}
+body.unfocused .typearea .veil{opacity:1;pointer-events:auto}
+.keys{font-size:13px;color:var(--muted);margin:0;display:flex;flex-wrap:wrap;gap:4px 16px}
+
+/* results */
+.res{display:flex;flex-direction:column;gap:22px;border-top:2px solid var(--ink);padding-top:18px}
+.res-head{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.res-head h2{font-family:var(--display);font-weight:800;font-size:24px;margin:0;letter-spacing:-.01em}
+.res-head .meta{color:var(--muted);font-size:13.5px}
+.res-head .spacer{flex:1}
+.badge{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:14px}
+.fig .n{font-family:var(--display);font-weight:800;font-size:42px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.fig .n small{font-size:.45em;font-weight:600;margin-left:2px;color:var(--muted)}
+.fig.lead .n{color:var(--accent)}
+.fig.bad .n{color:var(--err)}
+.fig .k{font-size:12.5px;color:var(--muted);margin-top:4px}
+.summary{font-size:16px;max-width:68ch;margin:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px 32px}
+.panel{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.panel h3{margin:0;font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.bars{display:flex;flex-direction:column;gap:7px}
+.bar-row{display:grid;grid-template-columns:112px 1fr 28px;align-items:center;gap:10px;font-size:13.5px}
+.bar-row .track{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar-row .fill{height:100%;background:var(--err);border-radius:4px}
+.bar-row .c{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.bar-row.zero{color:var(--muted)}
+.bar-row.zero .c{font-weight:400}
+.trouble{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.trouble li{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.trouble .x{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums}
+.review{font-family:var(--mono);font-size:14px;line-height:1.85;white-space:pre-wrap;overflow-wrap:break-word;max-height:280px;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.r-bad{color:var(--err);background:var(--err-soft);text-decoration:underline;text-underline-offset:3px}
+.r-fix{background:var(--fix-soft)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-2px}
+.legend .lb::before{background:var(--err-soft);box-shadow:inset 0 -2px 0 var(--err)}
+.legend .lf::before{background:var(--fix-soft)}
+.chart{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .lab{fill:var(--muted);font:11px var(--sans)}
+.chart .line{fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.chart .area{fill:var(--accent);opacity:.1}
+.chart .dot{fill:var(--accent)}
+.chart .etick{stroke:var(--err);stroke-width:2}
+
+/* games */
+.picker{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.picker button{text-align:left;padding:12px 14px;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.picker button b{font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:-.01em}
+.picker button span{font-size:12.5px;color:var(--muted)}
+.picker button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.gbar{display:flex;align-items:flex-end;gap:10px 26px;flex-wrap:wrap}
+.gbar label.sel{display:flex;flex-direction:column;gap:5px}
+select{padding-right:8px}
+.gmsg{margin:0;font-size:15px;min-height:1.5em}
+.gmsg b{font-weight:600}
+.gmsg .win{color:var(--ok);font-weight:600}
+.gmsg .lose{color:var(--err);font-weight:600}
+.pips{display:flex;gap:5px;padding-bottom:8px}
+.pip{width:12px;height:12px;border-radius:50%;border:2px solid var(--err)}
+.pip.on{background:var(--err)}
+
+.field{height:380px;position:relative;overflow:hidden;padding:0;background:
+  repeating-linear-gradient(to bottom,transparent 0 37px,color-mix(in srgb,var(--line) 55%,transparent) 37px 38px),var(--surface)}
+.field::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--err);opacity:.75}
+.word{position:absolute;top:0;left:0;font-family:var(--mono);font-size:17px;padding:2px 8px;border-radius:5px;background:var(--bg);border:1px solid var(--line);white-space:nowrap;will-change:transform}
+.word b{color:var(--accent);font-weight:600}
+.word.target{border-color:var(--accent)}
+.word.pop{animation:pop .25s forwards}
+.word.lost{background:var(--err-soft);border-color:var(--err);animation:fade .4s forwards}
+@keyframes pop{to{opacity:0;transform:var(--t) scale(1.35)}}
+@keyframes fade{to{opacity:0}}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:24px;background:color-mix(in srgb,var(--surface) 88%,transparent);z-index:2}
+.overlay h3{font-family:var(--display);font-weight:800;font-size:26px;margin:0}
+.overlay p{margin:0;max-width:46ch;color:var(--ink-2)}
+.overlay .row{display:flex;gap:22px;flex-wrap:wrap;justify-content:center}
+.buffer{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.buffer .b{font-family:var(--mono);font-size:19px;color:var(--ink);min-width:3ch;border-bottom:2px solid var(--accent);padding:0 4px}
+.buffer .b.miss{animation:missflash .3s}
+@keyframes missflash{0%,100%{background:transparent}30%{background:var(--err-soft);color:var(--err)}}
+
+.sprint{text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding-block:34px}
+.sp-cur{font-family:var(--mono);font-size:52px;font-weight:500;line-height:1.2;letter-spacing:.02em}
+.sp-next{font-family:var(--mono);font-size:18px;color:var(--pending);display:flex;gap:18px}
+.track2{display:flex;flex-direction:column;gap:8px}
+.lane{display:grid;grid-template-columns:110px 1fr 46px;align-items:center;gap:10px;font-size:13px}
+.lane .t{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.lane .f{height:100%;width:0;border-radius:5px;background:var(--accent)}
+.lane.pace .f{background:var(--fix)}
+.lane .pct{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+
+#cap{position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;font-size:16px;border:0;padding:0;resize:none;pointer-events:none}
+
+@media (max-width:720px){
+  .grid2{grid-template-columns:1fr}
+  .picker{grid-template-columns:1fr 1fr}
+  .passage{font-size:17px}
+  .sheet{padding:16px 16px}
+  .sp-cur{font-size:36px}
+  .field{height:320px}
+  .fig .n{font-size:34px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="pil">¶</span>Proofmark<small>typing, with the red pen</small></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" id="tab-test" aria-selected="true" data-view="test">Typing test</button>
+      <button role="tab" id="tab-games" aria-selected="false" data-view="games">Practice games</button>
+    </nav>
+  </header>
+
+  <!-- TEST -->
+  <section id="view-test" style="display:flex;flex-direction:column;gap:20px">
+    <div class="controls">
+      <div class="ctl">
+        <span class="lbl">Passage formatting</span>
+        <div class="seg" id="levelSeg"></div>
+        <p class="hint" id="levelHint"></p>
+      </div>
+      <div class="ctl">
+        <span class="lbl">Timer</span>
+        <div class="seg" id="timeSeg"></div>
+      </div>
+    </div>
+
+    <div class="live">
+      <div class="stat time"><span class="v" id="lvTime">60</span><span class="k" id="lvTimeK">seconds left</span></div>
+      <div class="stat"><span class="v" id="lvWpm">0</span><span class="k">WPM</span></div>
+      <div class="stat"><span class="v" id="lvAcc">100%</span><span class="k">accuracy</span></div>
+      <div class="stat"><span class="v" id="lvErr">0</span><span class="k">errors</span></div>
+      <div class="spacer"></div>
+      <div class="stat"><span class="v muted" id="lvBest">–</span><span class="k">best WPM here</span></div>
+      <button class="btn" id="newPassage" type="button">New passage</button>
+    </div>
+
+    <div class="sheet typearea" id="testSheet"><div class="passage" id="passage"></div></div>
+    <p class="keys"><span>Start typing to begin the clock</span><span><kbd>Backspace</kbd> fixes a mistake</span><span><kbd>Enter</kbd> types a line break at ↵</span><span><kbd>Esc</kbd> restarts</span></p>
+
+    <div id="results" hidden></div>
+  </section>
+
+  <!-- GAMES -->
+  <section id="view-games" hidden style="display:flex;flex-direction:column;gap:20px">
+    <div class="picker" id="picker">
+      <button type="button" data-game="rain" aria-pressed="true"><b>Word Rain</b><span>Clear falling words before they land.</span></button>
+      <button type="button" data-game="sprint" aria-pressed="false"><b>Symbol Sprint</b><span>Punctuation and symbols against the clock.</span></button>
+      <button type="button" data-game="race" aria-pressed="false"><b>Pace Race</b><span>Beat a pacer set to your target speed.</span></button>
+      <button type="button" data-game="sudden" aria-pressed="false"><b>Sudden Death</b><span>One wrong key ends the run.</span></button>
+    </div>
+
+    <!-- rain -->
+    <div class="game" id="g-rain" style="display:flex;flex-direction:column;gap:14px">
+      <div class="gbar">
+        <label class="sel"><span class="lbl">Words</span>
+          <select id="rainPool"><option value="plain">Plain words</option><option value="punct" selected>Punctuated words</option><option value="symbol">Numbers &amp; symbols</option></select></label>
+        <div class="stat"><span class="v" id="rnScore">0</span><span class="k">score</span></div>
+        <div class="stat"><span class="v" id="rnLevel">1</span><span class="k">level</span></div>
+        <div class="stat"><span class="v" id="rnMiss">0</span><span class="k">wrong keys</span></div>
+        <div class="stat"><div class="pips" id="rnLives"></div><span class="k">lives</span></div>
+      </div>
+      <div class="sheet field typearea" id="rainField">
+        <div class="overlay" id="rainOverlay"></div>
+      </div>
+      <div class="buffer">Typing <span class="b" id="rainBuf">&nbsp;</span><span>Space clears. Words speed up every 20 seconds.</span></div>
+    </div>
+
+    <!-- sprint -->
+    <div class="game" id="g-sprint" hidden style="display:flex;flex-direction:column;gap:14px">
+      <div class="gbar">
+        <label class="sel"><span class="lbl">Length</span>
+          <select id="spDur"><option value="30" selected>30 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option></select></label>
+        <div class="stat time"><span class="v" id="spTime">30</span><span class="k">seconds left</span></div>
+        <div class="stat"><span class="v" id="spScore">0</span><span class="k">tokens</span></div>
+        <div class="stat"><span class="v" id="spErr">0</span><span class="k">wrong keys</span></div>
+        <div class="stat"><span class="v muted" id="spBest">–</span><span class="k">best</span></div>
+        <button class="btn" id="spReset" type="button">Reset</button>
+      </div>
+      <div class="sheet sprint typearea">
+        <div class="sp-cur" id="spCur"></div>
+        <div class="sp-next" id="spNext"></div>
+      </div>
+      <p class="gmsg" id="spMsg"></p>
+    </div>
+
+    <!-- race -->
+    <div class="game" id="g-race" hidden style="display:flex;flex-direction:column;gap:14px">
+      <div class="gbar">
+        <label class="sel"><span class="lbl">Pacer speed</span>
+          <select id="raceWpm"><option>30</option><option>40</option><option selected>50</option><option>60</option><option>75</option><option>90</option><option>110</option><option>130</option></select></label>
+        <label class="sel"><span class="lbl">Passage</span>
+          <select id="raceSrc"><option value="sentences">Sentences</option><option value="punct" selected>Punctuated</option><option value="format">Formatted</option><option value="code">Code</option></select></label>
+        <button class="btn" id="raceNew" type="button">New race</button>
+      </div>
+      <div class="track2">
+        <div class="lane"><span>You</span><div class="t"><div class="f" id="raceYou"></div></div><span class="pct" id="raceYouP">0%</span></div>
+        <div class="lane pace"><span id="racePaceL">Pacer · 50 WPM</span><div class="t"><div class="f" id="racePace"></div></div><span class="pct" id="racePaceP">0%</span></div>
+      </div>
+      <div class="sheet typearea"><div class="passage" id="racePassage"></div></div>
+      <p class="gmsg" id="raceMsg"></p>
+    </div>
+
+    <!-- sudden death -->
+    <div class="game" id="g-sudden" hidden style="display:flex;flex-direction:column;gap:14px">
+      <div class="gbar">
+        <label class="sel"><span class="lbl">Passages</span>
+          <select id="sdSrc"><option value="sentences">Sentences</option><option value="punct" selected>Punctuated</option><option value="format">Formatted</option><option value="code">Code</option><option value="mixed">Mixed</option></select></label>
+        <div class="stat"><span class="v" id="sdChars">0</span><span class="k">characters survived</span></div>
+        <div class="stat"><span class="v" id="sdWpm">0</span><span class="k">WPM</span></div>
+        <div class="stat"><span class="v muted" id="sdBest">–</span><span class="k">best run</span></div>
+        <button class="btn" id="sdNew" type="button">New run</button>
+      </div>
+      <div class="sheet typearea"><div class="passage" id="sdPassage"></div></div>
+      <p class="gmsg" id="sdMsg"></p>
+    </div>
+  </section>
+</div>
+<textarea id="cap" aria-label="Typing input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+
+<script>
+(() => {
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const now = () => performance.now();
+const vis = c => c === ' ' ? '␣' : c === '\n' ? '↵' : c;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('proofmark:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('proofmark:' + k, JSON.stringify(v)); } catch (e) {} }
+};
+function recordBest(key, val) {
+  const prev = store.get('best:' + key, null);
+  const isNew = val > 0 && (prev == null || val > prev);
+  if (isNew) store.set('best:' + key, val);
+  return { prev, isNew };
+}
+const getBest = key => store.get('best:' + key, null);
+
+/* ---------------- content ---------------- */
+const PASSAGES = {
+  plain: [
+    "the river runs past the old mill and under the stone bridge where children stop to throw sticks into the water and then race to the other side to see which one comes out first",
+    "a good pot of tea needs water that has just come to the boil and a few minutes of patience before you pour it into a warm cup and sit down by the window to watch the rain",
+    "every morning the baker opens the shop before the sun is up and the smell of fresh bread drifts down the quiet street to the bus stop on the corner where people wait in the cold",
+    "the map showed a narrow path through the forest that ended at a lake with a small wooden cabin where you could rent a boat for the whole afternoon and fish until dark",
+    "learning to type well is mostly about rhythm so try to keep an even pace and let your fingers find the keys without looking down at the board after every word"
+  ],
+  sentences: [
+    "The train left the station at noon. Most of the passengers were asleep by the time it reached the coast, and the conductor walked the aisle quietly. Outside, the fields gave way to dunes and then to the grey edge of the sea.",
+    "Maria planted tomatoes, beans, and basil in the spring. By July, the garden was crowded and green. She gave the extra vegetables to her neighbors, who returned the favor with jars of jam.",
+    "The museum opens at nine on weekdays. Visitors are asked to leave large bags at the front desk. Photography is allowed in most rooms, but flash is not permitted near the older paintings.",
+    "Snow fell all night over the small town. In the morning, the streets were silent and white. A few early walkers left the first footprints, and a dog ran in wide circles in the park.",
+    "Good notes are short and clear. Write the date at the top, list the main points, and mark anything that needs a reply. Later, you will thank yourself for the extra minute."
+  ],
+  punct: [
+    "\"Are you sure it's the right address?\" asked Tom. Nina checked the note again; the numbers were smudged, but still legible. \"It's the blue door (not the red one) at the end of the lane.\"",
+    "The recipe (my grandmother's, of course) calls for three things: patience, butter, and a hot oven. \"Don't open the door early,\" she'd warn; \"the cake will fall, and you'll have to start over.\"",
+    "Well-known authors often give the same advice: write every day, even when it's hard. Is that true for everyone? Probably not; some people write in bursts, then rest for weeks at a time.",
+    "\"Wait!\" shouted the guide. \"The bridge isn't safe after last night's storm.\" The hikers stopped, looked at each other, and turned back toward the ridge (a two-hour detour, at least).",
+    "The sign read: \"No swimming, no fishing, no fires.\" Jake laughed. \"What's left, then?\" His sister shrugged; she'd brought a book, a folding chair, and a ten-year-old's patience for sitting still."
+  ],
+  format: [
+    "Order #4471 - shipped 03/14/2026\nItems: 2 x notebook @ $4.50; 1 x pen set @ $12.99\nSubtotal: $21.99 | Tax (8%): $1.76 | Total: $23.75\nQuestions? Email support@papergoods.shop or call (555) 013-2270.",
+    "MEETING NOTES - Q3 Planning\n1. Budget up 12.5% vs. last year (approx. $48,000).\n2. Launch moved to Oct. 9; see the \"Timeline v2\" doc.\n3. Owners: Sam -> vendors, Priya -> hiring, Lee -> FAQ draft.\nNext sync: Thu @ 3:30 PM, Room 4-B.",
+    "Lemon Bars (makes 16 squares)\n- 1 1/2 cups flour + 1/2 cup sugar\n- 3/4 cup butter, cold & cubed\n- 4 eggs + 1/2 cup lemon juice\nBake at 350F (175C) for 20-25 min; cool 2 hrs before cutting.",
+    "Forecast for the week:\nMon: 18C / 9C, 40% chance of rain\nTue: 21C / 11C, sunny, UV 6\nWed: 16C / 8C, wind 30-45 km/h\n*Pollen: moderate; next update @ 12:00.",
+    "Flight JL 043 | Gate C12 | Seat 27A\nBoarding: 09:40 (departs 10:15)\nBaggage: 1 x 23 kg + 1 carry-on (max 7 kg)\nRef: #QX7-449B; changes cost $75 + fare difference."
+  ],
+  code: [
+    "function total(items) {\n  return items.reduce((sum, i) => sum + i.price * i.qty, 0);\n}\nconsole.log(`Total: ${total(cart).toFixed(2)}`);",
+    "SELECT name, email FROM users\nWHERE signup_date >= '2026-01-01'\n  AND status <> 'banned'\nORDER BY last_login DESC\nLIMIT 25;",
+    "<a href=\"/docs?page=2&sort=asc\" class=\"btn btn--next\">Next page</a>\n<img src=\"logo.svg\" alt=\"\" width=\"32\">",
+    "def is_strong(pw: str) -> bool:\n    has_digit = any(c.isdigit() for c in pw)\n    return len(pw) >= 12 and has_digit and pw != pw.lower()",
+    "for (let i = 0; i < n; i++) {\n  if (i % 2 === 0 && !seen[i]) {\n    counts[\"even\"] += 1;\n  } else {\n    counts['odd']++;\n  }\n}"
+  ]
+};
+const LEVELS = [
+  { id: 'plain', name: 'Plain', gl: 'abc', hint: 'Lowercase words and spaces. No capitals, no punctuation.' },
+  { id: 'sentences', name: 'Sentences', gl: 'Abc.', hint: 'Capital letters, periods and commas.' },
+  { id: 'punct', name: 'Punctuated', gl: '"a;b"', hint: 'Quotation marks, apostrophes, semicolons, colons, parentheses and hyphens.' },
+  { id: 'format', name: 'Formatted', gl: '$4 %', hint: 'Numbers, prices, dates, symbols and line breaks. Press Enter at each ↵.' },
+  { id: 'code', name: 'Code', gl: '{ }', hint: 'Brackets, operators, quotes and underscores. Indentation after ↵ fills in for you.' },
+  { id: 'mixed', name: 'Mixed', gl: 'all', hint: 'Every level shuffled together.' }
+];
+const LEVEL_NAME = Object.fromEntries(LEVELS.map(l => [l.id, l.name]));
+const TIMES = [
+  { id: '15', name: '15 s' }, { id: '30', name: '30 s' }, { id: '60', name: '1 min' },
+  { id: '120', name: '2 min' }, { id: '300', name: '5 min' }, { id: 'custom', name: 'Custom' }, { id: 'passage', name: 'Whole passage' }
+];
+const WORDS = {
+  plain: "time year people way day man thing woman life child world school state family student group country problem hand part place case week company system program question work number night point home water room mother area money story fact month lot right study book eye job word business issue side kind head house service friend father power hour game line end member law car city name team minute idea kid body back parent face level office door health person art history party result change morning reason research girl guy moment air teacher force river garden window bread letter paper music light green quiet simple bright".split(' '),
+  punct: ["don't","it's","Hello,","(yes)","Tuesday.","\"quote\"","wait!","why?","well-known","e.g.","Mr.","re-read","\"single\"","London;","note:","can't","you're","(maybe)","Paris,","self-made","o'clock","\"Stop!\"","Dr.","etc.","hmm...","they'd","x-ray","Anna's","first:","Yes!","\"No,\"","(see","below)","we'll","isn't","U.S.","co-op","Friday,","'til","wasn't","one-way","Ready?","June;","shouldn't","A.M.","e-mail","(aside)","Oh,","it'll"],
+  symbol: ["$4.99","#tag","50%","a+b","x[i]","user@web","3/4","{key}","<div>","a_b","2*pi","~/home","1,024","(555)","=>","!==","->","#4471","@noon","12:30","x^2","|pipe|","$19.95","7%","[1,2]","f(x)","i++","a&b","x<=y","100km/h","#fff","v2.1","_init","**bold**","`code`","~50","a||b","n%2","key=val","C:\\dir","2026-09-29","<br/>","${x}","3.14","-42","+81","q&a","[ ]","{};","1/2"]
+};
+const SPRINT_POOL = WORDS.punct.concat(WORDS.symbol);
+
+function passagesFor(level) { return level === 'mixed' ? Object.values(PASSAGES).flat() : PASSAGES[level]; }
+function joinPassages(list) {
+  let out = '';
+  list.forEach((p, i) => { if (i) out += (p.includes('\n') || list[i - 1].includes('\n')) ? '\n' : ' '; out += p; });
+  return out;
+}
+let lastPassage = null;
+function pickPassage(level) {
+  const ps = passagesFor(level); let p;
+  do { p = ps[Math.random() * ps.length | 0]; } while (ps.length > 1 && p === lastPassage);
+  lastPassage = p; return p;
+}
+function longText(level) {
+  const ps = passagesFor(level);
+  return joinPassages([...shuffle(ps), ...shuffle(ps), ...shuffle(ps)]);
+}
+
+/* ---------------- error categories ---------------- */
+const CATS = ['letter', 'caps', 'space', 'newline', 'punct', 'digit', 'symbol'];
+const CAT_LABEL = { letter: 'Letters', caps: 'Capitalization', space: 'Spaces', newline: 'Line breaks', punct: 'Punctuation', digit: 'Numbers', symbol: 'Symbols' };
+const CAT_WORD = { letter: 'letter', caps: 'capitalization', space: 'spacing', newline: 'line break', punct: 'punctuation', digit: 'number', symbol: 'symbol' };
+function category(exp, got) {
+  if (exp === '\n') return 'newline';
+  if (exp === ' ') return 'space';
+  if (/[0-9]/.test(exp)) return 'digit';
+  if (/[a-z]/i.test(exp)) return (got && got !== exp && got.toLowerCase() === exp.toLowerCase()) ? 'caps' : 'letter';
+  if (/[.,;:!?'"()\-]/.test(exp)) return 'punct';
+  return 'symbol';
+}
+
+/* ---------------- typing engine ---------------- */
+class Run {
+  constructor(o) {
+    Object.assign(this, { strict: false, autoIndent: true }, o);
+    this.pos = 0; this.typed = []; this.auto = []; this.everErr = new Set();
+    this.keys = 0; this.errs = 0; this.cats = {}; this.pairs = {}; this.missed = {};
+    this.started = false; this.done = false; this.t0 = 0; this.endT = 0; this.errTimes = [];
+    this.render();
+  }
+  render() {
+    const box = this.box; box.textContent = ''; this.spans = [];
+    const frag = document.createDocumentFragment();
+    for (const c of this.text) {
+      const s = document.createElement('span'); s.className = 'ch';
+      if (c === '\n') { s.textContent = '↵'; s.classList.add('nl'); frag.appendChild(s); frag.appendChild(document.createTextNode('\n')); }
+      else { s.textContent = c; frag.appendChild(s); }
+      this.spans.push(s);
+    }
+    box.appendChild(frag); box.scrollTop = 0; this.curEl = null; this.markCur();
+  }
+  markCur() {
+    if (this.curEl) this.curEl.classList.remove('cur');
+    const s = this.done ? null : this.spans[this.pos];
+    this.curEl = s || null;
+    if (s) {
+      s.classList.add('cur');
+      const lh = parseFloat(getComputedStyle(this.box).lineHeight) || 36;
+      const target = Math.max(0, s.offsetTop - lh);
+      if (Math.abs(this.box.scrollTop - target) > 2) this.box.scrollTop = target;
+    }
+  }
+  paint(i) {
+    const s = this.spans[i]; if (!s) return;
+    s.classList.remove('ok', 'bad', 'fixed', 'shake');
+    const t = this.typed[i];
+    if (t === undefined) return;
+    if (t === this.text[i]) { s.classList.add('ok'); if (this.everErr.has(i)) s.classList.add('fixed'); }
+    else s.classList.add('bad');
+  }
+  input(ch) {
+    if (this.done) return;
+    const exp = this.text[this.pos]; if (exp === undefined) return;
+    if (!this.started) { this.started = true; this.t0 = now(); this.onStart && this.onStart(); }
+    this.keys++;
+    if (ch !== exp) {
+      this.errs++;
+      const c = category(exp, ch); this.cats[c] = (this.cats[c] || 0) + 1;
+      const k = exp + '\u0000' + ch; this.pairs[k] = (this.pairs[k] || 0) + 1;
+      this.missed[exp] = (this.missed[exp] || 0) + 1;
+      this.everErr.add(this.pos); this.errTimes.push((now() - this.t0) / 1000);
+      if (this.strict) {
+        const s = this.spans[this.pos]; s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake');
+        this.onError && this.onError(exp, ch);
+        this.onProgress && this.onProgress();
+        return;
+      }
+    }
+    this.typed[this.pos] = ch; this.paint(this.pos); this.pos++;
+    if (exp === '\n' && this.autoIndent) {
+      while (this.text[this.pos] === ' ') { this.typed[this.pos] = ' '; this.auto[this.pos] = true; this.paint(this.pos); this.pos++; }
+    }
+    this.markCur();
+    this.onProgress && this.onProgress();
+    if (this.pos >= this.text.length) this.finish();
+  }
+  back(word) {
+    if (this.done || this.strict || this.pos === 0) return;
+    const del = () => { this.pos--; this.typed[this.pos] = undefined; this.auto[this.pos] = false; this.paint(this.pos); };
+    while (this.pos > 0 && this.auto[this.pos - 1]) del();
+    if (this.pos > 0) {
+      if (word) {
+        while (this.pos > 0 && /\s/.test(this.text[this.pos - 1])) del();
+        while (this.pos > 0 && !/\s/.test(this.text[this.pos - 1])) del();
+      } else del();
+    }
+    this.markCur(); this.onProgress && this.onProgress();
+  }
+  finish(endT) {
+    if (this.done) return;
+    this.done = true; this.endT = endT || now();
+    if (this.curEl) this.curEl.classList.remove('cur');
+    this.onFinish && this.onFinish();
+  }
+  elapsed() { return this.started ? ((this.done ? this.endT : now()) - this.t0) / 1000 : 0; }
+  stats() {
+    const el = this.elapsed();
+    let correct = 0, wrong = 0;
+    for (let i = 0; i < this.pos; i++) { if (this.typed[i] === this.text[i]) correct++; else wrong++; }
+    const m = Math.max(el, 1) / 60;
+    return { el, correct, wrong, wpm: correct / 5 / m, raw: this.pos / 5 / m,
+      acc: this.keys ? (this.keys - this.errs) / this.keys * 100 : 100, errs: this.errs, keys: this.keys };
+  }
+}
+
+/* ---------------- input capture ---------------- */
+const cap = $('#cap');
+const SENT = '\u200b';
+let handler = null;
+let composing = false;
+const norm = s => s.replace(/[\u2018\u2019\u201A\u2032]/g, "'").replace(/[\u201C\u201D\u201E\u2033]/g, '"').replace(/[\u2013\u2014]/g, '-').replace(/\u00A0/g, ' ').replace(/\r/g, '');
+function resetCap() { cap.value = SENT; try { cap.setSelectionRange(1, 1); } catch (e) {} }
+function sendChars(s) { if (!handler) return; for (const c of norm(s)) handler.char(c); }
+function focusCap() { try { cap.focus({ preventScroll: true }); } catch (e) { cap.focus(); } resetCap(); }
+resetCap();
+
+cap.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); restartCurrent(); return; }
+  if (e.isComposing) return;
+  if (e.key === 'Backspace') { e.preventDefault(); handler && handler.back(e.ctrlKey || e.altKey || e.metaKey); return; }
+  if (e.key === 'Enter') { e.preventDefault(); handler && handler.char('\n'); return; }
+});
+cap.addEventListener('beforeinput', e => {
+  const t = e.inputType || '';
+  if (t === 'insertText' || t === 'insertReplacementText') { e.preventDefault(); if (e.data) sendChars(e.data); }
+  else if (t === 'insertLineBreak' || t === 'insertParagraph') { e.preventDefault(); handler && handler.char('\n'); }
+  else if (t.startsWith('delete') && !composing) { e.preventDefault(); handler && handler.back(t === 'deleteWordBackward'); }
+});
+cap.addEventListener('compositionstart', () => { composing = true; });
+cap.addEventListener('compositionend', () => { composing = false; const v = cap.value.replace(/\u200b/g, ''); if (v) sendChars(v); resetCap(); });
+cap.addEventListener('input', () => {
+  if (composing) return;
+  const v = cap.value.replace(/\u200b/g, '');
+  if (v) sendChars(v);
+  if (cap.value !== SENT) resetCap();
+});
+cap.addEventListener('focus', () => document.body.classList.remove('unfocused'));
+cap.addEventListener('blur', () => document.body.classList.add('unfocused'));
+document.body.classList.add('unfocused');
+
+document.addEventListener('keydown', e => {
+  if (e.target === cap) return;
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (tag === 'BUTTON' && (e.key === 'Enter' || e.key === ' ' || e.key === 'Tab')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Escape') { e.preventDefault(); restartCurrent(); focusCap(); return; }
+  if (!handler) return;
+  if (e.key.length === 1) { e.preventDefault(); focusCap(); sendChars(e.key); }
+  else if (e.key === 'Backspace') { e.preventDefault(); focusCap(); handler.back(false); }
+  else if (e.key === 'Enter') { e.preventDefault(); focusCap(); handler.char('\n'); }
+});
+$$('.typearea').forEach(el => {
+  const v = document.createElement('div'); v.className = 'veil'; v.textContent = 'Click here or start typing'; el.appendChild(v);
+  el.addEventListener('mousedown', e => { if (e.target.closest('button,select,input')) return; e.preventDefault(); focusCap(); });
+  el.addEventListener('touchend', e => { if (e.target.closest('button,select,input')) return; focusCap(); });
+});
+
+/* ---------------- views ---------------- */
+let view = 'test';
+let game = 'rain';
+function setView(v) {
+  view = v;
+  $$('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === v)));
+  $('#view-test').hidden = v !== 'test';
+  $('#view-games').hidden = v !== 'games';
+  stopGames();
+  if (v === 'test') { if (test.run && test.run.started && !test.run.done) newTest(false); else handler = runHandler(test.run); }
+  else { if (test.run && test.run.started && !test.run.done) newTest(false); openGame(game); }
+  focusCap();
+}
+$$('.tabs button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+function restartCurrent() {
+  if (view === 'test') newTest(true);
+  else openGame(game);
+}
+const runHandler = run => ({ char: c => { if (!run) return; if (run.done) { if (c === '\n') { newTest(false); } return; } run.input(c); }, back: w => run && run.back(w) });
+
+/* ---------------- typing test ---------------- */
+const test = {
+  level: store.get('level', 'punct'), tsel: store.get('tsel', '60'), custom: store.get('custom', 90),
+  run: null, timer: null, samples: [], nextSample: 1
+};
+if (!LEVEL_NAME[test.level]) test.level = 'punct';
+function testSecs() {
+  if (test.tsel === 'passage') return 0;
+  if (test.tsel === 'custom') return Math.min(1800, Math.max(5, Math.round(+test.custom || 90)));
+  return +test.tsel;
+}
+function testKey() { return `test:${test.level}:${test.tsel === 'passage' ? 'passage' : testSecs()}`; }
+
+function buildControls() {
+  const ls = $('#levelSeg');
+  ls.innerHTML = LEVELS.map(l => `<button type="button" data-level="${l.id}" aria-pressed="${l.id === test.level}">${l.name}<span class="gl">${esc(l.gl)}</span></button>`).join('');
+  ls.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    test.level = b.dataset.level; store.set('level', test.level);
+    $$('button', ls).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    newTest(false); focusCap();
+  });
+  const ts = $('#timeSeg');
+  ts.innerHTML = TIMES.map(t => t.id === 'custom'
+    ? `<button type="button" data-t="custom" aria-pressed="${test.tsel === 'custom'}">Custom</button><label class="custom"><input id="customSecs" type="number" min="5" max="1800" step="5" value="${test.custom}" aria-label="Custom timer in seconds">sec</label>`
+    : `<button type="button" data-t="${t.id}" aria-pressed="${test.tsel === t.id}">${t.name}</button>`).join('');
+  ts.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    test.tsel = b.dataset.t; store.set('tsel', test.tsel);
+    $$('button', ts).forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    newTest(false);
+    if (test.tsel === 'custom') $('#customSecs').focus(); else focusCap();
+  });
+  const ci = $('#customSecs');
+  const applyCustom = () => {
+    test.custom = Math.min(1800, Math.max(5, Math.round(+ci.value || 90))); ci.value = test.custom; store.set('custom', test.custom);
+    test.tsel = 'custom'; store.set('tsel', 'custom');
+    $$('button', ts).forEach(x => x.setAttribute('aria-pressed', String(x.dataset.t === 'custom')));
+    newTest(false);
+  };
+  ci.addEventListener('change', applyCustom);
+  ci.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); applyCustom(); focusCap(); } });
+  $('#newPassage').addEventListener('click', () => { newTest(false); focusCap(); });
+}
+
+function newTest(sameText) {
+  clearInterval(test.timer); test.timer = null;
+  const lvl = LEVELS.find(l => l.id === test.level);
+  $('#levelHint').textContent = lvl.hint;
+  const secs = testSecs();
+  const text = (sameText && test.run) ? test.run.text : (secs ? longText(test.level) : pickPassage(test.level));
+  const box = $('#passage');
+  box.classList.toggle('tall', /\n/.test(text));
+  test.samples = []; test.nextSample = 1;
+  test.run = new Run({
+    text, box,
+    onStart: () => { test.timer = setInterval(testTick, 100); },
+    onProgress: updateLive,
+    onFinish: showResults
+  });
+  if (view === 'test') handler = runHandler(test.run);
+  $('#results').hidden = true;
+  const b = getBest(testKey()); $('#lvBest').textContent = b == null ? '–' : Math.round(b);
+  updateLive();
+}
+function testTick() {
+  const r = test.run; if (!r || r.done) return;
+  const el = r.elapsed(), secs = testSecs();
+  while (el >= test.nextSample) { test.samples.push({ t: test.nextSample, wpm: r.stats().wpm }); test.nextSample++; }
+  if (secs && el >= secs) { r.finish(r.t0 + secs * 1000); return; }
+  updateLive();
+}
+function updateLive() {
+  const r = test.run; if (!r) return;
+  const s = r.stats(), secs = testSecs();
+  if (secs) { $('#lvTime').textContent = Math.max(0, Math.ceil(secs - s.el)); $('#lvTimeK').textContent = 'seconds left'; }
+  else { $('#lvTime').textContent = Math.floor(s.el); $('#lvTimeK').textContent = 'seconds'; }
+  $('#lvWpm').textContent = r.started ? Math.round(s.wpm) : 0;
+  $('#lvAcc').textContent = Math.round(s.acc) + '%';
+  $('#lvErr').textContent = s.errs;
+}
+
+function chartSVG(samples, errTimes, dur) {
+  if (samples.length < 2 || dur < 2) return '<p class="muted" style="margin:0">Type for at least a few seconds to see your speed over time.</p>';
+  const W = 640, H = 180, L = 34, R = 14, T = 12, B = 24, iw = W - L - R, ih = H - T - B;
+  const ymax = Math.ceil(Math.max(20, ...samples.map(s => s.wpm)) / 20) * 20;
+  const X = t => L + Math.min(t, dur) / dur * iw, Y = v => T + ih - (v / ymax) * ih;
+  const pts = samples.map(s => [X(s.t), Y(s.wpm)]);
+  const line = 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' L');
+  const area = line + ` L${pts[pts.length - 1][0].toFixed(1)},${Y(0)} L${pts[0][0].toFixed(1)},${Y(0)} Z`;
+  let g = '';
+  [0, ymax / 2, ymax].forEach(v => { g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"/><text class="lab" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`; });
+  const xl = [0, dur / 2, dur].map(t => `<text class="lab" x="${X(t)}" y="${H - 6}" text-anchor="${t === 0 ? 'start' : t === dur ? 'end' : 'middle'}">${Math.round(t)}s</text>`).join('');
+  const ticks = errTimes.filter(t => t <= dur).map(t => `<line class="etick" x1="${X(t).toFixed(1)}" x2="${X(t).toFixed(1)}" y1="${Y(0)}" y2="${Y(0) - 9}"/>`).join('');
+  const last = pts[pts.length - 1];
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Words per minute over time, with error marks">${g}<path class="area" d="${area}"/><path class="line" d="${line}"/>${ticks}<circle class="dot" cx="${last[0]}" cy="${last[1]}" r="4"/>${xl}</svg>`;
+}
+
+function showResults() {
+  clearInterval(test.timer); test.timer = null;
+  const r = test.run, s = r.stats(), secs = testSecs();
+  if (!r.started) return;
+  if (!test.samples.length || test.samples[test.samples.length - 1].t < s.el - 0.2) test.samples.push({ t: s.el, wpm: s.wpm });
+  updateLive();
+  const key = testKey();
+  const pb = recordBest(key, Math.round(s.wpm));
+  $('#lvBest').textContent = Math.round(getBest(key) || 0) || '–';
+
+  // category bars
+  const maxC = Math.max(1, ...CATS.map(c => r.cats[c] || 0));
+  const bars = CATS.map(c => { const n = r.cats[c] || 0;
+    return `<div class="bar-row${n ? '' : ' zero'}"><span>${CAT_LABEL[c]}</span><div class="track"><div class="fill" style="width:${n / maxC * 100}%"></div></div><span class="c">${n}</span></div>`; }).join('');
+
+  // trouble pairs
+  const pairs = Object.entries(r.pairs).map(([k, n]) => { const [exp, got] = k.split('\u0000'); return { exp, got, n }; }).sort((a, b) => b.n - a.n).slice(0, 7);
+  const trouble = pairs.length
+    ? `<ul class="trouble">${pairs.map(p => `<li>Expected <kbd>${esc(vis(p.exp))}</kbd> typed <kbd>${esc(vis(p.got))}</kbd><span class="muted">${CAT_LABEL[category(p.exp, p.got)]}</span><span class="x">×${p.n}</span></li>`).join('')}</ul>`
+    : '<p class="muted" style="margin:0">No wrong keys this round.</p>';
+
+  // summary sentence
+  let summary;
+  if (!r.errs) summary = 'No errors. Every key was right the first time.';
+  else {
+    const parts = CATS.filter(c => r.cats[c]).sort((a, b) => r.cats[b] - r.cats[a]).map(c => `${r.cats[c]} ${CAT_WORD[c]}`);
+    summary = `You made ${r.errs} error${r.errs === 1 ? '' : 's'}: ${parts.join(', ')}. `;
+    summary += s.wrong ? `${s.wrong} ${s.wrong === 1 ? 'was' : 'were'} left uncorrected.` : 'You fixed all of them.';
+    if (pairs[0]) summary += ` Most frequent slip: typing "${vis(pairs[0].got)}" for "${vis(pairs[0].exp)}".`;
+  }
+
+  // review
+  let rev = '';
+  for (let i = 0; i < r.pos; i++) {
+    const c = r.text[i], t = r.typed[i];
+    const shown = c === '\n' ? '↵\n' : c;
+    if (t !== c) rev += `<span class="r-bad" title="you typed ${esc(vis(t))}">${esc(c === ' ' ? '␣' : shown)}</span>`;
+    else if (r.everErr.has(i)) rev += `<span class="r-fix">${esc(shown)}</span>`;
+    else rev += esc(shown);
+  }
+  if (!rev) rev = '<span class="muted">Nothing typed.</span>';
+
+  const dur = secs ? Math.min(secs, s.el) : s.el;
+  const lvlName = LEVEL_NAME[test.level];
+  const tName = secs ? (secs >= 60 && secs % 60 === 0 ? `${secs / 60} min` : `${secs} s`) : 'whole passage';
+  $('#results').innerHTML = `
+  <div class="res">
+    <div class="res-head">
+      <h2>Results</h2><span class="meta">${lvlName} · ${tName}</span>
+      ${pb.isNew ? `<span class="badge">New best${pb.prev != null ? ` · was ${Math.round(pb.prev)}` : ''}</span>` : ''}
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="rsAgain">Retry this passage</button>
+      <button class="btn primary" type="button" id="rsNew">Next passage</button>
+    </div>
+    <div class="figs">
+      <div class="fig lead"><div class="n">${Math.round(s.wpm)}</div><div class="k">WPM (correct characters)</div></div>
+      <div class="fig"><div class="n">${s.acc.toFixed(1)}<small>%</small></div><div class="k">accuracy (${s.keys - s.errs} of ${s.keys} keys)</div></div>
+      <div class="fig${r.errs ? ' bad' : ''}"><div class="n">${r.errs}</div><div class="k">errors made</div></div>
+      <div class="fig${s.wrong ? ' bad' : ''}"><div class="n">${s.wrong}</div><div class="k">left uncorrected</div></div>
+      <div class="fig"><div class="n">${Math.round(s.raw)}</div><div class="k">raw WPM</div></div>
+      <div class="fig"><div class="n">${Math.round(dur)}<small>s</small></div><div class="k">${r.pos} characters</div></div>
+    </div>
+    <p class="summary">${esc(summary)}</p>
+    <div class="grid2">
+      <div class="panel"><h3>Errors by type</h3><div class="bars">${bars}</div></div>
+      <div class="panel"><h3>Wrong keys</h3>${trouble}</div>
+    </div>
+    <div class="panel"><h3>Speed over time <span style="text-transform:none;letter-spacing:0;font-weight:400">· red ticks mark errors</span></h3>${chartSVG(test.samples, r.errTimes, dur)}</div>
+    <div class="panel"><h3>Your passage, marked up</h3>
+      <div class="legend"><span class="lb">Left wrong (hover to see what you typed)</span><span class="lf">Mistyped, then fixed</span></div>
+      <div class="review">${rev}</div>
+    </div>
+  </div>`;
+  $('#results').hidden = false;
+  $('#rsAgain').addEventListener('click', () => { newTest(true); focusCap(); });
+  $('#rsNew').addEventListener('click', () => { newTest(false); focusCap(); });
+}
+
+/* ---------------- games shell ---------------- */
+$('#picker').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  openGame(b.dataset.game); focusCap();
+});
+function openGame(g) {
+  stopGames(); game = g;
+  $$('#picker button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.game === g)));
+  $$('.game').forEach(el => el.hidden = el.id !== 'g-' + g);
+  ({ rain: rainPrepare, sprint: sprintPrepare, race: racePrepare, sudden: sdPrepare })[g]();
+}
+function stopGames() {
+  rain.running = false;
+  clearInterval(sprint.timer); sprint.running = false;
+  clearInterval(race.iv);
+  clearInterval(sd.iv);
+}
+
+/* ---------------- Word Rain ---------------- */
+const rain = { running: false, words: [], buf: '', score: 0, lives: 3, misses: 0, keys: 0, chars: 0, cleared: 0, t0: 0, last: 0, acc: 0, level: 1 };
+const rainField = $('#rainField'), rainOv = $('#rainOverlay');
+function rainIntro(html) { rainOv.innerHTML = html; rainOv.hidden = false; const b = $('#rnStart', rainOv); if (b) b.addEventListener('click', () => { rainStart(); focusCap(); }); }
+function rainLives() { $('#rnLives').innerHTML = [0, 1, 2].map(i => `<span class="pip${i < rain.lives ? ' on' : ''}"></span>`).join(''); }
+function rainStats() { $('#rnScore').textContent = rain.score; $('#rnLevel').textContent = rain.level; $('#rnMiss').textContent = rain.misses; rainLives(); }
+function rainPrepare() {
+  rain.running = false; rain.words.forEach(w => w.el.remove()); rain.words = [];
+  rain.buf = ''; rain.score = 0; rain.lives = 3; rain.misses = 0; rain.level = 1; rainStats(); rainBuf();
+  const best = getBest('rain:' + $('#rainPool').value);
+  rainIntro(`<h3>Word Rain</h3><p>Words fall toward the red line. Type a word exactly, including its punctuation, to clear it. Three words landing ends the game.</p>
+    ${best ? `<p class="muted">Best score with these words: ${best}</p>` : ''}
+    <button class="btn primary" id="rnStart" type="button">Start (Enter)</button>`);
+  handler = rainHandler;
+}
+function rainStart() {
+  rain.words.forEach(w => w.el.remove()); rain.words = [];
+  Object.assign(rain, { running: true, buf: '', score: 0, lives: 3, misses: 0, keys: 0, chars: 0, cleared: 0, level: 1, acc: 1.2 });
+  rain.t0 = rain.last = now(); rainOv.hidden = true; rainStats(); rainBuf();
+  handler = rainHandler;
+  requestAnimationFrame(rainLoop);
+}
+function rainSpawn() {
+  const pool = WORDS[$('#rainPool').value];
+  const onScreen = new Set(rain.words.map(w => w.text));
+  let t, tries = 0;
+  do { t = pool[Math.random() * pool.length | 0]; } while (onScreen.has(t) && tries++ < 20);
+  const el = document.createElement('div'); el.className = 'word'; el.textContent = t;
+  rainField.appendChild(el);
+  const fw = rainField.clientWidth, ew = el.offsetWidth;
+  const x = 6 + Math.random() * Math.max(0, fw - ew - 12);
+  const elapsed = (now() - rain.t0) / 1000;
+  const base = Math.min(115, 26 + elapsed * 0.85);
+  const w = { text: t, el, x, y: -30, speed: base * (0.85 + Math.random() * 0.3) };
+  rain.words.push(w); rainPaintWord(w); rainPos(w);
+}
+function rainPos(w) { const tr = `translate(${w.x.toFixed(1)}px, ${w.y.toFixed(1)}px)`; w.el.style.transform = tr; w.el.style.setProperty('--t', tr); }
+function rainPaintWord(w) {
+  if (rain.buf && w.text.startsWith(rain.buf)) { w.el.innerHTML = `<b>${esc(rain.buf)}</b>${esc(w.text.slice(rain.buf.length))}`; w.el.classList.add('target'); }
+  else { w.el.textContent = w.text; w.el.classList.remove('target'); }
+}
+function rainBuf(miss) {
+  const b = $('#rainBuf'); b.textContent = rain.buf || '\u00a0';
+  if (miss) { b.classList.remove('miss'); void b.offsetWidth; b.classList.add('miss'); }
+}
+function rainLoop(ts) {
+  if (!rain.running) return;
+  const dt = Math.min(0.1, (ts - rain.last) / 1000); rain.last = ts;
+  const elapsed = (ts - rain.t0) / 1000;
+  const lvl = 1 + Math.floor(elapsed / 20);
+  if (lvl !== rain.level) { rain.level = lvl; rainStats(); }
+  const every = Math.max(0.7, 2.3 - elapsed * 0.022);
+  rain.acc += dt;
+  if (rain.acc >= every || rain.words.length === 0) { rain.acc = 0; rainSpawn(); }
+  const floor = rainField.clientHeight - 30;
+  for (const w of rain.words.slice()) {
+    w.y += w.speed * dt; rainPos(w);
+    if (w.y > floor) {
+      rain.words.splice(rain.words.indexOf(w), 1);
+      w.el.classList.add('lost'); setTimeout(() => w.el.remove(), 400);
+      rain.lives--; rainStats();
+      if (rain.buf && !rain.words.some(x => x.text.startsWith(rain.buf))) { rain.buf = ''; rainBuf(); rain.words.forEach(rainPaintWord); }
+      if (rain.lives <= 0) { rainEnd(); return; }
+    }
+  }
+  requestAnimationFrame(rainLoop);
+}
+function rainEnd() {
+  rain.running = false;
+  const el = (now() - rain.t0) / 1000;
+  const wpm = Math.round(rain.chars / 5 / (el / 60));
+  const acc = rain.keys ? Math.round((rain.keys - rain.misses) / rain.keys * 100) : 100;
+  const pool = $('#rainPool').value;
+  const pb = recordBest('rain:' + pool, rain.score);
+  rain.words.forEach(w => w.el.remove()); rain.words = [];
+  rainIntro(`<h3>Game over</h3>
+    <div class="row">
+      <div class="stat"><span class="v">${rain.score}</span><span class="k">score${pb.isNew ? ' · new best' : ''}</span></div>
+      <div class="stat"><span class="v">${rain.cleared}</span><span class="k">words cleared</span></div>
+      <div class="stat"><span class="v">${wpm}</span><span class="k">WPM</span></div>
+      <div class="stat"><span class="v">${acc}%</span><span class="k">accuracy</span></div>
+      <div class="stat"><span class="v">${Math.round(el)}s</span><span class="k">survived</span></div>
+    </div>
+    <button class="btn primary" id="rnStart" type="button">Play again (Enter)</button>`);
+}
+const rainHandler = {
+  char(c) {
+    if (!rain.running) { if (c === '\n') rainStart(); return; }
+    if (c === ' ' || c === '\n') { rain.buf = ''; rainBuf(); rain.words.forEach(rainPaintWord); return; }
+    rain.keys++;
+    const nb = rain.buf + c;
+    const cands = rain.words.filter(w => w.text.startsWith(nb));
+    if (!cands.length) { rain.misses++; rainStats(); rainBuf(true); return; }
+    rain.buf = nb;
+    const exact = cands.filter(w => w.text === nb).sort((a, b) => b.y - a.y)[0];
+    if (exact) {
+      rain.words.splice(rain.words.indexOf(exact), 1);
+      exact.el.classList.remove('target'); exact.el.classList.add('pop'); setTimeout(() => exact.el.remove(), 260);
+      rain.score += exact.text.length * 10 * rain.level; rain.chars += exact.text.length + 1; rain.cleared++;
+      rain.buf = ''; rainStats();
+    }
+    rainBuf(); rain.words.forEach(rainPaintWord);
+  },
+  back(word) { if (!rain.running) return; rain.buf = word ? '' : rain.buf.slice(0, -1); rainBuf(); rain.words.forEach(rainPaintWord); }
+};
+$('#rainPool').addEventListener('change', () => { rainPrepare(); focusCap(); });
+
+/* ---------------- Symbol Sprint ---------------- */
+const sprint = { dur: 30, running: false, over: false, queue: [], tok: '', i: 0, score: 0, errs: 0, keys: 0, chars: 0, missed: {}, times: [], tokT: 0, t0: 0, timer: null };
+function sprintPrepare() {
+  clearInterval(sprint.timer);
+  Object.assign(sprint, { dur: +$('#spDur').value, running: false, over: false, queue: shuffle(SPRINT_POOL), score: 0, errs: 0, keys: 0, chars: 0, missed: {}, times: [] });
+  sprintNext();
+  $('#spTime').textContent = sprint.dur; $('#spScore').textContent = 0; $('#spErr').textContent = 0;
+  const b = getBest('sprint:' + sprint.dur); $('#spBest').textContent = b == null ? '–' : b;
+  $('#spMsg').innerHTML = 'Type the token above to start the clock. A wrong key does not advance; you have to hit the right one.';
+  handler = sprintHandler;
+}
+function sprintNext() {
+  if (sprint.queue.length < 3) sprint.queue = shuffle(SPRINT_POOL).concat(sprint.queue);
+  sprint.tok = sprint.queue.pop(); sprint.i = 0; sprint.tokT = now();
+  sprintPaint();
+}
+function sprintPaint(shake) {
+  const t = sprint.tok;
+  let h = '';
+  for (let k = 0; k < t.length; k++) {
+    const cls = k < sprint.i ? 'ch ok' : k === sprint.i ? 'ch cur' + (shake ? ' shake' : '') : 'ch';
+    h += `<span class="${cls}">${esc(t[k])}</span>`;
+  }
+  $('#spCur').innerHTML = h;
+  const q = sprint.queue;
+  $('#spNext').innerHTML = [q[q.length - 1], q[q.length - 2]].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('');
+}
+function sprintTick() {
+  const left = sprint.dur - (now() - sprint.t0) / 1000;
+  $('#spTime').textContent = Math.max(0, Math.ceil(left));
+  if (left <= 0) sprintEnd();
+}
+function sprintEnd() {
+  clearInterval(sprint.timer); sprint.running = false; sprint.over = true;
+  const acc = sprint.keys ? Math.round((sprint.keys - sprint.errs) / sprint.keys * 100) : 100;
+  const pb = recordBest('sprint:' + sprint.dur, sprint.score);
+  $('#spBest').textContent = getBest('sprint:' + sprint.dur) ?? '–';
+  const tricky = Object.entries(sprint.missed).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([c, n]) => `<kbd>${esc(vis(c))}</kbd> ×${n}`).join(' ');
+  const slow = sprint.times.slice().sort((a, b) => b.t - a.t).slice(0, 3).map(x => `<kbd>${esc(x.tok)}</kbd> ${x.t.toFixed(1)}s`).join(' ');
+  $('#spCur').innerHTML = `<span class="ch ok">${sprint.score}</span>`;
+  $('#spNext').innerHTML = '<span>tokens</span>';
+  $('#spMsg').innerHTML = `<b>Time.</b> ${sprint.score} tokens, ${Math.round(sprint.chars / (sprint.dur / 60))} characters a minute, ${acc}% accuracy${pb.isNew ? ' · <span class="win">new best</span>' : ''}.<br>
+    ${tricky ? `Keys you missed: ${tricky}.<br>` : ''}${slow ? `Slowest: ${slow}.<br>` : ''}Press <kbd>Enter</kbd> to go again.`;
+}
+const sprintHandler = {
+  char(c) {
+    if (sprint.over) { if (c === '\n') sprintPrepare(); return; }
+    if (c === ' ' || c === '\n') return;
+    if (!sprint.running) { sprint.running = true; sprint.t0 = sprint.tokT = now(); sprint.timer = setInterval(sprintTick, 100); $('#spMsg').textContent = ''; }
+    sprint.keys++;
+    if (c === sprint.tok[sprint.i]) {
+      sprint.i++;
+      if (sprint.i >= sprint.tok.length) {
+        sprint.score++; sprint.chars += sprint.tok.length; sprint.times.push({ tok: sprint.tok, t: (now() - sprint.tokT) / 1000 });
+        $('#spScore').textContent = sprint.score; sprintNext();
+      } else sprintPaint();
+    } else {
+      sprint.errs++; const e = sprint.tok[sprint.i]; sprint.missed[e] = (sprint.missed[e] || 0) + 1;
+      $('#spErr').textContent = sprint.errs; sprintPaint(true);
+    }
+  },
+  back() {}
+};
+$('#spDur').addEventListener('change', () => { sprintPrepare(); focusCap(); });
+$('#spReset').addEventListener('click', () => { sprintPrepare(); focusCap(); });
+
+/* ---------------- Pace Race ---------------- */
+const race = { run: null, iv: null, ghost: -1, over: false };
+function racePrepare() {
+  clearInterval(race.iv);
+  const wpm = +$('#raceWpm').value;
+  $('#racePaceL').textContent = `Pacer · ${wpm} WPM`;
+  const text = pickPassage($('#raceSrc').value);
+  const box = $('#racePassage'); box.classList.toggle('tall', /\n/.test(text));
+  race.over = false; race.ghost = -1;
+  race.run = new Run({ text, box, strict: true, onStart: () => { race.iv = setInterval(raceTick, 50); }, onProgress: raceBars, onFinish: raceWin });
+  raceBars(); $('#racePace').style.width = '0%'; $('#racePaceP').textContent = '0%';
+  $('#raceMsg').innerHTML = `The pacer starts when you do and types at a steady ${wpm} WPM. Its position is underlined in amber. Wrong keys do not advance.`;
+  handler = { char: c => { if (race.over) { if (c === '\n') racePrepare(); return; } race.run.input(c); }, back: () => {} };
+}
+function raceBars() {
+  const r = race.run; if (!r) return;
+  const p = r.pos / r.text.length * 100;
+  $('#raceYou').style.width = p + '%'; $('#raceYouP').textContent = Math.floor(p) + '%';
+}
+function raceTick() {
+  const r = race.run; if (!r || r.done) return;
+  const wpm = +$('#raceWpm').value;
+  const g = Math.min(r.text.length, Math.floor(r.elapsed() * wpm * 5 / 60));
+  if (g !== race.ghost) {
+    if (r.spans[race.ghost]) r.spans[race.ghost].classList.remove('ghost');
+    race.ghost = g; if (r.spans[g]) r.spans[g].classList.add('ghost');
+    const p = g / r.text.length * 100; $('#racePace').style.width = p + '%'; $('#racePaceP').textContent = Math.floor(p) + '%';
+  }
+  if (g >= r.text.length) raceLose();
+}
+function raceWin() {
+  clearInterval(race.iv); race.over = true;
+  const r = race.run, s = r.stats(), wpm = +$('#raceWpm').value;
+  const ghostT = r.text.length / (wpm * 5 / 60);
+  const margin = ghostT - s.el;
+  $('#raceMsg').innerHTML = `<span class="win">You won by ${margin.toFixed(1)} seconds.</span> ${Math.round(s.wpm)} WPM, ${Math.round(s.acc)}% accuracy, ${r.errs} wrong key${r.errs === 1 ? '' : 's'}. Try the pacer one step faster. <kbd>Enter</kbd> for a new race.`;
+  raceBars();
+}
+function raceLose() {
+  clearInterval(race.iv); race.over = true;
+  const r = race.run; r.done = true; r.endT = now(); if (r.curEl) r.curEl.classList.remove('cur');
+  const s = r.stats(), p = Math.floor(r.pos / r.text.length * 100);
+  $('#raceMsg').innerHTML = `<span class="lose">The pacer finished first.</span> You were ${p}% of the way through at ${Math.round(s.wpm)} WPM, with ${r.errs} wrong key${r.errs === 1 ? '' : 's'}. <kbd>Enter</kbd> for a new race.`;
+}
+$('#raceWpm').addEventListener('change', () => { racePrepare(); focusCap(); });
+$('#raceSrc').addEventListener('change', () => { racePrepare(); focusCap(); });
+$('#raceNew').addEventListener('click', () => { racePrepare(); focusCap(); });
+
+/* ---------------- Sudden Death ---------------- */
+const sd = { run: null, iv: null, over: false };
+function sdPrepare() {
+  clearInterval(sd.iv);
+  const src = $('#sdSrc').value;
+  const text = longText(src);
+  const box = $('#sdPassage'); box.classList.toggle('tall', /\n/.test(text));
+  sd.over = false;
+  sd.run = new Run({
+    text, box, strict: true,
+    onStart: () => { sd.iv = setInterval(sdLive, 200); },
+    onProgress: sdLive,
+    onError: sdDie,
+    onFinish: () => { sdEnd(true); }
+  });
+  sdLive();
+  const b = getBest('sudden:' + src); $('#sdBest').textContent = b == null ? '–' : b;
+  $('#sdMsg').innerHTML = 'Type as far as you can. The first wrong key ends the run, so accuracy beats speed here.';
+  handler = { char: c => { if (sd.over) { if (c === '\n') sdPrepare(); return; } sd.run.input(c); }, back: () => {} };
+}
+function sdLive() {
+  const r = sd.run; if (!r) return;
+  $('#sdChars').textContent = r.pos;
+  $('#sdWpm').textContent = r.started ? Math.round(r.stats().wpm) : 0;
+}
+function sdDie(exp, got) {
+  const r = sd.run; const s = r.spans[r.pos];
+  r.done = true; r.endT = now(); if (r.curEl) r.curEl.classList.remove('cur');
+  if (s) { s.classList.remove('shake'); s.classList.add('dead'); }
+  sdEnd(false, exp, got);
+}
+function sdEnd(completed, exp, got) {
+  if (sd.over) return;
+  clearInterval(sd.iv); sd.over = true;
+  const r = sd.run; sdLive();
+  const src = $('#sdSrc').value;
+  const pb = recordBest('sudden:' + src, r.pos);
+  $('#sdBest').textContent = getBest('sudden:' + src) ?? '–';
+  const s = r.stats();
+  $('#sdMsg').innerHTML = completed
+    ? `<span class="win">Flawless.</span> You typed all ${r.pos} characters without a slip at ${Math.round(s.wpm)} WPM. <kbd>Enter</kbd> for another run.`
+    : `<span class="lose">Run over at character ${r.pos + 1}.</span> Expected <kbd>${esc(vis(exp))}</kbd>, you typed <kbd>${esc(vis(got))}</kbd> (${CAT_WORD[category(exp, got)]}). ${r.pos} characters at ${Math.round(s.wpm)} WPM${pb.isNew ? ' · <span class="win">new best</span>' : ''}. <kbd>Enter</kbd> for another run.`;
+}
+$('#sdSrc').addEventListener('change', () => { sdPrepare(); focusCap(); });
+$('#sdNew').addEventListener('click', () => { sdPrepare(); focusCap(); });
+
+/* ---------------- boot ---------------- */
+buildControls();
+newTest(false);
+rainLives();
+focusCap();
+})();
+</script>
+</body>
+</html>
