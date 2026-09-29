@@ -743,6 +743,7 @@
         }
 
         .blank-card table.schedule td.body { height: 56px; }
+        .blank-card table.schedule .tag { background: transparent; padding: 0; margin-right: 0.3rem; }
         table.schedule.fillable td.body { cursor: text; }
         table.schedule.fillable .fill-empty .card-body { min-height: 44px; }
         table.schedule.fillable [contenteditable="true"] { border-radius: 3px; }
@@ -1471,43 +1472,59 @@ function persistBlanks(msg) {
   try { localStorage.setItem(BLANK_KEY, JSON.stringify(blanksPayload())); if (msg !== false) toast(msg || "Saved ✓"); }
   catch (e) { toast("Couldn't save — browser storage is unavailable. Use Export to keep a copy."); }
 }
+/* Filling a blank from a grade plan: bring the activities across, but
+   no day colours and no water play — that's slotted in later, once the
+   real week's schedule is known. The water-play day becomes an open day. */
+function planToBlankWeek(src) {
+  const wk = clone(src);
+  const t = DAY_TYPES.other;
+  wk.days.forEach((d, i) => {
+    if (d.type === "water") {
+      d.day = "Day " + (i + 1); d.sub = ""; d.stage = "";
+      wk.rows.forEach(r => { if (wk.cells[r.id]) wk.cells[r.id][d.id] = []; });
+    }
+    d.type = "other"; d.fill = t.fill; d.color = t.color;
+  });
+  Object.values(wk.cells).forEach(row => Object.keys(row).forEach(k => {
+    row[k] = row[k].filter(c => !/tag-water/.test(c.html));
+  }));
+  return wk;
+}
+function copyWeekInto(target, src, w) {
+  state[target][w] = isBlank(target) && !isBlank(src) ? planToBlankWeek(state[src][w]) : clone(state[src][w]);
+}
 function allPlans() {
   return BLANKS.map(b => ({ id: b.id, label: b.title || "Untitled schedule" }))
     .concat(GRADES.map(g => ({ id: g.id, label: g.generic ? "Generic template" : g.id + " plan" })));
 }
 
 /* ---------- copy a week to the clipboard (pastes as a real table) ---------- */
-const TAG_COLORS = {
-  inq: ["#FAEEDA", "#854F0B"], d5: ["#EEEDFE", "#3C3489"], math: ["#ECFDF5", "#059669"], vtr: ["#FAECE7", "#993C1D"],
-  tt: ["#FBEAF0", "#72243E"], read: ["#E6F1FB", "#0C447C"], spec: ["#FCE7F3", "#831843"], water: ["#DBEAFE", "#1E40AF"],
-  trip: ["#ECFDF5", "#059669"], exhibit: ["#FBEAF0", "#72243E"],
-};
 function htmlToText(html) {
   const t = document.createElement("template");
   t.innerHTML = String(html || "").replace(/<br\s*\/?>/gi, "\n");
   return (t.content.textContent || "").trim();
 }
 function clipHtml(g, w) {
+  // Plain table: borders only, no background colours, so it pastes cleanly anywhere.
   const wk = state[g][w];
-  const cs = "border:1px solid #cbd5e1;padding:4px 6px;vertical-align:top;font-family:Arial,sans-serif;font-size:10pt;";
-  const tagify = html => String(html).replace(/<span class="tag tag-([a-z0-9]+)">/g, (m, k) => {
-    const c = TAG_COLORS[k] || ["#F1F5F9", "#334155"];
-    return `<span style="background:${c[0]};color:${c[1]};font-weight:bold;font-size:8pt;">&nbsp;`;
-  }).replace(/<\/span>/g, "&nbsp;</span> ");
+  const cs = "border:1px solid #94a3b8;padding:4px 6px;vertical-align:top;font-family:Arial,sans-serif;font-size:10pt;color:#000;";
+  const tagify = html => String(html)
+    .replace(/<span class="tag tag-[a-z0-9]+">/g, '<span style="font-weight:bold;font-size:8pt;">')
+    .replace(/<\/span>/g, "</span> ");
   const title = isBlank(g) ? esc(blankById(g).title || "Schedule") : esc(plainText((GRADES.find(x => x.id === g) || {}).title, 120));
   let h = `<p style="font-family:Arial,sans-serif;font-size:12pt;font-weight:bold;">${title} — Week ${w}</p>`;
-  h += `<table style="border-collapse:collapse;width:100%;"><tr><th style="${cs}background:#f8fafc;text-align:left;">Session</th>`;
-  wk.days.forEach(d => { h += `<th style="${cs}background:#f8fafc;text-align:left;">${d.day}${d.sub ? `<br><span style="font-weight:normal;color:#64748b;font-size:8pt;">${d.sub}</span>` : ""}</th>`; });
+  h += `<table style="border-collapse:collapse;width:100%;"><tr><th style="${cs}text-align:left;">Session</th>`;
+  wk.days.forEach(d => { h += `<th style="${cs}text-align:left;">${d.day}${plainText(d.sub) ? `<br><span style="font-weight:normal;font-size:8pt;">${d.sub}</span>` : ""}</th>`; });
   h += `</tr>`;
   if (wk.days.some(d => plainText(d.stage))) {
-    h += `<tr><td style="${cs}"></td>` + wk.days.map(d => `<td style="${cs}background:${d.fill};color:${d.color};font-weight:bold;">${d.stage}</td>`).join("") + `</tr>`;
+    h += `<tr><td style="${cs}"></td>` + wk.days.map(d => `<td style="${cs}font-weight:bold;">${d.stage}</td>`).join("") + `</tr>`;
   }
   wk.rows.forEach(r => {
     if (r.kind === "break") {
-      h += `<tr><td style="${cs}background:#f8fafc;"></td><td colspan="${wk.days.length}" style="${cs}background:#f8fafc;text-align:center;font-style:italic;color:#64748b;">${r.label}</td></tr>`;
+      h += `<tr><td style="${cs}"></td><td colspan="${wk.days.length}" style="${cs}text-align:center;font-style:italic;">${r.label}</td></tr>`;
       return;
     }
-    h += `<tr><td style="${cs}background:#f8fafc;"><b>${r.label}</b>${r.clock ? `<br><span style="color:#94a3b8;font-size:8pt;">${r.clock}</span>` : ""}</td>`;
+    h += `<tr><td style="${cs}"><b>${r.label}</b>${plainText(r.clock) ? `<br><span style="font-size:8pt;">${r.clock}</span>` : ""}</td>`;
     wk.days.forEach(d => {
       const list = (wk.cells[r.id] && wk.cells[r.id][d.id]) || [];
       h += `<td style="${cs}">${list.map(c => tagify(c.html)).join("<br>") || "&nbsp;"}</td>`;
@@ -2090,7 +2107,7 @@ host.addEventListener("change", e => {
     fill.value = "";
     if (hasContent(state[id][w]) && !confirm(`Replace Week ${w} with Week ${w} from ${label}?`)) return;
     pushUndo(id, w);
-    state[id][w] = clone(state[src][w]);
+    copyWeekInto(id, src, w);
     persistBlanks(`Filled from ${label}`);
     renderPane(id, w);
     return;
@@ -2105,7 +2122,7 @@ host.addEventListener("change", e => {
     mutate(g, w, wk => { const d = wk.days.find(x => x.id === id); const t = DAY_TYPES[sel.value]; d.type = sel.value; d.fill = t.fill; d.color = t.color; });
   } else if (sel.dataset.act === "copy-from" && sel.value) {
     const src = sel.value;
-    mutate(g, w, () => { state[g][w] = clone(state[src][w]); }, `Copied Week ${w} from ${src}`);
+    mutate(g, w, () => { copyWeekInto(g, src, w); }, `Copied Week ${w} from ${src}`);
   }
 });
 
