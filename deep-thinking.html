@@ -58,13 +58,13 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* tabs */
 nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);padding-block:8px;margin-bottom:28px;scrollbar-width:none}
-nav.tabs a{text-decoration:none;border:0;background:none;padding:7px 12px;border-radius:8px;white-space:nowrap;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:baseline}
-nav.tabs a i{font-style:normal;font-family:var(--mono);font-size:11px;opacity:.7}
-nav.tabs a[aria-selected="true"]{background:var(--ink);color:var(--paper)}
-nav.tabs a:hover:not([aria-selected="true"]){background:var(--accent-soft);color:var(--ink)}
+nav.tabs button{border:0;background:none;padding:7px 12px;border-radius:8px;white-space:nowrap;font-weight:700;color:var(--muted);display:flex;gap:6px;align-items:baseline}
+nav.tabs button i{font-style:normal;font-family:var(--mono);font-size:11px;opacity:.7}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+nav.tabs button:hover:not([aria-selected="true"]){background:var(--accent-soft);color:var(--ink)}
 
 section.panel{display:grid;gap:22px;scroll-margin-top:60px}
-html:not(.js) section.panel{margin-bottom:56px}
+section.panel+section.panel{margin-top:56px;padding-top:40px;border-top:1px solid var(--line)}
 .head{display:grid;gap:6px}
 .head h2{font-size:clamp(24px,4vw,32px)}
 .head p{color:var(--muted);font-size:17px}
@@ -249,7 +249,7 @@ footer .chain{font-size:14px}
     </div>
   </header>
 
-  <nav class="tabs" role="tablist" aria-label="Sections"><a role="tab" href="#p-skills" data-tab="skills"><i>1</i>Skills</a><a role="tab" href="#p-why" data-tab="why"><i>2</i>Mix</a><a role="tab" href="#p-loop" data-tab="loop"><i>3</i>Loop</a><a role="tab" href="#p-domains" data-tab="domains"><i>4</i>Domains</a><a role="tab" href="#p-routines" data-tab="routines"><i>5</i>Routines</a><a role="tab" href="#p-rhythm" data-tab="rhythm"><i>6</i>Rhythm</a><a role="tab" href="#p-questions" data-tab="questions"><i>7</i>Questions</a><a role="tab" href="#p-check" data-tab="check"><i>8</i>Check</a></nav>
+  <nav class="tabs" role="tablist" aria-label="Sections"><button type="button" role="tab" data-tab="skills"><i>1</i>Skills</button><button type="button" role="tab" data-tab="why"><i>2</i>Mix</button><button type="button" role="tab" data-tab="loop"><i>3</i>Loop</button><button type="button" role="tab" data-tab="domains"><i>4</i>Domains</button><button type="button" role="tab" data-tab="routines"><i>5</i>Routines</button><button type="button" role="tab" data-tab="rhythm"><i>6</i>Rhythm</button><button type="button" role="tab" data-tab="questions"><i>7</i>Questions</button><button type="button" role="tab" data-tab="check"><i>8</i>Check</button></nav>
 
   <!-- 1 SKILLS -->
   <section class="panel" id="p-skills">
@@ -386,6 +386,7 @@ footer .chain{font-size:14px}
 </div>
 
 <script>
+(function(){"use strict";
 document.documentElement.classList.add("js");
 const ATL=[
  {k:"think",t:"Thinking",v:["Connect","Identify","Solve","Create"]},
@@ -475,20 +476,24 @@ const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&qu
 function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
 
 /* tabs + bridges */
-const tabs=[...document.querySelectorAll("nav.tabs a")];
-function show(id,scroll){
-  if(!document.getElementById("p-"+id))id="skills";
-  tabs.forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===id));
-  document.querySelectorAll("section.panel").forEach(p=>p.hidden=p.id!=="p-"+id);
-  store("dt2-tab",id);
-  try{history.replaceState(null,"","#p-"+id)}catch(e){}
-  if(scroll)$("nav.tabs").scrollIntoView({behavior:"smooth",block:"start"});
-}
-tabs.forEach(b=>b.onclick=e=>{e.preventDefault();show(b.dataset.tab)});
+const tabs=[...document.querySelectorAll("nav.tabs button")];
+function mark(id){const nav=document.querySelector("nav.tabs");tabs.forEach(b=>{const on=b.dataset.tab===id;b.setAttribute("aria-selected",on);if(on){const l=b.offsetLeft-nav.offsetLeft;if(l<nav.scrollLeft||l+b.offsetWidth>nav.scrollLeft+nav.clientWidth)nav.scrollLeft=l-16}})}
+function go(id){const el=document.getElementById("p-"+id);if(!el)return;mark(id);
+  const nav=document.querySelector("nav.tabs");const y=el.getBoundingClientRect().top+window.scrollY-nav.offsetHeight-12;
+  const smooth=!matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({top:y,behavior:smooth?"smooth":"auto"});
+  try{history.replaceState(null,"","#p-"+id)}catch(e){}}
+document.querySelector("nav.tabs").addEventListener("click",e=>{const b=e.target.closest("[data-tab]");if(b)go(b.dataset.tab)});
 const BRIDGE={skills:"Why master and mix them?",why:"How is each skill built?",loop:"Where does the loop run?",domains:"What tools make thinking visible?",routines:"When do they happen?",rhythm:"What do we ask?",questions:"How is your classroom doing?"};
 TABS.forEach((t,i)=>{const n=TABS[i+1];if(!n)return;const el=document.querySelector(`#p-${t[0]} .bridge`);
-  el.innerHTML=`<button><span>${BRIDGE[t[0]]}</span> ${n[1]} →</button>`;el.firstChild.onclick=()=>show(n[0],true)});
-show((location.hash||"").replace(/^#(p-)?/,"")||store("dt2-tab")||"skills");
+  el.innerHTML=`<button type="button"><span>${BRIDGE[t[0]]}</span> ${n[1]} →</button>`;el.firstChild.onclick=()=>go(n[0])});
+/* highlight the tab for the section in view */
+function spy(){const navH=document.querySelector("nav.tabs").offsetHeight+40;let cur=TABS[0][0];
+  for(const t of TABS){const el=document.getElementById("p-"+t[0]);if(el&&el.getBoundingClientRect().top<=navH)cur=t[0]}
+  if((window.innerHeight+window.scrollY)>=document.documentElement.scrollHeight-4)cur=TABS[TABS.length-1][0];
+  if(cur!==spy.last){spy.last=cur;mark(cur)}}
+window.addEventListener("scroll",spy,{passive:true});spy();
+const startId=(location.hash||"").replace(/^#(p-)?/,"");if(startId&&document.getElementById("p-"+startId))setTimeout(()=>go(startId),50);
 
 /* domains */
 $("#domains").innerHTML=DOMAINS.map(d=>`<article class="dom" style="--c:var(${d.c})"><div><h3>${d.t}</h3><p class="tag">${d.tag}</p></div>
@@ -555,6 +560,8 @@ function renderAudit(){
 }
 $("#reset").onclick=()=>{ticks={};store("dt-audit2",ticks);renderAudit()};
 renderAudit();
+
+})();
 </script>
 </body>
 </html>
