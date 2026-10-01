@@ -346,6 +346,23 @@ input.wrong{color:var(--warn)!important;background:var(--warn-soft)!important}
 .sbmsg.bad{color:var(--warn);font-family:var(--ui)}
 .piece.gsel{outline:2px dotted var(--accent);outline-offset:2px;border-radius:4px}
 .piece.gsel.sel{outline:2px dashed var(--sel)}
+.tb.danger{color:var(--warn)}
+.tb.danger:hover{background:var(--warn-soft);border-color:transparent}
+.sbclear{margin-left:auto}
+.clr{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;height:44px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:var(--panel);cursor:pointer;font-size:14px;text-align:left;color:var(--ink)}
+.clr:hover:not(:disabled){border-color:var(--warn)}
+.clr:disabled{opacity:.45;cursor:default}
+.clr.danger{background:var(--warn);border-color:var(--warn);color:var(--board);font-weight:600}
+.clr.danger .clrn{color:var(--board);opacity:.85}
+.clr.danger:hover:not(:disabled){filter:brightness(1.05)}
+.clrn{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media (min-width:821px){.bar{flex-wrap:wrap;row-gap:6px;white-space:normal}}
+.empty{grid-column:-2/-1;grid-row:1;align-self:center;justify-self:center;z-index:2;pointer-events:none;padding:16px;max-width:440px;text-align:center}
+.emptyin{display:flex;flex-direction:column;gap:8px;color:var(--muted);font-size:14px;line-height:1.5;background:var(--board);padding:18px 22px;border-radius:12px;border:1px dashed var(--wline)}
+.emptyin b{color:var(--ink);font-size:17px;font-weight:600}
+.emptyin em{font-style:normal;color:var(--accent);font-weight:600}
+.emptyin .num{font-weight:700;color:var(--ink)}
+.restore{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:55;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;background:var(--widget);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);font-size:13.5px;max-width:calc(100% - 32px)}
 /* overlay */
 .overlay{position:fixed;inset:0;background:rgba(10,20,18,.45);display:grid;place-items:center;z-index:50;padding:16px}
 .dlg{background:var(--widget);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:20px;width:min(440px,100%);max-height:90%;overflow:auto;display:flex;flex-direction:column;gap:12px}
@@ -376,6 +393,7 @@ input.wrong{color:var(--warn)!important;background:var(--warn-soft)!important}
   <div class="sbar" id="sbar"></div>
   <div class="main">
     <aside id="lib" aria-label="Tool library"></aside>
+    <div class="empty" id="empty" aria-hidden="true"><div class="emptyin"><b>A blank board, ready to go</b><span>Add a tool from <em>Workspace tools</em>, or type a number sentence in the bar above, like <span class="num">7 + 5</span>, and press Enter.</span><span>Pick up the pen to draw anywhere.</span></div></div>
     <div id="scroller">
       <div id="sizer">
         <div id="board">
@@ -408,7 +426,7 @@ const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},se
 let S={items:[],strokes:[],bg:'squares',gens:{}};let nextId=1,zoom=1,mode='move',penColor='ink',penSize=4,sel=null;const openSet=new Set();
 const hist=[];let hi=-1;
 const snap=()=>JSON.stringify({items:S.items,strokes:S.strokes,bg:S.bg,gens:S.gens});
-function pushHistory(){const j0=snap();if(hist[hi]===j0)return;hist.splice(hi+1);hist.push(snap());if(hist.length>120)hist.shift();hi=hist.length-1;store.set('mathboard.current',hist[hi]);syncBar()}
+function pushHistory(){setEmpty();const j0=snap();if(hist[hi]===j0)return;hist.splice(hi+1);hist.push(snap());if(hist.length>120)hist.shift();hi=hist.length-1;store.set('mathboard.current',hist[hi]);syncBar()}
 function restore(j){const o=JSON.parse(j);S.items=(o.items||[]).filter(it=>it.kind==='piece'||TOOLS[it.type]);S.items.forEach(it=>{if(it.kind==='widget')it.st=Object.assign(TOOLS[it.type].d(),it.st||{})});S.strokes=o.strokes||[];S.bg=o.bg||'squares';S.gens=o.gens||{};if(activeGen!=null&&!S.gens[activeGen])activeGen=null;nextId=Math.max(0,...S.items.map(i=>i.id),...S.strokes.map(s=>s.id))+1;if(!S.items.some(i=>i.id===sel))sel=null;renderAll();syncSB()}
 const find=id=>S.items.find(i=>i.id===id);
 
@@ -978,7 +996,7 @@ function buildSB(){const B=$('#sbar');B.innerHTML='';
     h('button',{type:'button',class:'tb',id:'sbrev',title:'Show or hide the answer to ?','aria-label':'Show the answer to ?',onclick:sbReveal},h('span',{class:'qmark'},'?'),h('span',{class:'lbl'},'Show answer')),
     h('button',{type:'button',class:'tb',id:'sbnew',title:'Add this sentence as a new set',onclick:()=>sbNew()},icon('plus'),h('span',{class:'lbl'},'New set')),
     h('button',{type:'button',class:'tb',id:'sbdel',title:'Remove the selected set',onclick:sbDelete},icon('trash'),h('span',{class:'lbl'},'Remove set')),
-    h('span',{id:'sbmsg',class:'sbmsg',role:'status'}));syncSB()}
+    h('span',{id:'sbmsg',class:'sbmsg',role:'status'}),h('button',{type:'button',class:'tb danger sbclear',title:'Clear the board','aria-label':'Clear all',onclick:clearBoard},icon('clear'),h('span',{class:'lbl'},'Clear all')));syncSB()}
 function sbShow(G,editing){const m=$('#sbmsg');if(!m)return;m.className='sbmsg'+(G&&(G.err||G.warn)?' bad':'');m.textContent=!G?'':G.err||G.warn||(editing?G.msg:(G.msg?G.msg+'  ·  press Enter to add':''))}
 function syncSB(){const q=$('#sbq');if(!q)return;const g=activeGen!=null?S.gens[activeGen]:null;const src=g||GEN;
   q.value=src.q;$('#sbtype').value=src.type;$('#sbmode').textContent=g?'Editing selected set':'New set';$('#sbmode').classList.toggle('on',!!g);$('#sbin').classList.toggle('edit',!!g);
@@ -1022,7 +1040,8 @@ function renderItem(it){const old=board.querySelector(`.item[data-id="${it.id}"]
   if(old&&a&&a.id&&old.contains(a)){fid=a.id;try{ss=a.selectionStart;se=a.selectionEnd}catch(e){}}
   const n=buildItem(it);if(old)old.replaceWith(n);else layerOf(it).append(n);
   if(fid){const f=document.getElementById(fid);if(f){f.focus({preventScroll:true});try{if(ss!=null)f.setSelectionRange(ss,se)}catch(e){}}}scheduleBal()}
-function renderAll(){wl.innerHTML='';pl.innerHTML='';S.items.forEach(it=>layerOf(it).append(buildItem(it)));renderInk();board.className='bg-'+S.bg;const bs=$('#bgsel');if(bs)bs.value=S.bg;scheduleBal();syncBar()}
+function setEmpty(){const e=$('#empty');if(e)e.hidden=S.items.length>0||S.strokes.length>0}
+function renderAll(){setEmpty();wl.innerHTML='';pl.innerHTML='';S.items.forEach(it=>layerOf(it).append(buildItem(it)));renderInk();board.className='bg-'+S.bg;const bs=$('#bgsel');if(bs)bs.value=S.bg;scheduleBal();syncBar()}
 function pathD(p){if(p.length===1)return`M${p[0][0]} ${p[0][1]} l.1 0`;if(p.length===2)return`M${p[0][0]} ${p[0][1]} L${p[1][0]} ${p[1][1]}`;let d=`M${p[0][0]} ${p[0][1]}`;for(let i=1;i<p.length-1;i++){const mx=(p[i][0]+p[i+1][0])/2,my=(p[i][1]+p[i+1][1])/2;d+=` Q${p[i][0]} ${p[i][1]} ${mx} ${my}`}const l=p[p.length-1];return d+` L${l[0]} ${l[1]}`}
 const strokeEl=s=>sv('path',{d:pathD(s.pts),style:`stroke:${s.c==='ink'?'var(--ink)':s.c};stroke-width:${s.w}px;opacity:${s.a}`,'data-id':s.id});
 function renderInk(){inkg.innerHTML='';S.strokes.forEach(s=>inkg.append(strokeEl(s)))}
@@ -1095,7 +1114,7 @@ function buildBar(){const B=$('#bar');B.innerHTML='';
     tb('copy','Duplicate',()=>{const it=find(sel);if(it)duplicate(it)},{id:'bdup'}),tb('trash','Delete',()=>{if(sel!=null)removeItem(sel)},{id:'bdel'}),h('span',{class:'sep'}),
     h('button',{type:'button',class:'tb',title:'Zoom out','aria-label':'Zoom out',onclick:()=>setZoom(zoom-.1)},icon('minus')),h('span',{class:'zl',id:'zl'},'100%'),h('button',{type:'button',class:'tb',title:'Zoom in','aria-label':'Zoom in',onclick:()=>setZoom(zoom+.1)},icon('plus')),
     h('select',{class:'tbsel',id:'bgsel','aria-label':'Board background',onchange:e=>{S.bg=e.target.value;board.className='bg-'+S.bg;pushHistory()}},[['squares','Squared'],['dots','Dotted'],['lines','Lined'],['plain','Plain']].map(([v,l])=>h('option',{value:v},l))),
-    h('span',{class:'sep'}),tb('folder','Workspaces',openWS),tb('clear','Clear board',clearBoard,{id:'bclear'}),tb('full','Full screen',()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(_){}}));
+    h('span',{class:'sep'}),tb('folder','Workspaces',openWS),tb('clear','Clear all',clearBoard,{id:'bclear',class:'tb danger'}),tb('full','Full screen',()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(_){}}));
   syncBar()}
 function syncBar(){document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
   document.querySelectorAll('[data-col]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.col===penColor));
@@ -1106,8 +1125,20 @@ function setMode(m){mode=m;app.classList.toggle('drawing',m==='pen'||m==='hl');a
 function setZoom(z){const c=viewCenter();zoom=Math.round(Math.max(.4,Math.min(2.5,z))*10)/10;board.style.transform=`scale(${zoom})`;sizer.style.width=BW*zoom+'px';sizer.style.height=BH*zoom+'px';$('#zl').textContent=Math.round(zoom*100)+'%';scroller.scrollLeft=c.x*zoom-scroller.clientWidth/2;scroller.scrollTop=c.y*zoom-scroller.clientHeight/2;scheduleBal()}
 function undo(){if(hi>0){hi--;restore(hist[hi]);store.set('mathboard.current',hist[hi]);syncBar()}}
 function redo(){if(hi<hist.length-1){hi++;restore(hist[hi]);store.set('mathboard.current',hist[hi]);syncBar()}}
-let clearArm=0;function clearBoard(){const b=$('#bclear');if(Date.now()-clearArm>3000){clearArm=Date.now();b.querySelector('.lbl').textContent='Tap again to clear';toast('Tap Clear board again to remove everything');setTimeout(()=>{b.querySelector('.lbl').textContent='Clear board'},3000);return}
-  clearArm=0;b.querySelector('.lbl').textContent='Clear board';S.items=[];S.strokes=[];S.gens={};sel=null;activeGen=null;openSet.clear();renderAll();pushHistory();syncSB()}
+function doClear(what){
+  if(what==='all'){S.items=[];S.strokes=[];S.gens={};openSet.clear()}
+  else if(what==='ink')S.strokes=[];
+  else if(what==='pieces'){S.items=S.items.filter(i=>i.kind!=='piece');S.gens={}}
+  else if(what==='tools'){S.items.filter(i=>i.kind==='widget').forEach(i=>openSet.delete(i.id));S.items=S.items.filter(i=>i.kind!=='widget')}
+  sel=null;activeGen=null;renderAll();pushHistory();syncSB();$('#wsov').hidden=true;
+  toast({all:'Board cleared',ink:'Drawings cleared',pieces:'Manipulatives cleared',tools:'Workspace tools cleared'}[what]+'. Press Undo to bring it back.')}
+function clearBoard(){const ov=$('#wsov');ov.innerHTML='';
+  const nW=S.items.filter(i=>i.kind==='widget').length,nP=S.items.filter(i=>i.kind==='piece').length,nI=S.strokes.length;
+  const opt=(what,label,count,cls)=>h('button',{type:'button',class:'clr '+(cls||''),disabled:count===0,onclick:()=>doClear(what)},h('span',{},label),h('span',{class:'clrn'},count===0?'none':String(count)));
+  ov.append(h('div',{class:'dlg',role:'dialog','aria-label':'Clear the board'},h('h2',{},'Clear the board'),h('p',{class:'muted'},'Choose what to remove. You can press Undo afterwards to bring it back.'),
+    opt('all','Clear everything',nW+nP+nI,'danger'),opt('pieces','Manipulatives only',nP),opt('tools','Workspace tools only',nW),opt('ink','Pen and highlighter drawings only',nI),
+    h('div',{class:'row',style:{justifyContent:'flex-end'}},btn('Cancel',()=>ov.hidden=true))));
+  ov.hidden=false;setTimeout(()=>ov.querySelector('.clr:not(:disabled)')?.focus(),30)}
 function toggleLib(){if(matchMedia('(max-width:820px)').matches){app.classList.remove('nolib');app.classList.toggle('libopen')}else app.classList.toggle('nolib');syncTabs()}
 function closeLibMobile(){if(matchMedia('(max-width:820px)').matches){app.classList.remove('libopen');syncTabs()}}
 function toast(t){const e=h('div',{class:'toast',role:'status'},t);document.body.append(e);setTimeout(()=>e.remove(),2200)}
@@ -1129,7 +1160,7 @@ function openWS(){const ov=$('#wsov');ov.innerHTML='';const all=wsGet();
 $('#wsov').addEventListener('pointerdown',e=>{if(e.target.id==='wsov')e.target.hidden=true});
 
 /* ---------- keyboard ---------- */
-document.addEventListener('keydown',e=>{const a=document.activeElement;const typing=a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.tagName==='SELECT'||a.isContentEditable);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#wsov').hidden){$('#wsov').hidden=true;return}const a=document.activeElement;const typing=a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.tagName==='SELECT'||a.isContentEditable);
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!typing){e.preventDefault();e.shiftKey?redo():undo();return}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'&&!typing){e.preventDefault();redo();return}
   if(typing||e.ctrlKey||e.metaKey||e.altKey)return;
@@ -1154,9 +1185,13 @@ function sample(){
 
 /* ---------- boot ---------- */
 buildBar();buildLib();buildSB();sizer.style.width=BW+'px';sizer.style.height=BH+'px';board.style.width=BW+'px';board.style.height=BH+'px';ink.setAttribute('width',BW);ink.setAttribute('height',BH);
-const saved=store.get('mathboard.current');let ok=false;if(saved){try{restore(saved);ok=true}catch(e){}}
-if(!ok){S={items:[],strokes:[],bg:'squares',gens:{}};sample();renderAll()}
-pushHistory();setMode('move');
+const lastBoard=store.get('mathboard.current');
+S={items:[],strokes:[],bg:'squares',gens:{}};renderAll();pushHistory();setMode('move');
+try{const o=lastBoard&&JSON.parse(lastBoard);if(o&&((o.items&&o.items.length)||(o.strokes&&o.strokes.length))){
+  const bar=h('div',{class:'restore',role:'status'},h('span',{},'Starting with a blank board.'),
+    h('button',{type:'button',class:'wbtn pri',onclick:()=>{restore(lastBoard);pushHistory();bar.remove();toast('Last board restored')}},'Restore last board'),
+    h('button',{type:'button',class:'hb','aria-label':'Dismiss',onclick:()=>bar.remove()},icon('x')));
+  document.body.append(bar);setTimeout(()=>bar.remove(),15000)}}catch(e){}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(scheduleBal);
 })();
 </script>
