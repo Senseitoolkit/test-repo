@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MULTIPLY // arcade math</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,6 +28,7 @@
     font-family: 'Space Mono', monospace;
     overflow-x: hidden;
   }
+  body.playing { overflow: hidden; }
 
   /* Scanline + grid background */
   body::before {
@@ -42,39 +43,39 @@
     pointer-events: none;
     z-index: 0;
   }
-
   body::after {
     content: '';
     position: fixed;
     inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent 0,
-      transparent 2px,
-      rgba(0,0,0,0.15) 2px,
-      rgba(0,0,0,0.15) 3px
-    );
+    background: repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 3px);
     pointer-events: none;
-    z-index: 1;
+    z-index: 50;
     mix-blend-mode: multiply;
   }
 
-  .wrap {
-    position: relative;
-    z-index: 2;
+  .screen { position: relative; z-index: 2; }
+  .screen.hidden { display: none !important; }
+
+  /* =========================================================
+     MENU SCREEN
+     ========================================================= */
+  #menu {
     max-width: 720px;
     margin: 0 auto;
     padding: 24px 20px 60px;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* HEADER */
   header {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
     border-bottom: 2px dashed var(--dim);
     padding-bottom: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 8px;
   }
   .logo {
     font-family: 'Major Mono Display', monospace;
@@ -95,221 +96,34 @@
   }
   .tag::before { content: '▸ '; color: var(--acid); }
 
-  /* STATS BAR */
-  .stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 10px;
-    margin-bottom: 24px;
-  }
-  .stat {
-    background: var(--panel);
-    border: 1px solid var(--dim);
-    padding: 12px 14px;
-    position: relative;
-  }
-  .stat::before {
-    content: '';
-    position: absolute;
-    top: -1px; left: -1px;
-    width: 8px; height: 8px;
-    border-top: 2px solid var(--acid);
-    border-left: 2px solid var(--acid);
-  }
-  .stat::after {
-    content: '';
-    position: absolute;
-    bottom: -1px; right: -1px;
-    width: 8px; height: 8px;
-    border-bottom: 2px solid var(--acid);
-    border-right: 2px solid var(--acid);
-  }
-  .stat-label {
+  .menu-best {
     font-family: 'VT323', monospace;
-    font-size: 0.95rem;
+    font-size: 1.1rem;
     color: var(--dim);
-    text-transform: uppercase;
     letter-spacing: 0.15em;
+    margin-top: 12px;
+    text-align: right;
   }
-  .stat-val {
-    font-family: 'VT323', monospace;
-    font-size: 2rem;
-    color: var(--ink);
-    line-height: 1;
-    margin-top: 2px;
-  }
-  .stat-val.streak { color: var(--acid); }
-  .stat-val.streak.fire { color: var(--hot); text-shadow: 0 0 12px var(--hot); }
-  .stat-val.time { color: var(--cyan); }
-  .stat-val.time.low { color: var(--hot); animation: pulse 0.6s infinite; }
+  .menu-best b { color: var(--acid); font-weight: normal; }
 
-  .reset-btn {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: transparent;
-    border: 1px solid var(--dim);
-    color: var(--dim);
-    font-family: 'VT323', monospace;
-    font-size: 0.85rem;
-    letter-spacing: 0.1em;
-    padding: 2px 8px;
-    cursor: pointer;
-    transition: all 0.12s;
-  }
-  .reset-btn:hover {
-    color: var(--hot);
-    border-color: var(--hot);
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  /* PROBLEM CARD */
-  .problem {
-    background: var(--bg-2);
-    border: 2px solid var(--ink);
-    box-shadow: 8px 8px 0 var(--hot);
-    padding: 32px 20px;
-    text-align: center;
-    margin-bottom: 24px;
-    position: relative;
-  }
-  .problem-tag {
-    position: absolute;
-    top: -10px;
-    left: 16px;
-    background: var(--bg);
-    padding: 0 8px;
-    font-family: 'VT323', monospace;
-    font-size: 0.95rem;
-    color: var(--cyan);
-    letter-spacing: 0.15em;
-  }
-  .equation {
-    font-family: 'Major Mono Display', monospace;
-    font-size: clamp(2.4rem, 11vw, 3.6rem);
-    letter-spacing: -0.02em;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 0.4em;
-    flex-wrap: wrap;
-  }
-  .equation .op { color: var(--hot); }
-  .equation .eq { color: var(--dim); }
-  .equation .num { transition: transform 0.15s; }
-  .equation.flash .num { animation: flashIn 0.25s ease-out; }
-  @keyframes flashIn {
-    from { transform: translateY(-12px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-
-  /* ANSWER INPUT */
-  .answer-row {
-    display: flex;
-    gap: 10px;
-    margin-top: 18px;
-  }
-  input.answer {
-    flex: 1;
-    background: var(--bg);
-    border: 2px solid var(--dim);
-    color: var(--acid);
-    font-family: 'VT323', monospace;
-    font-size: 1.8rem;
-    padding: 8px 14px;
-    text-align: center;
-    outline: none;
-    letter-spacing: 0.1em;
-  }
-  input.answer:focus {
-    border-color: var(--acid);
-    box-shadow: 0 0 0 3px rgba(198, 255, 0, 0.15);
-  }
-  input.answer.wrong {
-    border-color: var(--hot);
-    color: var(--hot);
-    animation: shake 0.3s;
-  }
-  @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-6px); }
-    75% { transform: translateX(6px); }
-  }
-  button.go {
-    background: var(--acid);
-    color: var(--bg);
-    border: 2px solid var(--ink);
-    font-family: 'Space Mono', monospace;
-    font-weight: 700;
-    padding: 0 22px;
-    cursor: pointer;
-    letter-spacing: 0.1em;
-    font-size: 0.95rem;
-    box-shadow: 4px 4px 0 var(--hot);
-    transition: transform 0.08s, box-shadow 0.08s;
-  }
-  button.go:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--hot); }
-  button.go:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--hot); }
-
-  /* TIMER BAR */
-  .timer-bar-wrap {
-    height: 6px;
-    background: var(--bg);
-    margin-top: 16px;
-    border: 1px solid var(--dim);
-    overflow: hidden;
-  }
-  .timer-bar {
-    height: 100%;
-    background: linear-gradient(90deg, var(--acid), var(--cyan));
-    transition: width 0.1s linear;
-  }
-  .timer-bar.low { background: var(--hot); }
-
-  /* FEEDBACK */
-  .feedback {
-    text-align: center;
-    font-family: 'VT323', monospace;
-    font-size: 1.4rem;
-    min-height: 1.6em;
-    letter-spacing: 0.1em;
-    margin-bottom: 16px;
-  }
-  .feedback.win { color: var(--acid); }
-  .feedback.lose { color: var(--hot); }
-
-  /* CONTROLS */
   .section-title {
     font-family: 'VT323', monospace;
     font-size: 1.1rem;
     color: var(--cyan);
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    margin: 28px 0 12px;
+    margin: 24px 0 12px;
     display: flex;
     align-items: center;
     gap: 10px;
   }
-  .section-title::before {
-    content: '';
-    width: 8px; height: 8px;
-    background: var(--hot);
-  }
-  .section-title::after {
-    content: '';
-    flex: 1;
-    border-top: 1px dashed var(--dim);
-  }
+  .section-title::before { content: ''; width: 8px; height: 8px; background: var(--hot); }
+  .section-title::after { content: ''; flex: 1; border-top: 1px dashed var(--dim); }
 
   /* SPEED TOGGLE */
   .speed-toggle {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 0;
     border: 2px solid var(--ink);
     background: var(--bg-2);
   }
@@ -323,7 +137,6 @@
     letter-spacing: 0.1em;
     cursor: pointer;
     font-size: 0.85rem;
-    position: relative;
     transition: all 0.15s;
   }
   .speed-btn:not(:last-child) { border-right: 2px solid var(--ink); }
@@ -335,58 +148,20 @@
     margin-top: 2px;
   }
   .speed-btn:hover { color: var(--ink); background: rgba(255,255,255,0.04); }
-  .speed-btn.active {
-    background: var(--hot);
-    color: var(--bg);
-  }
+  .speed-btn.active { background: var(--hot); color: var(--bg); }
   .speed-btn.active .secs { color: var(--bg); }
 
   /* TIMES TABLE GRID */
-  .tables-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
-  }
-  .table-btn {
-    aspect-ratio: 1;
-    background: var(--bg-2);
-    border: 1.5px solid var(--dim);
-    color: var(--ink);
-    font-family: 'VT323', monospace;
-    font-size: 1.4rem;
-    cursor: pointer;
-    transition: all 0.12s;
-    position: relative;
-  }
-  .table-btn:hover {
-    border-color: var(--acid);
-    color: var(--acid);
-    transform: translateY(-2px);
-  }
-  .table-btn.active {
-    background: var(--cyan);
-    color: var(--bg);
-    border-color: var(--cyan);
-    font-weight: 700;
-    box-shadow: 0 0 12px rgba(8, 217, 214, 0.5);
-  }
-  .table-btn.active::after {
-    content: '×';
-    position: absolute;
-    top: 2px;
-    right: 4px;
-    font-size: 0.7rem;
-  }
-
   .table-meta {
     display: flex;
     justify-content: space-between;
     font-family: 'VT323', monospace;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     color: var(--dim);
     margin-bottom: 8px;
     letter-spacing: 0.1em;
   }
+  .table-meta.warn #tableCount { color: var(--hot); }
   .table-meta button {
     background: none;
     border: none;
@@ -395,119 +170,327 @@
     font-size: inherit;
     cursor: pointer;
     letter-spacing: inherit;
+    padding: 2px 4px;
   }
   .table-meta button:hover { color: var(--acid); }
 
-  /* START / PAUSE OVERLAY */
-  .problem { position: relative; }
-  .overlay {
+  .tables-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .table-btn {
+    aspect-ratio: 1.4;
+    background: var(--bg-2);
+    border: 1.5px solid var(--dim);
+    color: var(--ink);
+    font-family: 'VT323', monospace;
+    font-size: 1.6rem;
+    cursor: pointer;
+    transition: all 0.12s;
+    position: relative;
+  }
+  .table-btn:hover { border-color: var(--acid); color: var(--acid); transform: translateY(-2px); }
+  .table-btn.active {
+    background: var(--cyan);
+    color: var(--bg);
+    border-color: var(--cyan);
+    box-shadow: 0 0 12px rgba(8, 217, 214, 0.5);
+  }
+  .table-btn.active::after {
+    content: '×';
     position: absolute;
-    inset: 0;
-    background: rgba(10, 14, 39, 0.92);
-    backdrop-filter: blur(2px);
+    top: 2px;
+    right: 5px;
+    font-size: 0.8rem;
+  }
+
+  .start-wrap {
+    margin-top: 32px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 14px;
-    z-index: 5;
-    border: 2px dashed var(--cyan);
-  }
-  .overlay-title {
-    font-family: 'Major Mono Display', monospace;
-    font-size: 1.4rem;
-    color: var(--cyan);
-    letter-spacing: 0.1em;
-  }
-  .overlay-sub {
-    font-family: 'VT323', monospace;
-    font-size: 1rem;
-    color: var(--dim);
-    letter-spacing: 0.15em;
-    text-align: center;
-    padding: 0 16px;
+    gap: 10px;
   }
   .start-btn {
+    width: 100%;
+    max-width: 360px;
     background: var(--hot);
     color: var(--ink);
     border: 2px solid var(--ink);
     font-family: 'Space Mono', monospace;
     font-weight: 700;
-    padding: 14px 36px;
+    padding: 18px 36px;
     cursor: pointer;
-    letter-spacing: 0.2em;
-    font-size: 1rem;
+    letter-spacing: 0.25em;
+    font-size: 1.15rem;
     box-shadow: 6px 6px 0 var(--acid);
-    transition: transform 0.08s, box-shadow 0.08s;
-    margin-top: 6px;
+    transition: transform 0.08s, box-shadow 0.08s, opacity 0.15s;
   }
   .start-btn:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--acid); }
   .start-btn:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 var(--acid); }
-  .overlay.hidden { display: none; }
+  .start-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: 6px 6px 0 var(--dim); }
+  .start-hint {
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+    text-align: center;
+  }
 
   footer {
     text-align: center;
-    margin-top: 32px;
+    margin-top: auto;
+    padding-top: 32px;
     font-family: 'VT323', monospace;
     font-size: 0.9rem;
     color: var(--dim);
     letter-spacing: 0.2em;
   }
   footer .blink { animation: blink 1.2s infinite; }
-  @keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
+  @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+  /* =========================================================
+     GAME SCREEN (full screen)
+     ========================================================= */
+  #game {
+    position: fixed;
+    inset: 0;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: var(--bg);
+  }
+  #game::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(rgba(8, 217, 214, 0.04) 1px, transparent 1px) 0 0 / 100% 32px,
+      linear-gradient(90deg, rgba(8, 217, 214, 0.04) 1px, transparent 1px) 0 0 / 32px 100%,
+      radial-gradient(ellipse at top, rgba(255, 46, 99, 0.18), transparent 60%),
+      radial-gradient(ellipse at bottom, rgba(8, 217, 214, 0.14), transparent 60%);
+    pointer-events: none;
+  }
+  #game > * { position: relative; }
+
+  .hud {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .stats {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .stat {
+    background: var(--panel);
+    border: 1px solid var(--dim);
+    padding: 8px 14px;
+    position: relative;
+  }
+  .stat::before, .stat::after {
+    content: '';
+    position: absolute;
+    width: 8px; height: 8px;
+  }
+  .stat::before { top: -1px; left: -1px; border-top: 2px solid var(--acid); border-left: 2px solid var(--acid); }
+  .stat::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--acid); border-right: 2px solid var(--acid); }
+  .stat-label {
+    font-family: 'VT323', monospace;
+    font-size: 0.95rem;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+  }
+  .stat-val {
+    font-family: 'VT323', monospace;
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    line-height: 1;
+  }
+  .stat-val.streak { color: var(--acid); }
+  .stat-val.streak.fire { color: var(--hot); text-shadow: 0 0 12px var(--hot); }
+  .stat-val.time { color: var(--cyan); }
+  .stat-val.time.low { color: var(--hot); animation: pulse 0.6s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .hud-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .hud-btn {
+    flex: 1;
+    min-width: 76px;
+    background: transparent;
+    border: 1px solid var(--dim);
+    color: var(--dim);
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+    padding: 2px 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .hud-btn:hover { color: var(--hot); border-color: var(--hot); }
+
+  .arena {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(16px, 4vh, 40px);
+    min-height: 0;
+  }
+
+  .problem-tag {
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    color: var(--cyan);
+    letter-spacing: 0.25em;
+  }
+  .equation {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(3.5rem, min(16vw, 22vh), 11rem);
+    letter-spacing: -0.02em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.35em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .equation .op { color: var(--hot); }
+  .equation .eq { color: var(--dim); }
+  .equation .q { color: var(--acid); }
+  .equation.flash .num { animation: flashIn 0.25s ease-out; }
+  @keyframes flashIn {
+    from { transform: translateY(-16px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .answer-row {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    max-width: 560px;
+  }
+  input.answer {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-2);
+    border: 2px solid var(--dim);
+    color: var(--acid);
+    font-family: 'VT323', monospace;
+    font-size: clamp(2rem, 6vh, 3.2rem);
+    padding: 6px 14px;
+    text-align: center;
+    outline: none;
+    letter-spacing: 0.1em;
+    -moz-appearance: textfield;
+  }
+  input.answer::-webkit-outer-spin-button,
+  input.answer::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input.answer:focus { border-color: var(--acid); box-shadow: 0 0 0 3px rgba(198, 255, 0, 0.15); }
+  input.answer.wrong { border-color: var(--hot); color: var(--hot); animation: shake 0.3s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  button.go {
+    background: var(--acid);
+    color: var(--bg);
+    border: 2px solid var(--ink);
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    padding: 0 26px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    font-size: 1rem;
+    box-shadow: 4px 4px 0 var(--hot);
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  button.go:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--hot); }
+  button.go:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--hot); }
+
+  .feedback {
+    text-align: center;
+    font-family: 'VT323', monospace;
+    font-size: clamp(1.4rem, 4vh, 2rem);
+    min-height: 1.4em;
+    letter-spacing: 0.1em;
+  }
+  .feedback.win { color: var(--acid); }
+  .feedback.lose { color: var(--hot); }
+
+  .timer-bar-wrap {
+    height: 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--dim);
+    overflow: hidden;
+  }
+  .timer-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--acid), var(--cyan));
+    transition: width 0.1s linear;
+  }
+  .timer-bar.low { background: var(--hot); }
+
+  .game-foot {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-family: 'VT323', monospace;
+    font-size: 0.95rem;
+    color: var(--dim);
+    letter-spacing: 0.15em;
+  }
+
+  /* Countdown overlay */
+  .countdown {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 14, 39, 0.94);
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(6rem, 30vh, 16rem);
+    color: var(--acid);
+    text-shadow: 6px 6px 0 var(--hot);
+    z-index: 10;
+  }
+  .countdown.hidden { display: none; }
+  .countdown span { animation: pop 0.6s ease-out; }
+  @keyframes pop {
+    from { transform: scale(1.6); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  @media (max-width: 480px) {
+    .hud { flex-direction: column; }
+    .hud-btns { flex-direction: row; }
+    .hud-btn { padding: 6px 10px; }
+    .stat { padding: 6px 10px; }
+    button.go { padding: 0 16px; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
 
+<!-- ===================== MENU ===================== -->
+<div class="screen" id="menu">
   <header>
     <div class="logo">multi<span class="x">×</span>ply</div>
-    <div class="tag">arcade math v2.6</div>
+    <div class="tag">arcade math v3.0</div>
   </header>
-
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-label">streak</div>
-      <div class="stat-val streak" id="streakVal">0</div>
-      <button class="reset-btn" id="resetBtn" title="reset streak">↺</button>
-    </div>
-    <div class="stat">
-      <div class="stat-label">best</div>
-      <div class="stat-val" id="bestVal">0</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">time</div>
-      <div class="stat-val time" id="timeVal">--</div>
-    </div>
-  </div>
-
-  <div class="problem">
-    <div class="problem-tag">// solve</div>
-    <div class="equation" id="equation">
-      <span class="num" id="a">7</span>
-      <span class="op">×</span>
-      <span class="num" id="b">8</span>
-      <span class="eq">=</span>
-      <span class="num">?</span>
-    </div>
-    <div class="answer-row">
-      <input class="answer" id="answer" type="number" inputmode="numeric" autocomplete="off" placeholder="answer">
-      <button class="go" id="goBtn">ENTER</button>
-    </div>
-    <div class="timer-bar-wrap">
-      <div class="timer-bar" id="timerBar" style="width:100%"></div>
-    </div>
-    <div class="overlay" id="overlay">
-      <div class="overlay-title" id="overlayTitle">ready?</div>
-      <div class="overlay-sub" id="overlaySub">pick your speed &amp; tables<br>then hit start</div>
-      <button class="start-btn" id="startBtn">▶ START</button>
-    </div>
-  </div>
-
-  <div class="feedback" id="feedback">&nbsp;</div>
+  <div class="menu-best">best streak · <b id="menuBest">0</b></div>
 
   <div class="section-title">speed</div>
   <div class="speed-toggle" id="speedToggle">
@@ -517,7 +500,7 @@
   </div>
 
   <div class="section-title">times tables</div>
-  <div class="table-meta">
+  <div class="table-meta" id="tableMeta">
     <span id="tableCount">12 tables selected</span>
     <span>
       <button id="allBtn">all</button> ·
@@ -526,19 +509,74 @@
   </div>
   <div class="tables-grid" id="tablesGrid"></div>
 
-  <footer>insert coin to continue <span class="blink">_</span></footer>
+  <div class="start-wrap">
+    <button class="start-btn" id="startBtn">▶ START</button>
+    <div class="start-hint">opens full screen · esc or ✕ to quit</div>
+  </div>
 
+  <footer>insert coin to continue <span class="blink">_</span></footer>
+</div>
+
+<!-- ===================== GAME ===================== -->
+<div class="screen hidden" id="game">
+  <div class="hud">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">streak</div>
+        <div class="stat-val streak" id="streakVal">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">best</div>
+        <div class="stat-val" id="bestVal">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">time</div>
+        <div class="stat-val time" id="timeVal">--</div>
+      </div>
+    </div>
+    <div class="hud-btns">
+      <button class="hud-btn" id="resetBtn" title="reset streak">↺ RESET</button>
+      <button class="hud-btn" id="quitBtn" title="back to menu">✕ MENU</button>
+    </div>
+  </div>
+
+  <div class="arena">
+    <div class="problem-tag">// solve</div>
+    <div class="equation" id="equation">
+      <span class="num" id="a">7</span>
+      <span class="op">×</span>
+      <span class="num" id="b">8</span>
+      <span class="eq">=</span>
+      <span class="num q">?</span>
+    </div>
+    <div class="answer-row">
+      <input class="answer" id="answer" type="number" inputmode="numeric" autocomplete="off" placeholder="answer">
+      <button class="go" id="goBtn">ENTER</button>
+    </div>
+    <div class="feedback" id="feedback">&nbsp;</div>
+  </div>
+
+  <div class="timer-bar-wrap">
+    <div class="timer-bar" id="timerBar" style="width:100%"></div>
+  </div>
+  <div class="game-foot">
+    <span id="gameInfo">medium · 12 tables</span>
+    <span>esc = menu</span>
+  </div>
+
+  <div class="countdown hidden" id="countdown"></div>
 </div>
 
 <script>
   // ===== STATE =====
   const state = {
-    speed: 'medium',           // slow | medium | fast
+    speed: 'medium',
     selectedTables: new Set([2,3,4,5,6,7,8,9,10,11,12,13]),
     streak: 0,
     best: 0,
     current: { a: 0, b: 0 },
     timer: null,
+    pending: [],        // queued timeouts (next problem, countdown) so quitting cancels them
     timeLeft: 0,
     timeTotal: 0,
     locked: false,
@@ -548,29 +586,33 @@
   const SPEED_SECS = { slow: 15, medium: 8, fast: 4 };
 
   // ===== ELEMENTS =====
+  const $ = (id) => document.getElementById(id);
   const el = {
-    a: document.getElementById('a'),
-    b: document.getElementById('b'),
-    equation: document.getElementById('equation'),
-    answer: document.getElementById('answer'),
-    goBtn: document.getElementById('goBtn'),
-    feedback: document.getElementById('feedback'),
-    streakVal: document.getElementById('streakVal'),
-    bestVal: document.getElementById('bestVal'),
-    timeVal: document.getElementById('timeVal'),
-    timerBar: document.getElementById('timerBar'),
-    speedToggle: document.getElementById('speedToggle'),
-    tablesGrid: document.getElementById('tablesGrid'),
-    tableCount: document.getElementById('tableCount'),
-    allBtn: document.getElementById('allBtn'),
-    noneBtn: document.getElementById('noneBtn'),
-    overlay: document.getElementById('overlay'),
-    overlayTitle: document.getElementById('overlayTitle'),
-    overlaySub: document.getElementById('overlaySub'),
-    startBtn: document.getElementById('startBtn'),
+    menu: $('menu'), game: $('game'),
+    menuBest: $('menuBest'),
+    speedToggle: $('speedToggle'),
+    tablesGrid: $('tablesGrid'), tableCount: $('tableCount'), tableMeta: $('tableMeta'),
+    allBtn: $('allBtn'), noneBtn: $('noneBtn'), startBtn: $('startBtn'),
+    a: $('a'), b: $('b'), equation: $('equation'),
+    answer: $('answer'), goBtn: $('goBtn'), feedback: $('feedback'),
+    streakVal: $('streakVal'), bestVal: $('bestVal'), timeVal: $('timeVal'),
+    timerBar: $('timerBar'), gameInfo: $('gameInfo'),
+    resetBtn: $('resetBtn'), quitBtn: $('quitBtn'), countdown: $('countdown'),
   };
 
-  // ===== BUILD TIMES TABLE GRID =====
+  function later(fn, ms) {
+    const id = setTimeout(() => {
+      state.pending = state.pending.filter(p => p !== id);
+      fn();
+    }, ms);
+    state.pending.push(id);
+  }
+  function clearPending() {
+    state.pending.forEach(clearTimeout);
+    state.pending = [];
+  }
+
+  // ===== MENU: TIMES TABLE GRID =====
   function buildGrid() {
     el.tablesGrid.innerHTML = '';
     for (let i = 1; i <= 20; i++) {
@@ -587,29 +629,17 @@
   function toggleTable(n) {
     if (state.selectedTables.has(n)) state.selectedTables.delete(n);
     else state.selectedTables.add(n);
-    const btn = el.tablesGrid.querySelector(`[data-n="${n}"]`);
-    btn.classList.toggle('active');
+    el.tablesGrid.querySelector(`[data-n="${n}"]`).classList.toggle('active');
     updateTableCount();
   }
 
   function updateTableCount() {
     const c = state.selectedTables.size;
-    el.tableCount.textContent = c === 0
-      ? 'pick at least one'
-      : `${c} table${c === 1 ? '' : 's'} selected`;
+    el.tableCount.textContent = c === 0 ? 'pick at least one' : `${c} table${c === 1 ? '' : 's'} selected`;
+    el.tableMeta.classList.toggle('warn', c === 0);
+    el.startBtn.disabled = c === 0;
   }
 
-  // ===== SPEED TOGGLE =====
-  el.speedToggle.addEventListener('click', (e) => {
-    const btn = e.target.closest('.speed-btn');
-    if (!btn) return;
-    state.speed = btn.dataset.speed;
-    el.speedToggle.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
-    // restart timer for current problem at new speed, only if running
-    if (state.running && !state.locked) startTimer();
-  });
-
-  // ===== ALL / NONE =====
   el.allBtn.addEventListener('click', () => {
     for (let i = 1; i <= 20; i++) state.selectedTables.add(i);
     el.tablesGrid.querySelectorAll('.table-btn').forEach(b => b.classList.add('active'));
@@ -621,25 +651,96 @@
     updateTableCount();
   });
 
+  // ===== MENU: SPEED =====
+  el.speedToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('.speed-btn');
+    if (!btn) return;
+    state.speed = btn.dataset.speed;
+    el.speedToggle.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
+
+  // ===== FULLSCREEN HELPERS =====
+  function enterFullscreen() {
+    const root = document.documentElement;
+    const req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (req && !document.fullscreenElement) {
+      try { const p = req.call(root); if (p && p.catch) p.catch(() => {}); } catch (_) {}
+    }
+  }
+  function exitFullscreen() {
+    const ex = document.exitFullscreen || document.webkitExitFullscreen;
+    if (ex && (document.fullscreenElement || document.webkitFullscreenElement)) {
+      try { const p = ex.call(document); if (p && p.catch) p.catch(() => {}); } catch (_) {}
+    }
+  }
+
+  // ===== START / QUIT =====
+  function startGame() {
+    if (state.selectedTables.size === 0) return;
+    enterFullscreen();
+    state.running = true;
+    document.body.classList.add('playing');
+    el.menu.classList.add('hidden');
+    el.game.classList.remove('hidden');
+
+    const n = state.selectedTables.size;
+    el.gameInfo.textContent = `${state.speed} · ${n} table${n === 1 ? '' : 's'}`;
+    el.feedback.textContent = '\u00A0';
+    el.feedback.className = 'feedback';
+    el.answer.value = '';
+    el.timerBar.style.width = '100%';
+    el.timerBar.classList.remove('low');
+    el.timeVal.textContent = '--';
+    el.timeVal.classList.remove('low');
+    resetStreak();
+    runCountdown(3);
+  }
+
+  function runCountdown(n) {
+    el.countdown.classList.remove('hidden');
+    const tick = (k) => {
+      if (!state.running) return;
+      if (k === 0) {
+        el.countdown.innerHTML = '<span>go</span>';
+        later(() => { el.countdown.classList.add('hidden'); newProblem(); }, 450);
+        return;
+      }
+      el.countdown.innerHTML = `<span>${k}</span>`;
+      later(() => tick(k - 1), 650);
+    };
+    tick(n);
+  }
+
+  function quitGame() {
+    if (!state.running) return;
+    state.running = false;
+    stopTimer();
+    clearPending();
+    el.countdown.classList.add('hidden');
+    document.body.classList.remove('playing');
+    el.game.classList.add('hidden');
+    el.menu.classList.remove('hidden');
+    el.menuBest.textContent = state.best;
+    exitFullscreen();
+    window.scrollTo(0, 0);
+  }
+
+  el.startBtn.addEventListener('click', startGame);
+  el.quitBtn.addEventListener('click', quitGame);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.running) quitGame();
+  });
+
   // ===== PROBLEM GENERATION =====
   function newProblem() {
-    if (state.selectedTables.size === 0) {
-      el.feedback.textContent = '× select at least one table ×';
-      el.feedback.className = 'feedback lose';
-      stopTimer();
-      return;
-    }
+    if (!state.running) return;
     const tables = [...state.selectedTables];
-    // one operand from selected tables, the other always 1-12
     const fromTable = tables[Math.floor(Math.random() * tables.length)];
     const oneToTwelve = Math.floor(Math.random() * 12) + 1;
-    // randomize which side is which
     if (Math.random() < 0.5) {
-      state.current.a = fromTable;
-      state.current.b = oneToTwelve;
+      state.current.a = fromTable; state.current.b = oneToTwelve;
     } else {
-      state.current.a = oneToTwelve;
-      state.current.b = fromTable;
+      state.current.a = oneToTwelve; state.current.b = fromTable;
     }
     el.a.textContent = state.current.a;
     el.b.textContent = state.current.b;
@@ -676,22 +777,13 @@
     state.timer = null;
   }
 
-  function updTimerColor() {
-    const pct = state.timeLeft / state.timeTotal;
-    if (pct < 0.25) {
-      el.timerBar.classList.add('low');
-      el.timeVal.classList.add('low');
-    } else {
-      el.timerBar.classList.remove('low');
-      el.timeVal.classList.remove('low');
-    }
-  }
-
   function updateTimerUI() {
-    const pct = (state.timeLeft / state.timeTotal) * 100;
-    el.timerBar.style.width = pct + '%';
+    const pct = state.timeLeft / state.timeTotal;
+    el.timerBar.style.width = (pct * 100) + '%';
     el.timeVal.textContent = Math.ceil(state.timeLeft) + 's';
-    updTimerColor();
+    const low = pct < 0.25;
+    el.timerBar.classList.toggle('low', low);
+    el.timeVal.classList.toggle('low', low);
   }
 
   function timeUp() {
@@ -702,12 +794,12 @@
     el.feedback.textContent = `× time! answer was ${correct} ×`;
     el.feedback.className = 'feedback lose';
     resetStreak();
-    setTimeout(newProblem, 1400);
+    later(newProblem, 1400);
   }
 
   // ===== ANSWER CHECK =====
   function checkAnswer() {
-    if (state.locked) return;
+    if (state.locked || !state.running) return;
     const val = parseInt(el.answer.value, 10);
     if (isNaN(val)) {
       el.answer.classList.add('wrong');
@@ -723,7 +815,7 @@
       updateStreakUI();
       el.feedback.textContent = `✓ correct · +1 streak`;
       el.feedback.className = 'feedback win';
-      setTimeout(newProblem, 700);
+      later(newProblem, 700);
     } else {
       el.answer.classList.add('wrong');
       el.feedback.textContent = `× ${val} is wrong, try again`;
@@ -733,7 +825,6 @@
         el.answer.value = '';
         el.answer.focus();
       }, 350);
-      // wrong answer breaks streak immediately
       resetStreak();
     }
   }
@@ -746,60 +837,27 @@
   function updateStreakUI() {
     el.streakVal.textContent = state.streak;
     el.bestVal.textContent = state.best;
+    el.menuBest.textContent = state.best;
     el.streakVal.classList.toggle('fire', state.streak >= 5);
   }
 
-  // ===== EVENTS =====
   el.goBtn.addEventListener('click', checkAnswer);
   el.answer.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') checkAnswer();
   });
-  el.startBtn.addEventListener('click', startGame);
-  el.resetBtn = document.getElementById('resetBtn');
   el.resetBtn.addEventListener('click', () => {
     resetStreak();
     el.feedback.textContent = '↺ streak reset';
     el.feedback.className = 'feedback';
     setTimeout(() => {
-      if (el.feedback.textContent === '↺ streak reset') {
-        el.feedback.textContent = '\u00A0';
-      }
+      if (el.feedback.textContent === '↺ streak reset') el.feedback.textContent = '\u00A0';
     }, 1000);
+    el.answer.focus();
   });
-
-  // ===== START / STOP =====
-  function startGame() {
-    if (state.selectedTables.size === 0) {
-      el.overlayTitle.textContent = 'oops';
-      el.overlaySub.innerHTML = 'pick at least one<br>times table first';
-      return;
-    }
-    state.running = true;
-    el.overlay.classList.add('hidden');
-    el.feedback.textContent = '\u00A0';
-    el.feedback.className = 'feedback';
-    resetStreak();
-    newProblem();
-  }
-
-  function stopGame(title, sub) {
-    // currently unused — kept in case we want to stop the game later
-    state.running = false;
-    stopTimer();
-    el.overlayTitle.textContent = title || 'ready?';
-    el.overlaySub.innerHTML = sub || 'pick your speed &amp; tables<br>then hit start';
-    el.overlay.classList.remove('hidden');
-    el.timerBar.style.width = '100%';
-    el.timerBar.classList.remove('low');
-    el.timeVal.textContent = '--';
-    el.timeVal.classList.remove('low');
-  }
 
   // ===== INIT =====
   buildGrid();
   updateStreakUI();
-  // Don't auto-start — wait for the start button
-  el.timeVal.textContent = '--';
 </script>
 </body>
 </html>
