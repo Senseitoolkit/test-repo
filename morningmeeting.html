@@ -464,7 +464,7 @@
 
   <div class="wrap">
     <header>
-      <div class="greeting" id="greeting">Good <em>morning!</em><br>Let's begin.</div>
+      <div class="greeting">Good <em id="greetpart">morning!</em><br><span id="greettag">Let's begin.</span></div>
       <div class="datebox">
         <div class="day" id="weekday">—</div>
         <div class="date" id="fulldate">—</div>
@@ -476,7 +476,7 @@
       <!-- LEFT CARD -->
       <div class="card left">
         <div>
-          <h2>This Morning <button class="edit-toggle" id="editbtn2" onclick="toggleEditSteps()">✎ Edit</button></h2>
+          <h2><span id="stepshead">This Morning</span> <button class="edit-toggle" id="editbtn2" onclick="toggleEditSteps()">✎ Edit</button></h2>
           <ol class="steps" id="steps">
             <li onclick="this.classList.toggle('done')">Put your water bottle in the basket</li>
             <li onclick="this.classList.toggle('done')">Take down your chair</li>
@@ -619,7 +619,10 @@
     let h=n.getHours(),m=String(n.getMinutes()).padStart(2,'0'),ap=h<12?'AM':'PM';
     const hour=n.getHours();
     const part = hour<12 ? 'morning' : (hour<17 ? 'afternoon' : 'evening');
-    document.getElementById('greeting').innerHTML=`Good <em>${part}!</em><br>Let's begin.`;
+    document.getElementById('greetpart').textContent=part+'!';
+    /* the checklist heading follows the same clock: This Morning / Afternoon / Evening */
+    document.getElementById('stepshead').textContent=
+      'This '+part.charAt(0).toUpperCase()+part.slice(1);
     h=h%12||12;
     document.getElementById('clock').textContent=`${h}:${m} ${ap}`;
   }
@@ -1688,12 +1691,27 @@
       stepsEl.appendChild(li);
     });
   }
+  /* "Let's begin." — editable alongside the steps, and remembered */
+  const greetTag=document.getElementById('greettag');
+  const DEFAULT_TAG="Let's begin.";
+  greetTag.textContent=load('mm_tagline',DEFAULT_TAG)||DEFAULT_TAG;
+  function saveTagline(){
+    const t=greetTag.textContent.replace(/\s+/g,' ').trim();
+    greetTag.textContent = t || DEFAULT_TAG;
+    save('mm_tagline',greetTag.textContent);
+  }
+
   function toggleEditSteps(){
     editingSteps=!editingSteps;
     const b=document.getElementById('editbtn2');
     b.classList.toggle('on',editingSteps);
     b.textContent=editingSteps?'✓ Done':'✎ Edit';
-    if(!editingSteps){
+    greetTag.setAttribute('contenteditable',editingSteps);
+    if(editingSteps){
+      greetTag.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();greetTag.blur();}};
+    }else{
+      greetTag.onkeydown=null;
+      saveTagline();
       stepsData=[...stepsEl.querySelectorAll('li')].map(li=>li.innerHTML.trim()).filter(t=>t&&t!=='<br>');
       save('mm_steps',stepsData);
     }
