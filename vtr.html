@@ -170,6 +170,12 @@ p.ed,div.ed{display:block}
 .t-age{font-size:.78rem;font-weight:700;color:var(--muted);margin-top:auto}
 .back{width:100%}
 @media (prefers-reduced-motion:reduce){.tile:hover{transform:none}}
+.say{background:var(--soft);border-radius:14px;padding:14px 16px;margin:2px 0 10px;border-left:5px solid var(--rc)}
+.say-lab{margin:0 0 4px;font-weight:700;font-size:.85rem;color:var(--muted)}
+.say-text{margin:0;font-size:1.08rem;max-width:65ch}
+.tsteps summary{cursor:pointer;font-weight:700;font-size:.92rem;color:var(--accent);margin:4px 0 8px}
+.stage-q.long{font-size:clamp(1.25rem,3vw,2.3rem);font-weight:400;line-height:1.35;max-width:46ch}
+.stage-cue{align-self:flex-start;margin:1vh 0 0;font-size:clamp(1rem,2vw,1.4rem);font-weight:700;background:#ffffff1a;border:1.5px solid #ffffff30;border-radius:999px;padding:8px 18px}
 /* Classroom display */
 .stage{position:fixed;inset:0;background:var(--stage);color:var(--stage-ink);z-index:50;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 24px calc(env(safe-area-inset-bottom,0px) + 18px)}
 .stage-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -316,6 +322,29 @@ const THEMES=[
    lp:["Caring","Principled"]}
 ];
 
+const ENG_INTRO={
+  tt:{icon:"🗣️",title:"Turn & Talk",
+    early:"Find your talk partner and sit knee to knee. I will show you a question. Think quietly first. Then take turns to tell your partner your idea.",
+    std:"Find your talk partner. For each question, think quietly first. Then take turns sharing your idea in one sentence. Partner A goes first, then Partner B. Listen carefully, because I might ask you to share your partner's idea.",
+    cue:"Think quietly, then turn and talk. Partner A goes first."},
+  wb:{icon:"✏️",title:"Mini whiteboards",
+    early:"Get your whiteboard and pen ready. When you see a question, draw or write your idea. When I say \"3, 2, 1, show me!\", hold your board up high.",
+    std:"Get your whiteboard, pen and eraser ready. For each question, write your idea in one sentence or a quick sketch. When I say \"3, 2, 1, show me!\", hold your board up so I can see it. Then wipe it clean for the next question.",
+    cue:"Write or draw your idea. 3, 2, 1, show me!"},
+  mm:{icon:"🧠",title:"Mind map",
+    early:"Sit with your group around the big paper. The picture goes in the middle. For each question, take turns to draw or write an idea on a new line.",
+    std:"Get into your group of four with a big sheet of paper and coloured pens. Put the topic in the middle. Each question gets its own branch and its own colour. Everyone adds at least one idea to every branch.",
+    cue:"Add your idea to this branch in a new colour."},
+  sn:{icon:"🟨",title:"Sticky-note wall",
+    early:"Take three sticky notes. For each question, draw or write one idea on a note, then stick it on the board.",
+    std:"Take a small pile of sticky notes and a pencil. For each question, write one idea on a sticky note and put it in the matching column on the board. Try to add at least one note to every column.",
+    cue:"Write one idea on a sticky note and add it to this column."},
+  gw:{icon:"🚶",title:"Gallery walk",
+    early:"With your group, walk to a poster. Look at the ideas there and add your own drawing or words. When you hear the signal, move to the next poster.",
+    std:"In your group, you will visit a poster for each question around the room. At each poster, read what is already there, tick ideas you agree with and add new ones. When you hear the signal, move to the next poster.",
+    cue:"Read, tick and add your ideas at this poster."}
+};
+const introFor=id=>BAND(S.year)==="early"?ENG_INTRO[id].early:ENG_INTRO[id].std;
 const ENG={
   tt:{name:"Turn & Talk",steps:["Give 20 seconds of silent thinking time for the first step.","Partner A talks for 45 seconds while Partner B listens. Swap.","Repeat for each step of the routine.","Cold-call three pairs to share their partner's best idea, not their own."]},
   wb:{name:"Mini whiteboards",steps:["Everyone gets a whiteboard and pen. Read the first question aloud.","Give 30 seconds to write or draw a response.","Say \"3, 2, 1, show me!\" Scan the room and pick two boards to discuss.","Wipe and repeat for each step."]},
@@ -520,6 +549,7 @@ function freshPlan(){
     note:YEAR_NOTE[S.year],
     lens:t.lens,
     eng:{id:engId,steps:ENG[engId].steps.slice()},
+    intro:introFor(engId), cue:ENG_INTRO[engId].cue,
     reflect:S.year==="Year 6"?"In your journal: Which step changed your thinking the most? What will you do next with this idea, and how does it connect to the central idea?":"",
     atl:r.atl.slice(), lp:[...new Set([...t.lp,r.lp])]
   };
@@ -527,7 +557,8 @@ function freshPlan(){
 let PLAN=null, PLAN_KEY=null;
 function getPlan(){
   const k=planKey();
-  if(PLAN_KEY!==k){PLAN_KEY=k;PLAN=EDITS[k]?JSON.parse(JSON.stringify(EDITS[k])):freshPlan();}
+  if(PLAN_KEY!==k){PLAN_KEY=k;PLAN=EDITS[k]?JSON.parse(JSON.stringify(EDITS[k])):freshPlan();
+    if(PLAN.intro==null){PLAN.intro=introFor(PLAN.eng.id);PLAN.cue=ENG_INTRO[PLAN.eng.id].cue;}}
   return PLAN;
 }
 const edited=()=>!!EDITS[PLAN_KEY];
@@ -581,22 +612,26 @@ function render(){
     </div>
   </div>
   ${S.edit||edited()?`<div class="editbar"><span id="editState">${S.edit?"Click any outlined text to change it. Changes save automatically.":"This routine includes your changes."}</span><button type="button" class="linkbtn" id="resetPlan" ${edited()?"":"hidden"}>Reset to original</button></div>`:""}
+  <section class="sec eng">
+    <h3><span><b class="n">1</b>How students will work</span></h3>
+    <select id="engSel" class="pick narrow" aria-label="How students will work">${engOpts}</select>
+    <div class="say"><p class="say-lab">${ENG_INTRO[engId].icon} Say to students first</p>${E("intro",P.intro,"p","say-text")}</div>
+    ${S.edit?`<p class="fieldlab">Reminder shown on each question slide</p>${E("cue",P.cue,"p","prompt sm")}`:""}
+    <details class="tsteps" ${S.edit?"open":""}><summary>Teacher steps for ${esc(ENG[engId].name)}</summary>
+      <ol>${P.eng.steps.map((s,i)=>`<li>${E(`eng.steps.${i}`,s)}${del(`eng.steps.${i}`)}</li>`).join("")}</ol>
+      ${add("eng.steps","step")}
+    </details>
+    ${engNote?`<p class="note">${esc(engNote)}</p>`:""}
+  </section>
   <section class="sec">
-    <h3><span><b class="n">1</b>Set it up</span><button class="linkbtn" id="newProv" type="button">Another idea ↻</button></h3>
+    <h3><span><b class="n">2</b>Show the provocation</span><button class="linkbtn" id="newProv" type="button">Another idea ↻</button></h3>
     ${E("prompt",P.prompt,"p","prompt")}
     ${S.edit?`<p class="fieldlab">First slide in class display</p>${E("look",P.look,"p","prompt sm")}`:""}
   </section>
   <section class="sec">
-    <h3><span><b class="n">2</b>Ask these questions, one at a time</span></h3>
+    <h3><span><b class="n">3</b>Ask these questions, one at a time</span></h3>
     ${stepsHtml}
     ${ok(id)?"":`<p class="warn">This routine is usually used from ${yShort(r.min)}. For ${esc(S.year)}, do it together as a class and use only the first question on each card.</p>`}
-  </section>
-  <section class="sec eng">
-    <h3><span><b class="n">3</b>How students share</span></h3>
-    <select id="engSel" class="pick narrow" aria-label="How students share">${engOpts}</select>
-    <ol>${P.eng.steps.map((s,i)=>`<li>${E(`eng.steps.${i}`,s)}${del(`eng.steps.${i}`)}</li>`).join("")}</ol>
-    ${add("eng.steps","step")}
-    ${engNote?`<p class="note">${esc(engNote)}</p>`:""}
   </section>
   <details class="more" id="more" ${S.edit||S.more?"open":""}>
     <summary>Planning extras <span>tips, big question, ATL and learner profile</span></summary>
@@ -624,7 +659,7 @@ function render(){
   $("#editBtn").onclick=()=>{S.edit=!S.edit;render();if(S.edit){const f=$("#out [contenteditable]");f&&f.focus();}};
   $("#newProv").onclick=()=>{S.prov++;const f=freshPlan();PLAN.prompt=f.prompt;PLAN.look=f.look;if(edited())commit();render();};
   const rb=$("#resetPlan");if(rb)rb.onclick=()=>{delete EDITS[PLAN_KEY];saveEdits();PLAN_KEY=null;render();};
-  $("#engSel").onchange=ev=>{S.eng=ev.target.value;PLAN.eng={id:S.eng,steps:ENG[S.eng].steps.slice()};if(edited())commit();render();};
+  $("#engSel").onchange=ev=>{S.eng=ev.target.value;PLAN.eng={id:S.eng,steps:ENG[S.eng].steps.slice()};PLAN.intro=introFor(S.eng);PLAN.cue=ENG_INTRO[S.eng].cue;if(edited())commit();render();};
   renderLib();
 }
 // edit events (delegated once)
@@ -639,7 +674,7 @@ $("#out").addEventListener("click",e=>{
 
 function planText(){
   const P=getPlan(), t=THEMES.find(x=>x.id===S.theme);
-  let s=`${P.title}\n${S.year} · ${t.name} · ${FOCUS.find(f=>f.id===S.focus).name}\n\nTeacher prompt\n${P.prompt}\n\nStudent questions\n`;
+  let s=`${P.title}\n${S.year} · ${t.name}\n\nHow students will work: ${ENG[P.eng.id].name}\nSay to students: ${P.intro}\n\nShow the provocation\n${P.prompt}\n\nStudent questions\n`;
   P.steps.forEach(stp=>{s+=`${stp.lab}${stp.sub?" ("+stp.sub+")":""}\n${stp.qs.filter(Boolean).map(q=>"  • "+q).join("\n")}\n`;});
   s+=`\nTheme lens: ${P.lens}\n\nEngagement move: ${ENG[P.eng.id].name}\n${P.eng.steps.filter(Boolean).map((x,i)=>`  ${i+1}. ${x}`).join("\n")}\n\nNote: ${P.note}\n${P.reflect?`Independent reflection: ${P.reflect}\n`:""}ATL: ${P.atl.filter(Boolean).join("; ")}\nLearner profile: ${P.lp.filter(Boolean).join(", ")}`;
   return s;
@@ -656,13 +691,15 @@ let slides=[],si=0,tick=null,left=0,wake=null;
 function buildSlides(){
   const P=getPlan();
   const f=x=>x.filter(q=>q&&q.trim());
-  slides=[{k:P.title,q:P.look,sub:"Silent looking first. No talking yet."}];
-  P.steps.forEach(stp=>{const qs=f(stp.qs);slides.push({k:stp.sub?`${stp.lab} · ${stp.sub}`:stp.lab,q:qs[0]||"",sub:qs.slice(1).join(" ")||(["Year 1","Year 2","Year 3"].includes(S.year)&&stp.starter?`“${stp.starter}”`:"")});});
+  const ei=ENG_INTRO[P.eng.id];
+  slides=[{k:`${ei.icon} Get ready`,q:P.intro,sub:`Today: ${P.title} with ${ENG[P.eng.id].name}`,long:true},
+    {k:P.title,q:P.look,sub:"Silent looking first. No talking yet."}];
+  P.steps.forEach(stp=>{const qs=f(stp.qs);slides.push({cue:P.cue,k:stp.sub?`${stp.lab} · ${stp.sub}`:stp.lab,q:qs[0]||"",sub:qs.slice(1).join(" ")||(["Year 1","Year 2","Year 3"].includes(S.year)&&stp.starter?`“${stp.starter}”`:"")});});
   slides.push({k:"Big question",q:P.lens,sub:THEMES.find(x=>x.id===S.theme).name});
 }
 function showSlide(){
   const s=slides[si];
-  $("#stMain").innerHTML=`<p class="stage-kicker">${esc(s.k)}</p><p class="stage-q">${esc(s.q)}</p>${s.sub?`<p class="stage-sub">${esc(s.sub)}</p>`:""}`;
+  $("#stMain").innerHTML=`<p class="stage-kicker">${esc(s.k)}</p><p class="stage-q${s.long?" long":""}">${esc(s.q)}</p>${s.sub?`<p class="stage-sub">${esc(s.sub)}</p>`:""}${s.cue?`<p class="stage-cue">${esc(ENG_INTRO[getPlan().eng.id].icon)} ${esc(s.cue)}</p>`:""}`;
   $("#stDots").innerHTML=slides.map((_,i)=>`<i class="${i===si?"on":""}"></i>`).join("");
   $("#stPrev").disabled=si===0;$("#stNext").textContent=si===slides.length-1?"Finish ✓":"Next →";
 }
@@ -716,7 +753,7 @@ function go(view){
   $("#menu").hidden=view!=="menu";$("#planner").hidden=view!=="plan";
   $("#tagline").innerHTML=view==="menu"
     ? "A thinking routine is a short set of questions that gets every student thinking and talking. <b>Tap a routine to start.</b>"
-    : "Check the questions, change anything you like, then press <b>Show to class</b>.";
+    : "Choose how students will work, check the questions, then press <b>Show to class</b>.";
   if(view==="menu")renderMenu();else{renderRail();render();}
   try{window.scrollTo(0,0);}catch(e){}
 }
