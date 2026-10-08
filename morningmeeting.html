@@ -271,6 +271,27 @@
   }
   .talk .wstarter::before{content:"★";color:var(--sun);flex:0 0 auto;}
   .talk .wstarter:empty{display:none;}
+
+  /* ── THINKING ROUTINE (VTR) MODE ── */
+  .vsteps{
+    display:none;list-style:none;counter-reset:v;margin:1.4vh 0 0;
+    flex-direction:column;gap:1vh;min-height:0;overflow-y:auto;flex:1 1 auto;
+  }
+  .talk.vtr-mode .vsteps{display:flex;}
+  .talk.vtr-mode .wstarter{display:none;}
+  .talk.vtr-mode .wprompt{flex:0 0 auto;overflow:visible;}
+  .vsteps li{
+    counter-increment:v;display:flex;gap:.7em;align-items:baseline;flex-shrink:0;
+    font-size:calc(clamp(1rem,1.75vw,1.45rem) * var(--txt,1));line-height:1.25;
+    color:var(--card-ink);
+  }
+  .vsteps li::before{
+    content:counter(v);font-family:'Space Mono',monospace;font-weight:700;
+    background:var(--leaf);color:var(--paper);width:1.8em;height:1.8em;flex:0 0 auto;
+    border-radius:50%;display:grid;place-items:center;font-size:.6em;
+  }
+  .talk.vtr-mode .wsel{max-width:none;flex:1 1 9em;min-width:0;}
+  .talk.vtr-mode .dots{flex-wrap:wrap;}
   .wsel{
     font-family:'Space Mono',monospace;font-weight:700;font-size:.78rem;
     border:2px solid var(--card-ink);background:var(--card);color:var(--card-ink);
@@ -480,11 +501,12 @@
         </h2>
 
         <p class="wprompt" id="wprompt"></p>
+        <ol class="vsteps" id="vsteps"></ol>
         <p class="wstarter" id="wstarter"></p>
 
         <div class="dots">
           <select id="wgenre" class="wsel" onchange="genTalk()" title="Filter by type"></select>
-          <button class="newbtn" onclick="genTalk()" title="Generate a fresh question">&#127922; New question</button>
+          <button class="newbtn" id="talkbtn" onclick="rollTalk()" title="Generate a fresh question">&#127922; New question</button>
           <span class="spacer"></span>
         </div>
       </div>
@@ -525,6 +547,13 @@
       <div class="set-btns">
         <button class="toggle" id="tg-word" onclick="setMathMode('word')">Word</button>
         <button class="toggle" id="tg-arith" onclick="setMathMode('arith')">Arithmetic</button>
+      </div>
+    </div>
+    <div class="set-row">
+      <span class="set-lab">Talk type</span>
+      <div class="set-btns">
+        <button class="toggle" id="tg-question" onclick="setTalkMode('q')">Question</button>
+        <button class="toggle" id="tg-vtr" onclick="setTalkMode('vtr')">Thinking</button>
       </div>
     </div>
     <div class="set-row">
@@ -1367,26 +1396,65 @@
   setMathMode(mathMode);
 
   /* =========================================================
-     Table talk controller
+     VISIBLE THINKING ROUTINES
+     An alternative to the Table Talk question: a named routine
+     with its steps, for the class to apply to whatever you're
+     teaching. Same card, same Show toggle.
+  ========================================================= */
+  const VTR = [
+    {n:'Think – Pair – Share',             t:'1–2 min',
+     s:['Think on your own','Discuss it with your partner','Share with the class']},
+    {n:'Think – Puzzle – Explore',         t:'2–3 min',
+     s:['What do you know?','What puzzles you?','How could we find out?']},
+    {n:'What Makes You Say That?',         t:'1 min',
+     s:['Give your opinion','Explain your reasoning or evidence']},
+    {n:'Tug of War',                       t:'2–3 min',
+     s:['Two opposing ideas are put forward','Pick a side','Defend it with a reason']},
+    {n:'Circle of Viewpoints',             t:'2–3 min',
+     s:['Choose someone involved','How would they think about this?','Speak as them: "I think…"']},
+    {n:'Connect – Extend – Challenge',     t:'2–3 min',
+     s:['What connects to what you already know?',"What's new to you?","What's still confusing?"]},
+    {n:'Step Inside',                      t:'1–2 min',
+     s:['Imagine being someone else','What would you think, feel or do?']},
+    {n:'Agree – Disagree – Why?',          t:'1–2 min',
+     s:['Read the statement','Do you agree or disagree?','Explain why']},
+    {n:'Add On – Challenge – Question',    t:'1–2 min',
+     s:["Build on someone's idea",'Respectfully disagree','Or ask them a question']},
+    {n:'I Used to Think – Now I Think',    t:'1–2 min',
+     s:['I used to think…','Now I think…','…because…']}
+  ];
+
+  /* =========================================================
+     Table talk controller  (questions ⇄ thinking routines)
   ========================================================= */
   const wprompt   = document.getElementById('wprompt'),
         wstarter  = document.getElementById('wstarter'),
+        vsteps    = document.getElementById('vsteps'),
         wgenretag = document.getElementById('wgenretag'),
+        talkh2    = document.querySelector('.talk h2'),
+        talkbtn   = document.getElementById('talkbtn'),
+        talkCardEl= document.getElementById('talkcard'),
         wgenreSel = document.getElementById('wgenre');
-  let wLastKey = null;
+  let wLastKey = null, vLastKey = null;
+  let talkMode = load('mm_talkmode','q');   /* 'q' | 'vtr' */
 
   function buildTalkTypes(){
-    if(!DDATA[year])return;
     const prev=wgenreSel.value;
-    const types=[...new Set(DDATA[year].items.map(i=>i.g))].sort();
-    wgenreSel.innerHTML='<option value="*">All types</option>'+types.map(g=>`<option value="${g}">${g}</option>`).join('');
+    if(talkMode==='vtr'){
+      wgenreSel.innerHTML='<option value="*">Any routine</option>'+
+        VTR.map((r,i)=>`<option value="${i}">${r.n}</option>`).join('');
+    }else{
+      if(!DDATA[year])return;
+      const types=[...new Set(DDATA[year].items.map(i=>i.g))].sort();
+      wgenreSel.innerHTML='<option value="*">All types</option>'+types.map(g=>`<option value="${g}">${g}</option>`).join('');
+    }
     if([...wgenreSel.options].some(o=>o.value===prev)) wgenreSel.value=prev;
   }
   function wPool(){
     const f=wgenreSel.value;
     return DDATA[year].items.filter(i=>f==='*'||i.g===f);
   }
-  function genTalk(){
+  function genQuestion(){
     const p=wPool();
     if(!p.length)return;
     let i=Math.floor(Math.random()*p.length);
@@ -1397,9 +1465,45 @@
     wprompt.textContent=item.p;
     wstarter.textContent=item.s||'';
   }
+  function genRoutine(){
+    const sel=wgenreSel.value;
+    let r;
+    if(sel!=='*'&&VTR[+sel]){ r=VTR[+sel]; }
+    else{
+      let i=Math.floor(Math.random()*VTR.length),guard=0;
+      while(VTR[i].n===vLastKey&&guard++<20)i=Math.floor(Math.random()*VTR.length);
+      r=VTR[i];
+    }
+    vLastKey=r.n;
+    wgenretag.textContent='Routine · '+r.t;
+    wprompt.textContent=r.n;
+    vsteps.innerHTML=r.s.map(t=>`<li>${t}</li>`).join('');
+  }
+  /* genTalk keeps its old name — the select, the Year picker and the
+     D/W shortcut all call it, and it routes to whichever mode is on. */
+  function genTalk(){ talkMode==='vtr' ? genRoutine() : genQuestion(); }
+  /* the button always rolls a fresh one, even with a routine pinned */
+  function rollTalk(){
+    if(talkMode==='vtr'){ wgenreSel.value='*'; genRoutine(); }
+    else genQuestion();
+  }
 
-  buildTalkTypes();
-  genTalk();
+  function setTalkMode(m){
+    talkMode=m;save('mm_talkmode',m);
+    const vtr=(m==='vtr');
+    talkCardEl.classList.toggle('vtr-mode',vtr);
+    talkh2.childNodes[0].nodeValue = vtr?'Thinking Routine ':'Table Talk ';
+    talkbtn.textContent = vtr?'🎲 New routine':'🎲 New question';
+    talkbtn.title = vtr?'Pick a different routine':'Generate a fresh question';
+    wgenreSel.title = vtr?'Pick a routine':'Filter by type';
+    document.getElementById('tg-question').classList.toggle('on',!vtr);
+    document.getElementById('tg-vtr').classList.toggle('on',vtr);
+    wgenreSel.value='*';
+    buildTalkTypes();
+    genTalk();
+  }
+
+  setTalkMode(talkMode);
 
   /* =========================================================
      Show / hide activity cards (Maths · Table talk — both or none)
