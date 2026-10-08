@@ -86,10 +86,14 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .qbanner .meta b{color:var(--ink)}
 
 #steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#steps[data-count="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1100px){#steps[data-count="3"]{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:760px){#steps{grid-template-columns:minmax(0,1fr)}}
-.step{background:var(--surface);border:1px solid var(--line);border-top:6px solid var(--sc);border-radius:var(--radius);padding:14px 18px 18px;display:grid;gap:10px;align-content:start;min-width:0}
-.step header{display:flex;gap:12px;align-items:center}
-.step .letter{background:var(--sc);color:var(--surface);font:800 28px/1 var(--display);width:44px;height:44px;border-radius:10px;display:grid;place-items:center;flex:none}
+.step{background:var(--surface) linear-gradient(90deg,var(--sc),var(--sc2)) top/100% 6px no-repeat;border:1px solid var(--line);border-radius:var(--radius);padding:20px 18px 18px;display:grid;gap:10px;align-content:start;min-width:0}
+.step header{display:flex;gap:6px;align-items:center}
+.step header>div{margin-left:6px}
+.sentenceNo{font-size:12px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.step .letter{background:var(--lc,var(--sc));color:var(--surface);font:800 28px/1 var(--display);width:44px;height:44px;border-radius:10px;display:grid;place-items:center;flex:none}
 .step h3{font-size:28px;color:var(--sc)}
 .step .tip{margin:0;color:var(--muted);font-size:17px;line-height:1.4}
 .echo{margin:0;font-size:19px;line-height:1.45;background:color-mix(in srgb,var(--sc) 9%,var(--surface));border-radius:10px;padding:8px 12px;display:grid;gap:2px}
@@ -132,7 +136,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
   .fit .qbanner h2{font-size:clamp(22px,3.6vh,34px)}
   .fit .qbanner .meta{margin-top:3px;font-size:clamp(12px,1.6vh,14px)}
   .fit #steps{grid-template-rows:1fr 1fr;gap:10px;min-height:0}
-  .fit .step{min-height:0;overflow:auto;padding:10px 16px 12px;gap:7px;border-top-width:5px}
+  .fit #steps[data-count="2"],.fit #steps[data-count="3"]{grid-template-rows:1fr;grid-template-columns:repeat(var(--n),minmax(0,1fr))}
+  .fit #steps[data-count="2"]{--n:2}.fit #steps[data-count="3"]{--n:3}
+  .fit .step{min-height:0;overflow:auto;padding:14px 16px 12px;gap:7px;background-size:100% 5px}
   .fit .step .letter{width:34px;height:34px;font-size:22px}
   .fit .step h3{font-size:clamp(20px,3vh,26px)}
   .fit .step .tip{font-size:clamp(14px,2vh,17px)}
@@ -297,30 +303,54 @@ function renderBanner(){
   const meta = (t.ci||q.loi) ? `<p class="meta">${t.ci?`<span><b>Central idea:</b> ${esc(t.ci)}</span>`:""}${q.loi?`<span>${esc(q.loi)}</span>`:""}</p>` : "";
   $("qbanner").innerHTML = `<div class="label">${esc(year().id)} · ${esc(t.theme)} · ${esc(t.title)}</div><h2>${q.q?esc(q.q):"Type your question above"}</h2>${meta}`;
 }
+/* How many sentences each year group writes */
+const stage = () => /^K/.test(year().id) ? "k" : (year().id==="Grade 1"||year().id==="Grade 2") ? "g12" : "full";
+const COLOR = {R:"var(--r)",A:"var(--a)",C:"var(--c)",E:"var(--e)"};
+function cardsFor(q){
+  const st = stage(), lc = q.restate ? q.restate.charAt(0).toLowerCase()+q.restate.slice(1) : "";
+  const byK = k => STEPS.find(s=>s.k===k);
+  if(st==="full") return STEPS.map(s=>({keys:[s.k], name:s.name, tip:s.tip[level],
+    starters: (s.k==="R" && level===1 && q.restate) ? [q.restate+" ___."] : [...s.starters[level]]}));
+  // Sentence 1: restate and answer together
+  const ra = {keys:["R","A"], name:"Restate + Answer",
+    tip: level===3 ? "Use the question's words, give your answer and a reason." : "Use the question's words and give your answer.",
+    starters: q.restate
+      ? (level===1 ? [q.restate+" ___."]
+        : level===2 ? [q.restate+" ___.", "I think "+lc+" ___."]
+        : [q.restate+" ___ because ___.", "I think "+lc+" ___ because ___."])
+      : (level===1 ? ["I think ___."] : ["I think ___ because ___."])};
+  if(st==="k"){
+    const ce = {keys:["C","E"], name:"Example + Explain", tip:"Give an example and say what it shows.",
+      starters: level===1 ? ["For example, ___, so ___."]
+        : level===2 ? ["For example, ___, so ___.", "I know because ___, and this shows ___."]
+        : ["For example, ___, and this shows ___.", "I know this because ___, so ___."]};
+    return [ra, ce];
+  }
+  return [ra, ...["C","E"].map(k=>{const s=byK(k);return {keys:[k], name:s.name, tip:s.tip[level], starters:[...s.starters[level]]}})];
+}
 function renderSteps(){
-  const q = question();
-  $("steps").innerHTML = STEPS.map(s=>{
-    let starters = [...s.starters[level]];
-    let echo = "";
-    if(s.k==="R" && q.restate){
-      const lc = q.restate.charAt(0).toLowerCase()+q.restate.slice(1);
+  const q = question(), cards = cardsFor(q), numbered = cards.length < 4;
+  $("steps").dataset.count = cards.length;
+  $("steps").innerHTML = cards.map((c,i)=>{
+    let starters = c.starters, echo = "";
+    if(c.keys[0]==="R" && q.restate){
       if(level===1){
-        starters = [q.restate+" ___."];
-        echo = `<div class="echo"><span>Question</span><p class="eq">${esc(q.q)}</p><span>Restate</span><p class="er">${withBlanks(q.restate+" ___.")}</p></div>`;
+        echo = `<div class="echo"><span>Question</span><p class="eq">${esc(q.q)}</p><span>${c.keys.length>1?"Restate and answer":"Restate"}</span><p class="er">${withBlanks(starters[0])}</p></div>`;
         starters = [];
-      } else if(level===2) starters.unshift(q.restate+" ___.");
+      } else if(level===2 && c.keys.length===1) starters = [q.restate+" ___.", ...starters];
     }
-    return `<article class="step" style="--sc:${s.color}">
-      <header><span class="letter" aria-hidden="true">${s.k}</span><h3>${s.name}</h3></header>
-      ${echo || `<p class="tip">${s.tip[level]}</p>`}
-      ${starters.length ? `<ul class="starters" aria-label="${s.name} sentence starters">${starters.map(st=>`<li>${withBlanks(st)}</li>`).join("")}</ul>` : ""}
+    const badges = c.keys.map(k=>`<span class="letter" style="--lc:${COLOR[k]}" aria-hidden="true">${k}</span>`).join("");
+    return `<article class="step" style="--sc:${COLOR[c.keys[0]]};--sc2:${COLOR[c.keys[c.keys.length-1]]}">
+      <header>${badges}<div>${numbered?`<div class="sentenceNo">Sentence ${i+1}</div>`:""}<h3>${c.name}</h3></div></header>
+      ${echo || `<p class="tip">${c.tip}</p>`}
+      ${starters.length ? `<ul class="starters" aria-label="${c.name} sentence starters">${starters.map(st=>`<li>${withBlanks(st)}</li>`).join("")}</ul>` : ""}
     </article>`;
   }).join("");
 }
 function renderBank(){
   const q = question();
   $("topicChips").innerHTML = q.words.map(w=>`<span class="chip topic">${esc(w)}</span>`).join("");
-  $("linkChips").innerHTML = LEVELS[level].links.map(w=>`<span class="chip">${esc(w)}</span>`).join("");
+  $("linkChips").innerHTML = (stage()==="k" ? ["and","so","because","for example","this shows","I think"] : LEVELS[level].links).map(w=>`<span class="chip">${esc(w)}</span>`).join("");
 }
 function renderAll(){renderLevels();renderYears();renderThemes();renderQs();renderBanner();renderSteps();renderBank()}
 
