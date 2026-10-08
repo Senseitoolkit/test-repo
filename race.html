@@ -3,538 +3,654 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PYP RACE Writer</title>
+<title>PYP Thinking Routines Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
-/* Layout: picker band (level, unit, question) → two columns: RACE steps + paragraph | sticky word bank + checklist */
+/* Layout: planner rail (3 ordered choices) on the left, routine card on the right; stacks on phones. Classroom display is a full-screen overlay. */
 :root{
-  --bg:#F3F5F9; --surface:#FFFFFF; --sunk:#EAEEF5; --ink:#1B2232; --muted:#566079; --line:#D9DFEA;
-  --accent:#2F55D4; --accent-ink:#FFFFFF;
-  --r:#0F7A6C; --a:#2F55D4; --c:#A86A10; --e:#7445BE;
-  --ok:#1F7A3D; --warn:#B4541A;
-  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
-  --body:"Atkinson Hyperlegible",Verdana,system-ui,sans-serif;
-  --radius:12px;
+  --paper:#f4f6f9; --card:#ffffff; --ink:#18233a; --muted:#5b6679; --line:#dde2ea;
+  --accent:#1f5fd1; --accent-ink:#ffffff; --hi:#ffd23f; --soft:#e8eefb;
+  --c-see:#1f5fd1; --c-ask:#7a3fd1; --c-link:#0f8a6a; --c-view:#c2410c; --c-reason:#b4235a; --c-act:#0e7490; --c-sum:#946200;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --stage:#101a2e; --stage-ink:#f5f7fb;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#11141B; --surface:#191E28; --sunk:#222836; --ink:#E7EBF3; --muted:#9BA4B8; --line:#2C3443;
-  --accent:#86A2FF; --accent-ink:#0E1220;
-  --r:#4CC3B1; --a:#86A2FF; --c:#E4B04F; --e:#B994F2; --ok:#5FCB85; --warn:#F09A61; color-scheme:dark}}
+  --paper:#0f1522; --card:#172033; --ink:#e8edf6; --muted:#9aa6bb; --line:#2a3550;
+  --accent:#6b9cff; --accent-ink:#0f1522; --hi:#ffd23f; --soft:#1f2b45;
+  --c-see:#6b9cff; --c-ask:#b28cff; --c-link:#4fd1a8; --c-view:#ff9a5c; --c-reason:#ff7aa8; --c-act:#5fd0e6; --c-sum:#f2c14e;
+  --stage:#070b14; --stage-ink:#f5f7fb; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#11141B; --surface:#191E28; --sunk:#222836; --ink:#E7EBF3; --muted:#9BA4B8; --line:#2C3443;
-  --accent:#86A2FF; --accent-ink:#0E1220;
-  --r:#4CC3B1; --a:#86A2FF; --c:#E4B04F; --e:#B994F2; --ok:#5FCB85; --warn:#F09A61; color-scheme:dark}
+  --paper:#0f1522; --card:#172033; --ink:#e8edf6; --muted:#9aa6bb; --line:#2a3550;
+  --accent:#6b9cff; --accent-ink:#0f1522; --hi:#ffd23f; --soft:#1f2b45;
+  --c-see:#6b9cff; --c-ask:#b28cff; --c-link:#4fd1a8; --c-view:#ff9a5c; --c-reason:#ff7aa8; --c-act:#5fd0e6; --c-sum:#f2c14e;
+  --stage:#070b14; --stage-ink:#f5f7fb; color-scheme:dark}
 
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);padding-inline:16px;padding-block:20px 48px}
-.wrap{max-width:1180px;margin-inline:auto;display:grid;gap:20px}
-h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;text-wrap:balance}
-button{font:inherit;color:inherit;cursor:pointer}
-button:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:24px 48px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:22px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(1.6rem,3.4vw,2.3rem);line-height:1.05;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h1 span{background:linear-gradient(transparent 62%,var(--hi) 62%);padding:0 .08em}
+.tag{color:var(--muted);margin:.35rem 0 0;max-width:52ch}
+.grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:1fr}}
 
-/* header */
-.top{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px}
-.brand{display:flex;align-items:center;gap:14px}
-.mark{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
-.mark span{width:30px;height:38px;border-radius:7px;display:grid;place-items:center;font:800 22px var(--display);color:var(--surface)}
-.mark span:nth-child(1){background:var(--r)}.mark span:nth-child(2){background:var(--a)}
-.mark span:nth-child(3){background:var(--c)}.mark span:nth-child(4){background:var(--e)}
-.brand h1{font-size:28px}
-.brand p{margin:0;color:var(--muted);font-size:14px}
-
-.levels{display:flex;gap:4px;background:var(--sunk);padding:4px;border-radius:14px;flex-wrap:wrap}
-.levels button{border:0;background:transparent;padding:8px 14px;border-radius:10px;text-align:left;display:grid;line-height:1.2}
-.levels b{font-family:var(--display);font-size:17px}
-.levels small{color:var(--muted);font-size:12px}
-.levels button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgb(0 0 0 / .12)}
-.levels button[aria-pressed="true"] small{color:var(--ink)}
-
-/* picker */
-.pick{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:grid;gap:16px}
-.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
-.themes button{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;text-align:left;display:grid;gap:2px;transition:border-color .15s,background .15s}
-.themes button b{font-family:var(--display);font-size:16px;line-height:1.15;display:flex;gap:8px;align-items:center}
-.themes button b::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--tc);flex:none}
-.themes button small{color:var(--muted);font-size:12.5px}
-.themes button:hover{border-color:var(--tc)}
-.themes button[aria-pressed="true"]{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 10%,var(--surface))}
-.qs{display:grid;gap:6px}
-.qs button{border:1.5px solid var(--line);background:transparent;border-radius:10px;padding:9px 12px;text-align:left;display:flex;gap:10px;align-items:baseline}
-.qs button::before{content:"";width:14px;height:14px;border-radius:50%;border:2px solid var(--muted);flex:none;transform:translateY(2px)}
-.qs button[aria-pressed="true"]{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 8%,var(--surface))}
-.qs button[aria-pressed="true"]::before{border-color:var(--tc);background:radial-gradient(var(--tc) 45%,transparent 50%)}
-.qs button.custom-q{color:var(--muted)}
-.customRow{display:flex;gap:8px;flex-wrap:wrap}
-.customRow input{flex:1 1 260px;min-width:0;font:inherit;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:8px 12px}
-
-/* work area */
-.work{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:20px;align-items:start}
-@media (max-width:900px){.work{grid-template-columns:minmax(0,1fr)}}
-.main{display:grid;gap:14px;min-width:0}
-.qbanner{border-radius:var(--radius);padding:16px 18px;background:color-mix(in srgb,var(--tc) 13%,var(--surface));border:1.5px solid color-mix(in srgb,var(--tc) 45%,transparent)}
-.qbanner .label{color:color-mix(in srgb,var(--tc) 70%,var(--ink))}
-.qbanner h2{font-size:clamp(22px,3vw,28px);margin-top:2px}
-
-.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);display:grid;grid-template-columns:56px minmax(0,1fr);overflow:hidden}
-.step .letter{background:var(--sc);color:var(--surface);font:800 32px var(--display);display:grid;place-items:start center;padding-top:12px}
-.step .body{padding:14px 16px 16px;display:grid;gap:10px;min-width:0}
-.step header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline}
-.step h3{font-size:22px;color:var(--sc)}
-.step .tip{margin:0;color:var(--muted);font-size:14.5px}
-.target{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
-.target.met{color:var(--ok);font-weight:700}
-.starters{display:flex;flex-wrap:wrap;gap:6px}
-.starter{border:1.5px dashed color-mix(in srgb,var(--sc) 60%,transparent);background:color-mix(in srgb,var(--sc) 7%,var(--surface));border-radius:8px;padding:4px 10px;font-size:14px;text-align:left}
-.starter:hover{border-style:solid}
-.step textarea{width:100%;min-height:84px;resize:vertical;font:17px/1.55 var(--body);color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px}
-.step textarea:focus{border-color:var(--sc);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--sc) 25%,transparent)}
-.step.active{border-color:color-mix(in srgb,var(--sc) 50%,var(--line))}
-
-/* aside */
-.aside{display:grid;gap:14px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
-@media (max-width:900px){.aside{position:static}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;display:grid;gap:10px}
-.panel h3{font-size:19px}
-.panel .hint{margin:0;font-size:13px;color:var(--muted)}
-.hint b{color:var(--ink)}
+/* Planner rail */
+.rail{display:flex;flex-direction:column;gap:18px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:860px){.rail{position:static}}
+.step{display:flex;flex-direction:column;gap:8px}
+.step h2{font-family:var(--display);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0;display:flex;align-items:center;gap:8px}
+.step h2 b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:.75rem;letter-spacing:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{border:1.5px solid var(--line);background:var(--bg);border-radius:999px;padding:3px 11px;font-size:14.5px;display:inline-flex;gap:5px;align-items:center}
-.chip:hover{border-color:var(--tc)}
-.chip.topic{border-color:color-mix(in srgb,var(--tc) 50%,var(--line))}
-.chip.used{background:color-mix(in srgb,var(--ok) 14%,var(--surface));border-color:var(--ok)}
-.chip.used::after{content:"✓";color:var(--ok);font-weight:700;font-size:12px}
-.sub{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-top:4px}
-.counter{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
-.checks{list-style:none;margin:0;padding:0;display:grid;gap:7px}
-.checks li{display:flex;gap:9px;align-items:flex-start;font-size:14.5px}
-.checks li::before{content:"";flex:none;width:18px;height:18px;border-radius:5px;border:2px solid var(--line);margin-top:2px}
-.checks li.done::before{background:var(--ok);border-color:var(--ok);box-shadow:inset 0 0 0 3px var(--surface)}
-.checks li.done{color:var(--muted)}
+.chip{font:inherit;font-size:.92rem;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:6px 11px;border-radius:999px;cursor:pointer;transition:border-color .15s,background .15s}
+.chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip:focus-visible,.btn:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.theme-list .chip{border-radius:10px;text-align:left;width:100%}
+.btn{font:inherit;font-weight:700;border:0;border-radius:12px;padding:12px 16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);font-size:1.05rem}
+.btn.ghost{background:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--accent)}
+.btn.small{padding:7px 11px;font-size:.88rem;border-radius:9px}
+.actions{display:grid;gap:8px}
+.fit{font-size:.85rem;color:var(--muted);margin:0}
 
-/* paragraph */
-.final{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;display:grid;gap:12px}
-.final .row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
-.final h3{font-size:22px}
-.para{font-size:18px;line-height:1.75;margin:0;max-width:68ch;overflow-wrap:anywhere}
-.para .empty{color:var(--muted);font-style:italic}
-.para.colour span[data-k]{border-radius:4px;padding:1px 2px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
-.para.colour span[data-k="R"]{background:color-mix(in srgb,var(--r) 18%,transparent)}
-.para.colour span[data-k="A"]{background:color-mix(in srgb,var(--a) 18%,transparent)}
-.para.colour span[data-k="C"]{background:color-mix(in srgb,var(--c) 22%,transparent)}
-.para.colour span[data-k="E"]{background:color-mix(in srgb,var(--e) 18%,transparent)}
-.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-.legend span{display:inline-flex;gap:5px;align-items:center}
-.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
-.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.btn{border:1.5px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 13px;font-size:14px;font-weight:700}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.btn.danger{border-color:var(--warn);color:var(--warn)}
-.toggle{display:inline-flex;gap:6px;align-items:center;font-size:14px;color:var(--muted)}
-.status{font-size:13px;color:var(--ok);min-height:1em}
-.confirm{display:inline-flex;gap:6px;align-items:center;font-size:14px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Routine card */
+.out{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;min-width:0}
+.out-head{padding:22px 24px 18px;border-top:8px solid var(--rc);display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-start}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.pill{font-size:.78rem;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--ink)}
+.pill.r{background:var(--rc);color:var(--card)}
+.rname{font-family:var(--display);font-weight:800;font-size:clamp(1.7rem,3.6vw,2.5rem);line-height:1.02;margin:0;text-wrap:balance;letter-spacing:-.015em}
+.best{color:var(--muted);margin:.4rem 0 0;font-size:.95rem}
+.head-actions{display:flex;flex-wrap:wrap;gap:8px}
+.sec{padding:18px 24px;border-top:1px solid var(--line)}
+.sec h3{font-family:var(--display);font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 10px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.prompt{font-size:1.08rem;margin:0;max-width:65ch}
+.prompt strong{background:linear-gradient(transparent 60%,color-mix(in srgb,var(--hi) 70%,transparent) 60%)}
+.linkbtn{font:inherit;font-size:.82rem;font-weight:700;text-transform:none;letter-spacing:0;background:none;border:0;color:var(--accent);cursor:pointer;padding:2px 4px;border-radius:6px}
+.linkbtn:hover{text-decoration:underline}
+.qsteps{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.q{border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.q .lab{font-family:var(--display);font-weight:800;font-size:1.25rem;color:var(--rc);line-height:1.1}
+.q .lab small{display:block;font-family:var(--body);font-weight:700;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.q ul{margin:0;padding-left:1.1em}
+.q li{margin:.15em 0}
+.starter{font-size:.86rem;color:var(--muted);font-style:italic;border-top:1px dashed var(--line);padding-top:6px;margin-top:auto}
+.push{font-size:.86rem;border-top:1px dashed var(--line);padding-top:6px;margin-top:auto}
+.push b{color:var(--rc)}
+.lens{display:flex;gap:12px;align-items:flex-start;background:var(--soft);border-radius:12px;padding:12px 14px}
+.lens .ic{flex:none;width:28px;height:28px;border-radius:8px;background:var(--rc);color:var(--card);display:grid;place-items:center;font-weight:800;font-family:var(--display)}
+.lens p{margin:0}
+.note{margin:10px 0 0;font-size:.94rem;color:var(--muted);max-width:68ch}
+.eng-chips{margin-bottom:12px}
+.eng ol{margin:0;padding-left:1.25em;display:grid;gap:4px;max-width:68ch}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:520px){.two{grid-template-columns:1fr}}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{font-size:.86rem;padding:4px 10px;border-radius:8px;border:1.5px solid var(--line)}
+.reflect{border-left:4px solid var(--rc);padding:6px 0 6px 14px;margin:0}
+.compass{display:grid;grid-template-areas:". n ." "w c e" ". s .";grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch}
+.compass .q{min-width:0}
+.compass .cn{grid-area:n}.compass .ce{grid-area:e}.compass .cs{grid-area:s}.compass .cw{grid-area:w}
+.compass .hub{grid-area:c;display:grid;place-items:center;width:64px}
+.compass .hub svg{width:56px;height:56px}
+@media (max-width:640px){.compass{grid-template-areas:"n" "e" "s" "w";grid-template-columns:1fr}.compass .hub{display:none}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-weight:700;z-index:60}
+.copybox{width:100%;min-height:160px;margin-top:10px;font:inherit;font-size:.85rem;border-radius:10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);padding:10px}
 
-/* ---------- Full screen: everything on one laptop screen ---------- */
-.fsBtn{display:inline-flex;gap:7px;align-items:center}
-.fsBtn svg{width:16px;height:16px}
-.topRight{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
-@media (min-width:900px){
-  html.fit,html.fit body{height:100%}
-  html.fit body{overflow:hidden;padding-block:10px;font-size:15px}
-  .fit .wrap{max-width:none;height:100%;grid-template-rows:auto auto minmax(0,1fr);gap:10px}
-  .fit .top{align-items:center}
-  .fit .mark span{width:22px;height:28px;font-size:17px;border-radius:5px}
-  .fit .brand h1{font-size:21px}
-  .fit .brand p,.fit .top .label{display:none}
-  .fit .levels{padding:3px}
-  .fit .levels button{padding:4px 11px;display:flex;gap:6px;align-items:baseline}
-  .fit .levels b{font-size:15px}
-  .fit .topRight{align-items:center}
-
-  .fit .pick{padding:10px 12px;gap:8px}
-  .fit .pick .label{display:none}
-  .fit .themes{grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
-  .fit .themes button{padding:5px 9px}
-  .fit .themes button b{font-size:14px}
-  .fit .themes button small{display:none}
-  .fit .qs{display:flex;flex-wrap:wrap;gap:6px}
-  .fit .qs button{flex:1 1 0;min-width:0;padding:5px 10px;font-size:13.5px;line-height:1.3}
-  .fit .qs button.custom-q{flex:0 0 auto}
-  .fit .customRow{margin-top:6px!important}
-  .fit .customRow input{padding:5px 10px}
-
-  .fit .work{grid-template-columns:minmax(0,1fr) 300px;gap:12px;height:100%;min-height:0}
-  .fit .main{grid-template-rows:auto minmax(0,1fr) auto;gap:10px;height:100%;min-height:0}
-  .fit .qbanner{padding:7px 14px;display:flex;gap:12px;align-items:baseline}
-  .fit .qbanner h2{font-size:20px;margin:0}
-  .fit #steps{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px!important;min-height:0}
-  .fit .step{grid-template-columns:36px minmax(0,1fr);min-height:0}
-  .fit .step .letter{font-size:24px;padding-top:8px}
-  .fit .step .body{padding:8px 12px 10px;gap:6px;grid-template-rows:auto auto auto minmax(0,1fr);min-height:0}
-  .fit .step h3{font-size:18px}
-  .fit .step .tip{font-size:13px;line-height:1.35}
-  .fit .starters{gap:4px}
-  .fit .starter{font-size:12.5px;padding:2px 8px}
-  .fit .step textarea{min-height:44px;height:100%;resize:none;font-size:15.5px;padding:7px 10px}
-
-  .fit .final{padding:10px 14px;gap:6px;max-height:30vh;min-height:0;grid-template-rows:auto minmax(0,1fr) auto}
-  .fit .final h3{font-size:18px}
-  .fit .final .legend{display:none}
-  .fit .para{font-size:15.5px;line-height:1.6;overflow:auto;max-width:none;min-height:1.6em}
-  .fit .btn{padding:4px 11px;font-size:13px}
-
-  .fit .aside{position:static;height:100%;min-height:0;grid-template-rows:auto minmax(0,1fr);gap:10px}
-  .fit .panel{padding:10px 12px;gap:6px;overflow:auto;min-height:0}
-  .fit .panel h3{font-size:17px}
-  .fit .chip{font-size:13px;padding:2px 9px}
-  .fit .checks{gap:4px}
-  .fit .checks li{font-size:13px;line-height:1.35}
-  .fit .checks li::before{width:15px;height:15px;margin-top:1px}
-}
+.pick{font:inherit;font-size:1rem;width:100%;padding:11px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.pick:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+.pick.on{border-color:var(--accent);border-width:2px}
+.warn{margin:10px 0 0;font-size:.9rem;padding:8px 12px;border-radius:10px;background:var(--soft)}
+.lib{border-top:1px solid var(--line);padding-top:14px}
+.lib summary{cursor:pointer;font-family:var(--display);font-weight:700;font-size:.95rem;list-style:none;display:flex;justify-content:space-between;align-items:center}
+.lib summary::-webkit-details-marker{display:none}
+.lib summary::after{content:"+";font-size:1.2rem;color:var(--muted)}
+.lib[open] summary::after{content:"–"}
+.lib h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:12px 0 6px}
+.lib .chip{font-size:.84rem;padding:5px 10px;border-left:5px solid var(--cc)}
+.lib .chip[disabled]{opacity:.45;cursor:not-allowed}
+.lib .chip small{font-size:.7rem;color:var(--muted);margin-left:4px}
+.lib .chip[aria-pressed="true"] small{color:inherit}
+.star{color:#e0a400}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.78rem;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;background:var(--cc)}
+.qsteps.four{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.ed{outline:1.5px dashed color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px;border-radius:4px;cursor:text;min-width:2ch;display:inline-block}
+p.ed,div.ed{display:block}
+.ed:hover{background:var(--soft)}
+.ed:focus{outline:2px solid var(--accent);background:var(--soft)}
+.ed:empty::before{content:"Type here…";color:var(--muted)}
+.x{font:inherit;font-size:.95rem;line-height:1;border:0;background:none;color:var(--muted);cursor:pointer;padding:2px 6px;margin-left:4px;border-radius:6px}
+.x:hover{color:var(--ink);background:var(--soft)}
+.addbtn{font:inherit;font-size:.82rem;font-weight:700;border:1.5px dashed var(--line);background:none;color:var(--accent);border-radius:8px;padding:4px 10px;cursor:pointer;align-self:flex-start;margin-top:4px}
+.addbtn:hover{border-color:var(--accent)}
+.editbar{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center;padding:9px 24px;background:var(--soft);font-size:.88rem;font-weight:700;border-top:1px solid var(--line)}
+.fieldlab{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:14px 0 4px;font-weight:700}
+.prompt.sm{font-size:.98rem}
+.editing .q ul{padding-left:1.1em}
+.best.top{margin:0 0 4px;font-weight:700;font-size:.85rem;color:var(--muted)}
+.sec h3 span{display:flex;align-items:center;gap:8px}
+.sec h3 .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--rc);color:var(--card);font-size:.75rem;letter-spacing:0}
+.pick.narrow{width:auto;min-width:220px;max-width:100%;margin-bottom:12px}
+.more{border-top:1px solid var(--line)}
+.more summary{cursor:pointer;padding:16px 24px;font-family:var(--display);font-weight:700;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;list-style:none}
+.more summary::-webkit-details-marker{display:none}
+.more summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+.more[open] summary::before{transform:rotate(90deg)}
+.more summary span{font-family:var(--body);font-weight:400;font-size:.88rem;color:var(--muted)}
+.more summary:focus-visible{outline:3px solid var(--hi);outline-offset:-3px}
+.more .note{margin:0}
+.foot{display:flex;flex-wrap:wrap;gap:8px;padding:14px 24px;border-top:1px solid var(--line);background:var(--paper)}
+#another{width:100%}
+/* Classroom display */
+.stage{position:fixed;inset:0;background:var(--stage);color:var(--stage-ink);z-index:50;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 24px calc(env(safe-area-inset-bottom,0px) + 18px)}
+.stage-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.stage-top .rn{font-family:var(--display);font-weight:700;opacity:.8}
+.dots{display:flex;gap:6px}
+.dots i{width:10px;height:10px;border-radius:50%;background:#ffffff33}
+.dots i.on{background:var(--hi)}
+.stage-main{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2vh;max-width:1100px;margin:0 auto;width:100%;min-height:0}
+.stage-kicker{font-family:var(--display);font-weight:800;font-size:clamp(2.2rem,7vw,5.5rem);line-height:1;color:var(--hi);margin:0}
+.stage-q{font-family:var(--body);font-weight:700;font-size:clamp(1.5rem,4.4vw,3.4rem);line-height:1.2;margin:0;text-wrap:balance}
+.stage-sub{font-size:clamp(1rem,2.2vw,1.6rem);opacity:.75;margin:0;max-width:40ch}
+.stage-bar{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+.stage .btn{background:#ffffff14;color:var(--stage-ink);border:1.5px solid #ffffff30}
+.stage .btn:hover{background:#ffffff26}
+.stage .btn.go{background:var(--hi);color:#18233a;border-color:var(--hi)}
+.timer{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.clock{font-family:var(--display);font-weight:800;font-size:1.8rem;font-variant-numeric:tabular-nums;min-width:3.2em;text-align:center}
+.clock.done{color:var(--hi);animation:pulse 1s ease-in-out 3}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.clock.done{animation:none}*{transition:none!important}}
 </style>
 </head>
 <body>
 
 <div class="wrap">
   <header class="top">
-    <div class="brand">
-      <div class="mark" aria-hidden="true"><span>R</span><span>A</span><span>C</span><span>E</span></div>
-      <div><h1>PYP RACE Writer</h1><p>Restate · Answer · Cite · Explain</p></div>
-    </div>
-    <div class="topRight">
-      <div>
-        <div class="label" style="margin-bottom:6px">Choose your level</div>
-        <div class="levels" id="levels" role="group" aria-label="Scaffold level"></div>
-      </div>
-      <button class="btn fsBtn" id="fsBtn" aria-pressed="false">
-        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg>
-        <span>Full screen</span>
-      </button>
+    <div>
+      <h1>PYP <span>Thinking Routines</span> Planner</h1>
+      <p class="tag">A Visible Thinking Routine is a short set of questions that gets every student thinking and talking. Make three choices on the left, then press <b>Show to class</b>.</p>
     </div>
   </header>
 
-  <section class="pick" aria-label="Choose a unit and question">
-    <div>
-      <div class="label" style="margin-bottom:8px">Transdisciplinary theme</div>
-      <div class="themes" id="themes"></div>
-    </div>
-    <div>
-      <div class="label" style="margin-bottom:8px">Question</div>
-      <div class="qs" id="qs"></div>
-      <div class="customRow" id="customRow" hidden style="margin-top:8px">
-        <input id="customInput" type="text" placeholder="Type your class's unit question here" aria-label="Your own question">
+  <div class="grid">
+    <aside class="rail" aria-label="Set up your routine">
+      <div class="step">
+        <h2><b>1</b>Who is it for?</h2>
+        <div class="chips" id="years" role="group" aria-label="Year group"></div>
       </div>
-    </div>
-  </section>
-
-  <div class="work">
-    <div class="main">
-      <div class="qbanner" id="qbanner"></div>
-      <div id="steps" style="display:grid;gap:12px"></div>
-
-      <section class="final" aria-label="Your paragraph">
-        <div class="row">
-          <h3>My RACE paragraph</h3>
-          <label class="toggle"><input type="checkbox" id="colourToggle" checked> Show RACE colours</label>
-        </div>
-        <div class="legend" aria-hidden="true">
-          <span><i style="background:var(--r)"></i>Restate</span><span><i style="background:var(--a)"></i>Answer</span>
-          <span><i style="background:var(--c)"></i>Cite</span><span><i style="background:var(--e)"></i>Explain</span>
-        </div>
-        <p class="para colour" id="para"></p>
-        <div class="row">
-          <span class="counter" id="wordCount"></span>
-          <div class="actions">
-            <span class="status" id="status" role="status"></span>
-            <button class="btn primary" id="copyBtn">Copy paragraph</button>
-            <span id="clearWrap"><button class="btn" id="clearBtn">Start over</button></span>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <aside class="aside">
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
-          <h3>Word bank</h3><span class="counter" id="usedCount"></span>
-        </div>
-        <p class="hint" id="bankHint"></p>
-        <div class="sub">Unit words</div>
-        <div class="chips" id="topicChips"></div>
-        <div class="sub" id="linkLabel">Linking words</div>
-        <div class="chips" id="linkChips"></div>
+      <div class="step">
+        <h2><b>2</b>What are you learning about?</h2>
+        <select id="themeSel" class="pick" aria-label="Unit theme"></select>
       </div>
-      <div class="panel">
-        <h3>Check my writing</h3>
-        <ul class="checks" id="checks"></ul>
+      <div class="step">
+        <h2><b>3</b>Choose a routine</h2>
+        <select id="pickSel" class="pick" aria-label="Thinking routine"></select>
+        <p class="fit" id="fit"></p>
       </div>
+      <button class="btn ghost" id="another" type="button">Try another routine ↻</button>
     </aside>
+
+    <main class="out" id="out" aria-live="polite"></main>
+  </div>
+</div>
+
+<div class="stage" id="stage" hidden role="dialog" aria-modal="true" aria-label="Classroom display">
+  <div class="stage-top">
+    <div class="rn" id="stRn"></div>
+    <div class="dots" id="stDots"></div>
+    <button class="btn small" id="stClose" type="button">Exit display ✕</button>
+  </div>
+  <div class="stage-main" id="stMain"></div>
+  <div class="stage-bar">
+    <div class="timer">
+      <span class="clock" id="clock">0:00</span>
+      <button class="btn small" data-t="60" type="button">1 min</button>
+      <button class="btn small" data-t="120" type="button">2 min</button>
+      <button class="btn small" data-t="180" type="button">3 min</button>
+      <button class="btn small" id="tStop" type="button">Stop</button>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn" id="stPrev" type="button">← Back</button>
+      <button class="btn go" id="stNext" type="button">Next →</button>
+    </div>
   </div>
 </div>
 
 <script>
-const THEMES = [
-  {id:"who", name:"Who We Are", focus:"Identity, relationships, well-being", color:"#D2457A", questions:[
-    {q:"How do our choices affect our well-being?", restate:"Our choices affect our well-being by", words:["healthy","habits","balance","nutrition","exercise","sleep","emotions","decisions","mindful","well-being"]},
-    {q:"How do our relationships shape who we are?", restate:"Our relationships shape who we are by", words:["identity","family","friendship","trust","influence","values","empathy","belonging","respect","community"]},
-    {q:"Why is it important to understand our feelings?", restate:"It is important to understand our feelings because", words:["emotions","self-awareness","cope","express","calm","reflect","empathy","resilience","strategy","manage"]}
-  ]},
-  {id:"where", name:"Where We Are in Place and Time", focus:"History, journeys, connections", color:"#B97A12", questions:[
-    {q:"How have explorers changed the world?", restate:"Explorers have changed the world by", words:["voyage","discovery","navigate","trade","map","route","impact","culture","expedition","colonise"]},
-    {q:"Why do people migrate?", restate:"People migrate because", words:["migration","opportunity","refuge","settle","culture","journey","push factor","pull factor","border","community"]},
-    {q:"How can artifacts help us understand the past?", restate:"Artifacts help us understand the past by", words:["artifact","evidence","ancient","historian","civilisation","primary source","era","preserve","perspective","timeline"]}
-  ]},
-  {id:"express", name:"How We Express Ourselves", focus:"Creativity, communication, culture", color:"#8A4FD0", questions:[
-    {q:"How can art communicate ideas and emotions?", restate:"Art can communicate ideas and emotions through", words:["colour","symbol","mood","perspective","express","audience","technique","interpret","message","style"]},
-    {q:"How do stories pass on culture?", restate:"Stories pass on culture by", words:["tradition","folktale","values","generation","oral","heritage","moral","identity","storyteller","belief"]},
-    {q:"How does music bring people together?", restate:"Music brings people together by", words:["rhythm","celebration","community","emotion","melody","connect","tradition","perform","audience","harmony"]}
-  ]},
-  {id:"works", name:"How the World Works", focus:"Science, technology, nature", color:"#1B8A9C", questions:[
-    {q:"How do forces and energy affect our lives?", restate:"Forces and energy affect our lives by", words:["force","push","pull","gravity","friction","motion","energy","transfer","magnetism","speed"]},
-    {q:"How does technology change the way we live?", restate:"Technology changes the way we live by", words:["invention","innovation","efficient","communicate","design","solve","digital","impact","convenient","develop"]},
-    {q:"How does water move through the water cycle?", restate:"Water moves through the water cycle by", words:["evaporation","condensation","precipitation","collection","temperature","water vapour","cycle","energy","runoff","atmosphere"]}
-  ]},
-  {id:"organize", name:"How We Organize Ourselves", focus:"Systems, organizations, economics", color:"#3E63D8", questions:[
-    {q:"How do businesses meet people's needs?", restate:"Businesses meet people's needs by", words:["goods","services","consumer","producer","needs","wants","supply","demand","profit","market"]},
-    {q:"Why do communities need rules and laws?", restate:"Communities need rules and laws because", words:["rules","laws","fairness","safety","responsibility","government","consequence","citizen","rights","order"]},
-    {q:"How do systems help us work together?", restate:"Systems help us work together by", words:["system","organise","role","cooperate","efficient","process","communicate","structure","goal","connect"]}
-  ]},
-  {id:"planet", name:"Sharing the Planet", focus:"Environment, resources, responsibility", color:"#2E8B4A", questions:[
-    {q:"How can we protect ecosystems for future generations?", restate:"We can protect ecosystems for future generations by", words:["ecosystem","habitat","biodiversity","conserve","pollution","sustainable","species","protect","future","action"]},
-    {q:"Why should resources be shared fairly?", restate:"Resources should be shared fairly because", words:["resources","scarce","equality","access","fair","needs","responsibility","distribute","community","rights"]},
-    {q:"How do living things depend on each other?", restate:"Living things depend on each other by", words:["food chain","producer","consumer","interdependent","habitat","adapt","survive","relationship","predator","prey"]}
-  ]}
-];
-
-const LEVELS = {
-  1:{name:"Level 1", tag:"Supported", sentences:1, topicGoal:1, linkGoal:0,
-     links:["because","so","and","also","for example","first","this shows"]},
-  2:{name:"Level 2", tag:"Guided", sentences:1, topicGoal:2, linkGoal:1,
-     links:["because","for example","in addition","another reason","this shows","therefore","such as","as a result"]},
-  3:{name:"Level 3", tag:"Independent", sentences:2, topicGoal:3, linkGoal:2,
-     links:["consequently","furthermore","significantly","this suggests","in contrast","moreover","for instance","ultimately","as a result","this demonstrates"]}
+const YEARS=["Reception","Year 1","Year 2","Year 3","Year 4","Year 5","Year 6"];
+const YI=y=>YEARS.indexOf(y);
+const BAND=y=>YI(y)<=2?"early":(YI(y)<=4?"middle":"upper");
+const TOP5=["stw","tpe","cov","cec","utnt"];
+const YEAR_NOTE={
+  "Reception":"Students answer out loud or by drawing. Model one answer yourself first and scribe for the class. Keep it to about 10 minutes.",
+  "Year 1":"Show a picture cue for each step and do a quick think-aloud first. Students can draw and label their ideas.",
+  "Year 2":"Pair talk before whole-class sharing. Students write one short sentence or label per step.",
+  "Year 3":"Scaffolded: use the sentence starters on each card. Model one complete response before students begin.",
+  "Year 4":"Students record ideas on their own first, then compare with a partner before sharing.",
+  "Year 5":"Deeper questioning: use the 'Push further' questions to ask students to justify and extend.",
+  "Year 6":"Independent reflection: students run the steps with minimal prompting and finish with a written reflection."
+};
+const CAT={
+  see:{name:"Observing",tok:"--c-see"},ask:{name:"Questioning",tok:"--c-ask"},link:{name:"Connecting",tok:"--c-link"},
+  view:{name:"Perspectives",tok:"--c-view"},reason:{name:"Reasoning",tok:"--c-reason"},act:{name:"Deciding",tok:"--c-act"},sum:{name:"Capturing the core",tok:"--c-sum"}
 };
 
-const STEPS = [
-  {k:"R", name:"Restate", color:"var(--r)",
-   tip:{1:"Turn the question into a sentence. Use words from the question.",
-        2:"Rewrite the question as a statement in your own words.",
-        3:"Reframe the question in your own words and signal your position."},
-   starters:{1:["The question asks about ___.","I think that ___."],
-             2:["In my opinion, ___.","When I think about ___, I believe ___."],
-             3:["When considering ___, it becomes clear that ___.","Although some people believe ___, I would argue that ___.","The question of ___ matters because ___."]}},
-  {k:"A", name:"Answer", color:"var(--a)",
-   tip:{1:"Give your answer in one sentence.",
-        2:"Answer every part of the question clearly.",
-        3:"State a clear, specific claim and name your strongest reason."},
-   starters:{1:["My answer is ___.","I think ___ because ___.","One way is ___."],
-             2:["I believe ___ because ___.","One important way is ___.","The main reason is ___."],
-             3:["The most significant reason is ___, because ___.","Primarily, ___, which means ___.","There are several ways ___; the most important is ___."]}},
-  {k:"C", name:"Cite", color:"var(--c)",
-   tip:{1:"Show where you learned it. Give one example.",
-        2:"Give one piece of evidence and say where it came from.",
-        3:"Quote or paraphrase one or two pieces of evidence and name each source."},
-   starters:{1:["In the text it says ___.","For example, ___.","I learned that ___."],
-             2:["According to ___, ___.","For example, in ___, ___.","The text states, \"___.\"","In our investigation, we found ___."],
-             3:["As stated in ___, \"___.\"","Evidence from ___ shows that ___.","The author emphasises that ___.","Data from our inquiry reveals ___."]}},
-  {k:"E", name:"Explain", color:"var(--e)",
-   tip:{1:"Tell how your example shows your answer.",
-        2:"Explain how your evidence supports your answer.",
-        3:"Analyse the evidence. Connect it to the central idea or the wider world."},
-   starters:{1:["This shows ___.","This means ___.","This is important because ___."],
-             2:["This proves that ___ because ___.","In other words, ___.","This connects to my answer because ___."],
-             3:["This evidence suggests that ___, which means ___.","Consequently, ___.","This illustrates ___; therefore, ___.","Beyond our unit, this matters because ___."]}}
+const FOCUS=[
+  {id:"prov",name:"Provocation",rank:["stw","iniw","zoom","tpe","csi","ssw","ppc"]},
+  {id:"launch",name:"Unit launch",rank:["tpe","stw","iniw","chalk","gsce","zoom"]},
+  {id:"mid",name:"Mid-unit check",rank:["cec","tps","headlines","gsce","4cs","peel","chalk"]},
+  {id:"end",name:"End-of-unit reflection",rank:["utnt","csi","headlines","cec","4cs","peel"]},
+  {id:"persp",name:"Perspectives & empathy",rank:["cov","step","tps","chalk","tug"]},
+  {id:"debate",name:"Debate & research",rank:["csq","tug","ssw","4cs","cov","ppc"]},
+  {id:"action",name:"Decision & action",rank:["cp","tug","csq","cov","tps"]}
 ];
 
-/* ---------- state ---------- */
-const store = {
-  get(k,f){try{const v=localStorage.getItem(k);return v==null?f:JSON.parse(v)}catch(e){return f}},
-  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+const THEMES=[
+  {id:"gen",name:"Any unit (no theme)",lens:"What is the big idea here, and why does it matter?",close:"What would you like to find out next?",
+   prov:["an image linked to your current unit","an object or artefact connected to your learning","a short video clip or text from your unit"],
+   lp:["Inquirers","Thinkers"]},
+  {id:"wwa",name:"Who We Are",lens:"How does this help us understand ourselves and others?",close:"How might this help us understand someone else?",
+   prov:["photos of lunchboxes from children around the world","a mirror next to a collection of family photos","a picture book page showing a child who feels left out"],
+   lp:["Open-minded","Reflective"]},
+  {id:"wwpt",name:"Where We Are in Place and Time",lens:"What connections can we make to history or journeys?",close:"How might this have been different in the past?",
+   prov:["an old map of your city next to a current one","an everyday object from long ago, such as a rotary phone","a photo of a packed suitcase for a long journey"],
+   lp:["Inquirers","Knowledgeable"]},
+  {id:"hwe",name:"How We Express Ourselves",lens:"How are ideas and feelings being communicated?",close:"What message might the creator want to share?",
+   prov:["a painting shown without its title","a piece of instrumental music with no words","a festival mask or costume from another culture"],
+   lp:["Communicators","Risk-takers"]},
+  {id:"hww",name:"How the World Works",lens:"What systems, forces, or processes can you identify?",close:"What might be causing this to happen?",
+   prov:["a time-lapse video of a seed sprouting","a magnet with a pile of paper clips and coins","a photo of a volcano erupting"],
+   lp:["Inquirers","Thinkers"]},
+  {id:"hwo",name:"How We Organize Ourselves",lens:"How are people working together or making decisions?",close:"Who makes the decisions here, and how?",
+   prov:["a photo of a busy market","a map of the school with its rules and routines","the journey of a chocolate bar from cocoa farm to shop"],
+   lp:["Principled","Balanced"]},
+  {id:"stp",name:"Sharing the Planet",lens:"What responsibilities do humans have here?",close:"How might people help?",
+   prov:["a photo of ocean plastic pollution","then-and-now photos of a melting glacier","a close-up of a bee on a flower"],
+   lp:["Caring","Principled"]}
+];
+
+const ENG={
+  tt:{name:"Turn & Talk",steps:["Give 20 seconds of silent thinking time for the first step.","Partner A talks for 45 seconds while Partner B listens. Swap.","Repeat for each step of the routine.","Cold-call three pairs to share their partner's best idea, not their own."]},
+  wb:{name:"Mini whiteboards",steps:["Everyone gets a whiteboard and pen. Read the first question aloud.","Give 30 seconds to write or draw a response.","Say \"3, 2, 1, show me!\" Scan the room and pick two boards to discuss.","Wipe and repeat for each step."]},
+  mm:{name:"Mind map",steps:["Groups of 4 put the provocation (or its title) in the centre of chart paper.","Draw one branch for each step of the routine, each in a different colour.","Every student adds at least one idea to every branch.","Groups draw lines to connect related ideas, then share one connection."]},
+  sn:{name:"Sticky-note wall",steps:["Make one column on the board for each step of the routine.","Students write one idea per sticky note, at least one for each column.","Post the notes, then a small group clusters similar ideas.","Read clusters aloud. Keep the question notes on your inquiry wall."]},
+  gw:{name:"Gallery walk",steps:["Put one chart for each step around the room, with the provocation nearby.","Groups start at a chart and add ideas for 3 minutes.","Rotate. Each group reads, ticks ideas they agree with and adds new ones.","Groups return to their first chart and summarise what changed."]}
 };
-let level = store.get("race:level",1);
-let themeIdx = store.get("race:theme",0);
-let qIdx = store.get("race:q",0); // 3 = custom
-let custom = store.get("race:custom",{});
-let lastTA = null;
 
-const $ = id => document.getElementById(id);
-const theme = () => THEMES[themeIdx];
-const question = () => qIdx===3 ? {q:custom[theme().id]||"", restate:"", words:[...new Set(theme().questions.flatMap(q=>q.words))].slice(0,14), custom:true} : theme().questions[qIdx];
-const draftKey = () => `race:draft:${theme().id}:${qIdx}`;
-const esc = s => s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// st(label, early, middle, upper, starter, push, extra)
+const st=(lab,e,m,u,starter,push,x={})=>Object.assign({lab,early:e&&[].concat(e),middle:[].concat(m),upper:[].concat(u),starter,push},x);
+const T={theme:true};
+const R={
+  stw:{name:"See • Think • Wonder",short:"STW",cat:"see",min:0,core:true,best:"Provocations, images, artefacts and new units",eng:"tt",
+    atl:["Thinking: critical thinking","Research: observing","Communication: speaking & listening"],lp:"Thinkers",
+    teach:p=>`Show students <strong>${p}</strong>. Give 30 seconds of silent looking before anyone speaks.`,
+    steps:[st("See","What can you spot?","What do you notice?","What evidence do you notice?","I can see…","What details might others miss?"),
+      st("Think","What do you think?",["What do you think has happened here?","Why might this be happening?"],["What interpretations can you make?","What makes you say that?"],"I think… because…","What other explanation could also fit?"),
+      st("Wonder","What questions do you have?","What questions does this make you ask?","What further inquiries emerge?","I wonder why / how / if…","Which question would be most worth investigating, and why?",T)]},
+  iniw:{name:"I Notice • I Wonder",short:"INIW",cat:"see",min:0,core:true,best:"Quick observations, maths images and the youngest learners",eng:"tt",
+    atl:["Research: observing","Thinking: curiosity","Communication: speaking"],lp:"Inquirers",
+    teach:p=>`Show students <strong>${p}</strong>. Ask for noticing first, and hold all questions until the second step.`,
+    steps:[st("I notice","What can you spot?","What do you notice?","What do you notice? Which detail seems most important?","I notice…","What did you notice that nobody else has mentioned?"),
+      st("I wonder","What do you want to know?","What do you wonder?","What do you wonder, and why does that question matter?","I wonder…","Which of your wonderings could we actually investigate?",T)]},
+  tps:{name:"Think • Pair • Share",short:"TPS",cat:"view",min:0,core:true,best:"Any question, building confidence and hearing every voice",eng:"tt",
+    atl:["Communication: listening","Social: collaboration","Thinking: reasoning"],lp:"Communicators",
+    teach:(p,t)=>`Show <strong>${p}</strong> and pose one question: "${t.lens}"`,
+    steps:[st("Think","Think quietly. What is your idea?","Think on your own. What is your answer and why?","Think on your own. What is your position, and what is your reasoning?","My idea is…","What is the best reason for your idea?"),
+      st("Pair","Tell your partner your idea.","Share with a partner. How are your ideas the same or different?","Compare with a partner. Where do you agree, and where do you differ?","My partner thinks…","Did your partner change your mind? How?"),
+      st("Share","What did your partner say?","What will your pair share with the class?","What is your pair's strongest idea, and what is still unresolved?","Together we think…","What question does your pair still have?",T)]},
+  tpe:{name:"Think • Puzzle • Explore",short:"TPE",cat:"ask",min:0,core:true,best:"Unit launches and finding prior knowledge",eng:"sn",
+    atl:["Research: formulating questions","Thinking: activating prior knowledge","Self-management: organisation"],lp:"Inquirers",
+    teach:p=>`Introduce the unit's central idea alongside <strong>${p}</strong>. Ask students what they already know before you teach anything.`,
+    steps:[st("Think","What do you already know about this?","What do you think you know about this?","What do you think you know, and how sure are you?","I think I know that…","Where did that knowledge come from? Is it reliable?"),
+      st("Puzzle","What are you not sure about?","What questions or puzzles do you have?","What puzzles or contradictions does this raise?","I am puzzled by…","Which puzzle sits at the heart of this unit?"),
+      st("Explore","How could we find out?","How could you explore this puzzle?","Which sources, people or methods would help you explore this?","I could find out by…","How would you know if your source was trustworthy?",T)]},
+  chalk:{name:"Chalk Talk",short:"CT",cat:"ask",min:2,core:true,best:"Silent discussion, quieter voices and unit launches",eng:"gw",
+    atl:["Communication: writing","Social: responding to others","Thinking: building on ideas"],lp:"Communicators",
+    teach:(p,t)=>`Write a question about <strong>${p}</strong> in the centre of large paper: "${t.lens}" No talking. All conversation happens in writing.`,
+    steps:[st("Write","Draw or write one idea.","Write your ideas and questions about the prompt.","Write your ideas, questions and any evidence you have.","I think…","Can you add a reason or example?"),
+      st("Respond","Draw a line to an idea you like.","Read others' ideas. Connect, add to or question them.","Respond to others: agree, extend or challenge, and say why.","I agree because… / I'd add…","Which comment pushed your thinking most?"),
+      st("Notice","What ideas came up a lot?","What themes do you notice across the paper?","What patterns, tensions or big questions emerged?","Lots of people said…","Which question should the class tackle next?",T)]},
+  csi:{name:"Color • Symbol • Image",short:"CSI",cat:"sum",min:1,core:true,best:"Capturing the essence of a text, story or experience",eng:"wb",
+    atl:["Thinking: synthesising","Communication: visual expression","Self-management: reflection"],lp:"Communicators",
+    teach:p=>`Share <strong>${p}</strong>, or read a short text from your unit. Give each student paper and colouring pencils.`,
+    steps:[st("Color","Pick a colour for it. Why that colour?","Choose a colour that shows the main idea. Why that colour?","Choose a colour that represents the essence of this. Explain your choice.","I chose ___ because…","What feeling or tone does your colour show?"),
+      st("Symbol","Draw a simple sign for it.","Choose a symbol that represents the main idea. Why?","Choose a symbol that captures a key idea. What does it stand for?","My symbol means…","Why is this symbol better than other options?"),
+      st("Image","Draw a picture about it.","Sketch an image that captures the main idea.","Sketch an image that captures the big idea. What does it show?","My picture shows…","What would you add if you had more time?",T)]},
+  cec:{name:"Connect • Extend • Challenge",short:"CEC",cat:"link",min:2,core:true,best:"Reflection and mid-unit check-ins",eng:"mm",
+    atl:["Thinking: transfer","Self-management: reflection","Communication: exchanging information"],lp:"Reflective",
+    teach:p=>`Revisit <strong>${p}</strong>, or a recent learning experience in this unit. Ask students to link it to what they have learned so far.`,
+    steps:[st("Connect","How is this like something you already know?","How does this connect to what you already know?","What connections can you make to earlier learning or other units?","This reminds me of…","Which connection surprised you most?"),
+      st("Extend","What new idea did you learn?","How has your thinking been extended?","What new ideas pushed your thinking in a new direction?","Now I also know…","How would you explain this new idea to a younger student?"),
+      st("Challenge","What is still tricky?","What still challenges or puzzles you?","What challenges or tensions are still unresolved?","I still find it tricky to…","What would you need to resolve this challenge?",T)]},
+  cov:{name:"Circle of Viewpoints",short:"CoV",cat:"view",min:2,core:true,best:"Exploring perspectives, stories and issues",eng:"mm",
+    atl:["Social: empathy","Thinking: perspective taking","Communication: speaking"],lp:"Open-minded",
+    teach:p=>`Show <strong>${p}</strong>. Together, list the people, animals or things connected to it. Each student or pair chooses one viewpoint.`,
+    steps:[st("I am…","Who will you be?","I am thinking of this from the point of view of…","I am thinking of this from the viewpoint of… because…","I am…","Whose viewpoint is often left out here?"),
+      st("I think…","How do you feel?","I think… (describe it from your viewpoint)","From this viewpoint I think… because…","As ___, I think…","What might this viewpoint not understand?"),
+      st("A question I have…","What would you ask?","A question I have from this viewpoint is…","A question I have from this viewpoint is…","I wonder…","How could two viewpoints find common ground?",T)]},
+  utnt:{name:"I Used to Think… Now I Think…",short:"UTNT",cat:"link",min:2,core:true,best:"End-of-unit reflections and showing conceptual growth",eng:"wb",
+    atl:["Self-management: reflection","Thinking: metacognition","Communication: writing"],lp:"Reflective",
+    teach:p=>`Return to <strong>${p}</strong> from the start of the unit. Let students look back at their first responses before they write.`,
+    steps:[st("I used to think…","What did you think at the start?","I used to think…","At the start of this unit I used to think…","At the start I thought…","What assumptions were behind your first idea?"),
+      st("Now I think…","What do you think now?","Now I think…","Now I think…","Now I think…","How confident are you in this new idea?"),
+      st("Why?","What changed your mind?","Why did my thinking change?","What evidence or experience shifted your thinking?","My thinking changed because…","What might change your thinking again?",T)]},
+  csq:{name:"Claim • Support • Question",short:"CSQ",cat:"reason",min:3,core:true,best:"Debates, research and gathering evidence",eng:"tt",
+    atl:["Thinking: evaluating evidence","Research: information literacy","Communication: argument"],lp:"Communicators",
+    teach:(p,t)=>`Present <strong>${p}</strong> with the focus question: "${t.lens}" Each student forms one claim.`,
+    steps:[st("Claim","What do you think is true?","What is your claim?","What claim can you make about this?","I claim that…","Is your claim specific enough to test?"),
+      st("Support","How do you know?","What supports your claim?","What evidence supports your claim, and how reliable is it?","I know this because…","What is the strongest piece of evidence? Why?"),
+      st("Question","What else do you want to know?","What questions remain?","What would make you question your claim?","I still want to know…","What evidence would someone who disagrees use?",T)]},
+  cp:{name:"Compass Points",short:"CP",cat:"act",min:3,core:true,compass:true,best:"Decision making, action projects and problem solving",eng:"gw",
+    atl:["Thinking: decision making","Social: considering perspectives","Self-management: planning action"],lp:"Balanced",
+    teach:p=>`Present <strong>${p}</strong> as a problem to act on: "Should our class do something about this?"`,
+    steps:[st("East","What makes you excited?","What excites you about this idea?","What excites you? What are the possible benefits?","I am excited that…","Who else would benefit?",{sub:"Excited",pos:"ce"}),
+      st("West","What makes you worried?","What worries you about this?","What worries you? What are the risks?","I am worried that…","How could this worry be reduced?",{sub:"Worries",pos:"cw"}),
+      st("North","What do we need to find out?","What do you need to know?","What information do you need before deciding?","I need to know…","Where could you find this information?",{sub:"Need to know",pos:"cn"}),
+      st("South","What do you think we should do?","What is your current stance?","What is your current stance or suggestion for moving forward?","I think we should…","What would change your stance?",{sub:"Stance / Suggestion",pos:"cs",theme:true})]},
 
-/* ---------- render ---------- */
-function renderLevels(){
-  $("levels").innerHTML = Object.entries(LEVELS).map(([n,l])=>
-    `<button data-l="${n}" aria-pressed="${+n===level}"><b>${l.name}</b><small>${l.tag}</small></button>`).join("");
-}
-function renderThemes(){
-  $("themes").innerHTML = THEMES.map((t,i)=>
-    `<button data-t="${i}" aria-pressed="${i===themeIdx}" style="--tc:${t.color}"><b>${t.name}</b><small>${t.focus}</small></button>`).join("");
-}
-function renderQs(){
-  const t = theme();
-  document.documentElement.style.setProperty("--tc", t.color);
-  $("qs").innerHTML = t.questions.map((q,i)=>
-    `<button data-q="${i}" aria-pressed="${i===qIdx}">${esc(q.q)}</button>`).join("")
-    + `<button class="custom-q" data-q="3" aria-pressed="${qIdx===3}">Use our own unit question</button>`;
-  $("customRow").hidden = qIdx!==3;
-  $("customInput").value = custom[t.id]||"";
-}
-function renderBanner(){
-  const q = question();
-  $("qbanner").innerHTML = `<div class="label">${esc(theme().name)}</div><h2>${q.q?esc(q.q):"Type your unit question above"}</h2>`;
-}
-function renderSteps(){
-  const q = question(), draft = store.get(draftKey(),{});
-  $("steps").innerHTML = STEPS.map(s=>{
-    let starters = [...s.starters[level]];
-    if(s.k==="R" && level<3 && q.restate) starters.unshift(q.restate+" ___.");
-    if(s.k==="R" && level<3 && q.custom) starters.unshift("The question asks ___.");
-    return `<article class="step" style="--sc:${s.color}" data-k="${s.k}">
-      <div class="letter" aria-hidden="true">${s.k}</div>
-      <div class="body">
-        <header><h3>${s.name}</h3><span class="target" id="t-${s.k}"></span></header>
-        <p class="tip">${s.tip[level]}</p>
-        <div class="starters" aria-label="${s.name} sentence starters">${starters.map(st=>`<button class="starter" data-st="${esc(st)}">${esc(st)}</button>`).join("")}</div>
-        <textarea id="ta-${s.k}" data-k="${s.k}" aria-label="${s.name}" placeholder="Tap a sentence starter, or start writing…">${esc(draft[s.k]||"")}</textarea>
-      </div></article>`;
-  }).join("");
-  lastTA = $("ta-R");
-}
-function renderBank(){
-  const q = question(), L = LEVELS[level];
-  $("topicChips").innerHTML = q.words.map(w=>`<button class="chip topic" data-w="${esc(w)}">${esc(w)}</button>`).join("");
-  $("linkChips").innerHTML = L.links.map(w=>`<button class="chip" data-w="${esc(w)}">${esc(w)}</button>`).join("");
-  $("bankHint").innerHTML = `Tap a word to add it where you are typing. Goal: use <b>${L.topicGoal}+ unit word${L.topicGoal>1?"s":""}</b>${L.linkGoal?` and <b>${L.linkGoal}+ linking word${L.linkGoal>1?"s":""}</b>`:""}.`;
-}
-function renderAll(){renderLevels();renderThemes();renderQs();renderBanner();renderSteps();renderBank();update()}
+  zoom:{name:"Zoom In",short:"ZI",cat:"see",min:1,best:"Building curiosity with an image revealed in stages",eng:"wb",
+    atl:["Thinking: hypothesising","Research: observing","Self-management: patience"],lp:"Risk-takers",
+    teach:p=>`Cover most of <strong>${p}</strong> so only a small section shows. Reveal more in two or three stages.`,
+    steps:[st("Look","What can you see in this small part?","What do you see? What do you think it might be?","What do you see? What hypothesis can you make?","I can see… It might be…","What clues are you using?"),
+      st("Zoom out","What new things can you see now?","What new things do you see? Does your idea change?","What new information do you see? How does it change your hypothesis?","Now I think…","What made you change, or keep, your idea?"),
+      st("Full picture","What do you think now?","What do you think now? What questions do you still have?","What is your interpretation now, and what is still unknown?","Now I know… I still wonder…","Why might the creator have framed it this way?",T)]},
+  headlines:{name:"Headlines",short:"HL",cat:"sum",min:2,best:"Summing up a lesson, text or discussion",eng:"sn",
+    atl:["Thinking: synthesising","Communication: writing concisely","Self-management: reflection"],lp:"Communicators",
+    teach:p=>`After exploring <strong>${p}</strong>, ask students to write a newspaper headline that captures the most important idea.`,
+    steps:[st("Headline","What is the most important thing? Say it in a few words.","Write a headline that captures the most important idea.","Write a headline that captures the most important aspect of this.","My headline is…","Can you make it shorter and stronger?"),
+      st("Why?","Why did you choose that?","What makes that the most important idea?","What makes this the most important aspect?","I chose this because…","What important idea did you leave out?"),
+      st("Change","Has your headline changed?","How has your headline changed after listening to others?","How and why has your headline changed during the discussion?","My headline changed because…","Whose headline influenced you most?",T)]},
+  ssw:{name:"Sentence • Phrase • Word",short:"SPW",cat:"sum",min:3,best:"Reading a text closely and finding what matters",eng:"mm",
+    atl:["Communication: reading","Thinking: analysing","Social: discussion"],lp:"Knowledgeable",
+    teach:p=>`Give students a short text about <strong>${p}</strong>. Read it once together, then let students reread on their own.`,
+    steps:[st("Sentence",null,"Choose a sentence that is important to you.","Choose a sentence that captures the core idea of the text.","The sentence I chose is…","Why does this sentence matter most?"),
+      st("Phrase",null,"Choose a phrase that stands out.","Choose a phrase that moved, engaged or provoked you.","The phrase that stood out is…","What makes this phrase powerful?"),
+      st("Word",null,"Choose one word that grabbed your attention.","Choose one word that captures the text's message.","My word is…","How would the text change without this word?"),
+      st("Discuss",null,"What themes do our choices show?","What themes, questions or implications emerge from our choices?","Our choices show…","What is missing from the group's choices?",T)]},
+  gsce:{name:"Generate • Sort • Connect • Elaborate",short:"GSCE",cat:"link",min:4,best:"Concept maps, mid-unit understanding and organising ideas",eng:"mm",
+    atl:["Thinking: organising ideas","Self-management: organisation","Research: synthesising"],lp:"Thinkers",
+    teach:p=>`Name the concept from your unit linked to <strong>${p}</strong>. Students make a concept map on paper or sticky notes.`,
+    steps:[st("Generate",null,"List ideas and thoughts that come to mind about the topic.","Generate a list of ideas, terms and examples about the concept.","Ideas I have are…","What is a less obvious idea?"),
+      st("Sort",null,"Put the most central ideas in the middle and others further out.","Sort ideas by how central or peripheral they are to the concept.","The most important idea is…","Why does that idea belong in the centre?"),
+      st("Connect",null,"Draw lines between ideas that are linked. Write how.","Connect ideas and label each line to explain the link.","These connect because…","Which connection is the most surprising?"),
+      st("Elaborate",null,"Add new ideas that build on the ones you have.","Elaborate on any idea with sub-ideas, examples or evidence.","I can add…","Where is your map still thin?",T)]},
+  ppc:{name:"Parts • Purposes • Complexities",short:"PPC",cat:"see",min:4,best:"Looking closely at objects, systems and inventions",eng:"wb",
+    atl:["Thinking: analysing","Research: observing","Communication: explaining"],lp:"Knowledgeable",
+    teach:p=>`Show students <strong>${p}</strong>, or an object or system from your unit. Ask them to look at it as an engineer would.`,
+    steps:[st("Parts",null,"What are its parts or pieces?","What are its parts, components or elements?","Its parts are…","Which part could you not do without?"),
+      st("Purposes",null,"What is each part for?","What is the purpose of each part?","This part is for…","Which part has more than one purpose?"),
+      st("Complexities",null,"What is tricky or complicated about it?","How is it complicated in its parts, purposes or the way they work together?","It is complicated because…","How could it be improved?",T)]},
+  step:{name:"Step Inside",short:"SI",cat:"view",min:3,best:"Empathy, stories, history and character study",eng:"tt",
+    atl:["Social: empathy","Thinking: perspective taking","Communication: speaking in role"],lp:"Caring",
+    teach:p=>`Show <strong>${p}</strong>. Choose a person, animal or object in it and ask students to step inside that point of view.`,
+    steps:[st("Perceive",null,"What can this person or thing see, notice or feel?","What can this person or thing perceive from where they are?","From here I can see…","What can't they see from their position?"),
+      st("Know & believe",null,"What might they know, understand or believe?","What might they know, believe or hold to be true?","I know / I believe…","Where might that belief come from?"),
+      st("Care about",null,"What might they care about?","What might they care about, hope for or fear?","I care about…","How would they want others to act?",T)]},
+  peel:{name:"Peel the Fruit",short:"PtF",cat:"link",min:4,best:"Tracking understanding across a whole unit",eng:"gw",
+    atl:["Thinking: building understanding","Self-management: reflection","Research: questioning"],lp:"Reflective",
+    teach:p=>`Draw a large fruit with layers on a chart. Begin with <strong>${p}</strong> and return to the chart throughout the unit.`,
+    steps:[st("Skin",null,"What do you notice on the surface?","What do you notice on the surface?","I notice…","What is easy to miss?"),
+      st("Sub-surface",null,"What puzzles and questions do you have?","What puzzles, questions and explanations are below the surface?","I wonder…","Which explanation fits best?"),
+      st("Connections",null,"How does it connect to other things you know?","How does it connect to other ideas, perspectives or units?","This connects to…","Whose perspective have we missed?"),
+      st("Core",null,"What is the heart of it?","What is the core or essence of this topic?","The heart of it is…","How would you explain the core in one sentence?",T)]},
+  "4cs":{name:"The 4 Cs",short:"4Cs",cat:"reason",min:5,best:"Discussing a text in depth",eng:"mm",
+    atl:["Thinking: critical analysis","Communication: discussion","Research: interpreting"],lp:"Thinkers",
+    teach:p=>`Give groups a text or source about <strong>${p}</strong>. Each group works through the four Cs.`,
+    steps:[st("Connections",null,"What connections can you make to your own life or learning?","What connections can you draw between the text and your own life or learning?","This connects to…","Which connection matters most?"),
+      st("Challenge",null,"What ideas would you challenge or argue with?","What ideas, positions or assumptions do you want to challenge?","I would challenge…","What evidence supports your challenge?"),
+      st("Concepts",null,"What key ideas are worth remembering?","What key concepts or ideas are worth holding on to?","A key idea is…","How does this link to the central idea?"),
+      st("Changes",null,"What changes in thinking or action does the text suggest?","What changes in attitude, thinking or action does it suggest?","It suggests we should…","Would you make that change? Why?",T)]},
+  tug:{name:"Tug for Truth",short:"TfT",cat:"reason",min:5,best:"Exploring both sides of a claim",eng:"gw",
+    atl:["Thinking: evaluating evidence","Social: respectful disagreement","Communication: argument"],lp:"Open-minded",
+    teach:p=>`Draw a tug-of-war rope on the board. Write a "Could it be true that…?" claim about <strong>${p}</strong> in the middle.`,
+    steps:[st("Claim",null,"What is the claim we are testing?","What is the claim, and what is your first reaction to it?","The claim is…","How could the claim be worded more fairly?"),
+      st("Tugs for",null,"What reasons support the claim?","What reasons and evidence pull towards true?","It might be true because…","Which tug is the strongest?"),
+      st("Tugs against",null,"What reasons go against the claim?","What reasons and evidence pull towards false?","It might not be true because…","Which tug is the weakest? Why?"),
+      st("What ifs",null,"What questions do you still have?","What 'what if' questions would help settle this?","What if…","What would it take to change your mind?",T)]}
+};
+const ORDER=["stw","iniw","tps","tpe","chalk","csi","cec","cov","utnt","csq","cp","zoom","headlines","ssw","gsce","ppc","step","peel","4cs","tug"];
 
-/* ---------- analysis ---------- */
-const vals = () => Object.fromEntries(STEPS.map(s=>[s.k,($("ta-"+s.k)?.value||"").trim()]));
-const has = (text,w) => new RegExp(`(^|[^a-z])${w.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}`,"i").test(text);
-const sentences = t => t ? (t.match(/[^.!?]+[.!?]+|[^.!?]+$/g)||[]).filter(x=>x.trim().split(/\s+/).length>=3).length : 0;
+// ---------- state ----------
+const S={year:"Year 3",theme:"stp",focus:"prov",idx:0,prov:0,eng:null,pick:null,edit:false};
+try{const s=JSON.parse(localStorage.getItem("vtr-planner")||"null");if(s){if(YEARS.includes(s.year))S.year=s.year;if(THEMES.some(t=>t.id===s.theme))S.theme=s.theme;if(FOCUS.some(f=>f.id===s.focus))S.focus=s.focus;}}catch(e){}
+const save=()=>{try{localStorage.setItem("vtr-planner",JSON.stringify({year:S.year,theme:S.theme,focus:S.focus}))}catch(e){}};
 
-function update(){
-  const v = vals(), all = Object.values(v).join(" "), L = LEVELS[level], q = question();
-  // targets
-  STEPS.forEach(s=>{
-    const n = sentences(v[s.k]), goal = L.sentences, el = $("t-"+s.k);
-    el.textContent = `${n} / ${goal}${level===3?"+":""} sentence${goal>1?"s":""}`;
-    el.classList.toggle("met", n>=goal && !v[s.k].includes("___"));
-  });
-  // chips
-  let topicUsed=0, linkUsed=0;
-  document.querySelectorAll("#topicChips .chip").forEach(c=>{const u=has(all,c.dataset.w);c.classList.toggle("used",u);if(u)topicUsed++});
-  document.querySelectorAll("#linkChips .chip").forEach(c=>{const u=has(all,c.dataset.w);c.classList.toggle("used",u);if(u)linkUsed++});
-  $("usedCount").textContent = `${topicUsed+linkUsed} used`;
-  // checklist
-  const qWords = (q.q||"").toLowerCase().match(/[a-z']{5,}/g)||[];
-  const restateOk = v.R && qWords.some(w=>v.R.toLowerCase().includes(w.replace(/'s$/,"")));
-  const items = [
-    [restateOk, level===1?"I used words from the question.":"I restated the question using its key words."],
-    [!!v.A, level===1?"I gave my answer.":"I answered the question clearly."],
-    [!!v.C, level===1?"I gave an example.":"I included evidence and named the source."],
-    [!!v.E, level===1?"I said what my example shows.":"I explained how the evidence supports my answer."],
-    [topicUsed>=L.topicGoal, `I used ${L.topicGoal}+ unit word${L.topicGoal>1?"s":""} (${topicUsed} so far).`],
-  ];
-  if(L.linkGoal) items.push([linkUsed>=L.linkGoal, `I used ${L.linkGoal}+ linking word${L.linkGoal>1?"s":""} (${linkUsed} so far).`]);
-  items.push([all.length>0 && !all.includes("___"), "I filled in every blank (no ___ left)."]);
-  if(level>1) items.push([all.length>0 && STEPS.every(s=>!v[s.k] || /^[A-Z"“]/.test(v[s.k])) && STEPS.every(s=>!v[s.k] || /[.!?"”]$/.test(v[s.k])), "My sentences start with capitals and end with punctuation."]);
-  $("checks").innerHTML = items.map(([ok,t])=>`<li class="${ok?"done":""}">${esc(t)}</li>`).join("");
-  // paragraph
-  const parts = STEPS.filter(s=>v[s.k]).map(s=>`<span data-k="${s.k}">${esc(v[s.k])}</span>`);
-  $("para").innerHTML = parts.length ? parts.join(" ") : `<span class="empty">Your paragraph builds here as you write each part.</span>`;
-  const wc = all.trim() ? all.trim().split(/\s+/).length : 0;
-  $("wordCount").textContent = `${wc} word${wc===1?"":"s"}`;
-  // save
-  store.set(draftKey(), v);
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ok=id=>R[id].min<=YI(S.year);
+function ranked(){
+  const f=FOCUS.find(f=>f.id===S.focus);
+  let list=[...f.rank,...ORDER.filter(r=>!f.rank.includes(r))].filter(ok);
+  if(S.year==="Year 2"||S.year==="Year 3"){const fit=f.rank.filter(r=>TOP5.includes(r)&&ok(r));list=[...fit,...list.filter(r=>!fit.includes(r))];}
+  return list;
 }
+function current(){if(S.pick)return S.pick;const list=ranked();return list[S.idx%list.length];}
+const yShort=i=>i===0?"Reception":"Y"+i;
 
-/* ---------- insertion ---------- */
-function insertWord(ta, word){
-  const s=ta.selectionStart, e=ta.selectionEnd, val=ta.value;
-  const before=val.slice(0,s), after=val.slice(e);
-  const pre = before && !/\s$/.test(before) ? " " : "";
-  const post = after && !/^[\s.,;:!?]/.test(after) ? " " : (after?"":" ");
-  ta.value = before+pre+word+post+after;
-  const pos = (before+pre+word+post).length;
-  ta.focus(); ta.setSelectionRange(pos,pos); update();
+function chips(el,items,key,label){
+  el.innerHTML=items.map(it=>`<button type="button" class="chip" id="${key}-${String(it.id).replace(/\s+/g,'-')}" data-v="${esc(it.id)}" aria-pressed="${S[key]===it.id}">${esc(label(it))}</button>`).join("");
+  el.onclick=e=>{const b=e.target.closest(".chip");if(!b)return;S[key]=b.dataset.v;S.idx=0;S.eng=null;if(key==="theme")S.prov=0;save();renderRail();render();};
 }
-function insertStarter(ta, st){
-  const base = ta.value.replace(/\s+$/,"");
-  const start = base ? base.length+1 : 0;
-  ta.value = (base?base+" ":"") + st;
-  ta.focus();
-  const blank = ta.value.indexOf("___", start);
-  if(blank>-1) ta.setSelectionRange(blank, blank+3); else ta.setSelectionRange(ta.value.length, ta.value.length);
-  update();
+function renderLib(){
+  const sel=$("#pickSel");
+  const o=id=>{const r=R[id];return `<option value="r:${id}">${TOP5.includes(id)?"★ ":""}${esc(r.name)}${ok(id)?"":` (${yShort(r.min)}+)`}</option>`;};
+  sel.innerHTML=`<optgroup label="Let the app suggest one for…">${FOCUS.map(f=>`<option value="f:${f.id}">✨ ${esc(f.name)}</option>`).join("")}</optgroup>
+    <optgroup label="Most used">${ORDER.filter(i=>R[i].core).map(o).join("")}</optgroup>
+    <optgroup label="More routines">${ORDER.filter(i=>!R[i].core).map(o).join("")}</optgroup>`;
+  sel.value=S.pick?"r:"+S.pick:"f:"+S.focus;
+  sel.onchange=()=>{const [k,v]=sel.value.split(":");if(k==="f"){S.focus=v;S.pick=null;save();}else S.pick=v;S.idx=0;S.eng=null;render();};
+  $("#fit").textContent=S.pick?"Your chosen routine.":(S.year==="Year 2"||S.year==="Year 3")?"Suggestions start with your ★ top five.":"Not sure? Leave it on a suggestion.";
+}
+function renderRail(){
+  chips($("#years"),YEARS.map(y=>({id:y})),"year",it=>yShort(YI(it.id)));
+  const ts=$("#themeSel");
+  ts.innerHTML=THEMES.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+  ts.value=S.theme;
+  ts.onchange=()=>{S.theme=ts.value;S.prov=0;S.eng=null;save();render();};
 }
 
-/* ---------- events ---------- */
-document.addEventListener("click", e=>{
-  const b = e.target.closest("button"); if(!b) return;
-  if(b.dataset.l){level=+b.dataset.l;store.set("race:level",level);renderAll();return}
-  if(b.dataset.t){themeIdx=+b.dataset.t;qIdx=0;store.set("race:theme",themeIdx);store.set("race:q",0);renderAll();return}
-  if(b.dataset.q){qIdx=+b.dataset.q;store.set("race:q",qIdx);renderAll();if(qIdx===3)$("customInput").focus();return}
-  if(b.dataset.st!==undefined){insertStarter(b.closest(".step").querySelector("textarea"), b.dataset.st);return}
-  if(b.dataset.w){insertWord(lastTA||$("ta-R"), b.dataset.w);return}
+function qsFor(stp,band,t){
+  const qs=(stp[band]||stp.middle||stp.early).slice();
+  if(stp.theme&&band!=="upper")qs.push(t.close);
+  return qs;
+}
+
+// ---------- editable plan ----------
+let EDITS={};
+try{EDITS=JSON.parse(localStorage.getItem("vtr-edits")||"{}")||{};}catch(e){EDITS={};}
+const saveEdits=()=>{try{localStorage.setItem("vtr-edits",JSON.stringify(EDITS))}catch(e){}};
+const planKey=()=>`${current()}|${S.year}|${S.theme}`;
+const txt=h=>{const d=document.createElement("div");d.innerHTML=h;return d.textContent;};
+
+function freshPlan(){
+  const id=current(), r=R[id], t=THEMES.find(x=>x.id===S.theme), band=BAND(S.year);
+  const p=t.prov[S.prov%t.prov.length];
+  const engId=S.eng||r.eng;
+  return {
+    title:r.name, look:`Look closely at ${p}.`,
+    prompt:txt(r.teach(p,t)),
+    steps:r.steps.map(stp=>({lab:stp.lab,sub:stp.sub||"",pos:stp.pos||"",qs:qsFor(stp,band,t),starter:stp.starter,push:stp.push})),
+    note:YEAR_NOTE[S.year],
+    lens:t.lens,
+    eng:{id:engId,steps:ENG[engId].steps.slice()},
+    reflect:S.year==="Year 6"?"In your journal: Which step changed your thinking the most? What will you do next with this idea, and how does it connect to the central idea?":"",
+    atl:r.atl.slice(), lp:[...new Set([...t.lp,r.lp])]
+  };
+}
+let PLAN=null, PLAN_KEY=null;
+function getPlan(){
+  const k=planKey();
+  if(PLAN_KEY!==k){PLAN_KEY=k;PLAN=EDITS[k]?JSON.parse(JSON.stringify(EDITS[k])):freshPlan();}
+  return PLAN;
+}
+const edited=()=>!!EDITS[PLAN_KEY];
+function commit(){EDITS[PLAN_KEY]=PLAN;saveEdits();const b=$("#resetPlan");if(b)b.hidden=false;const m=$("#editState");if(m)m.textContent="Edits saved on this device";}
+function getPath(path){return path.split(".").reduce((o,k)=>o[k],PLAN);}
+function setPath(path,v){const ks=path.split(".");const last=ks.pop();ks.reduce((o,k)=>o[k],PLAN)[last]=v;}
+
+// editable text helper
+function E(path,val,tag="span",cls=""){
+  return S.edit
+    ? `<${tag} class="ed ${cls}" contenteditable="true" spellcheck="true" data-f="${path}">${esc(val)}</${tag}>`
+    : `<${tag} class="${cls}">${esc(val)}</${tag}>`;
+}
+const del=path=>S.edit?`<button type="button" class="x" data-del="${path}" aria-label="Remove">×</button>`:"";
+const add=(path,label)=>S.edit?`<button type="button" class="addbtn" data-add="${path}">+ ${label}</button>`:"";
+
+function qCard(stp,i,year){
+  const showStarter=S.edit||["Year 1","Year 2","Year 3"].includes(year);
+  const showPush=S.edit||["Year 5","Year 6"].includes(year);
+  return `<div class="q ${stp.pos}"><div class="lab">${stp.sub?`<small>${esc(stp.lab)}</small>${E(`steps.${i}.sub`,stp.sub)}`:E(`steps.${i}.lab`,stp.lab)}</div>
+    <ul>${stp.qs.map((q,j)=>`<li>${E(`steps.${i}.qs.${j}`,q)}${del(`steps.${i}.qs.${j}`)}</li>`).join("")}</ul>
+    ${add(`steps.${i}.qs`,"question")}
+    ${showStarter?`<div class="starter">Sentence starter: “${E(`steps.${i}.starter`,stp.starter)}”</div>`:""}
+    ${showPush?`<div class="push"><b>Push further:</b> ${E(`steps.${i}.push`,stp.push)}</div>`:""}</div>`;
+}
+
+function render(){
+  const id=current(), r=R[id], t=THEMES.find(x=>x.id===S.theme), band=BAND(S.year);
+  const P=getPlan();
+  const engId=P.eng.id;
+  const list=ranked();
+  const out=$("#out");
+  out.style.setProperty("--rc",`var(${CAT[r.cat].tok})`);
+  out.classList.toggle("editing",!!S.edit);
+  const cards=P.steps.map((s,i)=>qCard(s,i,S.year)).join("");
+  const stepsHtml=r.compass
+    ? `<div class="compass">${cards}<div class="hub" aria-hidden="true"><svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="26" fill="none" stroke="var(--line)" stroke-width="2"/><path d="M28 6 L33 28 L28 50 L23 28Z" fill="var(--rc)"/><path d="M6 28 L28 23 L50 28 L28 33Z" fill="var(--muted)" opacity=".5"/></svg></div></div>`
+    : `<div class="qsteps${P.steps.length>3?" four":""}">${cards}</div>`;
+  const engNote=YI(S.year)<=1&&(engId==="wb"||engId==="sn")?" For younger students, they draw rather than write.":"";
+  const pos=S.pick?"Your pick":`Option ${list.indexOf(id)+1} of ${list.length}`;
+  const engOpts=Object.entries(ENG).map(([k,v])=>`<option value="${k}" ${k===engId?"selected":""}>${esc(v.name)}</option>`).join("");
+  out.innerHTML=`
+  <div class="out-head">
+    <div style="min-width:0">
+      <p class="best top">${esc(S.year)} · ${esc(t.name)}${TOP5.includes(id)?' · <span class="star">★</span> top five':""}</p>
+      <h2 class="rname">${E("title",P.title)}</h2>
+      <p class="best">Good for ${esc(r.best.charAt(0).toLowerCase()+r.best.slice(1))}. Takes about 15 minutes.</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn primary" id="present" type="button">Show to class ▶</button>
+    </div>
+  </div>
+  ${S.edit||edited()?`<div class="editbar"><span id="editState">${S.edit?"Click any outlined text to change it. Changes save automatically.":"This routine includes your changes."}</span><button type="button" class="linkbtn" id="resetPlan" ${edited()?"":"hidden"}>Reset to original</button></div>`:""}
+  <section class="sec">
+    <h3><span><b class="n">1</b>Set it up</span><button class="linkbtn" id="newProv" type="button">Another idea ↻</button></h3>
+    ${E("prompt",P.prompt,"p","prompt")}
+    ${S.edit?`<p class="fieldlab">First slide in class display</p>${E("look",P.look,"p","prompt sm")}`:""}
+  </section>
+  <section class="sec">
+    <h3><span><b class="n">2</b>Ask these questions, one at a time</span></h3>
+    ${stepsHtml}
+    ${ok(id)?"":`<p class="warn">This routine is usually used from ${yShort(r.min)}. For ${esc(S.year)}, do it together as a class and use only the first question on each card.</p>`}
+  </section>
+  <section class="sec eng">
+    <h3><span><b class="n">3</b>How students share</span></h3>
+    <select id="engSel" class="pick narrow" aria-label="How students share">${engOpts}</select>
+    <ol>${P.eng.steps.map((s,i)=>`<li>${E(`eng.steps.${i}`,s)}${del(`eng.steps.${i}`)}</li>`).join("")}</ol>
+    ${add("eng.steps","step")}
+    ${engNote?`<p class="note">${esc(engNote)}</p>`:""}
+  </section>
+  <details class="more" id="more" ${S.edit||S.more?"open":""}>
+    <summary>Planning extras <span>tips, big question, ATL and learner profile</span></summary>
+    <div class="sec plain">
+      <h3>Tip for ${esc(S.year)}</h3>
+      ${E("note",P.note,"p","note")}
+    </div>
+    <div class="sec">
+      <h3>Big question to finish with</h3>
+      <div class="lens"><div class="ic">?</div><p>${E("lens",P.lens)}</p></div>
+    </div>
+    ${P.reflect||S.edit?`<div class="sec"><h3>Independent reflection</h3>${E("reflect",P.reflect,"p","reflect")}</div>`:""}
+    <div class="sec two">
+      <div><h3>ATL skills</h3><div class="tags">${P.atl.map((a,i)=>`<span>${E(`atl.${i}`,a)}${del(`atl.${i}`)}</span>`).join("")}${add("atl","skill")}</div></div>
+      <div><h3>Learner profile</h3><div class="tags">${P.lp.map((a,i)=>`<span>${E(`lp.${i}`,a)}${del(`lp.${i}`)}</span>`).join("")}${add("lp","attribute")}</div></div>
+    </div>
+  </details>
+  <div class="foot">
+    <button class="btn ${S.edit?"primary":"ghost"} small" id="editBtn" type="button" aria-pressed="${!!S.edit}">${S.edit?"Done editing ✓":"Change the wording ✎"}</button>
+    <button class="btn ghost small" id="copy" type="button">Copy as text</button>
+  </div>`;
+  $("#present").onclick=openStage;
+  $("#copy").onclick=copyPlan;
+  $("#more").ontoggle=e=>{if(!S.edit)S.more=e.target.open;};
+  $("#editBtn").onclick=()=>{S.edit=!S.edit;render();if(S.edit){const f=$("#out [contenteditable]");f&&f.focus();}};
+  $("#newProv").onclick=()=>{S.prov++;const f=freshPlan();PLAN.prompt=f.prompt;PLAN.look=f.look;if(edited())commit();render();};
+  const rb=$("#resetPlan");if(rb)rb.onclick=()=>{delete EDITS[PLAN_KEY];saveEdits();PLAN_KEY=null;render();};
+  $("#engSel").onchange=ev=>{S.eng=ev.target.value;PLAN.eng={id:S.eng,steps:ENG[S.eng].steps.slice()};if(edited())commit();render();};
+  renderLib();
+}
+// edit events (delegated once)
+$("#out").addEventListener("input",e=>{const el=e.target.closest("[data-f]");if(!el)return;setPath(el.dataset.f,el.textContent);commit();});
+$("#out").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("span[contenteditable]")){e.preventDefault();e.target.blur();}});
+$("#out").addEventListener("paste",e=>{if(!e.target.closest("[contenteditable]"))return;e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData("text");document.execCommand("insertText",false,t);});
+$("#out").addEventListener("click",e=>{
+  const d=e.target.closest("[data-del]"),a=e.target.closest("[data-add]");
+  if(d){const ks=d.dataset.del.split(".");const i=+ks.pop();getPath(ks.join(".")).splice(i,1);commit();render();}
+  if(a){const arr=getPath(a.dataset.add);arr.push("");commit();render();const f=$(`[data-f="${a.dataset.add}.${arr.length-1}"]`);f&&f.focus();}
 });
-$("steps").addEventListener("input", update);
-$("steps").addEventListener("focusin", e=>{
-  if(e.target.tagName==="TEXTAREA"){lastTA=e.target;
-    document.querySelectorAll(".step").forEach(s=>s.classList.toggle("active", s.contains(e.target)));
-    const s = STEPS.find(x=>x.k===e.target.dataset.k);
-    $("linkLabel").textContent = `Linking words · adding to ${s.name}`;}
-});
-// keep cursor position when tapping chips (don't steal focus on mousedown)
-document.addEventListener("mousedown", e=>{ if(e.target.closest(".chip")) e.preventDefault(); });
-$("customInput").addEventListener("input", e=>{custom[theme().id]=e.target.value;store.set("race:custom",custom);renderBanner();update()});
-$("colourToggle").addEventListener("change", e=>$("para").classList.toggle("colour", e.target.checked));
 
-$("copyBtn").addEventListener("click", ()=>{
-  const text = Object.values(vals()).filter(Boolean).join(" ");
-  const done = msg => {$("status").textContent=msg;setTimeout(()=>$("status").textContent="",2500)};
-  if(!text){done("Write something first.");return}
-  const fallback = ()=>{const r=document.createRange();r.selectNodeContents($("para"));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);done("Selected. Press Ctrl+C or ⌘C to copy.")};
-  try{ navigator.clipboard.writeText(text).then(()=>done("Copied!"), fallback) }catch(err){ fallback() }
-});
-function showClear(){
-  $("clearWrap").innerHTML = `<span class="confirm">Clear all four parts? <button class="btn danger" id="yesClear">Clear</button><button class="btn" id="noClear">Keep</button></span>`;
-  $("yesClear").onclick = ()=>{STEPS.forEach(s=>$("ta-"+s.k).value="");update();resetClear();$("status").textContent="Cleared."};
-  $("noClear").onclick = resetClear;
+function planText(){
+  const P=getPlan(), t=THEMES.find(x=>x.id===S.theme);
+  let s=`${P.title}\n${S.year} · ${t.name} · ${FOCUS.find(f=>f.id===S.focus).name}\n\nTeacher prompt\n${P.prompt}\n\nStudent questions\n`;
+  P.steps.forEach(stp=>{s+=`${stp.lab}${stp.sub?" ("+stp.sub+")":""}\n${stp.qs.filter(Boolean).map(q=>"  • "+q).join("\n")}\n`;});
+  s+=`\nTheme lens: ${P.lens}\n\nEngagement move: ${ENG[P.eng.id].name}\n${P.eng.steps.filter(Boolean).map((x,i)=>`  ${i+1}. ${x}`).join("\n")}\n\nNote: ${P.note}\n${P.reflect?`Independent reflection: ${P.reflect}\n`:""}ATL: ${P.atl.filter(Boolean).join("; ")}\nLearner profile: ${P.lp.filter(Boolean).join(", ")}`;
+  return s;
 }
-function resetClear(){$("clearWrap").innerHTML=`<button class="btn" id="clearBtn">Start over</button>`;$("clearBtn").onclick=showClear}
-$("clearBtn").onclick = showClear;
-
-/* ---------- full screen ---------- */
-let fit = store.get("race:fit", false), wentFs = false;
-function applyFit(){
-  document.documentElement.classList.toggle("fit", fit);
-  $("fsBtn").setAttribute("aria-pressed", fit);
-  $("fsBtn").querySelector("span").textContent = fit ? "Exit full screen" : "Full screen";
-  store.set("race:fit", fit);
+function toast(m){const d=document.createElement("div");d.className="toast";d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),1800);}
+function copyPlan(){
+  const txt=planText();
+  const fallback=()=>{let ta=$("#copyArea");if(!ta){ta=document.createElement("textarea");ta.id="copyArea";ta.className="copybox";ta.readOnly=true;$(".out-head").after(ta);}ta.value=txt;ta.focus();ta.select();toast("Text selected. Press Ctrl/Cmd + C");};
+  try{navigator.clipboard.writeText(txt).then(()=>toast("Plan copied"),fallback);}catch(e){fallback();}
 }
-$("fsBtn").addEventListener("click", ()=>{
-  fit = !fit; applyFit();
-  try{
-    if(fit && document.documentElement.requestFullscreen){
-      document.documentElement.requestFullscreen().then(()=>{wentFs=true}).catch(()=>{});
-    } else if(!fit && document.fullscreenElement){ document.exitFullscreen().catch(()=>{}); }
-  }catch(e){}
-});
-document.addEventListener("fullscreenchange", ()=>{
-  if(!document.fullscreenElement && wentFs){ wentFs=false; if(fit){fit=false;applyFit()} }
-});
-applyFit();
 
-if(!THEMES[themeIdx]) themeIdx=0;
-if(![0,1,2,3].includes(qIdx)) qIdx=0;
-if(!LEVELS[level]) level=1;
-renderAll();
+// ---------- classroom display ----------
+let slides=[],si=0,tick=null,left=0,wake=null;
+function buildSlides(){
+  const P=getPlan();
+  const f=x=>x.filter(q=>q&&q.trim());
+  slides=[{k:P.title,q:P.look,sub:"Silent looking first. No talking yet."}];
+  P.steps.forEach(stp=>{const qs=f(stp.qs);slides.push({k:stp.sub?`${stp.lab} · ${stp.sub}`:stp.lab,q:qs[0]||"",sub:qs.slice(1).join(" ")||(["Year 1","Year 2","Year 3"].includes(S.year)&&stp.starter?`“${stp.starter}”`:"")});});
+  slides.push({k:"Big question",q:P.lens,sub:THEMES.find(x=>x.id===S.theme).name});
+}
+function showSlide(){
+  const s=slides[si];
+  $("#stMain").innerHTML=`<p class="stage-kicker">${esc(s.k)}</p><p class="stage-q">${esc(s.q)}</p>${s.sub?`<p class="stage-sub">${esc(s.sub)}</p>`:""}`;
+  $("#stDots").innerHTML=slides.map((_,i)=>`<i class="${i===si?"on":""}"></i>`).join("");
+  $("#stPrev").disabled=si===0;$("#stNext").textContent=si===slides.length-1?"Finish ✓":"Next →";
+}
+function openStage(){
+  buildSlides();si=0;$("#stRn").textContent=`${getPlan().title} · ${S.year}`;
+  $("#stage").hidden=false;showSlide();$("#stNext").focus();
+  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}
+  try{navigator.wakeLock&&navigator.wakeLock.request("screen").then(w=>wake=w).catch(()=>{});}catch(e){}
+}
+function closeStage(){
+  $("#stage").hidden=true;stopTimer();
+  try{document.fullscreenElement&&document.exitFullscreen().catch(()=>{});}catch(e){}
+  try{wake&&wake.release();wake=null;}catch(e){}
+  $("#present")&&$("#present").focus();
+}
+function fmt(n){return Math.floor(n/60)+":"+String(n%60).padStart(2,"0");}
+function stopTimer(){clearInterval(tick);tick=null;left=0;const c=$("#clock");c.textContent="0:00";c.classList.remove("done");}
+function startTimer(sec){stopTimer();left=sec;const c=$("#clock");c.textContent=fmt(left);tick=setInterval(()=>{left--;c.textContent=fmt(Math.max(left,0));if(left<=0){clearInterval(tick);tick=null;c.classList.add("done");}},1000);}
+$("#stClose").onclick=closeStage;
+$("#stPrev").onclick=()=>{if(si>0){si--;showSlide();}};
+$("#stNext").onclick=()=>{if(si<slides.length-1){si++;showSlide();}else closeStage();};
+$("#tStop").onclick=stopTimer;
+document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>startTimer(+b.dataset.t));
+document.addEventListener("keydown",e=>{if($("#stage").hidden)return;if(e.key==="ArrowRight"||e.key===" "){e.preventDefault();$("#stNext").click();}if(e.key==="ArrowLeft")$("#stPrev").click();if(e.key==="Escape")closeStage();});
+
+// ---------- main buttons ----------
+$("#another").onclick=()=>{if(S.pick){const l=ranked();S.idx=l.indexOf(S.pick);S.pick=null;}S.idx++;S.eng=null;render();};
+
+renderRail();render();
 </script>
 </body>
 </html>
