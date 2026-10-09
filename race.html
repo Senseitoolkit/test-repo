@@ -142,9 +142,32 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .chip.topic{border-color:color-mix(in srgb,var(--tc) 55%,var(--line));background:color-mix(in srgb,var(--tc) 8%,var(--surface))}
 
 /* ---------- Full screen: projector view. Every size is in rem, and JS picks the largest --fs that fits ---------- */
+/* ---------- Setup screen: menu only, fits one screen ---------- */
+html:not(.fit) .work{display:none}
+.fit .pick,.fit .levelWrap{display:none}
+html:not(.fit) body{padding-block:14px}
+html:not(.fit) .wrap{gap:12px}
+.pick{padding:14px 16px;gap:12px}
+.pick .label{margin-bottom:6px!important}
+.themes{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.themes button{padding:7px 10px}
+.themes button b{font-size:15px}
+.themes button small{font-size:12px;line-height:1.25}
+.years button{padding:6px 14px}
+.qs button{padding:7px 12px;line-height:1.3}
+.qCols{display:grid;gap:10px;grid-template-columns:minmax(0,1fr);align-items:start}
+.qs{align-content:start}
+.qCols:has(.ownEditor:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:760px){.qCols:has(.ownEditor:not([hidden])){grid-template-columns:minmax(0,1fr)}}
+.ownEditor{margin-top:0;padding:10px 12px;gap:4px;max-width:none;align-content:start}
+.ownEditor input{padding:7px 10px}
+.ownEditor label{margin-top:2px}
+.startRow{margin-top:-4px}
+
 @media (min-width:700px){
   html.fit{font-size:var(--fs,24px)}
   html.fit,html.fit body{height:100%}
+  html.fit{overflow:hidden}
   html.fit body{overflow:hidden;font-size:1rem;padding-block:.4rem;padding-inline:max(16px,.7rem)}
   .fit .wrap{zoom:1;max-width:none;height:100%;grid-template-rows:auto minmax(0,1fr);gap:.4rem}
   .fit .pick,.fit .levelWrap,.fit .brand p,.fit .qbanner .meta,.fit .panel>h3{display:none}
@@ -240,8 +263,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
       <div class="label" style="margin-bottom:8px">Unit of inquiry</div>
       <div class="themes" id="themes"></div>
     </div>
-    <div>
+    <div class="qArea">
       <div class="label" style="margin-bottom:8px">Question</div>
+      <div class="qCols">
       <div class="qs" id="qs"></div>
       <div class="ownEditor" id="ownEditor" hidden>
         <label for="ownQ">Question</label>
@@ -252,6 +276,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
         <input id="ownW" type="text" placeholder="e.g. sunlight, energy, leaves, grow">
         <p class="ownNote">Saved automatically on this computer.</p>
         <div id="ownDel"></div>
+      </div>
       </div>
     </div>
     <div class="startRow"><button class="btn start" data-start>
@@ -480,7 +505,7 @@ function ownChanged(){
   saveOwn();
   const btn = document.querySelector(`#qs button[data-q="${qIdx}"]`);
   if(btn) btn.innerHTML = cur.q ? esc(cur.q) : '<i class="untitled">New question (type it below)</i>';
-  renderBanner(); renderSteps(); renderBank();
+  renderBanner(); renderSteps(); renderBank(); queueFit();
 }
 ["ownQ","ownR","ownW"].forEach(id=>$(id).addEventListener("input", ownChanged));
 function resetDel(){ $("ownDel").innerHTML = `<button class="btn danger" id="delAsk">Delete this question</button>`; $("delAsk").onclick = askDel; }
@@ -500,7 +525,20 @@ function autoFit(){
   const root = document.documentElement;
   root.classList.remove("grow");
   showScale();
-  if(!fit || innerWidth < 700){ root.style.removeProperty("--fs"); root.style.setProperty("--zoom", scale); return; }
+  if(!fit || innerWidth < 700){
+    root.style.removeProperty("--fs");
+    let z = scale;
+    root.style.setProperty("--zoom", z);
+    if(!fit && innerWidth >= 700){
+      for(let i=0; i<4; i++){
+        const h = document.documentElement.scrollHeight;
+        if(h <= innerHeight + 1 || z <= 0.55) break;
+        z = Math.max(0.55, z * (innerHeight - 2) / h);
+        root.style.setProperty("--zoom", z);
+      }
+    }
+    return;
+  }
   root.style.removeProperty("--zoom");
   const wrap = document.querySelector(".wrap");
   const boxes = [...document.querySelectorAll(".step, .panel .chips, .qbanner")];
