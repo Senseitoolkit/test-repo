@@ -188,6 +188,22 @@ p.ed,div.ed{display:block}
 .munit p{margin:0;max-width:85ch}
 #loiWrap{margin-top:6px}
 .menu-bar .pick.narrow{max-width:min(100%,420px)}
+.mv-ic{width:22px;height:22px;flex:none;display:block}
+.mv-ic.big{width:44px;height:44px}
+.mv{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mc)}
+.mv.inline{margin-right:6px;vertical-align:middle;font-size:.74rem}
+.mv.inline .mv-ic{width:18px;height:18px}
+.t-cat{display:inline-flex;align-items:center;gap:6px}
+.t-cat .mv-ic{width:20px;height:20px}
+.moves{margin:0 0 24px}
+.mhead.sm{font-size:1rem;margin-bottom:8px}
+.moves-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.mvkey{display:flex;gap:10px;align-items:center;background:var(--card);border:1.5px solid var(--line);border-left:5px solid var(--mc);border-radius:12px;padding:10px 12px;min-width:0}
+.mvkey .mv-ic{color:var(--mc)}
+.mk-name{margin:0;font-family:var(--display);font-weight:800;font-size:1.02rem}
+.mk-phrase{margin:0;font-size:.88rem;color:var(--muted)}
+.stage-mv{display:flex;align-items:center;gap:12px;margin:0;font-size:clamp(1rem,2vw,1.4rem);opacity:.9}
+.mv-ic.stage-ic{width:clamp(44px,6vw,72px);height:clamp(44px,6vw,72px);color:var(--hi)}
 /* Classroom display */
 .stage{position:fixed;inset:0;background:var(--stage);color:var(--stage-ink);z-index:50;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 24px calc(env(safe-area-inset-bottom,0px) + 18px)}
 .stage-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -227,6 +243,10 @@ p.ed,div.ed{display:block}
       <div class="mb-item" id="mLoiWrap"><span class="mb-lab">Focus</span><select id="mLoi" class="pick narrow" aria-label="Line of inquiry"></select></div>
     </div>
     <div class="munit" id="mUnitInfo" hidden></div>
+    <section class="moves" aria-label="Our thinking moves">
+      <h2 class="mhead sm">Our thinking moves</h2>
+      <div class="moves-row" id="movesRow"></div>
+    </section>
     <h2 class="mhead">Most used</h2>
     <div class="tiles" id="tilesCore"></div>
     <div class="suggest">
@@ -511,6 +531,36 @@ const EARLY_STARTER={
   utnt:["I used to think…","Now I think…","I changed my mind because…"], zoom:["I see…","Now I see…","I think it is…"],
   headlines:["The big idea is…","I chose it because…","My new headline is…"]
 };
+
+// ---------- School thinking moves ----------
+const MOVES={
+  notice:{name:"Notice",phrase:"Some things I notice are…",tok:"--c-see",
+    svg:'<circle cx="20" cy="20" r="14" stroke-width="3.5"/><path d="M30.5 30.5 43 43" stroke-width="6"/><path d="M12.5 19.5 16 13l3.5 6.5z" stroke-width="1.8"/><circle cx="25" cy="15.8" r="3.3" stroke-width="1.8"/><path d="m13.6 23.5 2.9-1.7 2.9 1.7v3.4l-2.9 1.7-2.9-1.7z" stroke-width="1.8"/><rect x="21.6" y="21.8" width="6.4" height="6.4" stroke-width="1.8"/>'},
+  reasons:{name:"Reasons",phrase:"I think this because…",tok:"--c-reason",
+    svg:'<g fill="currentColor" stroke="none"><ellipse cx="8" cy="41" rx="3.1" ry="4.8" transform="rotate(35 8 41)"/><ellipse cx="17" cy="35.5" rx="3.1" ry="4.8" transform="rotate(60 17 35.5)"/><ellipse cx="22" cy="27" rx="3.1" ry="4.8" transform="rotate(60 22 27)"/><ellipse cx="31" cy="23" rx="3.1" ry="4.8" transform="rotate(70 31 23)"/><ellipse cx="34.5" cy="14" rx="3.1" ry="5" transform="rotate(80 34.5 14)"/><ellipse cx="43.5" cy="12" rx="3.1" ry="5" transform="rotate(85 43.5 12)"/></g>'},
+  connections:{name:"Connections",phrase:"This reminds me of…",tok:"--c-link",
+    svg:'<circle cx="18" cy="19" r="13" stroke-width="3"/><circle cx="30" cy="30" r="13" stroke-width="3"/>'},
+  perspectives:{name:"Perspectives",phrase:"I think… You may think… They might think…",tok:"--c-view",
+    svg:'<g stroke-width="2.6"><circle cx="13" cy="15" r="5.2"/><path d="M4 34v-3.5a9 9 0 0 1 18 0V34"/><circle cx="33" cy="25" r="5.2"/><path d="M24 44v-3.5a9 9 0 0 1 18 0V44"/><path d="M27 4h16v9h-10l-4 3.5V13h-2z"/><path d="M4 38h15v8H4z"/></g><g fill="currentColor" stroke="none"><circle cx="31.5" cy="8.5" r="1.2"/><circle cx="35" cy="8.5" r="1.2"/><circle cx="38.5" cy="8.5" r="1.2"/><circle cx="8" cy="42" r="1.2"/><circle cx="11.5" cy="42" r="1.2"/><circle cx="15" cy="42" r="1.2"/></g>'},
+  test:{name:"Test",phrase:"I could test this by…",tok:"--c-ask",
+    svg:'<g stroke-width="3"><rect x="9" y="8" width="30" height="36" rx="3.5"/><rect x="17" y="4" width="14" height="7" rx="2" fill="var(--mfill,transparent)"/><path d="m14 19 3 3 5-6M14 28.5l3 3 5-6M14 38l3 3 5-6M26 19.5h8M26 29h8M26 38.5h8"/></g>'}
+};
+const MOVE_ORDER=["notice","reasons","connections","perspectives","test"];
+const mvIcon=(mv,cls="mv-ic")=>`<svg class="${cls}" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MOVES[mv].svg}</svg>`;
+// main move for each routine, and the move each step uses ("!" = badge only, keep the routine's own starter)
+const MOVE_MAP={
+  stw:["notice",["notice","reasons",null]], iniw:["notice",["notice",null]], zoom:["notice",["notice","notice!","reasons"]],
+  ppc:["notice",["notice","reasons",null]], ssw:["notice",["notice!","notice!","notice!","connections"]],
+  tps:["perspectives",["reasons","perspectives",null]], cov:["perspectives",["perspectives!","perspectives",null]],
+  step:["perspectives",["perspectives!","perspectives!","perspectives!"]], chalk:["perspectives",[null,"perspectives!","notice!"]],
+  tpe:["test",["connections",null,"test"]],
+  cec:["connections",["connections",null,null]], utnt:["connections",[null,null,"reasons!"]], gsce:["connections",[null,null,"connections",null]],
+  peel:["connections",["notice","reasons!","connections",null]], csi:["connections",[null,null,null]], "4cs":["connections",["connections","perspectives!",null,null]],
+  csq:["reasons",[null,"reasons",null]], tug:["reasons",[null,"reasons!","reasons!","test!"]], headlines:["reasons",[null,"reasons!",null]],
+  cp:["reasons",[null,null,"test","reasons!"]]
+};
+Object.entries(MOVE_MAP).forEach(([id,[main,steps]])=>{R[id].mv=main;R[id].steps.forEach((st,i)=>{const m=steps[i];if(!m)return;st.mv=m.replace("!","");st.mvPhrase=!m.endsWith("!");});});
+const stepMv=(id,i)=>(R[id].steps[i]||{}).mv||null;
 const ORDER=["stw","iniw","tps","tpe","chalk","csi","cec","cov","utnt","csq","cp","zoom","headlines","ssw","gsce","ppc","step","peel","4cs","tug"];
 
 // ---------- state ----------
@@ -626,8 +676,8 @@ function freshPlan(){
     title:r.name, look:`Look closely at ${p}.`,
     prompt:txt(r.teach(p,t)),
     steps:r.steps.map((stp,i)=>band==="early"
-      ? {lab:stp.lab,sub:stp.sub||"",pos:stp.pos||"",qs:[(stp.early||stp.middle)[0]],starter:(EARLY_STARTER[id]||[])[i]||stp.starter,push:stp.push}
-      : {lab:stp.lab,sub:stp.sub||"",pos:stp.pos||"",qs:qsFor(stp,band,t),starter:stp.starter,push:stp.push}),
+      ? {lab:stp.lab,sub:stp.sub||"",pos:stp.pos||"",qs:[(stp.early||stp.middle)[0]],starter:stp.mvPhrase?MOVES[stp.mv].phrase:((EARLY_STARTER[id]||[])[i]||stp.starter),push:stp.push}
+      : {lab:stp.lab,sub:stp.sub||"",pos:stp.pos||"",qs:qsFor(stp,band,t),starter:stp.mvPhrase?MOVES[stp.mv].phrase:stp.starter,push:stp.push}),
     note:YEAR_NOTE[S.year],
     lens:t.lens,
     eng:{id:engId,steps:ENG[engId].steps.slice()},
@@ -658,9 +708,10 @@ const del=path=>S.edit?`<button type="button" class="x" data-del="${path}" aria-
 const add=(path,label)=>S.edit?`<button type="button" class="addbtn" data-add="${path}">+ ${label}</button>`:"";
 
 function qCard(stp,i,year){
-  const showStarter=S.edit||YI(year)<=4;
+  const mv=stepMv(current(),i);
+  const showStarter=S.edit||YI(year)<=4||!!mv;
   const showPush=S.edit||YI(year)>=6;
-  return `<div class="q ${stp.pos}"><div class="lab">${stp.sub?`<small>${esc(stp.lab)}</small>${E(`steps.${i}.sub`,stp.sub)}`:E(`steps.${i}.lab`,stp.lab)}</div>
+  return `<div class="q ${stp.pos}">${mv?`<div class="mv" style="--mc:var(${MOVES[mv].tok})">${mvIcon(mv)}<span>${MOVES[mv].name}</span></div>`:""}<div class="lab">${stp.sub?`<small>${esc(stp.lab)}</small>${E(`steps.${i}.sub`,stp.sub)}`:E(`steps.${i}.lab`,stp.lab)}</div>
     <ul>${stp.qs.map((q,j)=>`<li>${E(`steps.${i}.qs.${j}`,q)}${del(`steps.${i}.qs.${j}`)}</li>`).join("")}</ul>
     ${add(`steps.${i}.qs`,"question")}
     ${showStarter?`<div class="starter">Sentence starter: “${E(`steps.${i}.starter`,stp.starter)}”</div>`:""}
@@ -680,7 +731,7 @@ function render(){
   const engId=P.eng.id;
   const list=ranked();
   const out=$("#out");
-  out.style.setProperty("--rc",`var(${CAT[r.cat].tok})`);
+  out.style.setProperty("--rc",`var(${MOVES[r.mv].tok})`);
   out.classList.toggle("editing",!!S.edit);
   const cards=P.steps.map((s,i)=>qCard(s,i,S.year)).join("");
   const stepsHtml=r.compass
@@ -694,7 +745,7 @@ function render(){
     <div style="min-width:0">
       <p class="best top">${esc(S.year)} · ${esc(u?u.title:t.name)}${TOP5.includes(id)?' · <span class="star">★</span> top five':""}</p>
       <h2 class="rname">${E("title",P.title)}</h2>
-      <p class="best">Good for ${esc(r.best.charAt(0).toLowerCase()+r.best.slice(1))}. Takes about 15 minutes.</p>
+      <p class="best"><span class="mv inline" style="--mc:var(${MOVES[r.mv].tok})">${mvIcon(r.mv)}<span>${MOVES[r.mv].name}</span></span> Good for ${esc(r.best.charAt(0).toLowerCase()+r.best.slice(1))}. Takes about 15 minutes.</p>
     </div>
     <div class="head-actions">
       <button class="btn primary" id="present" type="button">Show to class ▶</button>
@@ -767,7 +818,8 @@ $("#out").addEventListener("click",e=>{
 function planText(){
   const P=getPlan(), t=ctx();
   let s=`${P.title}\n${S.year} · ${t.unit?t.unit.title+" ("+t.name+")":t.name}\n${t.unit?"Central idea: "+t.unit.ci+"\n":""}${t.loi?"Line of inquiry: "+t.loiText+"\n":""}\nHow students will work: ${ENG[P.eng.id].name}\nSay to students: ${P.intro}\n\nShow the provocation\n${P.prompt}\n\nStudent questions\n`;
-  P.steps.forEach(stp=>{s+=`${stp.lab}${stp.sub?" ("+stp.sub+")":""}\n${stp.qs.filter(Boolean).map(q=>"  • "+q).join("\n")}\n`;});
+  const rid=current();
+  P.steps.forEach((stp,i)=>{const mv=stepMv(rid,i);s+=`${stp.lab}${stp.sub?" ("+stp.sub+")":""}${mv?" [Thinking move: "+MOVES[mv].name+"]":""}\n${stp.qs.filter(Boolean).map(q=>"  • "+q).join("\n")}\n${stp.starter?"  Starter: "+stp.starter+"\n":""}`;});
   s+=`\nTheme lens: ${P.lens}\n\nEngagement move: ${ENG[P.eng.id].name}\n${P.eng.steps.filter(Boolean).map((x,i)=>`  ${i+1}. ${x}`).join("\n")}\n\nNote: ${P.note}\n${P.reflect?`Independent reflection: ${P.reflect}\n`:""}ATL: ${P.atl.filter(Boolean).join("; ")}\nLearner profile: ${P.lp.filter(Boolean).join(", ")}`;
   return s;
 }
@@ -786,12 +838,13 @@ function buildSlides(){
   const ei=ENG_INTRO[P.eng.id];
   slides=[{k:`${ei.icon} Get ready`,q:P.intro,sub:`Today: ${P.title} with ${ENG[P.eng.id].name}`,long:true},
     {k:P.title,q:P.look,sub:"Silent looking first. No talking yet."}];
-  P.steps.forEach(stp=>{const qs=f(stp.qs);slides.push({cue:P.cue,k:stp.sub?`${stp.lab} · ${stp.sub}`:stp.lab,q:qs[0]||"",sub:(BAND(S.year)==="early"&&stp.starter)?`“${stp.starter}”`:(qs.slice(1).join(" ")||(YI(S.year)<=4&&stp.starter?`“${stp.starter}”`:""))});});
+  const rid=current();
+  P.steps.forEach((stp,i)=>{const qs=f(stp.qs);const mv=stepMv(rid,i);slides.push({mv,cue:P.cue,k:stp.sub?`${stp.lab} · ${stp.sub}`:stp.lab,q:qs[0]||"",sub:((BAND(S.year)==="early"||mv)&&stp.starter)?`“${stp.starter}”`:(qs.slice(1).join(" ")||(YI(S.year)<=4&&stp.starter?`“${stp.starter}”`:""))});});
   {const c=ctx();if(c.loi)slides.push({k:"Our line of inquiry",q:c.loiText+".",sub:c.unit.title});slides.push({k:"Big question",q:P.lens,sub:c.unit?c.unit.title:c.name});}
 }
 function showSlide(){
   const s=slides[si];
-  $("#stMain").innerHTML=`<p class="stage-kicker">${esc(s.k)}</p><p class="stage-q${s.long?" long":""}">${esc(s.q)}</p>${s.sub?`<p class="stage-sub">${esc(s.sub)}</p>`:""}${s.cue?`<p class="stage-cue">${esc(ENG_INTRO[getPlan().eng.id].icon)} ${esc(s.cue)}</p>`:""}`;
+  $("#stMain").innerHTML=`${s.mv?`<p class="stage-mv">${mvIcon(s.mv,"mv-ic stage-ic")}<span>Thinking move: <b>${MOVES[s.mv].name}</b></span></p>`:""}<p class="stage-kicker">${esc(s.k)}</p><p class="stage-q${s.long?" long":""}">${esc(s.q)}</p>${s.sub?`<p class="stage-sub">${esc(s.sub)}</p>`:""}${s.cue?`<p class="stage-cue">${esc(ENG_INTRO[getPlan().eng.id].icon)} ${esc(s.cue)}</p>`:""}`;
   $("#stDots").innerHTML=slides.map((_,i)=>`<i class="${i===si?"on":""}"></i>`).join("");
   $("#stPrev").disabled=si===0;$("#stNext").textContent=si===slides.length-1?"Finish ✓":"Next →";
 }
@@ -824,15 +877,20 @@ $("#another").onclick=()=>{if(S.pick){const l=ranked();S.idx=l.indexOf(S.pick);S
 function chainOf(r){return r.steps.map(x=>x.sub||x.lab.replace(/…$/,"")).join(" → ");}
 function tile(id){
   const r=R[id],dis=!ok(id);
-  return `<button type="button" class="tile${dis?" dim":""}" data-open="${id}" style="--cc:var(${CAT[r.cat].tok})">
-    <span class="t-top"><span class="t-cat">${esc(CAT[r.cat].name)}</span>${TOP5.includes(id)?'<span class="star" title="Top five">★</span>':""}</span>
+  return `<button type="button" class="tile${dis?" dim":""}" data-open="${id}" style="--cc:var(${MOVES[r.mv].tok})">
+    <span class="t-top"><span class="t-cat">${mvIcon(r.mv)}${esc(MOVES[r.mv].name)}</span>${TOP5.includes(id)?'<span class="star" title="Top five">★</span>':""}</span>
     <span class="t-name">${esc(r.name)}</span>
     <span class="t-chain">${esc(chainOf(r))}</span>
     <span class="t-best">${esc(r.best)}</span>
     <span class="t-age">${dis?`From ${yShort(r.min)}`:`${yShort(r.min)} and up`}</span>
   </button>`;
 }
+function renderMoves(){
+  const el=$("#movesRow");if(!el)return;
+  el.innerHTML=MOVE_ORDER.map(m=>`<div class="mvkey" style="--mc:var(${MOVES[m].tok})">${mvIcon(m,"mv-ic big")}<div><p class="mk-name">${MOVES[m].name}</p><p class="mk-phrase">${esc(MOVES[m].phrase)}</p></div></div>`).join("");
+}
 function renderMenu(){
+  renderMoves();
   $("#mYears").innerHTML=YEARS.map(y=>`<button type="button" class="chip" data-y="${y}" aria-pressed="${S.year===y}">${yShort(YI(y))}</button>`).join("");
   syncUnit();bindUnitSelects($("#mUnit"),$("#mLoi"),$("#mLoiWrap"),()=>renderMenuUnit());renderMenuUnit();
   $("#mFocus").innerHTML=FOCUS.map(f=>`<button type="button" class="chip" data-f="${f.id}">${esc(f.name)}</button>`).join("");
