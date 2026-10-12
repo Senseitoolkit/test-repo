@@ -210,6 +210,38 @@ p.ed,div.ed{display:block}
 .stage-steps{list-style:none;counter-reset:st;margin:0;padding:0;display:grid;gap:2vh;width:100%;max-width:1000px}
 .stage-steps li{counter-increment:st;display:flex;align-items:center;gap:.6em;font-weight:700;font-size:clamp(1.3rem,3.2vw,2.5rem);line-height:1.25}
 .stage-steps li::before{content:counter(st);flex:none;display:inline-grid;place-items:center;width:1.5em;height:1.5em;border-radius:50%;background:var(--hi);color:#18233a;font-size:.8em}
+.stage-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.seg{display:flex;gap:4px}
+.stage .seg .btn[aria-pressed="true"]{background:var(--hi);color:#18233a;border-color:var(--hi)}
+.stage-img{display:none}
+.stage.half{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr auto;column-gap:28px;row-gap:12px}
+.stage.half .stage-img{display:flex;grid-column:1;grid-row:1/4;position:relative;align-items:center;justify-content:center;border-radius:16px;background:#ffffff0d;min-height:0;overflow:hidden}
+.stage.half .stage-top,.stage.half .stage-main,.stage.half .stage-bar{grid-column:2;min-width:0}
+.stage.half .stage-main{max-width:none}
+.stage.half .stage-kicker{font-size:clamp(1.8rem,3.6vw,3.4rem)}
+.stage.half .stage-q{font-size:clamp(1.25rem,2.4vw,2.2rem)}
+.stage.half .stage-q.long{font-size:clamp(1.1rem,1.8vw,1.6rem)}
+.stage.half .stage-steps li{font-size:clamp(1.05rem,1.9vw,1.7rem)}
+.stage.half .stage-sub{font-size:clamp(.95rem,1.4vw,1.2rem)}
+.stage.half .stage-cue{font-size:clamp(.9rem,1.3vw,1.1rem)}
+.stage.half .rn{display:none}
+.stage-img img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;width:100%;height:100%;padding:24px;border:2.5px dashed #ffffff40;border-radius:16px;cursor:pointer}
+.drop:hover,.stage-img.over .drop{border-color:var(--hi);background:#ffd23f12}
+.drop-ic{font-size:2.6rem}
+.drop-t{font-family:var(--display);font-weight:800;font-size:1.4rem}
+.drop-s{opacity:.7;max-width:32ch}
+.img-tools{position:absolute;right:10px;bottom:10px;display:flex;gap:6px;opacity:.35;transition:opacity .15s}
+.stage-img:hover .img-tools,.img-tools:focus-within{opacity:1}
+.provimg{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px;font-size:.9rem}
+.provimg img{width:72px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.provimg .muted{color:var(--muted)}
+label.linkbtn{display:inline-block}
+@media (max-width:760px){
+  .stage.half{grid-template-columns:1fr;grid-template-rows:auto 34vh 1fr auto}
+  .stage.half .stage-top{grid-row:1}.stage.half .stage-img{grid-column:1;grid-row:2}
+  .stage.half .stage-main{grid-column:1;grid-row:3}.stage.half .stage-bar{grid-column:1;grid-row:4}
+}
 /* Classroom display */
 .stage{position:fixed;inset:0;background:var(--stage);color:var(--stage-ink);z-index:50;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 24px calc(env(safe-area-inset-bottom,0px) + 18px)}
 .stage-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -288,11 +320,30 @@ p.ed,div.ed{display:block}
   </div>
 </div>
 
+<input type="file" id="imgFile" accept="image/*" hidden>
 <div class="stage" id="stage" hidden role="dialog" aria-modal="true" aria-label="Classroom display">
+  <div class="stage-img" id="stImg">
+    <label class="drop" id="dropZone" for="imgFile">
+      <span class="drop-ic" aria-hidden="true">🖼️</span>
+      <span class="drop-t">Add your image here</span>
+      <span class="drop-s">Drag a picture in, paste it (Ctrl/Cmd + V) or tap to choose a file.</span>
+    </label>
+    <img id="stImgEl" alt="Image for students to look at" hidden>
+    <div class="img-tools" id="imgTools" hidden>
+      <label class="btn small" for="imgFile">Change image</label>
+      <button class="btn small" id="imgRemove" type="button">Remove</button>
+    </div>
+  </div>
   <div class="stage-top">
     <div class="rn" id="stRn"></div>
     <div class="dots" id="stDots"></div>
-    <button class="btn small" id="stClose" type="button">Exit display ✕</button>
+    <div class="stage-right">
+      <div class="seg" role="group" aria-label="Screen layout">
+        <button class="btn small" id="layFull" type="button" aria-pressed="true">⬛ Full screen</button>
+        <button class="btn small" id="layHalf" type="button" aria-pressed="false">◧ Half screen</button>
+      </div>
+      <button class="btn small" id="stClose" type="button">Exit ✕</button>
+    </div>
   </div>
   <div class="stage-main" id="stMain"></div>
   <div class="stage-bar">
@@ -776,6 +827,7 @@ function render(){
   <section class="sec">
     <h3><span><b class="n">2</b>Show the provocation</span><button class="linkbtn" id="newProv" type="button">Another idea ↻</button></h3>
     ${E("prompt",P.prompt,"p","prompt")}
+    <div class="provimg">${IMG_URL?`<img src="${IMG_URL}" alt="Your provocation image"><span>Your image is ready for class display.</span><button type="button" class="linkbtn" id="provRemove">Remove</button>`:`<label class="linkbtn" for="imgFile">🖼️ Add your own image</label><span class="muted">Shown beside the questions in Half screen.</span>`}</div>
     ${S.edit?`<p class="fieldlab">First slide in class display</p>${E("look",P.look,"p","prompt sm")}`:""}
   </section>
   <section class="sec">
@@ -806,6 +858,7 @@ function render(){
     <button class="btn ghost small" id="copy" type="button">Copy as text</button>
   </div>`;
   $("#present").onclick=openStage;
+  const pr=$("#provRemove");if(pr)pr.onclick=()=>setImage(null);
   $("#copy").onclick=copyPlan;
   $("#more").ontoggle=e=>{if(!S.edit)S.more=e.target.open;};
   $("#editBtn").onclick=()=>{S.edit=!S.edit;render();if(S.edit){const f=$("#out [contenteditable]");f&&f.focus();}};
@@ -857,7 +910,38 @@ function showSlide(){
   $("#stDots").innerHTML=slides.map((_,i)=>`<i class="${i===si?"on":""}"></i>`).join("");
   $("#stPrev").disabled=si===0;$("#stNext").textContent=si===slides.length-1?"Finish ✓":"Next →";
 }
+// ---------- half screen + image ----------
+let IMG_URL=null;
+try{S.half=localStorage.getItem("vtr-half")==="1";}catch(e){}
+function setImage(file){
+  if(IMG_URL&&IMG_URL.startsWith("blob:"))URL.revokeObjectURL(IMG_URL);
+  IMG_URL=file?URL.createObjectURL(file):null;
+  const el=$("#stImgEl");
+  if(IMG_URL){el.src=IMG_URL;el.hidden=false;}else{el.removeAttribute("src");el.hidden=true;}
+  $("#dropZone").hidden=!!IMG_URL;$("#imgTools").hidden=!IMG_URL;
+  if(!$("#stage").hidden&&IMG_URL&&!S.half)setLayout(true);
+  if(S.view==="plan")render();
+}
+function setLayout(half){
+  S.half=half;try{localStorage.setItem("vtr-half",half?"1":"0");}catch(e){}
+  $("#stage").classList.toggle("half",half);
+  $("#layFull").setAttribute("aria-pressed",String(!half));$("#layHalf").setAttribute("aria-pressed",String(half));
+}
+$("#layFull").onclick=()=>setLayout(false);
+$("#layHalf").onclick=()=>setLayout(true);
+$("#imgRemove").onclick=()=>setImage(null);
+$("#imgFile").onchange=e=>{const f=e.target.files&&e.target.files[0];if(f&&f.type.startsWith("image/"))setImage(f);e.target.value="";};
+const zone=$("#stImg");
+["dragenter","dragover"].forEach(t=>zone.addEventListener(t,e=>{e.preventDefault();zone.classList.add("over");}));
+["dragleave","drop"].forEach(t=>zone.addEventListener(t,()=>zone.classList.remove("over")));
+zone.addEventListener("drop",e=>{e.preventDefault();const f=[...(e.dataTransfer.files||[])].find(f=>f.type.startsWith("image/"));if(f)setImage(f);});
+document.addEventListener("paste",e=>{
+  if(e.target.closest&&e.target.closest("[contenteditable]"))return;
+  const it=[...((e.clipboardData||{}).items||[])].find(i=>i.type.startsWith("image/"));
+  if(it){e.preventDefault();setImage(it.getAsFile());if($("#stage").hidden)toast("Image added");}
+});
 function openStage(){
+  setLayout(!!S.half);
   buildSlides();si=0;$("#stRn").textContent=`${getPlan().title} · ${S.year}`;
   $("#stage").hidden=false;showSlide();$("#stNext").focus();
   try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}
