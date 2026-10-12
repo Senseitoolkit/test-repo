@@ -204,6 +204,12 @@ p.ed,div.ed{display:block}
 .mk-phrase{margin:0;font-size:.88rem;color:var(--muted)}
 .stage-mv{display:flex;align-items:center;gap:12px;margin:0;font-size:clamp(1rem,2vw,1.4rem);opacity:.9}
 .mv-ic.stage-ic{width:clamp(44px,6vw,72px);height:clamp(44px,6vw,72px);color:var(--hi)}
+.say-steps{list-style:none;counter-reset:st;margin:6px 0 4px;padding:0;display:grid;gap:8px;max-width:60ch}
+.say-steps li{counter-increment:st;display:flex;align-items:flex-start;gap:10px;font-size:1.08rem;font-weight:700;line-height:1.35}
+.say-steps li::before{content:counter(st);flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--rc);color:var(--card);font-size:.85rem}
+.stage-steps{list-style:none;counter-reset:st;margin:0;padding:0;display:grid;gap:2vh;width:100%;max-width:1000px}
+.stage-steps li{counter-increment:st;display:flex;align-items:center;gap:.6em;font-weight:700;font-size:clamp(1.3rem,3.2vw,2.5rem);line-height:1.25}
+.stage-steps li::before{content:counter(st);flex:none;display:inline-grid;place-items:center;width:1.5em;height:1.5em;border-radius:50%;background:var(--hi);color:#18233a;font-size:.8em}
 /* Classroom display */
 .stage{position:fixed;inset:0;background:var(--stage);color:var(--stage-ink);z-index:50;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 24px calc(env(safe-area-inset-bottom,0px) + 18px)}
 .stage-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -382,7 +388,9 @@ const ENG_INTRO={
     std:"In your group, you will visit a poster for each question around the room. At each poster, read what is already there, tick ideas you agree with and add new ones. When you hear the signal, move to the next poster.",
     cue:"Read, tick and add your ideas at this poster."}
 };
-const introFor=id=>BAND(S.year)==="early"?ENG_INTRO[id].early:ENG_INTRO[id].std;
+const INTRO_STEPS={"tt": {"early": ["Find your talk partner.", "Sit knee to knee.", "Think quietly first.", "Take turns to share."], "std": ["Find your talk partner.", "Think quietly first.", "Partner A shares in one sentence.", "Then Partner B shares.", "Listen well. You may share your partner's idea."]}, "wb": {"early": ["Get your whiteboard and pen.", "Draw or write your idea.", "\"3, 2, 1, show me!\" Hold it up high."], "std": ["Get your whiteboard, pen and eraser.", "Write your idea in one sentence or a quick sketch.", "\"3, 2, 1, show me!\" Hold your board up.", "Wipe it clean for the next question."]}, "mm": {"early": ["Sit with your group by the big paper.", "The picture goes in the middle.", "Take turns to add an idea."], "std": ["Get into your group of four.", "Put the topic in the middle of the paper.", "Use one branch and one colour for each question.", "Everyone adds an idea to every branch."]}, "sn": {"early": ["Take three sticky notes.", "Draw or write one idea on each note.", "Stick your notes on the board."], "std": ["Take some sticky notes and a pencil.", "Write one idea on each note.", "Stick it in the matching column.", "Add at least one note to every column."]}, "gw": {"early": ["Walk with your group to a poster.", "Look at the ideas.", "Add your drawing or words.", "Move when you hear the signal."], "std": ["Go with your group to a poster.", "Read the ideas already there.", "Tick ideas you agree with. Add new ones.", "Move when you hear the signal."]}};
+const introFor=id=>(BAND(S.year)==="early"?INTRO_STEPS[id].early:INTRO_STEPS[id].std).slice();
+const splitIntro=t=>String(t||"").split(/(?<=[.!?])\s+(?=[A-Z])/).map(x=>x.trim()).filter(Boolean);
 const ENG={
   tt:{name:"Turn & Talk",steps:["Give 20 seconds of silent thinking time for the first step.","Partner A talks for 45 seconds while Partner B listens. Swap.","Repeat for each step of the routine.","Cold-call three pairs to share their partner's best idea, not their own."]},
   wb:{name:"Mini whiteboards",steps:["Everyone gets a whiteboard and pen. Read the first question aloud.","Give 30 seconds to write or draw a response.","Say \"3, 2, 1, show me!\" Scan the room and pick two boards to discuss.","Wipe and repeat for each step."]},
@@ -681,7 +689,7 @@ function freshPlan(){
     note:YEAR_NOTE[S.year],
     lens:t.lens,
     eng:{id:engId,steps:ENG[engId].steps.slice()},
-    intro:introFor(engId), cue:ENG_INTRO[engId].cue,
+    introSteps:introFor(engId), cue:ENG_INTRO[engId].cue,
     reflect:S.year==="G5"?"In your journal: Which step changed your thinking the most? What will you do next with this idea, and how does it connect to the central idea?":"",
     atl, lp:t.unit?t.lp.slice():[...new Set([...t.lp,r.lp])]
   };
@@ -690,7 +698,8 @@ let PLAN=null, PLAN_KEY=null;
 function getPlan(){
   const k=planKey();
   if(PLAN_KEY!==k){PLAN_KEY=k;PLAN=EDITS[k]?JSON.parse(JSON.stringify(EDITS[k])):freshPlan();
-    if(PLAN.intro==null){PLAN.intro=introFor(PLAN.eng.id);PLAN.cue=ENG_INTRO[PLAN.eng.id].cue;}}
+    if(!Array.isArray(PLAN.introSteps)){PLAN.introSteps=PLAN.intro?splitIntro(PLAN.intro):introFor(PLAN.eng.id);delete PLAN.intro;}
+    if(PLAN.cue==null)PLAN.cue=ENG_INTRO[PLAN.eng.id].cue;}
   return PLAN;
 }
 const edited=()=>!!EDITS[PLAN_KEY];
@@ -756,7 +765,7 @@ function render(){
   <section class="sec eng">
     <h3><span><b class="n">1</b>How students will work</span></h3>
     <select id="engSel" class="pick narrow" aria-label="How students will work">${engOpts}</select>
-    <div class="say"><p class="say-lab">${ENG_INTRO[engId].icon} Say to students first</p>${E("intro",P.intro,"p","say-text")}</div>
+    <div class="say"><p class="say-lab">${ENG_INTRO[engId].icon} Say to students first</p><ol class="say-steps">${P.introSteps.map((t,i)=>`<li>${E(`introSteps.${i}`,t)}${del(`introSteps.${i}`)}</li>`).join("")}</ol>${add("introSteps","step")}</div>
     ${S.edit?`<p class="fieldlab">Reminder shown on each question slide</p>${E("cue",P.cue,"p","prompt sm")}`:""}
     <details class="tsteps" ${S.edit?"open":""}><summary>Teacher steps for ${esc(ENG[engId].name)}</summary>
       <ol>${P.eng.steps.map((s,i)=>`<li>${E(`eng.steps.${i}`,s)}${del(`eng.steps.${i}`)}</li>`).join("")}</ol>
@@ -802,7 +811,7 @@ function render(){
   $("#editBtn").onclick=()=>{S.edit=!S.edit;render();if(S.edit){const f=$("#out [contenteditable]");f&&f.focus();}};
   $("#newProv").onclick=()=>{S.prov++;const f=freshPlan();PLAN.prompt=f.prompt;PLAN.look=f.look;if(edited())commit();render();};
   const rb=$("#resetPlan");if(rb)rb.onclick=()=>{delete EDITS[PLAN_KEY];saveEdits();PLAN_KEY=null;render();};
-  $("#engSel").onchange=ev=>{S.eng=ev.target.value;PLAN.eng={id:S.eng,steps:ENG[S.eng].steps.slice()};PLAN.intro=introFor(S.eng);PLAN.cue=ENG_INTRO[S.eng].cue;if(edited())commit();render();};
+  $("#engSel").onchange=ev=>{S.eng=ev.target.value;PLAN.eng={id:S.eng,steps:ENG[S.eng].steps.slice()};PLAN.introSteps=introFor(S.eng);PLAN.cue=ENG_INTRO[S.eng].cue;if(edited())commit();render();};
   renderLib();
 }
 // edit events (delegated once)
@@ -817,7 +826,7 @@ $("#out").addEventListener("click",e=>{
 
 function planText(){
   const P=getPlan(), t=ctx();
-  let s=`${P.title}\n${S.year} · ${t.unit?t.unit.title+" ("+t.name+")":t.name}\n${t.unit?"Central idea: "+t.unit.ci+"\n":""}${t.loi?"Line of inquiry: "+t.loiText+"\n":""}\nHow students will work: ${ENG[P.eng.id].name}\nSay to students: ${P.intro}\n\nShow the provocation\n${P.prompt}\n\nStudent questions\n`;
+  let s=`${P.title}\n${S.year} · ${t.unit?t.unit.title+" ("+t.name+")":t.name}\n${t.unit?"Central idea: "+t.unit.ci+"\n":""}${t.loi?"Line of inquiry: "+t.loiText+"\n":""}\nHow students will work: ${ENG[P.eng.id].name}\nSay to students:\n${P.introSteps.filter(Boolean).map((x,i)=>`  ${i+1}. ${x}`).join("\n")}\n\nShow the provocation\n${P.prompt}\n\nStudent questions\n`;
   const rid=current();
   P.steps.forEach((stp,i)=>{const mv=stepMv(rid,i);s+=`${stp.lab}${stp.sub?" ("+stp.sub+")":""}${mv?" [Thinking move: "+MOVES[mv].name+"]":""}\n${stp.qs.filter(Boolean).map(q=>"  • "+q).join("\n")}\n${stp.starter?"  Starter: "+stp.starter+"\n":""}`;});
   s+=`\nTheme lens: ${P.lens}\n\nEngagement move: ${ENG[P.eng.id].name}\n${P.eng.steps.filter(Boolean).map((x,i)=>`  ${i+1}. ${x}`).join("\n")}\n\nNote: ${P.note}\n${P.reflect?`Independent reflection: ${P.reflect}\n`:""}ATL: ${P.atl.filter(Boolean).join("; ")}\nLearner profile: ${P.lp.filter(Boolean).join(", ")}`;
@@ -836,7 +845,7 @@ function buildSlides(){
   const P=getPlan();
   const f=x=>x.filter(q=>q&&q.trim());
   const ei=ENG_INTRO[P.eng.id];
-  slides=[{k:`${ei.icon} Get ready`,q:P.intro,sub:`Today: ${P.title} with ${ENG[P.eng.id].name}`,long:true},
+  slides=[{k:`${ei.icon} Get ready`,steps:P.introSteps.filter(x=>x&&x.trim()),sub:`Today: ${P.title} with ${ENG[P.eng.id].name}`},
     {k:P.title,q:P.look,sub:"Silent looking first. No talking yet."}];
   const rid=current();
   P.steps.forEach((stp,i)=>{const qs=f(stp.qs);const mv=stepMv(rid,i);slides.push({mv,cue:P.cue,k:stp.sub?`${stp.lab} · ${stp.sub}`:stp.lab,q:qs[0]||"",sub:((BAND(S.year)==="early"||mv)&&stp.starter)?`“${stp.starter}”`:(qs.slice(1).join(" ")||(YI(S.year)<=4&&stp.starter?`“${stp.starter}”`:""))});});
@@ -844,7 +853,7 @@ function buildSlides(){
 }
 function showSlide(){
   const s=slides[si];
-  $("#stMain").innerHTML=`${s.mv?`<p class="stage-mv">${mvIcon(s.mv,"mv-ic stage-ic")}<span>Thinking move: <b>${MOVES[s.mv].name}</b></span></p>`:""}<p class="stage-kicker">${esc(s.k)}</p><p class="stage-q${s.long?" long":""}">${esc(s.q)}</p>${s.sub?`<p class="stage-sub">${esc(s.sub)}</p>`:""}${s.cue?`<p class="stage-cue">${esc(ENG_INTRO[getPlan().eng.id].icon)} ${esc(s.cue)}</p>`:""}`;
+  $("#stMain").innerHTML=`${s.mv?`<p class="stage-mv">${mvIcon(s.mv,"mv-ic stage-ic")}<span>Thinking move: <b>${MOVES[s.mv].name}</b></span></p>`:""}<p class="stage-kicker">${esc(s.k)}</p>${s.steps?`<ol class="stage-steps">${s.steps.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:`<p class="stage-q${s.long?" long":""}">${esc(s.q)}</p>`}${s.sub?`<p class="stage-sub">${esc(s.sub)}</p>`:""}${s.cue?`<p class="stage-cue">${esc(ENG_INTRO[getPlan().eng.id].icon)} ${esc(s.cue)}</p>`:""}`;
   $("#stDots").innerHTML=slides.map((_,i)=>`<i class="${i===si?"on":""}"></i>`).join("");
   $("#stPrev").disabled=si===0;$("#stNext").textContent=si===slides.length-1?"Finish ✓":"Next →";
 }
