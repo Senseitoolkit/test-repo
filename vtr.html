@@ -1004,7 +1004,7 @@ function mediaChanged(){
   document.querySelectorAll("[data-mm]").forEach(el=>el.innerHTML=managerHTML());
   const sm=document.querySelector(".provmedia summary");if(sm)sm.textContent=`🖼️ Photos or video for Half screen${MEDIA.length?` (${MEDIA.length} added)`:""}`;
   renderStageMedia();
-  if(MEDIA.length&&!S.half)setLayout(true);
+  if(MEDIA.length&&!S.half&&!$("#stage").hidden)toast("Added. It shows when you switch to Half screen.");
 }
 function renderStageMedia(){
   const box=$("#stImg");if(!box)return;
@@ -1024,11 +1024,11 @@ function setLayout(half){
   $("#stage").classList.toggle("half",half);
   document.querySelectorAll("[data-lay]").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.lay==="half")===half)));
   const mb=$("#mMediaBox");if(mb)mb.hidden=!half;
-  if(half)renderStageMedia();
+  if(half&&!$("#stImg").childElementCount)renderStageMedia();
 }
 document.addEventListener("click",e=>{
-  const lay=e.target.closest("[data-lay]");if(lay){setLayout(lay.dataset.lay==="half");return;}
-  const pick=e.target.closest('label[for="imgFile"],label[for="vidFile"]');if(pick&&document.fullscreenElement)PICK_FS=true;
+  const lay=e.target.closest("[data-lay]");if(lay){setLayout(lay.dataset.lay==="half");keepFS();return;}
+  const pick=e.target.closest('label[for="imgFile"],label[for="vidFile"]');if(pick&&WANT_FS)PICK_FS=true;
   const act=e.target.closest("button[data-media-act]");if(!act)return;
   const a=act.dataset.mediaAct;
   if(a==="remove")removeMedia(+act.dataset.i);
@@ -1036,7 +1036,18 @@ document.addEventListener("click",e=>{
   if(a==="next"){MI=(MI+1)%MEDIA.length;renderStageMedia();}
 });
 document.addEventListener("submit",e=>{const f=e.target.closest('[data-media-act="link"]');if(!f)return;e.preventDefault();addLink(f.elements.u.value);});
-function refullscreen(){if(PICK_FS&&!document.fullscreenElement&&!$("#stage").hidden){try{document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}}PICK_FS=false;}
+// The display stays in full screen until you press Exit or Esc. Choosing a file makes some browsers drop full screen,
+// so it is put back straight after the file is chosen, or on the next tap.
+let WANT_FS=false;
+function keepFS(){
+  if(!WANT_FS||$("#stage").hidden||document.fullscreenElement||!document.fullscreenEnabled)return;
+  try{document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}
+}
+function refullscreen(){if(PICK_FS)keepFS();}
+document.addEventListener("fullscreenchange",()=>{
+  if(document.fullscreenElement){PICK_FS=false;return;}
+  if(!PICK_FS)WANT_FS=false; // left on purpose (Esc), so respect it
+});
 ["imgFile","vidFile"].forEach(id=>$("#"+id).addEventListener("change",e=>{addFiles(e.target.files);e.target.value="";refullscreen();}));
 $("#stage").addEventListener("pointerdown",refullscreen);
 const zone=$("#stImg");
@@ -1052,11 +1063,13 @@ function openStage(){
   MI=0;setLayout(!!S.half);
   buildSlides();si=0;$("#stRn").textContent=`${getPlan().title} · ${S.year}`;
   $("#stage").hidden=false;showSlide();$("#stNext").focus();
-  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}
+  WANT_FS=true;PICK_FS=false;
+  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{WANT_FS=false;});}catch(e){WANT_FS=false;}
   try{navigator.wakeLock&&navigator.wakeLock.request("screen").then(w=>wake=w).catch(()=>{});}catch(e){}
 }
 function closeStage(){
   $("#stage").hidden=true;stopTimer();
+  WANT_FS=false;PICK_FS=false;
   try{document.fullscreenElement&&document.exitFullscreen().catch(()=>{});}catch(e){}
   try{wake&&wake.release();wake=null;}catch(e){}
   $("#present")&&$("#present").focus();
