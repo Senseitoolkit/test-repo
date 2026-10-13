@@ -291,6 +291,12 @@ label.linkbtn{display:inline-block}
 .sheet-foot .muted{color:var(--muted);font-size:.88rem}
 .sheet .q li{display:flex;align-items:flex-start;gap:2px}
 .sheet .q ul{list-style:disc}
+.stage.mbig .stage-img{display:flex;flex-direction:column;gap:8px;position:absolute;inset:0;z-index:3;padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);border-radius:0;background:var(--stage)}
+.stage.mbig .stage-top,.stage.mbig .stage-main,.stage.mbig .stage-bar{visibility:hidden}
+.stage.mbig .media-view iframe{max-height:100%;height:100%;width:auto;max-width:100%;aspect-ratio:16/9}
+.stage .btn.bigbtn{background:var(--hi);color:#18233a;border-color:var(--hi)}
+.media-view{cursor:zoom-in}
+.stage.mbig .media-view{cursor:zoom-out}
 /* Classroom display */
 .stage{position:fixed;inset:0;background:var(--stage);color:var(--stage-ink);z-index:50;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 18px) 24px calc(env(safe-area-inset-bottom,0px) + 18px)}
 .stage-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -388,6 +394,7 @@ label.linkbtn{display:inline-block}
     <div class="rn" id="stRn"></div>
     <div class="dots" id="stDots"></div>
     <div class="stage-right">
+      <button class="btn small" id="showMedia" type="button" hidden>🖼️ Show photo or video</button>
       <div class="seg" role="group" aria-label="Screen layout">
         <button class="btn small" data-lay="full" type="button" aria-pressed="true">⬛ Full screen</button>
         <button class="btn small" data-lay="half" type="button" aria-pressed="false">◧ Half screen</button>
@@ -1001,7 +1008,9 @@ function addFiles(files){
 function addLink(u){const m=parseLink(u);if(!m){toast("Paste the full link, starting with https://");return false;}MEDIA.push(m);MI=MEDIA.length-1;saveLinks();mediaChanged();return true;}
 function removeMedia(i){const m=MEDIA[i];if(!m)return;if(m.blob)URL.revokeObjectURL(m.src);MEDIA.splice(i,1);if(MI>=MEDIA.length)MI=Math.max(0,MEDIA.length-1);saveLinks();mediaChanged();}
 function mediaChanged(){
+  if(!MEDIA.length&&S.mediaBig)setMediaBig(false);
   document.querySelectorAll("[data-mm]").forEach(el=>el.innerHTML=managerHTML());
+  updShowMedia();
   const sm=document.querySelector(".provmedia summary");if(sm)sm.textContent=`🖼️ Photos or video for Half screen${MEDIA.length?` (${MEDIA.length} added)`:""}`;
   renderStageMedia();
   if(MEDIA.length&&!S.half&&!$("#stage").hidden)toast("Added. It shows when you switch to Half screen.");
@@ -1014,17 +1023,27 @@ function renderStageMedia(){
   else if(m.type==="video")body=`<video src="${esc(m.src)}" controls playsinline></video>`;
   else if(m.type==="frame")body=`<iframe src="${esc(m.src)}" title="${esc(m.label)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
   else body=`<div class="linkcard"><p>This link can't play inside the app.</p><a class="btn go" href="${esc(m.link)}" target="_blank" rel="noopener">Open link ↗</a></div>`;
-  box.innerHTML=`<div class="media-view">${body}</div>
+  box.innerHTML=`<div class="media-view" title="Double-click to fill the screen or go back">${body}</div>
     <div class="media-bar">${MEDIA.length>1?`<button class="btn small" data-media-act="prev" type="button" aria-label="Previous">‹</button><span class="mcount">${MI+1} / ${MEDIA.length}</span><button class="btn small" data-media-act="next" type="button" aria-label="Next">›</button>`:""}
     ${m.link&&m.type!=="link"?`<a class="btn small" href="${esc(m.link)}" target="_blank" rel="noopener">Open in new tab ↗</a>`:""}
-    <span class="grow"></span><label class="btn small" for="imgFile">+ Photos</label><button class="btn small" data-media-act="remove" data-i="${MI}" type="button">Remove</button></div>`;
+    <span class="grow"></span><button class="btn small bigbtn" data-media-act="big" type="button">${S.mediaBig?"⤡ Back to questions":"⛶ Fill screen"}</button><label class="btn small" for="imgFile">+ Photos</label><button class="btn small" data-media-act="remove" data-i="${MI}" type="button">Remove</button></div>`;
 }
+function setMediaBig(v){
+  v=!!v&&MEDIA.length>0;S.mediaBig=v;
+  $("#stage").classList.toggle("mbig",v);
+  if(v&&!$("#stImg").querySelector(".media-view"))renderStageMedia();
+  document.querySelectorAll(".bigbtn").forEach(b=>b.textContent=v?"⤡ Back to questions":"⛶ Fill screen");
+  updShowMedia();
+}
+function updShowMedia(){const b=$("#showMedia");if(b)b.hidden=!(MEDIA.length&&!S.half);}
 function setLayout(half){
+  if(S.mediaBig)setMediaBig(false);
   S.half=half;try{localStorage.setItem("vtr-half",half?"1":"0");}catch(e){}
   $("#stage").classList.toggle("half",half);
   document.querySelectorAll("[data-lay]").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.lay==="half")===half)));
   const mb=$("#mMediaBox");if(mb)mb.hidden=!half;
   if(half&&!$("#stImg").childElementCount)renderStageMedia();
+  updShowMedia();
 }
 document.addEventListener("click",e=>{
   const lay=e.target.closest("[data-lay]");if(lay){setLayout(lay.dataset.lay==="half");keepFS();return;}
@@ -1032,6 +1051,7 @@ document.addEventListener("click",e=>{
   const act=e.target.closest("button[data-media-act]");if(!act)return;
   const a=act.dataset.mediaAct;
   if(a==="remove")removeMedia(+act.dataset.i);
+  if(a==="big"){setMediaBig(!S.mediaBig);return;}
   if(a==="prev"){MI=(MI-1+MEDIA.length)%MEDIA.length;renderStageMedia();}
   if(a==="next"){MI=(MI+1)%MEDIA.length;renderStageMedia();}
 });
@@ -1060,7 +1080,7 @@ document.addEventListener("paste",e=>{
   if(f.length){e.preventDefault();addFiles(f);if($("#stage").hidden)toast("Image added for Half screen");}
 });
 function openStage(){
-  MI=0;setLayout(!!S.half);
+  MI=0;setLayout(!!S.half);setMediaBig(false);updShowMedia();
   buildSlides();si=0;$("#stRn").textContent=`${getPlan().title} · ${S.year}`;
   $("#stage").hidden=false;showSlide();$("#stNext").focus();
   WANT_FS=true;PICK_FS=false;
@@ -1068,6 +1088,7 @@ function openStage(){
   try{navigator.wakeLock&&navigator.wakeLock.request("screen").then(w=>wake=w).catch(()=>{});}catch(e){}
 }
 function closeStage(){
+  setMediaBig(false);
   $("#stage").hidden=true;stopTimer();
   WANT_FS=false;PICK_FS=false;
   try{document.fullscreenElement&&document.exitFullscreen().catch(()=>{});}catch(e){}
@@ -1082,7 +1103,21 @@ $("#stPrev").onclick=()=>{if(si>0){si--;showSlide();}};
 $("#stNext").onclick=()=>{if(si<slides.length-1){si++;showSlide();}else closeStage();};
 $("#tStop").onclick=stopTimer;
 document.querySelectorAll("[data-t]").forEach(b=>b.onclick=()=>startTimer(+b.dataset.t));
-document.addEventListener("keydown",e=>{if($("#stage").hidden)return;if(e.key==="ArrowRight"||e.key===" "){e.preventDefault();$("#stNext").click();}if(e.key==="ArrowLeft")$("#stPrev").click();if(e.key==="Escape")closeStage();});
+document.addEventListener("keydown",e=>{
+  if($("#stage").hidden)return;
+  if(e.target.closest&&(e.target.closest("input")||e.target.closest("[contenteditable]")))return;
+  if((e.key==="f"||e.key==="F")&&MEDIA.length){e.preventDefault();setMediaBig(!S.mediaBig);return;}
+  if(S.mediaBig){
+    if(e.key==="Escape"){setMediaBig(false);return;}
+    if(MEDIA.length>1&&e.key==="ArrowRight"){e.preventDefault();MI=(MI+1)%MEDIA.length;renderStageMedia();return;}
+    if(MEDIA.length>1&&e.key==="ArrowLeft"){MI=(MI-1+MEDIA.length)%MEDIA.length;renderStageMedia();return;}
+  }
+  if(e.key==="ArrowRight"||e.key===" "){e.preventDefault();$("#stNext").click();}
+  if(e.key==="ArrowLeft")$("#stPrev").click();
+  if(e.key==="Escape")closeStage();
+});
+$("#showMedia").onclick=()=>setMediaBig(true);
+$("#stImg").addEventListener("dblclick",e=>{if(e.target.closest(".media-view"))setMediaBig(!S.mediaBig);});
 
 // ---------- main buttons ----------
 $("#another").onclick=()=>{if(S.pick){const l=ranked();S.idx=l.indexOf(S.pick);S.pick=null;}S.idx++;S.eng=null;render();};
