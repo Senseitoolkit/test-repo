@@ -12,7 +12,7 @@
 :root{
   --bg:#F3F5F9; --surface:#FFFFFF; --sunk:#EAEEF5; --ink:#1B2232; --muted:#566079; --line:#D9DFEA;
   --accent:#2F55D4;
-  --r:#0F7A6C; --a:#2F55D4; --c:#A86A10; --e:#7445BE;
+  --r:#0F7A6C; --a:#2F55D4; --c:#A86A10; --e:#7445BE; --k:#B23A62;
   --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
   --body:"Atkinson Hyperlegible",Verdana,system-ui,sans-serif;
   --radius:14px;
@@ -20,10 +20,10 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#11141B; --surface:#191E28; --sunk:#222836; --ink:#E7EBF3; --muted:#9BA4B8; --line:#2C3443;
-  --accent:#86A2FF; --r:#4CC3B1; --a:#86A2FF; --c:#E4B04F; --e:#B994F2; color-scheme:dark}}
+  --accent:#86A2FF; --r:#4CC3B1; --a:#86A2FF; --c:#E4B04F; --e:#B994F2; --k:#F08AAB; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#11141B; --surface:#191E28; --sunk:#222836; --ink:#E7EBF3; --muted:#9BA4B8; --line:#2C3443;
-  --accent:#86A2FF; --r:#4CC3B1; --a:#86A2FF; --c:#E4B04F; --e:#B994F2; color-scheme:dark}
+  --accent:#86A2FF; --r:#4CC3B1; --a:#86A2FF; --c:#E4B04F; --e:#B994F2; --k:#F08AAB; color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -108,6 +108,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 
 #steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 #steps[data-count="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+#steps[data-count="5"]{grid-template-columns:repeat(6,minmax(0,1fr))}
+#steps[data-count="5"]>.step{grid-column:span 2}
+#steps[data-count="5"]>.step:nth-child(n+4){grid-column:span 3}
+@media (max-width:760px){#steps[data-count="5"]>.step{grid-column:auto}}
 #steps[data-count="1"]{grid-template-columns:minmax(0,1fr)}
 @media (max-width:1100px){#steps[data-count="3"]{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:760px){#steps{grid-template-columns:minmax(0,1fr)}}
@@ -121,6 +125,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .vtr small{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 .sentenceNo{font-size:12px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--muted)}
 .step .letter{background:var(--lc,var(--sc));color:var(--surface);font:800 28px/1 var(--display);width:44px;height:44px;border-radius:10px;display:grid;place-items:center;flex:none}
+.step .letter.wide{width:auto!important;padding-inline:.3em;white-space:nowrap}
 .step h3{font-size:28px;color:var(--sc)}
 .step .tip{margin:0;color:var(--muted);font-size:17px;line-height:1.4}
 .echo{margin:0;font-size:19px;line-height:1.45;background:color-mix(in srgb,var(--sc) 9%,var(--surface));border-radius:10px;padding:8px 12px;display:grid;gap:2px}
@@ -199,6 +204,8 @@ html:not(.fit) .wrap{gap:12px}
   .fit #steps{gap:.4rem;min-height:0;grid-template-rows:1fr 1fr}
   .fit #steps[data-count="2"],.fit #steps[data-count="3"]{grid-template-rows:1fr;grid-template-columns:repeat(var(--n),minmax(0,1fr))}
   .fit #steps[data-count="2"]{--n:2}.fit #steps[data-count="3"]{--n:3}
+  .fit #steps[data-count="5"]{grid-template-rows:1fr 1fr}
+  .fit .panel[data-groups="4"]{grid-template-columns:repeat(4,minmax(0,1fr))}
   .fit #steps[data-count="1"]{grid-template-rows:1fr;grid-template-columns:minmax(0,1fr)}
   .fit .btn.start{background:var(--surface);color:var(--ink);border-color:var(--line);font-size:max(14px,.55rem);padding:.25rem .7rem}
   .fit .step{min-height:0;overflow:hidden;padding:.55rem .7rem .45rem;gap:.3rem;background-size:100% .22rem;border-radius:.5rem}
@@ -316,6 +323,8 @@ html:not(.fit) .wrap{gap:12px}
         <div class="chips" id="citeChips"></div>
         <div class="sub bankHead" id="bankExplainHead" style="--bc:var(--e)"><span>E</span>Explain words</div>
         <div class="chips" id="explainChips"></div>
+        <div class="sub bankHead" id="bankConcludeHead" style="--bc:var(--k)"><span>C</span>Conclude words</div>
+        <div class="chips" id="concludeChips"></div>
       </div>
     </aside>
   </div>
@@ -447,7 +456,20 @@ const stage = () => {
   if(id==="Grade 3" || id==="Grade 4") return "three";          // Restate + Answer, Cite, Explain
   return "four";                                                // Grade 5: R, A, C, E
 };
-const COLOR = {R:"var(--r)",A:"var(--a)",C:"var(--c)",E:"var(--e)"};
+const COLOR = {R:"var(--r)",A:"var(--a)",C:"var(--c)",E:"var(--e)",K:"var(--k)"};
+const LETTER = {R:"R",A:"A",C:"C",E:"E",K:"C"};   // K = Conclude, shown as a rose "C"
+/* Grade 5 also concludes */
+const CONCLUDE = {
+  tip:{1:"Finish by saying your answer again.",
+       2:"Sum up your answer and say why it matters.",
+       3:"Restate your claim in new words and leave the reader with a final thought."},
+  starters:{1:["In conclusion, ___."],
+            2:["In conclusion, ___.","Overall, ___, which is why ___.","This shows that ___."],
+            3:["In conclusion, ___, which shows that ___.","Ultimately, ___.","Therefore, the answer to ___ is ___.","This matters because ___."]},
+  words:{1:["in conclusion","so","that is why","in the end"],
+         2:["in conclusion","overall","to sum up","this is why","in the end","this shows"],
+         3:["ultimately","in summary","to conclude","therefore","overall","this demonstrates","as a result","in the end"]}
+};
 /* Visible thinking routine icons, matched to each RACE part */
 const VTR = {
   notice:{name:"Notice", stem:"Some things I notice are…",
@@ -472,8 +494,10 @@ function vtrIcons(keys){
 function cardsFor(q){
   const st = stage(), lc = q.restate ? q.restate.charAt(0).toLowerCase()+q.restate.slice(1) : "";
   const byK = k => STEPS.find(s=>s.k===k);
-  if(st==="four") return STEPS.map(s=>({keys:[s.k], name:s.name, tip:s.tip[level],
-    starters: (s.k==="R" && level===1 && q.restate) ? [q.restate+" ___."] : [...s.starters[level]]}));
+  if(st==="four") return [...STEPS.map(s=>({keys:[s.k], name:s.name, tip:s.tip[level],
+    starters: (s.k==="R" && level===1 && q.restate) ? [q.restate+" ___."] : [...s.starters[level]]})),
+    {keys:["K"], name:"Conclude", tip:CONCLUDE.tip[level],
+     starters: (level===1 && q.restate) ? ["In conclusion, "+lc+" ___."] : [...CONCLUDE.starters[level]]}];
   // Sentence 1: restate and answer together
   const ra = {keys:["R","A"], name:"Restate + Answer",
     tip: level===3 ? "Use the question's words, give your answer and a reason." : "Use the question's words and give your answer.",
@@ -484,11 +508,12 @@ function cardsFor(q){
       : (level===1 ? ["I think ___."] : ["I think ___ because ___."])};
   if(st==="one") return [ra];
   if(st==="two"){
-    const ce = {keys:["C","E"], name:"Example + Explain", tip:"Give an example and say what it shows.",
-      starters: level===1 ? ["For example, ___, so ___."]
-        : level===2 ? ["For example, ___, so ___.", "I know because ___, and this shows ___."]
-        : ["For example, ___, and this shows ___.", "I know this because ___, so ___."]};
-    return [ra, ce];
+    // Grades 1–2: Restate + Answer, then Cite. (Grade 2's "+" is the Explain words in the word bank.)
+    const c = {keys:["C"], name:"Cite", tip:"Give one example.",
+      starters: level===1 ? ["For example, ___."]
+        : level===2 ? ["For example, ___.", "I learned that ___."]
+        : ["For example, ___.", "In ___, I learned that ___."]};
+    return [ra, c];
   }
   return [ra, ...["C","E"].map(k=>{const s=byK(k);return {keys:[k], name:s.name, tip:s.tip[level], starters:[...s.starters[level]]}})];
 }
@@ -503,7 +528,7 @@ function renderSteps(){
         starters = [];
       } else if(level===2 && c.keys.length===1) starters = [q.restate+" ___.", ...starters];
     }
-    const badges = c.keys.map(k=>`<span class="letter" style="--lc:${COLOR[k]}" aria-hidden="true">${k}</span>`).join("");
+    const badges = c.keys.map(k=>`<span class="letter${c.badge?" wide":""}" style="--lc:${COLOR[k]}" aria-hidden="true">${c.badge||LETTER[k]}</span>`).join("");
     return `<article class="step" style="--sc:${COLOR[c.keys[0]]};--sc2:${COLOR[c.keys[c.keys.length-1]]}">
       <header>${badges}<div>${numbered?`<div class="sentenceNo">Sentence ${i+1}</div>`:""}<h3>${c.name}</h3></div></header>
       ${echo || `<p class="tip">${c.tip}</p>`}
@@ -515,17 +540,21 @@ function renderBank(){
   const q = question();
   $("topicChips").innerHTML = q.words.map(w=>`<span class="chip topic">${esc(w)}</span>`).join("");
   const st = stage(), simple = st==="one" || st==="two";
-  const cite = simple ? BANK.k.cite : BANK[level].cite, explain = simple ? BANK.k.explain : BANK[level].explain;
+  const cite = simple ? BANK.k.cite : BANK[level].cite;
+  const explain = simple ? BANK.k.explain : BANK[level].explain;
   // K1–K3 only write Restate + Answer, so they get answer words instead of cite / explain words
   $("bankCiteHead").hidden = $("citeChips").hidden = st==="one";
-  $("bankExplainHead").hidden = $("explainChips").hidden = st==="one";
+  // Grade 1 has no Explain words; Grade 2 gets them in the word bank only (C+)
+  $("bankExplainHead").hidden = $("explainChips").hidden = st==="one" || (st==="two" && year().id!=="Grade 2");
   $("bankAnswerHead").hidden = $("answerChips").hidden = st!=="one";
   $("answerChips").innerHTML = BANK.k.answer.map(w=>`<span class="chip bank" style="--bc:var(--a)">${esc(w)}</span>`).join("");
   $("topicHead").hidden = $("topicChips").hidden = !q.words.length;
-  const panel = document.querySelector(".aside .panel");
-  panel.dataset.groups = [...panel.querySelectorAll(".chips")].filter(c=>!c.hidden).length;
   $("citeChips").innerHTML = cite.map(w=>`<span class="chip bank" style="--bc:var(--c)">${esc(w)}</span>`).join("");
   $("explainChips").innerHTML = explain.map(w=>`<span class="chip bank" style="--bc:var(--e)">${esc(w)}</span>`).join("");
+  $("bankConcludeHead").hidden = $("concludeChips").hidden = st!=="four";
+  $("concludeChips").innerHTML = CONCLUDE.words[level].map(w=>`<span class="chip bank" style="--bc:var(--k)">${esc(w)}</span>`).join("");
+  const panel = document.querySelector(".aside .panel");
+  panel.dataset.groups = [...panel.querySelectorAll(".chips")].filter(c=>!c.hidden).length;
 }
 function renderAll(){renderLevels();renderYears();renderThemes();renderQs();renderBanner();renderSteps();renderBank();if(typeof queueFit==="function")queueFit()}
 
