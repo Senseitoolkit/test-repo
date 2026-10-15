@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Array Math Saver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Gaegu:wght@400;700&family=Lexend:wght@400;500;600&display=swap">
+<style>
+/* Layout: a classroom wall — one big stage for the problem and its dot array, a rail of sticky notes beside it. */
+:root{
+  --bg:#f2f5f9; --panel:#ffffff; --ink:#1b2838; --muted:#5d6b7d; --line:#dce4ee;
+  --a:#2f6fdb; --b:#ef8424; --x:#c4ccd7; --note:#fff1a6; --note-ink:#3b3220; --chip:#e6ecf4;
+  --f-display:"Bricolage Grotesque", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-ui:"Lexend", system-ui, -apple-system, sans-serif;
+  --f-note:"Gaegu", "Comic Sans MS", "Chalkboard SE", cursive;
+  --grid-img:none;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#111823; --panel:#18212e; --ink:#e8eef6; --muted:#97a5b8; --line:#253244;
+  --a:#6ea4ff; --b:#ffab5e; --x:#3a475a; --note:#f3e38f; --note-ink:#2f2814; --chip:#1f2a39; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#111823; --panel:#18212e; --ink:#e8eef6; --muted:#97a5b8; --line:#253244;
+  --a:#6ea4ff; --b:#ffab5e; --x:#3a475a; --note:#f3e38f; --note-ink:#2f2814; --chip:#1f2a39; color-scheme:dark }
+/* user-picked skins come last so they win over the system theme */
+:root[data-skin="chalk"]{ --bg:#22352b; --panel:#2a3f34; --ink:#f3f4e9; --muted:#aebca8; --line:#34503f;
+  --a:#fff6cf; --b:#ffafc5; --x:#4c6656; --note:#f4e39a; --note-ink:#33301c; --chip:#2f4739; color-scheme:dark; --grid-img:none }
+:root[data-skin="graph"]{ --bg:#fbfdff; --panel:#ffffff; --ink:#16314c; --muted:#59718b; --line:#cfe0f3;
+  --a:#1f6feb; --b:#e5484d; --x:#c8d4e2; --note:#fff3b0; --note-ink:#3a3015; --chip:#e9f1fb; color-scheme:light;
+  --grid-img:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px) }
+:root[data-skin="midnight"]{ --bg:#0b0d1a; --panel:#141830; --ink:#ebe9ff; --muted:#9a98c4; --line:#22284a;
+  --a:#8f80ff; --b:#33d6b6; --x:#2c3155; --note:#ffd9f2; --note-ink:#36203a; --chip:#1b2040; color-scheme:dark; --grid-img:none }
+:root[data-skin="sunset"]{ --bg:#fff0e4; --panel:#fff8f2; --ink:#4a1e18; --muted:#8a5a4c; --line:#f2d6c3;
+  --a:#df532a; --b:#7a3cbd; --x:#e7cbbb; --note:#fff7c2; --note-ink:#4a3418; --chip:#fbe2d2; color-scheme:light; --grid-img:none }
+:root[data-skin="ocean"]{ --bg:#052a33; --panel:#0a3641; --ink:#def6f5; --muted:#8dbcc0; --line:#0f4552;
+  --a:#47d2c9; --b:#ffcf61; --x:#1d5562; --note:#c9f2e4; --note-ink:#0f3a32; --chip:#0e4250; color-scheme:dark; --grid-img:none }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg); background-image:var(--grid-img); background-size:28px 28px; color:var(--ink);
+  font-family:var(--f-ui); overflow:hidden;
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--a); outline-offset:2px}
+
+.app{height:100%; display:grid; grid-template-rows:auto 1fr; gap:12px; padding-block:12px}
+.bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px}
+.brand{font-family:var(--f-display); font-weight:800; font-size:1.25rem; letter-spacing:-.01em; margin-right:auto}
+.group{display:flex; align-items:center; gap:6px}
+.lbl{font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin-right:2px}
+.op{width:40px; height:40px; border-radius:10px; border:2px solid var(--line); background:var(--panel);
+  font-family:var(--f-display); font-weight:800; font-size:1.3rem; line-height:1}
+.op[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+select{height:40px; border-radius:10px; border:2px solid var(--line); background:var(--panel); padding:0 8px}
+.swatch{width:28px; height:28px; border-radius:50%; border:2px solid var(--line); padding:0; position:relative; overflow:hidden}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.swatch i{position:absolute; inset:0}
+.go{height:40px; padding:0 16px; border-radius:10px; border:0; background:var(--a); color:var(--bg); font-weight:600}
+.ghost{height:40px; padding:0 12px; border-radius:10px; border:2px solid var(--line); background:var(--panel)}
+
+main{min-height:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(320px,1fr); gap:24px}
+.stage{min-height:0; min-width:0; display:grid; grid-template-rows:auto 1fr auto auto; justify-items:center; gap:10px; position:relative}
+.question{font-family:var(--f-display); font-weight:800; font-size:clamp(3rem, 11vmin, 9rem); line-height:1;
+  display:flex; gap:.28em; align-items:baseline; letter-spacing:-.02em; font-variant-numeric:tabular-nums; padding-top:2vmin}
+.question .sym{color:var(--muted); font-weight:500}
+.question .ans{min-width:1ch; text-align:center; color:var(--muted)}
+.question .ans.shown{color:var(--a); animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{from{transform:scale(.4); opacity:0} to{transform:none; opacity:1}}
+.arrayWrap{width:100%; min-height:0; display:grid; place-items:center; overflow:hidden}
+.array{display:flex; flex-direction:column; gap:var(--gap,8px); align-items:flex-start}
+.row{display:flex; gap:var(--gap,8px); align-items:center}
+.row.band{padding:calc(var(--gap)*.6); border:2px dashed var(--line); border-radius:999px}
+.dot{width:var(--d,24px); height:var(--d,24px); border-radius:50%; background:var(--a); position:relative;
+  animation:dotIn .35s backwards ease-out}
+.dot.b{background:var(--b)}
+.dot.x{background:var(--x)}
+.dot.x::before,.dot.x::after{content:""; position:absolute; left:10%; right:10%; top:calc(50% - 1.5px); height:3px; background:var(--ink); border-radius:2px; transform:rotate(45deg)}
+.dot.x::after{transform:rotate(-45deg)}
+.row .gap5{width:calc(var(--gap)*1.4)}
+@keyframes dotIn{from{transform:scale(0); opacity:0}}
+.caption{font-size:clamp(1rem,2.6vmin,1.5rem); color:var(--muted); text-align:center; min-height:1.6em; text-wrap:balance}
+.caption b{color:var(--ink); font-weight:600}
+.progress{width:min(520px,100%); height:6px; border-radius:6px; background:var(--line); overflow:hidden; margin-bottom:4px}
+.progress i{display:block; height:100%; width:0; background:var(--a)}
+.hint{font-size:.8rem; color:var(--muted)}
+
+.notes{min-height:0; display:flex; flex-direction:column; gap:10px}
+.notes h2{font-family:var(--f-display); font-size:clamp(1.3rem,3vmin,2rem); margin:0; display:flex; justify-content:space-between; align-items:baseline}
+.notes h2 small{font-family:var(--f-ui); font-weight:400; color:var(--muted); font-size:.9rem}
+.add{display:flex; gap:6px}
+.add input{flex:1; min-width:0; height:40px; border-radius:10px; border:2px solid var(--line); background:var(--panel); padding:0 10px}
+.list{list-style:none; margin:0; padding:8px 4px 12px; overflow-y:auto; display:flex; flex-direction:column; gap:18px; flex:1}
+.note{background:var(--note); color:var(--note-ink); font-family:var(--f-note); font-size:clamp(1.6rem,4vmin,2.6rem); line-height:1.1;
+  padding:18px 40px 20px 18px; border-radius:2px 2px 14px 2px; box-shadow:0 6px 14px -8px rgba(0,0,0,.45);
+  transform:rotate(var(--tilt)); position:relative; display:flex; gap:10px; align-items:flex-start}
+.note::before{content:""; position:absolute; top:-7px; left:calc(50% - 22px); width:44px; height:14px; background:color-mix(in srgb, var(--panel) 60%, transparent); opacity:.8}
+.note .check{flex:none; width:1em; height:1em; margin-top:.08em; font-size:inherit; border-radius:5px; border:2px solid var(--note-ink); background:transparent; padding:0; display:grid; place-items:center; color:var(--note-ink)}
+.note.done .text{text-decoration:line-through; opacity:.55}
+.note .text{overflow-wrap:anywhere; min-width:0}
+.note .del{position:absolute; top:6px; right:6px; width:24px; height:24px; border:0; background:transparent; color:var(--note-ink); opacity:.5; font-size:1.1rem; line-height:1}
+.note .del:hover{opacity:1}
+.empty{color:var(--muted); font-size:.9rem; padding:8px 2px}
+.clear{align-self:flex-start; border:0; background:none; color:var(--muted); font-size:.8rem; text-decoration:underline; padding:0}
+
+/* screen saver mode */
+.saver .bar{display:none}
+.saver .app{grid-template-rows:1fr}
+.saver main{grid-template-columns:minmax(0,2fr) minmax(320px,1fr)}
+.saver .add,.saver .clear,.saver .hint{display:none}
+.saver .note .del{display:none}
+.floatCtl{position:fixed; right:calc(16px + env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  display:none; gap:6px; background:var(--panel); border:2px solid var(--line); padding:6px; border-radius:14px; transition:opacity .4s}
+.saver .floatCtl{display:flex}
+.saver.idle .floatCtl{opacity:0; pointer-events:none}
+.saver.idle{cursor:none}
+.notes.hiddenRail{display:none}
+.saver main:has(.hiddenRail), main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
+
+@media (max-width:760px){
+  body{overflow:auto}
+  .app{height:auto; min-height:100%}
+  main,.saver main{grid-template-columns:minmax(0,1fr)}
+  .stage{min-height:62vh}
+  .notes{max-height:none}
+}
+@media (prefers-reduced-motion:reduce){ .dot,.question .ans.shown{animation:none} .progress i{transition:none!important} }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand">Array Math Saver</div>
+    <div class="group" role="group" aria-label="Operations">
+      <span class="lbl">Include</span>
+      <button class="op" id="op-add" data-op="add" aria-pressed="true" title="Addition">+</button>
+      <button class="op" id="op-sub" data-op="sub" aria-pressed="true" title="Subtraction">−</button>
+      <button class="op" id="op-mul" data-op="mul" aria-pressed="true" title="Multiplication">×</button>
+      <button class="op" id="op-div" data-op="div" aria-pressed="true" title="Division">÷</button>
+    </div>
+    <div class="group">
+      <label class="lbl" for="max">Up to</label>
+      <select id="max"><option value="5">5</option><option value="10" selected>10</option><option value="12">12</option></select>
+      <label class="lbl" for="speed">Speed</label>
+      <select id="speed"><option value="7000">Slow</option><option value="4500" selected>Medium</option><option value="2600">Fast</option></select>
+    </div>
+    <div class="group" role="group" aria-label="Color theme" id="skins"><span class="lbl">Theme</span></div>
+    <div class="group">
+      <button class="ghost" id="pause">Pause</button>
+      <button class="ghost" id="next">Next</button>
+      <button class="go" id="fs">Start full screen</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage" aria-live="polite">
+      <div class="question" id="q"></div>
+      <div class="arrayWrap" id="wrap"><div class="array" id="arr"></div></div>
+      <div class="caption" id="cap"></div>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    </section>
+
+    <aside class="notes" id="notes">
+      <h2>To do <small id="count"></small></h2>
+      <form class="add" id="addForm">
+        <input id="noteInput" placeholder="Post a note…" maxlength="120" autocomplete="off">
+        <button class="go" type="submit">Post</button>
+      </form>
+      <ul class="list" id="list"></ul>
+      <button class="clear" id="clearDone">Clear finished notes</button>
+      <div class="hint">Space pauses · → next · F full screen · N hides notes</div>
+    </aside>
+  </main>
+</div>
+
+<div class="floatCtl">
+  <button class="ghost" id="fPause">Pause</button>
+  <button class="ghost" id="fNext">Next</button>
+  <button class="ghost" id="fNotes">Notes</button>
+  <button class="go" id="fExit">Exit</button>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const KEY = 'arrayMathSaver.v1';
+const SKINS = [
+  {id:'auto', name:'Match my device', c:['#f2f5f9','#111823']},
+  {id:'chalk', name:'Chalkboard', c:['#22352b','#fff6cf']},
+  {id:'graph', name:'Graph paper', c:['#fbfdff','#1f6feb']},
+  {id:'sunset', name:'Sunset', c:['#fff0e4','#df532a']},
+  {id:'ocean', name:'Ocean', c:['#052a33','#47d2c9']},
+  {id:'midnight', name:'Midnight', c:['#0b0d1a','#8f80ff']},
+];
+const SYM = {add:'+', sub:'−', mul:'×', div:'÷'};
+
+let S = {ops:{add:true,sub:true,mul:true,div:true}, max:10, speed:4500, skin:'auto', notesHidden:false,
+  notesVersion:2,
+  notes:[
+    {id:1, t:'Take a seat at your desk', done:false, tilt:-1.2},
+    {id:2, t:'Listen for instructions', done:false, tilt:1},
+    {id:3, t:'Try to solve the math facts in your head while you wait', done:false, tilt:-.5},
+  ]};
+try {
+  const saved = JSON.parse(localStorage.getItem(KEY));
+  if (saved){ const fresh = S.notes; S = Object.assign(S, saved); if (saved.notesVersion !== 2){ S.notes = fresh; S.notesVersion = 2; } }
+} catch(e){}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+
+/* ---------- settings UI ---------- */
+document.querySelectorAll('.op').forEach(b => {
+  b.setAttribute('aria-pressed', S.ops[b.dataset.op]);
+  b.onclick = () => {
+    const on = !S.ops[b.dataset.op];
+    if (!on && Object.values(S.ops).filter(Boolean).length === 1) return; // keep at least one
+    S.ops[b.dataset.op] = on; b.setAttribute('aria-pressed', on); save(); next();
+  };
+});
+$('max').value = S.max; $('speed').value = S.speed;
+$('max').onchange = e => { S.max = +e.target.value; save(); next(); };
+$('speed').onchange = e => { S.speed = +e.target.value; save(); };
+
+const skinBox = $('skins');
+SKINS.forEach(k => {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.id = 'skin-' + k.id; b.title = k.name; b.setAttribute('aria-label', k.name);
+  b.innerHTML = `<i style="background:linear-gradient(135deg, ${k.c[0]} 50%, ${k.c[1]} 50%)"></i>`;
+  b.onclick = () => { S.skin = k.id; applySkin(); save(); };
+  skinBox.appendChild(b);
+});
+function applySkin(){
+  if (S.skin === 'auto') document.documentElement.removeAttribute('data-skin');
+  else document.documentElement.setAttribute('data-skin', S.skin);
+  skinBox.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.id === 'skin-' + S.skin));
+}
+applySkin();
+
+/* ---------- problems ---------- */
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+let last = '';
+function makeProblem(){
+  const ops = Object.keys(S.ops).filter(k => S.ops[k]);
+  const m = S.max; let p;
+  for (let tries = 0; tries < 20; tries++){
+    const op = ops[rnd(0, ops.length-1)];
+    if (op==='add'){ const a=rnd(1,m), b=rnd(1,m); p={op,a,b,ans:a+b}; }
+    if (op==='sub'){ const a=rnd(2,m*2), b=rnd(1,a-1); p={op,a,b,ans:a-b}; }
+    if (op==='mul'){ const a=rnd(1,m), b=rnd(1,m); p={op,a,b,ans:a*b}; }
+    if (op==='div'){ const d=rnd(1,m), q=rnd(1,m); p={op,a:d*q,b:d,ans:q}; }
+    const key = p.op+p.a+','+p.b; if (key !== last){ last = key; break; }
+  }
+  return p;
+}
+
+/* ---------- rendering ---------- */
+const q = $('q'), arr = $('arr'), wrap = $('wrap'), cap = $('cap'), bar = $('bar');
+let cur = null, phase = 'q', timer = null, paused = false;
+
+function showQuestion(p){
+  q.innerHTML = `<span>${p.a}</span><span class="sym">${SYM[p.op]}</span><span>${p.b}</span><span class="sym">=</span><span class="ans" id="ans">?</span>`;
+  arr.innerHTML = ''; cap.textContent = '';
+}
+function showAnswer(p){
+  const a = $('ans'); a.textContent = p.ans; a.classList.add('shown');
+  buildArray(p, true);
+  const capText = {
+    add:`<b>${p.a}</b> and <b>${p.b}</b> make <b>${p.ans}</b>`,
+    sub:`<b>${p.a}</b> take away <b>${p.b}</b> leaves <b>${p.ans}</b>`,
+    mul:`<b>${p.a}</b> rows of <b>${p.b}</b> is <b>${p.ans}</b>`,
+    div:`<b>${p.a}</b> shared into <b>${p.b}</b> ${p.b===1?'group':'groups'} gives <b>${p.ans}</b> in each`,
+  }[p.op];
+  cap.innerHTML = capText;
+}
+function layout(p){
+  // returns rows: array of arrays of cell kinds
+  const rows = [];
+  if (p.op==='mul'){ for (let r=0;r<p.a;r++) rows.push(Array(p.b).fill('a')); }
+  else if (p.op==='div'){ for (let r=0;r<p.b;r++) rows.push(Array(p.ans).fill(r%2?'b':'a')); }
+  else {
+    const total = p.op==='add' ? p.a+p.b : p.a;
+    const cols = total <= 10 ? total : 10;
+    const cells = [];
+    for (let i=0;i<total;i++){
+      if (p.op==='add') cells.push(i < p.a ? 'a' : 'b');
+      else cells.push(i >= p.a - p.b ? 'x' : 'a');
+    }
+    for (let i=0;i<cells.length;i+=cols) rows.push(cells.slice(i,i+cols));
+  }
+  return rows;
+}
+function buildArray(p, animate){
+  const rows = layout(p);
+  const cols = Math.max(...rows.map(r => r.length));
+  const tens = p.op==='add' || p.op==='sub';
+  const band = p.op==='div';
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const unitsW = cols*1.35 + (tens && cols>5 ? .5 : 0) + (band ? 1.4 : 0);
+  const unitsH = rows.length*1.35 + (band ? rows.length*1.4 : 0);
+  const d = Math.max(6, Math.min(58, Math.floor(Math.min(W/unitsW, H/unitsH))));
+  arr.style.setProperty('--d', d+'px');
+  arr.style.setProperty('--gap', Math.round(d*.35)+'px');
+  const total = rows.reduce((s,r)=>s+r.length,0);
+  const step = animate ? Math.min(45, 1100/Math.max(total,1)) : 0;
+  let i = 0, html = '';
+  rows.forEach(r => {
+    html += `<div class="row${band?' band':''}">`;
+    r.forEach((k, c) => {
+      if (tens && c===5) html += '<span class="gap5"></span>';
+      html += `<span class="dot${k==='a'?'':' '+k}" style="animation-delay:${(i++*step)|0}ms${animate?'':';animation:none'}"></span>`;
+    });
+    html += '</div>';
+  });
+  arr.innerHTML = html;
+}
+
+/* ---------- timing ---------- */
+function runBar(ms){
+  bar.style.transition = 'none'; bar.style.width = '0';
+  void bar.offsetWidth;
+  bar.style.transition = `width ${ms}ms linear`; bar.style.width = '100%';
+}
+function phaseMs(){ return phase==='q' ? S.speed : S.speed*1.7; }
+function schedule(){
+  clearTimeout(timer);
+  if (paused) return;
+  const ms = phaseMs(); runBar(ms);
+  timer = setTimeout(() => { if (phase==='q') reveal(); else next(); }, ms);
+}
+function next(){ cur = makeProblem(); phase='q'; showQuestion(cur); schedule(); }
+function reveal(){ phase='a'; showAnswer(cur); schedule(); }
+function setPaused(v){
+  paused = v;
+  ['pause','fPause'].forEach(id => $(id).textContent = v ? 'Play' : 'Pause');
+  if (v){ clearTimeout(timer); const w = getComputedStyle(bar).width; bar.style.transition='none'; bar.style.width = w; }
+  else schedule();
+}
+$('pause').onclick = $('fPause').onclick = () => setPaused(!paused);
+$('next').onclick = $('fNext').onclick = () => { if (phase==='q') reveal(); else next(); };
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (phase==='a') buildArray(cur,false); }, 120); });
+
+/* ---------- full screen / saver ---------- */
+let wakeLock = null;
+async function startSaver(){
+  document.body.classList.add('saver');
+  try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){}
+  if (paused) setPaused(false);
+  pokeIdle();
+  setTimeout(() => { if (phase==='a') buildArray(cur,false); }, 200);
+}
+function stopSaver(){
+  document.body.classList.remove('saver','idle');
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  try { wakeLock?.release(); } catch(e){} wakeLock = null;
+  setTimeout(() => { if (phase==='a') buildArray(cur,false); }, 200);
+}
+$('fs').onclick = startSaver; $('fExit').onclick = stopSaver;
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('saver')) stopSaver(); });
+let idleT;
+function pokeIdle(){ document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 2500); }
+addEventListener('mousemove', pokeIdle); addEventListener('touchstart', pokeIdle, {passive:true});
+
+/* ---------- notes ---------- */
+const list = $('list');
+function renderNotes(){
+  $('notes').classList.toggle('hiddenRail', !!S.notesHidden);
+  const open = S.notes.filter(n => !n.done).length;
+  $('count').textContent = S.notes.length ? `${open} left` : '';
+  if (!S.notes.length){ list.innerHTML = '<li class="empty">No notes yet. Type one above and press Post — it stays on screen while the math plays.</li>'; return; }
+  list.innerHTML = S.notes.map(n => `
+    <li class="note${n.done?' done':''}" style="--tilt:${n.tilt}deg" data-id="${n.id}">
+      <button class="check" aria-label="Mark ${n.done?'not done':'done'}">${n.done?'✓':''}</button>
+      <span class="text"></span>
+      <button class="del" aria-label="Remove note">×</button>
+    </li>`).join('');
+  list.querySelectorAll('.note').forEach((li, i) => li.querySelector('.text').textContent = S.notes[i].t);
+}
+list.onclick = e => {
+  const li = e.target.closest('.note'); if (!li) return;
+  const id = +li.dataset.id;
+  if (e.target.closest('.del')) S.notes = S.notes.filter(n => n.id !== id);
+  else if (e.target.closest('.check') || e.target.closest('.text')) { const n = S.notes.find(n => n.id===id); n.done = !n.done; }
+  else return;
+  save(); renderNotes();
+};
+$('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const t = $('noteInput').value.trim(); if (!t) return;
+  S.notes.push({id:Date.now(), t, done:false, tilt:+(Math.random()*3-1.5).toFixed(2)});
+  $('noteInput').value = ''; save(); renderNotes();
+  list.scrollTop = list.scrollHeight;
+});
+$('clearDone').onclick = () => { S.notes = S.notes.filter(n => !n.done); save(); renderNotes(); };
+const toggleNotes = () => { S.notesHidden = !S.notesHidden; save(); renderNotes(); setTimeout(() => { if (phase==='a') buildArray(cur,false); }, 50); };
+$('fNotes').onclick = toggleNotes;
+
+addEventListener('keydown', e => {
+  if (e.target.matches('input,select')) return;
+  if (e.code==='Space'){ e.preventDefault(); setPaused(!paused); }
+  else if (e.key==='ArrowRight'){ $('next').click(); }
+  else if (e.key==='f' || e.key==='F'){ document.body.classList.contains('saver') ? stopSaver() : startSaver(); }
+  else if (e.key==='n' || e.key==='N'){ toggleNotes(); }
+  else if (e.key==='Escape' && document.body.classList.contains('saver')){ stopSaver(); }
+});
+
+renderNotes();
+next();
+})();
+</script>
+
+</body>
+</html>
