@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Phonics Pals Saver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Gaegu:wght@400;700&display=swap">
+<style>
+/* Layout: same wall as the math saver — one big stage where a word is built, sounded and blended; a third of the screen for sticky notes. */
+:root{
+  --bg:#fef9f0; --panel:#ffffff; --ink:#3a3340; --muted:#a59cad; --line:#efe4d6; --line-strong:#e0d2bf;
+  --a:#ff8a3d; --b:#7b6ef6; --c:#e0a800; --note:#fff1a6; --note-ink:#3b3220; --chip:#fff3e0;
+  --f-display:"Fredoka", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-ui:"Nunito", system-ui, -apple-system, sans-serif;
+  --f-note:"Gaegu", "Comic Sans MS", "Chalkboard SE", cursive;
+  --grid-img:radial-gradient(var(--line) 1px, transparent 1px); --grid-size:22px 22px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#211c28; --panel:#2c2533; --ink:#f4eef8; --muted:#7d7388; --line:#3d3446; --line-strong:#4d4356;
+  --a:#ff9a55; --b:#9a8fff; --c:#ffc83d; --note:#f3e38f; --note-ink:#2f2814; --chip:#36283a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#211c28; --panel:#2c2533; --ink:#f4eef8; --muted:#7d7388; --line:#3d3446; --line-strong:#4d4356;
+  --a:#ff9a55; --b:#9a8fff; --c:#ffc83d; --note:#f3e38f; --note-ink:#2f2814; --chip:#36283a; color-scheme:dark }
+:root[data-skin="chalk"]{ --bg:#22352b; --panel:#2a3f34; --ink:#f3f4e9; --muted:#7f9686; --line:#34503f; --line-strong:#466654;
+  --a:#fff6cf; --b:#ffafc5; --c:#9fe3ff; --note:#f4e39a; --note-ink:#33301c; --chip:#2f4739; color-scheme:dark; --grid-img:none }
+:root[data-skin="graph"]{ --bg:#fbfdff; --panel:#ffffff; --ink:#16314c; --muted:#94a8bd; --line:#cfe0f3; --line-strong:#b5cbe4;
+  --a:#1f6feb; --b:#e5484d; --c:#d18b00; --note:#fff3b0; --note-ink:#3a3015; --chip:#e9f1fb; color-scheme:light;
+  --grid-img:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px); --grid-size:28px 28px }
+:root[data-skin="midnight"]{ --bg:#0b0d1a; --panel:#141830; --ink:#ebe9ff; --muted:#5d6190; --line:#22284a; --line-strong:#323a66;
+  --a:#8f80ff; --b:#33d6b6; --c:#ffcf5c; --note:#ffd9f2; --note-ink:#36203a; --chip:#1b2040; color-scheme:dark; --grid-img:none }
+:root[data-skin="sunset"]{ --bg:#fff0e4; --panel:#fff8f2; --ink:#4a1e18; --muted:#b99282; --line:#f2d6c3; --line-strong:#e8c1a8;
+  --a:#df532a; --b:#7a3cbd; --c:#c98a00; --note:#fff7c2; --note-ink:#4a3418; --chip:#fbe2d2; color-scheme:light; --grid-img:none }
+:root[data-skin="ocean"]{ --bg:#052a33; --panel:#0a3641; --ink:#def6f5; --muted:#5e8f96; --line:#0f4552; --line-strong:#1b5a68;
+  --a:#47d2c9; --b:#ffcf61; --c:#ff8fa3; --note:#c9f2e4; --note-ink:#0f3a32; --chip:#0e4250; color-scheme:dark; --grid-img:none }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg); background-image:var(--grid-img); background-size:var(--grid-size); color:var(--ink);
+  font-family:var(--f-ui); font-weight:600; overflow:hidden;
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--a); outline-offset:2px}
+
+.app{height:100%; display:grid; grid-template-rows:auto 1fr; gap:12px; padding-block:12px}
+.bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px}
+.brand{font-family:var(--f-display); font-weight:700; font-size:1.35rem; margin-right:auto; display:flex; align-items:center; gap:8px}
+.brand i{width:26px; height:26px; border-radius:50%; background:var(--a); display:inline-block}
+.group{display:flex; align-items:center; gap:6px}
+.lbl{font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin-right:2px; font-weight:800}
+select{height:40px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); padding:0 10px}
+.swatch{width:28px; height:28px; border-radius:50%; border:2px solid var(--line-strong); padding:0; position:relative; overflow:hidden}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.swatch i{position:absolute; inset:0}
+.go{height:40px; padding:0 18px; border-radius:999px; border:0; background:var(--a); color:var(--bg); font-family:var(--f-display); font-weight:600}
+.ghost{height:40px; padding:0 14px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); font-family:var(--f-display); font-weight:600}
+
+main{min-height:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(320px,1fr); gap:24px}
+.stage{min-height:0; min-width:0; display:grid; grid-template-rows:auto 1fr auto auto; justify-items:center; gap:10px}
+.tags{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; min-height:34px; padding-top:1vmin}
+.tag{padding:5px 14px; border-radius:999px; background:var(--chip); color:var(--ink); font-size:clamp(.85rem,1.8vmin,1.1rem); font-weight:800}
+.tag b{font-family:var(--f-display); color:var(--b); font-weight:600}
+.tag.warn{color:var(--a)}
+.wordWrap{width:100%; min-height:0; display:grid; place-items:center; overflow:hidden}
+.wordBox{display:inline-flex; flex-direction:column; align-items:stretch}
+.word{display:flex; align-items:flex-start; gap:0; transition:gap .7s cubic-bezier(.3,.8,.3,1)}
+.split .word{gap:.3em}
+.blend .word{gap:0}
+.chunk{display:flex; flex-direction:column; align-items:stretch}
+.lt{font-family:var(--f-display); font-weight:600; line-height:1; color:var(--ink); letter-spacing:-.01em; text-align:center;
+  transition:color .45s, transform .35s, opacity .45s; white-space:pre}
+.mk{height:.32em; margin-top:.12em; display:flex; align-items:center; justify-content:center}
+.bub{opacity:0; transform:scale(.3); transition:opacity .35s, transform .45s cubic-bezier(.2,1.6,.4,1), background .4s, border-color .4s, color .4s}
+.split .bub{opacity:1; transform:none}
+.bub.dot{width:.26em; height:.26em; border-radius:50%; border:.05em solid var(--line-strong)}
+.bub.wide{width:100%; height:.2em; border-radius:999px; border:.05em solid var(--line-strong)}
+.bub.star{font-size:.36em; line-height:1; color:var(--line-strong)}
+.chunk.on .lt{color:var(--k)}
+.chunk.on .bub.dot,.chunk.on .bub.wide{background:var(--k); border-color:var(--k); transform:scale(1.2)}
+.chunk.on .bub.star{color:var(--k); transform:scale(1.25)}
+.chunk.now .lt{transform:translateY(-.08em) scale(1.08)}
+.chunk.silent.on .lt{color:var(--muted); opacity:.55}
+.swoosh{height:.28em; margin-top:.14em; position:relative; transform:scaleX(0); transform-origin:left; transition:transform .9s cubic-bezier(.5,0,.2,1); opacity:0}
+.blend .swoosh{transform:scaleX(1); opacity:1}
+.swoosh::before{content:""; position:absolute; left:0; right:.2em; top:calc(50% - .04em); height:.08em; border-radius:.04em; background:var(--ink)}
+.swoosh::after{content:""; position:absolute; right:0; top:calc(50% - .13em); border-left:.22em solid var(--ink); border-top:.13em solid transparent; border-bottom:.13em solid transparent}
+.blend .wordBox{animation:cheer .6s .6s ease-out}
+@keyframes cheer{50%{transform:scale(1.06)}}
+.caption{font-family:var(--f-display); font-weight:500; font-size:clamp(1.2rem,3.6vmin,2.2rem); color:var(--muted); text-align:center; min-height:1.4em; text-wrap:balance}
+.caption .s{color:var(--k)}
+.caption .whole{color:var(--ink); font-weight:600}
+.progress{width:min(520px,100%); height:8px; border-radius:8px; background:var(--line); overflow:hidden; margin-bottom:4px}
+.progress i{display:block; height:100%; width:0; background:var(--a)}
+.emptyMsg{font-family:var(--f-display); font-size:1.4rem; color:var(--muted); text-align:center; max-width:28ch}
+.hint{font-size:.8rem; color:var(--muted)}
+
+/* notes (shared with the math saver) */
+.notes{min-height:0; display:flex; flex-direction:column; gap:10px}
+.notes h2{font-family:var(--f-display); font-size:clamp(1.3rem,3vmin,2rem); font-weight:600; margin:0; display:flex; justify-content:space-between; align-items:baseline}
+.notes h2 small{font-family:var(--f-ui); color:var(--muted); font-size:.9rem}
+.add{display:flex; gap:6px}
+.add input{flex:1; min-width:0; height:40px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); padding:0 14px}
+.list{list-style:none; margin:0; padding:8px 4px 12px; overflow-y:auto; display:flex; flex-direction:column; gap:18px; flex:1}
+.note{background:var(--note); color:var(--note-ink); font-family:var(--f-note); font-size:clamp(1.6rem,4vmin,2.6rem); line-height:1.1;
+  padding:18px 40px 20px 18px; border-radius:2px 2px 14px 2px; box-shadow:0 6px 14px -8px rgba(0,0,0,.45);
+  transform:rotate(var(--tilt)); position:relative; display:flex; gap:10px; align-items:flex-start}
+.note::before{content:""; position:absolute; top:-7px; left:calc(50% - 22px); width:44px; height:14px; background:color-mix(in srgb, var(--panel) 60%, transparent); opacity:.8}
+.note .check{flex:none; width:1em; height:1em; margin-top:.08em; font-size:inherit; border-radius:5px; border:2px solid var(--note-ink); background:transparent; padding:0; display:grid; place-items:center; color:var(--note-ink)}
+.note.done .text{text-decoration:line-through; opacity:.55}
+.note .text{overflow-wrap:anywhere; min-width:0}
+.note .del{position:absolute; top:6px; right:6px; width:24px; height:24px; border:0; background:transparent; color:var(--note-ink); opacity:.5; font-size:1.1rem; line-height:1}
+.note .del:hover{opacity:1}
+.empty{color:var(--muted); font-size:.9rem; padding:8px 2px}
+.clear{align-self:flex-start; border:0; background:none; color:var(--muted); font-size:.8rem; text-decoration:underline; padding:0}
+
+/* word picker */
+.picker{position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--ink) 35%, transparent); display:grid; place-items:center;
+  padding:max(16px, env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) max(16px, env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px))}
+.sheet{background:var(--panel); border:2px solid var(--line-strong); border-radius:24px; width:min(760px,100%); max-height:100%; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px}
+.sheet h3{font-family:var(--f-display); font-weight:600; font-size:1.4rem; margin:0; display:flex; justify-content:space-between; align-items:center}
+.sec{display:flex; flex-direction:column; gap:8px}
+.sec .h{font-family:var(--f-display); font-weight:600; font-size:1rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.count{font-family:var(--f-ui); font-size:.8rem; color:var(--a); background:var(--chip); padding:2px 10px; border-radius:999px}
+.switch{display:flex; gap:6px; background:var(--chip); padding:5px; border-radius:999px}
+.switch button{flex:1; padding:9px; border-radius:999px; border:0; background:none; color:var(--muted); font-family:var(--f-display); font-weight:600}
+.switch button[aria-pressed="true"]{background:var(--panel); color:var(--ink); box-shadow:0 3px 0 rgba(0,0,0,.06)}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{padding:7px 13px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); color:var(--muted); font-weight:800; font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--b); border-color:var(--b); color:var(--bg)}
+.chip.g{font-family:var(--f-display); font-weight:600; font-size:1rem}
+.chip.g[aria-pressed="true"]{background:var(--a); border-color:var(--a)}
+.mini{border:0; background:none; color:var(--muted); text-decoration:underline; font-size:.85rem; padding:0}
+
+/* screen saver mode */
+.saver .bar{display:none}
+.saver .app{grid-template-rows:1fr}
+.saver .add,.saver .clear,.saver .hint{display:none}
+.saver .note .del{display:none}
+.floatCtl{position:fixed; right:calc(16px + env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  display:none; gap:6px; background:var(--panel); border:2px solid var(--line-strong); padding:6px; border-radius:999px; transition:opacity .4s; z-index:10}
+.saver .floatCtl{display:flex}
+.saver.idle .floatCtl{opacity:0; pointer-events:none}
+.saver.idle{cursor:none}
+.notes.hiddenRail{display:none}
+main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
+
+@media (max-width:760px){
+  body{overflow:auto}
+  .app{height:auto; min-height:100%}
+  main{grid-template-columns:minmax(0,1fr)}
+  .stage{min-height:60vh}
+}
+@media (prefers-reduced-motion:reduce){ .word,.lt,.bub,.swoosh{transition:none} .blend .wordBox{animation:none} }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><i></i>Phonics Pals Saver</div>
+    <div class="group">
+      <button class="ghost" id="openPicker">Words: <span id="deckInfo">…</span></button>
+      <label class="lbl" for="speed">Speed</label>
+      <select id="speed"><option value="1.45">Slow</option><option value="1" selected>Medium</option><option value="0.65">Fast</option></select>
+    </div>
+    <div class="group" role="group" aria-label="Color theme" id="skins"><span class="lbl">Theme</span></div>
+    <div class="group">
+      <button class="ghost" id="pause">Pause</button>
+      <button class="ghost" id="next">Next</button>
+      <button class="go" id="fs">Start full screen</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage" aria-live="polite">
+      <div class="tags" id="tags"></div>
+      <div class="wordWrap" id="wrap"><div class="wordBox" id="box"><div class="word" id="word"></div><div class="swoosh"></div></div></div>
+      <div class="caption" id="cap"></div>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    </section>
+
+    <aside class="notes" id="notes">
+      <h2>To do <small id="count"></small></h2>
+      <form class="add" id="addForm">
+        <input id="noteInput" placeholder="Post a note…" maxlength="120" autocomplete="off">
+        <button class="go" type="submit">Post</button>
+      </form>
+      <ul class="list" id="list"></ul>
+      <button class="clear" id="clearDone">Clear finished notes</button>
+      <div class="hint">Space pauses · → next · F full screen · N hides notes</div>
+    </aside>
+  </main>
+</div>
+
+<div class="floatCtl">
+  <button class="ghost" id="fPause">Pause</button>
+  <button class="ghost" id="fNext">Next</button>
+  <button class="ghost" id="fNotes">Notes</button>
+  <button class="go" id="fExit">Exit</button>
+</div>
+
+<div class="picker" id="picker" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pickTitle">
+    <h3 id="pickTitle">Choose the words <button class="go" id="closePicker">Done</button></h3>
+    <div class="switch" role="group" aria-label="Word type">
+      <button id="m-groups" data-m="groups">Sounds</button>
+      <button id="m-tricky" data-m="tricky">Tricky</button>
+      <button id="m-sight" data-m="sight">Sight</button>
+    </div>
+    <div id="groupsPane" class="sec" style="gap:16px">
+      <div class="sec"><div class="h">Quick picks</div><div class="chips" id="presets"></div></div>
+      <div class="sec">
+        <div class="h">Sound groups <span class="count" id="gCount"></span>
+          <button class="mini" id="gAll">Select all</button><button class="mini" id="gNone">Clear</button></div>
+        <div class="chips" id="groups"></div>
+      </div>
+      <div class="sec"><div class="h">Word level</div>
+        <div class="chips"><button class="chip" id="lv-starter">Starter</button><button class="chip" id="lv-advanced">Advanced</button>
+          <button class="chip" id="lv-under">Include words that sound a little different</button></div></div>
+    </div>
+    <div id="catsPane" class="sec" hidden>
+      <div class="h"><span id="catTitle">Categories</span> <span class="count" id="cCount"></span>
+        <button class="mini" id="cAll">Select all</button><button class="mini" id="cNone">Clear</button></div>
+      <div class="chips" id="cats"></div>
+    </div>
+    <div class="hint" id="pickSummary"></div>
+  </div>
+</div>
+
+<script>
+const RAW = {
+  "s": {starter:["sat","at","sit","it","its","is"],advanced:["assist"]},
+  "a": {starter:["as"],advanced:[]},
+  "t": {starter:["sat","at"],advanced:[]},
+  "i": {starter:["sit","it","its","is"],advanced:["assist"]},
+  "p": {starter:["pip","pit","pat","tap","tip","sip","spit","spat"],advanced:["sap","pasta","pass"]},
+  "n": {starter:["nap","nip","nit","an","ant","pan","pin","tan","tin","spin","in","insist","pant","pants","snap","snip"],advanced:["span","assistant"]},
+  "c/k": {starter:["cat","can","cap","act","stick","skip","skin","tick","pick","pack","kiss","kick","sack","sick","panic","picnic","snack","ink","stink","tank","pink","sank","sink"],advanced:["napkin","tact","stack","attic","kit","attack","spank"]},
+  "e": {starter:["set","pet","net","pen","ten","test","pest","nest","sent","neck","peck","step","tennis","tent","insect","ticket","kitten","sense","packet"],advanced:["antiseptic","inspect","tense","arrest","antenna","cassette","speck"]},
+  "h": {starter:["hen","hat","hip","hit","hint","hiss","happen","honk"],advanced:["hectic"]},
+  "r": {starter:["rat","rip","ran","rest","rack","rent","press","prick","print","risk","scrap","strap","stress","track","trap","trick","trip","strict","crisps","crept","crack","present","rinse","cricket"],advanced:["spirit","strip","actress","transparent","attract","resist","respect","trespass","racket","rink"]},
+  "m": {starter:["man","men","map","mat","hem","ham","him","mess","miss","mist","mint","stamp","trim","pram","smack","tramp","camp","stem","mattress"],advanced:["rim","ram","mass","mimic","tram","prim","imp","tempt","attempt","mink"]},
+  "d": {starter:["dad","den","did","dip","sad","end","rid","red","mad","had","hid","din","kid","pad","desk","add","skid","drip","hand","sand","mend","send","spend","stand","damp","dent","dentist","dress","disk","drink","panda","drank","address","pretend"],advanced:["dim","mid","timid","disc","deck","tend","addict","handicap","intend","drastic","rapid","attend","admit","errand","madam","adapt"]},
+  "g": {starter:["gas","pig","peg","gap","egg","get","dig","rag","drag","snag","grip","gran","grin","grand","grandad","spaghetti"],advanced:["tag","sag","nag","rig","stag","crag","gram","grim","anagram","pregnant","magnet"]},
+  "o": {starter:["top","pop","pot","pod","on","cot","cod","cost","hot","hop","rot","rod","odd","dog","dot","god","got","rock","pond","sock","spot","stop","trod","trot","drop","cannot","cross","comic","dragon","nonsense","second","parrot","pocket","rocket","carrot","cotton","correct","haddock","across"],advanced:["cog","mop","hog","dock","desktop","topic","moss","mock","crop","spotted","protect","reckon","maggot","recommend","opposite","kiosk","connect","adopt","incorrect","opinion","cannon"]},
+  "u": {starter:["up","us","sun","nut","cup","cut","hum","gum","tug","hug","mug","mud","rug","run","pup","dug","hut","mum","dust","dump","duck","tuck","hump","pump","mumps","hunt","must","suck","gust","rust","tusk","drum","truck","stuck","scrub","snug","trust","crust","upset","suntan","hiccup","pumpkin","undress","unpack","eggcup","grunt","drunk","upon","trunk","trumpet","puppet"],advanced:["rut","drug","sum","rump","stump","undid","discuss","instruct","rucksack","product","sunset","spun","putt","pun","nun","sudden","hippopotamus","skunk","sunk","minimum","tantrum"]},
+  "l": {starter:["lap","lit","let","leg","log","pal","lip","led","lot","lid","lad","lick","luck","lass","lump","lend","less","lock","ill","pill","kill","hill","tell","mill","sell","doll","dull","gull","silk","sulk","tilt","lost","help","held","list","melt","milk","limp","still","clap","clip","click","clock","plan","plug","plum","glum","glad","slug","slid","slim","slip","slit","slot","skill","skull","slam","slap","smell","split","spell","spelt","spill","slept","plump","grill","lipstick","adult","lollipop","plastic","solid","splendid","until","unless","unplug","unlock","old","sold","hold","cold","told","gold","roll","petrol","tunnel","lemon","electric","gallop","animal","elastic","kennel","lesson","milkman","melon","salad","tinsel","carol","collect","candle","cuddle","ankle","giggle","rattle","handle","apple","kettle","little","simple","sprinkle","middle","muddle","paddle","pebble","prickles","puddle","saddle","struggle","tackle","tickle","uncle"],advanced:["elk","nil","till","sill","dell","dill","gill","pulp","kilt","hull","loss","gulp","plot","plus","clamp","clump","drill","plank","stilts","electronic","laptop","insult","limit","clarinet","control","troll","scroll","stroll","helpless","marigold","eldest","link","helmet","atlas","settle","single","allotment","kilogram","planet","millennium","omelette","pollen","skeleton","neglect","pelican","select","talent","talon","triplet","catapult","cattle","angle","ample","goggles","miracle","pimple","ripple","riddle","rectangle","responsible","rumble","sample","smuggle","spectacles","tangle","temple","tentacle","tingle","topple","trickle","twinkle","wiggle","hospital","camel","seldom","result"]},
+  "f": {starter:["if","fat","fin","fun","fog","elf","fan","fit","fed","off","fell","fill","fuss","huff","sniff","soft","lift","loft","fist","felt","film","fact","fond","gift","left","puff","cliff","stiff","fluff","flag","flat","flick","frog","flap","gruff","frock","frost","from","traffic","fantastic","golf","fold","forest","daffodil","infant","difficult","gorilla"],advanced:["sift","self","cuff","tiff","flop","flip","flan","frill","drift","font","flock","frank","frantic","infect","muffin","adrift","affect","offend","reflect","fossil","fungus","unfold","flannel","confident","fiddle","freckles","scuffle","funnel"]},
+  "b": {starter:["bad","bat","bib","bag","rub","bit","bin","pub","cub","bed","bud","bug","big","bet","bun","beg","rob","bill","back","bell","boss","belt","bump","bend","best","bulb","crab","grab","grub","club","black","blend","brick","block","blond","rabbit","robin","dustbin","habit","bold","bottom","nib","ban","rib","cob","hob","bog","tub","sob","bob","biff","stub","drab","blot","blob","stab","snub","slab","blunt","public","cabin","blank","album","subtract","embarrass","minibus","minicab","toboggan","battle","bundle","crumble","gobble","impossible","incredible","blossom","bucket","blanket","bunk","blink","problem","ribbon","button","umbrella","bottle","bubble","buckle","grumble","horrible","nibble","scribble","tumble","terrible","tremble"],advanced:["assemble","abandon","brilliant","abrupt","absent","acrobat","acrobatic","albatross","abominable","mumble","nimble","obstacle","scramble","sensible","stumble"]},
+  "ai": {starter:["aim","rain","sail","pain","tail","rail","paid","nail","main","fail","laid","hail","mail","paint","train","snail","brain","Spain","plain","drain","stain","pigtail","raindrops","afraid","again","captain"],advanced:["gain","aid","ail","faint","grain","sprain","strain","trail","raid","saint","pail","against","remain","raise","praise","complain","contain","obtain","aimless"]},
+  "j": {starter:["jog","jam","jet","job","jug","jump","just","jacket","junk","jungle","jumble","juggle"],advanced:["jab","jut","jazz","object","project","subject","jingle","jangle","adjust","adjustment"]},
+  "oa": {starter:["boat","goat","load","soap","road","loaf","toast","moan","oak","roast","soak","foam","toad","coat","groan","float","raincoat","crossroads","boast","coast","coal","goal","foal"],advanced:["moat","roam","cloak","croak","poach","oats","unload","petticoat","afloat"]},
+  "ie": {starter:["pie","tie","die","lie","lied","untie","lies","cries","fries","tries","flies","dries"],advanced:["magpie","terrified"]},
+  "ee": {starter:["bee","see","seed","need","feet","deep","heel","beef","jeep","peep","keep","meet","feed","keen","leek","feel","seen","been","beep","sleep","green","free","creep","street","speed","steep","bleed","indeed","toffee","coffee","deer","beer","steer","agree","asleep","geese","settee","beetle","needle"],advanced:["eel","seem","steel","greed","seek","screen","reel","reed","peek","greet","canteen","jeer","feeble","agreement","disagree"]},
+  "or": {starter:["or","for","sort","torn","horn","born","pork","cork","fork","corn","fort","sport","storm","foghorn","popcorn","horse","sore","snore","score","more","forget","forgot","mirror","form","port","lord","cord","snort","stork","sweetcorn","inform","landlord","platform","record","transport","store","tore","forgive","ignore","error","forbid","anorak","doctor","tractor"],advanced:["ashore","important","enormous","monitor","organ","ornament","portrait","accordion","actor","adore","afford","projector","report","restore","sailor","scorpion","shore","sportsman","stubborn","support","tailor","terror","corridor","adorable","portable","ignorant","terrorist","visitor"]},
+  "z": {starter:["zip","buzz","fizz","zigzag","zebra","sneeze","breeze","freeze","dazzle","drizzle","puzzle"],advanced:["zap","zest","maize"]},
+  "w": {starter:["win","web","wet","wag","went","wind","well","will","swim","swam","twig","twin","week","weed","worn","wait","twist","sweep","sweet","swept","waist","weekend","windmill","unwell","cobweb","between","wore","wink","wobble"],advanced:["wail","wilt","swift","west","weep","wept","wig","wick","swell","tweet","windscreen","wombat","wigwam","waistcoat","wicked","wagon","wicket","wisdom","witness","waitress"]},
+  "ng": {starter:["ring","sing","bang","song","wing","hang","long","king","sung","rang","sang","hung","sting","spring","bring","swing","stung","strong","cling","string","singing","morning","buzzing","freezing","seeing","sleeping","sitting","wedding","willing","weeping","feeling","painting","ping-pong","soaking","spelling","along","belong","snoring"],advanced:["lung","clang","sling","fling","flung","sprang","landing","meeting","oblong","promising","rung","railings","ding-dong","gang","smuggling","steering","speeding","stinking","swelling","swung","training","wellington","kingdom"]},
+  "v": {starter:["van","vet","vest","give","have","active","visit","sleeve","travel","vanilla","caravan","seven"],advanced:["vent","vain","anvil","vivid","invent","victim","vomit","velvet","expensive","prevent","sensitive","involve","level","massive","offensive","solve","olive","aggressive","devil","attractive","available","develop","venom","villa","vitamin","adjective","volunteer","visible","invisible"]},
+  "oo (short)": {starter:["good","wood","wool","soot","foot","hood","book","took","look","rook","cook","hook","woof","stood","footsteps","scrapbook"],advanced:["brook","crook","wooden","woollen","woodland"]},
+  "oo (long)": {starter:["zoo","moo","cool","fool","hoof","mood","pool","food","moon","loop","root","soon","boot","hoop","roof","room","tool","zoom","toot","spoon","broom","stool","bedroom","broomstick","toadstool","goose","loose"],advanced:["boo","boom","hoot","noon","bloom","gloom","beetroot","igloo","proof","stoop","droop","roost","scoop","swoop","too","cloakroom","noodles","moose","baboon","raccoon","tattoo"]},
+  "y": {starter:["yes","yap","yet","yell","yelp"],advanced:["yak","yuck","yank"]},
+  "x": {starter:["six","fox","fix","box","wax","mix","next","sixteen","boxing","toolbox","expect","paintbox"],advanced:["exit","exam","fax","flex","explain","express","extend","extinct","expand","index","ox","tax","text","textbook","mailbox","axe","relax","relaxing","experiment","explore","oxen","unexpected","vixen","axle","example","hexagon","maximum","exact","taxi"]},
+  "ch": {starter:["chin","chap","chips","rich","chop","chum","chat","much","punch","bench","bunch","lunch","chill","such","chick","munch","pinch","chimp","chest","check","champ","chug","chain","cheek","cheer","crunch","torch","coach","chimpanzee","ostrich","chopsticks","sandwich","children","chicken","chickenpox","cheese","catch","hatch","match","fetch","stretch","itch","ditch","witch","stitch","switch","hutch","choose","chuckle","scratch","kitchen","snatch"],advanced:["duchess","hunch","inch","chaffinch","chess","poach","porch","screech","speech","trench","drench","finch","chump","cockroach","twitch","hopscotch","ketchup","patch","pitch","attach","sketch","cheerful","chipmunk","titch","approach","grandchildren"]},
+  "sh": {starter:["fish","shop","dish","wish","ship","hush","rush","shed","shut","rash","mash","cash","dash","shell","shot","shelf","shock","shook","brush","smash","crash","flash","flush","shoot","sheep","sheet","short","shall","shrimps","ash","shin","shift","shrug","shrink","shrank","shrunk","flesh","polish","posh","publish","selfish","shellfish","sheriff","shred","shrill","slush","vanish","blush","crush","refresh","astonish","astonishing","splash","finish","eggshell","paintbrush","punish","rubbish","shampoo","bookshop","mushroom","shopping","shocking","goldfish"],advanced:[]},
+  "th (voiced)": {starter:["this","that","then","with","them","than"],advanced:["within"]},
+  "th (unvoiced)": {starter:["thin","moth","tenth","thing","thick","thud","thump","tooth","teeth","cloth","three","thorn","throat","toothbrush","thank","think","thanks","sixth"],advanced:["maths","pith","faith","length","north","thrill","thrush","froth","broth","throb","strength","theft","thrilling","width","anthem","arithmetic","pathetic","thatch","thimble","method"]},
+  "qu": {starter:["quiz","quick","quack","queen","quilt","squirrel","squeeze"],advanced:["quit","quin","quill","liquid","quail","squid","squint","quench","quest","tranquil","request","aquarium","ventriloquist","quicksand","equipment"]},
+  "ou": {starter:["out","loud","found","shout","mouth","round","pound","sound","count","our","sour","couch","proud","flour","cloud","spout","scout","crouch","ground","sprouts","shouting","without","outing","house","mouse","blouse","greenhouse","about","around","aloud"],advanced:["hound","pouch","south","outfit","noun","stout","outstanding","slouch","snout","trout","wound","background","amount","roundabout","fountain","mountain","woodlouse","aground","mousetrap","obvious","tremendous","account","accountant"]},
+  "oi": {starter:["oil","boil","soil","join","coin","joint","point","spoil","spoilt","boiling","spoilsport","toilet","tortoise","avoid","noisiest"],advanced:["foil","coil","moist","toil","tinfoil","oilcan","topsoil","ointment","disappoint","poison","appointment","asteroid"]},
+  "ue": {starter:["due","fuel","rescue","continue","clue","glue","blue","true","bluebell","tissue","untrue","cruel"],advanced:["cue","value","statue","avenue"]},
+  "er": {starter:["her","sister","kerb","herd","mister","silver","litter","pepper","letter","better","winter","never","butter","fatter","supper","hotter","summer","river","under","herself","blister","fern","boiler","bother","bitter","enter","perm","herb","perch","stern","tender","blender","shatter","blunder","slither","amber","adverb","advert","sprinter","splinter","painter","swimmer","thunder","winner","bumper","ever","ladder","dinner","hammer","hamster","jumper","monster","offer","robber","rubber","runner","scooter","shiver","sticker","temper","toaster","toddler","thunderstorm","understand","buttercup","helicopter","interest","chatter","cooker","corner","cracker","clever","pattern","numbers","slippers","finger","father","afternoon","different","remember","trousers","conkers","singer","were","terrific"],advanced:["entertain","expert","antler","archer","flutter","folder","forever","gander","gangster","border","dagger","duster","gather","glitter","gutter","hanger","hoover","internet","jerk","lantern","lavender","liver","lobster","locker","matter","member","mermaid","miller","modern","mutter","order","otter","perfect","perform","perhaps","pester","pier","porter","potter","printer","proper","quiver","interrupt","rooster","rudder","scanner","scatter","September","shelter","shopkeeper","shudder","slender","smuggler","snooker","sooner","spanner","stagger","stammer","stopper","stutter","suffer","tavern","term","timber","trainer","transfer","trigger","twister","underground","understood","upper","verb","waiter","woodpecker","camcorder","chapter","consider","copper","counter","evergreen","asterisk","manners","camera","person","nerve","verse","nervous","recorder","customer","alert","referee","angler","reserve","reverse","soldier","serpent","servant","serve","miserable","stretcher","supporter","surrender","tanker","terminal","thermometer","propeller","desert","tweezers","shepherd","anger","butterfingers","hunger","herdsman","disaster","rounders"]},
+  "ar": {starter:["arm","car","far","art","jar","hard","farm","barn","card","park","dart","mark","dark","bark","part","harm","march","sharp","charm","star","bar","ark","tar","tart","cart","yard","chart","harsh","darkroom","Antarctic","arch","arc","Arctic","barber","garlic","harp","larder","start","smart","spark","scarf","shark","starfish","sharper","farmer","artist","darling","farmyard","partner","cartoon","argue","harvest","armbands","carpet","starve","barbecue","alarm","are","garden","kangaroo","cardigan","caterpillar","marbles","sparkle","carve","lizard","collar","market","mustard","custard","calendar","vinegar","wizard","harmless"],advanced:["scar","starling","pardon","carthorse","sharpener","similar","ajar","tartan","vicar","apart","apartment","arson","grammar","startle","target","carpenter","remarkable","bargain","familiar","blizzard","scrollbar"]},
+  "y /ee/": {starter:["mummy","daddy","funny","poppy","bunny","silly","jolly","dolly","puppy","nanny","fussy","rocky","jelly","holly","runny","sunny","tummy","lorry","dummy","dusty","frosty","lucky","rusty","penny","teddy","berry","nappy","cherry","foggy","muddy","floppy","body","buddy","buggy","granny","spotty","story","dizzy","ugly","family","filthy","very","greedy","happy","grubby","grumpy","handy","hurry","windy","wobbly","lumpy","marry","potty","merry","milky","misty","party","pity","plenty","sadly","sandy","yummy","sleepy","slippery","soapy","soggy","sorry","sticky","telly","tricky","unhappy","unlucky","storybook","carry","copy","creepy","curry","empty","skinny","spooky","stormy","stuffy","hanky","every","noisy","clumsy"],advanced:["gusty","army","tabby","daily","hobby","ferry","frothy","activity","county","elderly","entry","fuzzy","glossy","hardy","jellyfish","lily","mainly","pantry","partly","possibly","pottery","property","roomy","rugby","sherry","shortly","silky","simply","speedy","sporty","study","teeny","terribly","tubby","wiggly","willingly","woolly","candyfloss","wonky","crockery","cutlery","academy","agony","daisy","anniversary","antibody","archery","artery","astronomy","majesty","majority","memory","ordinary","enemy","factory","history","victory","industry","lottery","terrifically","territory","robbery","silvery","similarly","secretary","salary","satisfactory"]},
+  "a-e": {starter:["ate","ape","game","lane","gate","save","gave","made","name","cake","hate","safe","rake","tale","wave","came","bake","date","lake","pale","late","make","wake","same","gale","sale","take","tame","tape","cave","case","grapes","flame","plate","snake","plane","crane","brave","spade","stale","blame","skates","scrape","graze","brakes","chase","shame","shape","shave","shade","pancake","lampshade","sunshade","handshake","mistake","cornflakes","escape","awake","marmalade","chocolate","lemonade","pavement"],advanced:["ale","blade","blaze","blazer","daze","estimate","exterminate","fade","fake","fame","frame","gaze","grade","grave","imitate","indicate","inflate","invade","irritate","lame","maze","landscape","rate","male","mane","mate","nickname","pane","slate","slave","state","telltale","trade","caveman","wade","scale","paper","relate","later","roller-skate","amaze","hesitate","sandpaper","appropriate","shaken","approximate","ashamed","scales","wafer","separate","salesman","decorate","demonstrate","inhaler","operate","translate","complicated"]},
+  "e-e": {starter:["Steve","Pete","here","even","these","evening"],advanced:["athlete","eve","extreme","interfere","compete","concrete","meter","prefer","severe","complete","fever","event","trapeze","completely","uneven"]},
+  "i-e": {starter:["ride","hide","nine","ripe","life","five","line","pipe","mile","pile","time","side","wipe","like","bike","bite","hive","kite","wide","size","mine","wine","tide","wife","quite","shine","prize","smile","drive","slide","bride","inside","upside","bedtime","invite","outside","stripes","beehive","sunshine","fire","bonfire","wire","lively","fine","tired","alive","arrive","spider","wise","tiger","bridesmaid","crocodile"],advanced:["live","hike","slime","bedside","hillside","likely","lakeside","dislike","dive","divide","file","glide","pride","bridegroom","reptile","thrive","tile","spike","spine","tribe","strike","unlike","underline","unlikely","vine","website","spire","umpire","vampire","admire","advertise","alike","item","arise","anticlockwise","appetite","describe","glider","hibernate","organize","pantomime","rise","polite","provide","refine","revise","satellite","silent","silently","title","times","sunrise","terrorize","unwise","valentine","wives","clockwise","pineapple"]},
+  "o-e": {starter:["bone","home","rope","hope","joke","mole","hole","pole","woke","note","doze","poke","stone","stole","drove","smoke","slope","stroke","broke","spoke","choke","throne","lonely","owe","homemade","flagpole","molehill","tadpole","hose","rose","nose","close","those","vote","cone","lone","globe","dome","code","alone","broken","envelope","frozen","open","over","overcoat"],advanced:["alcove","explode","lobe","robe","milestone","role","sole","stove","tone","trombone","wove","zone","scone","antelope","primrose","antidote","enclose","leftovers","mousehole","October","November","opening","overlook","oversleep","overtake","propose","spoken","stolen","stethoscope","suppose","telescope","voter","woken","woven"]},
+  "u-e": {starter:["mule","cube","tune","tube","cute","costume","use","rude","salute","ruler","super","supermarket","computer"],advanced:["duke","nude","pure","cure","excuse","perfume","attitude","volume","useless","rule","fuse","June","prunes","refuse","absolute","absolutely","accuse","amuse","amusement","assume","flute","fluke","fortune","fumes","include","pollute","supervise","unused","used","vulture","yuletide","confuse","capture"]},
+  "ay": {starter:["day","hay","lay","pay","may","say","way","play","tray","clay","stay","pray","spray","staying","playtime","daytime","yesterday","Sunday","driveway","railway","runway","holiday","playground","player","crayons","Tuesday","away"],advanced:["ray","bay","sway","crayfish","weekday","stray","slay","display","haystack","hooray","midday","playpen","subway","layer","sunrays","hurray","mayonnaise","Friday","sideways"]},
+  "oy": {starter:["boy","toy","joy","enjoy","Roy","enjoying","annoy","annoying"],advanced:["boyish","employ","employer","oyster","joystick","joyful","royal","ahoy","employment","destroy"]},
+  "y /ie/": {starter:["by","my","try","fly","dry","fry","shy","sty","sly","sky","cry","myself","pigsty","butterfly"],advanced:["spy","nylon","satisfy","magnify","multiply","simplify","pylon","terrify","terrifying","typing","typist","apply","rely","reply","python","supply","skyrocket","skyscraper","type","tyre","dragonfly","style","lullaby"]},
+  "y /i/": {starter:["pyramid","mystery"],advanced:[]},
+  "ea": {starter:["eat","tea","sea","pea","ear","meat","read","each","beat","heap","leaf","beak","heat","mean","seat","leak","team","real","hear","heal","near","meal","leap","lead","weak","neat","dear","fear","seal","year","beach","peacock","beam","east","anteater","creak","bleak","deal","eager","feat","flea","lean","least","meantime","nearby","peak","seafood","seagull","seam","sneak","speaker","spear","steal","teach","peach","clean","clear","treat","cream","steam","speak","dream","stream","scream","squeak","cheap","peanuts","teapot","seatbelt","daydream","seaweed","seashell","earwig","meaning","nearly","reach","seaside","teabag","teacup","seasick","teacher","teaspoon","underneath","peas","measles","treacle","easy","easily","leave","please","beads","beans","jeans"],advanced:["tear","gear","yeast","earring","yearly","weary","dreary","crease","appeal","appear","disappear","really","grease","tease","season","steamroller","increase","reason","release","leaflet","eagle","treatment","weaken","weakness","seahorse","seashore","repeat","reveal","weasel","weave","overhear"]},
+  "igh": {starter:["high","night","light","right","sight","bright","fight","tight","fright","flight","might","lightning"],advanced:["sigh","thigh","midnight","lamplight","fortnight","slightly","sunlight","tightrope","flashlight","highlight","nightdress","tights","upright","slight","tighten","overnight","lighthouse","nightingale"]},
+  "ow /oa/": {starter:["low","own","mow","slow","snow","blow","show","grow","throw","window","yellow","borrow","pillow","shadow","owner","elbow","follow","narrow","arrow","bow","rainbow","snowflake","snowman","lower","bowl","bowling","below","slowest"],advanced:["row","rowing","flow","crow","shallow","shown","marrow","hollow","snowy","sow","marshmallow","snowstorm","sorrow","sparrow","thrown","tow","widow","widower","willow","windowpane","windowsill","glow","fellow","Halloween","overflow","bungalow","lowest","tomorrow"]},
+  "ow /ou/": {starter:["owl","how","now","down","town","cow","howl","brown","drown","crown","clown","crowd","frown","growl","shower","flower","powder","tower","downhill","sunflower"],advanced:["bow","row","showery","towel","sow","scowl","gown","prowl","fowl","flowerpot","however","cowshed","allow","overcrowded","coward","trowel","vowel"]},
+  "ir": {starter:["bird","girl","dirt","stir","firm","first","shirt","third","skirt","thirteen","stirring","thirsty","birthday","dirty","birdseed"],advanced:["sir","fir","chirp","birth","twirl","swirl","shirk","thirty","firmly","songbird","blackbird","squirt","thirst","cowgirl","miniskirt","bluebird"]},
+  "ur": {starter:["turn","burn","fur","hurt","curl","purr","burnt","burst","church","burger","hamburger","beefburger","yogurt","sunburnt","turning","surprise","nurse","purse","curve","purple","burglar","return","curtain","turf","furry","further","churn","Saturn","murder","Saturday","turnip","disturb","murmur","nursery","suburb","surf","surname","survive","unhurt","turtle","turban","furthest","surround","Thursday","hurtful","absurd"],advanced:[]},
+  "ew": {starter:["few","new","dew","stew","blew","grew","chew","chewing","drew","flew","view","threw","screw"],advanced:["pew","newt","skewer","jewel","screwdriver","shrewd","slew","unscrew","crew","newspaper","corkscrew"]},
+  "au": {starter:["fault","Paul","haunt","faulty","haunted","August","cauliflower","cause","because","pause"],advanced:["haul","vault","taunt","launch","laundry","automatic","audible","autumn","author","astronaut","launderette","restaurant"]},
+  "aw": {starter:["saw","paw","jaw","thaw","lawn","draw","straw","prawn","crawl","yawn","claw","jigsaw","seesaw","drawing","dawdle","strawberry"],advanced:["sawmill","withdraw","jawbone","hawthorn","law","flaw","raw","pawn","dawn","shawl","hawk","spawn","trawl","trawler","drawer","drawn","lawnmower","outlaw","sawdust","awful","awfully","awkward"]},
+  "al": {starter:["all","hall","fall","ball","wall","call","tall","talk","walk","chalk","small","salt","altogether","alright","always"],advanced:["stalk","mall","ballpoint","chalky","alter","fallen","altar","basketball","wallpaper","walnut","walrus","alternate","alternative","falcon","false","halt","penalty","scald"]},
+  "ph": {starter:["dolphin","phone","nephew","sphere","phonics","alphabet","elephant","orphan","photo","telephone","photograph","photographer"],advanced:["alphabetical","photocopy","trophy","autograph","prophet","phantom","phrase","paragraph","amphibian","physical","triumph","microphone","hyphen"]},
+  "soft c": {starter:["mice","rice","nice","face","ice","race","place","dice","excite","centipede","city","space","spaceship","ace","twice","trace","saucer","princess","iceberg","lace","cent","cell","cancer","brace","officer","except","fence","sauce","saucepan","celery","pencil","circus","cycle","bicycle","excellent","circle","exciting","decide","spacing","advice","ambulance","dance","bounce","voice","pence","success","succeed","since","sentence","scissors","science","racing","prince","pounce","palace","accident","bracelet","balance","force","exercise","cigarette","choice","chance","certain"],advanced:["fascinate","scent","scene","simplicity","anticipate","criticise","cylinder","cellar","cygnet","sorcerer","pharmacist","concern","define","process","vaccinate","surface","substance","society","semicircle","scenery","peace","residence","replace","rejoice","reduce","recite","receive","recent","recently","practice","plaice","pronounce","policeman","pierce","accept","accent","access","abundance","office","ancestor","advance","audience","ascend","appliance","notice","noticeable","menace","medicine","lance","justice","introduce","instance","innocent","icing","greengrocer","graceful","fleece","fascinating","entrance","divorce","decimal","incidence","century","cereal","ceremony","certificate","cement","cemetery","celebrate","cancel"]},
+  "soft g": {starter:["cage","page","stage","register","margin","magic","huge","ginger","energy","energetic","large","orange","village","suggest","stranger","strange","fridge","luggage","lounge","lettuce","ledge","hedge","hedgehog","intelligent","imagine","giraffe","gentle","gentleman","garage","bandage","badger","badge","fidget","engine","edge","dodge","digital","danger","damage","cottage","change","charge","bridge","angel"],advanced:["rage","wage","stagecoach","gem","germ","engineer","engaged","digit","manage","origin","passenger","tangerine","surgery","religion","region","range","plunge","pigeon","passage","oxygen","original","marriage","legend","judge","image","hinge","gesture","general","generous","genius","geography","gadget","fringe","bodge","exchange","edgy","exaggerate","advantage","budge","dungeon","bulge","disadvantage","dinghy","college","carriage","gigantic","electricity"]}
+};
+
+const UNDERLINED = new Set(["as","is","resist","pasta","lemon","attack","packet","ink","tank","sunk","sense","sneeze","mouse","cassette","opposite","apple","kennel","devil","royal","cheerful","catch","pitch","hutch","doctor","collar","salt","alter","walrus","bold","told","sold","blue","grew","rude","fast","class","path"]);
+
+/* ---------- Tricky-to-pronounce words, grouped by the trick type from the word bank intro ---------- */
+const TRICKY_TYPES = {
+  "Soft /z/ (s sounds like z)": ["as","is","resist"],
+  "Schwa (lazy vowel)": ["pasta","lemon","attack","packet","opposite","cassette"],
+  "nk = /ngk/": ["ink","tank","sunk"],
+  "Silent e on the end": ["sense","sneeze","mouse"],
+  "Ends in /l/ sound": ["apple","kennel","devil","royal","cheerful"],
+  "Silent t (tch)": ["catch","pitch","hutch"],
+  "or/ar = /er/": ["doctor","collar"],
+  "al = /or/ + l": ["salt","alter","walrus"],
+  "o between /o/ and /oa/": ["bold","told","sold"],
+  "ue/ew = /oo/": ["blue","grew","rude"],
+  "a = /ar/ (southern)": ["fast","class","path"]
+};
+
+/* ---------- Sight words: Jolly Phonics 'tricky word' sets + Dolch graded lists ---------- */
+const SIGHT_SETS = {
+  "JP Set 1": ["I","the","he","she","me","we","be","was","to","do","are","all"],
+  "JP Set 2": ["you","your","come","some","said","here","there","they","go","no","so","my"],
+  "JP Set 3": ["one","by","like","have","live","give","little","down","what","when","why","where"],
+  "JP Set 4": ["who","which","any","many","more","before","other","were","because","want","saw","put"],
+  "JP Set 5": ["could","should","would","right","two","four","goes","does","made","their","once","upon"],
+  "JP Set 6": ["always","also","of","eight","love","cover","after","every","mother","father","brother","friend"],
+  "Dolch pre-K": ["a","and","away","big","blue","can","come","down","find","for","funny","go","help","here","I","in","is","it","jump","little","look","make","me","my","not","one","play","red","run","said","see","the","three","to","two","up","we","where","yellow","you"],
+  "Dolch primer": ["all","am","are","at","ate","be","black","brown","but","came","did","do","eat","four","get","good","have","he","into","like","must","new","no","now","on","our","out","please","pretty","ran","ride","saw","say","she","so","soon","that","there","they","this","too","under","want","was","well","went","what","white","who","will","with","yes"],
+  "Dolch 1st": ["after","again","an","any","as","ask","by","could","every","fly","from","give","going","had","has","her","him","his","how","just","know","let","live","may","of","old","once","open","over","put","round","some","stop","take","thank","them","then","think","walk","were","when"],
+  "Dolch 2nd": ["always","around","because","been","before","best","both","buy","call","cold","does","don't","fast","first","five","found","gave","goes","green","its","made","many","off","or","pull","read","right","sing","sit","sleep","tell","their","these","those","upon","us","use","very","wash","which","why","wish","work","would","write","your"],
+  "Dolch 3rd": ["about","better","bring","carry","clean","cut","done","draw","drink","eight","fall","far","full","got","grow","hold","hot","hurt","if","keep","kind","laugh","light","long","much","myself","never","only","own","pick","seven","shall","show","six","small","start","ten","today","together","try","warm"]
+};
+
+/* ---------- Jolly Phonics teaching order ---------- */
+const ORDER = ["s","a","t","i","p","n","c/k","e","h","r","m","d","g","o","u","l","f","b",
+  "ai","j","oa","ie","ee","or","z","w","ng","v","oo (short)","oo (long)","y","x","ch","sh",
+  "th (voiced)","th (unvoiced)","qu","ou","oi","ue","er","ar",
+  "y /ee/","a-e","e-e","i-e","o-e","u-e","ay","oy","y /ie/","y /i/","ea","igh",
+  "ow /oa/","ow /ou/","ir","ur","ew","au","aw","al","ph","soft c","soft g"];
+const GROUPS = ORDER.filter(g => RAW[g]); // safety: only existing
+const PRESETS = [
+  { name: "Short vowels", groups: ["a","e","i","o","u"] },
+  { name: "Long vowels (magic e)", groups: ["a-e","e-e","i-e","o-e","u-e"] },
+  { name: "Vowel teams", groups: ["ai","oa","ee","ea","ie","ay","oy","oi","ou","ue","ew","au","aw"] },
+  { name: "Digraphs", groups: ["ch","sh","th (voiced)","th (unvoiced)","ng","qu","ph"] },
+  { name: "r-controlled", groups: ["or","er","ar","ir","ur"] },
+  { name: "Soft c & g", groups: ["soft c","soft g"] },
+  { name: "First sounds (s a t i p n)", groups: ["s","a","t","i","p","n"] }
+];
+/* Break a word into sound segments, each = { letters, type }.
+   type: 'dot' (single sound), 'wide' (digraph/trigraph), 'star' (magic-e long vowel),
+   'silent' (no marker). Letters keep their original position so markers sit under them. */
+const TRIGRAPHS = ['igh','tch','dge'];
+const DIGRAPHS = ['sh','ch','th','ph','wh','ck','ng','qu','ai','ay','ee','ea','oa','oo','ou','ow','oi','oy','ue','ew','au','aw','ie','ir','ur','er','ar','or','ll','ss','ff','zz'];
+function soundSegments(raw){
+  const w = raw.toLowerCase().replace(/[^a-z]/g,'');
+  const segs = [];
+  const isMagicE = /[aeiou][bcdfghjklmnpqrstvwxz]e$/.test(w) && w.length>=3;
+  let i = 0;
+  while(i < w.length){
+    // magic-e ending: vowel(star) + consonant(dot) + silent e
+    if(isMagicE && i === w.length-3){
+      segs.push({letters:w[i], type:'star'});
+      segs.push({letters:w[i+1], type:'dot'});
+      segs.push({letters:w[i+2], type:'silent'});
+      i += 3; continue;
+    }
+    // doubled consonant = one sound
+    if(i+1<w.length && w[i]===w[i+1] && 'bcdfghjklmnpqrstvwxz'.includes(w[i])){
+      segs.push({letters:w.substr(i,2), type:'dot'}); i += 2; continue;
+    }
+    // trigraph
+    const tri = w.substr(i,3);
+    if(TRIGRAPHS.includes(tri)){ segs.push({letters:tri, type:'wide'}); i += 3; continue; }
+    // digraph
+    const di = w.substr(i,2);
+    if(DIGRAPHS.includes(di)){ segs.push({letters:di, type:'wide'}); i += 2; continue; }
+    // silent letters
+    if(isSilent(w, i)){ segs.push({letters:w[i], type:'silent'}); i += 1; continue; }
+    segs.push({letters:w[i], type:'dot'}); i += 1;
+  }
+  return segs.length ? segs : [{letters:w, type:'dot'}];
+}
+function isSilent(w, i){
+  const c = w[i];
+  if(c==='k' && i===0 && w[1]==='n') return true;       // knee, knock
+  if(c==='w' && i===0 && w[1]==='r') return true;       // write
+  if(c==='b' && i===w.length-1 && w[i-1]==='m') return true; // lamb
+  if(c==='h' && w[i-1]==='g') return true;              // ghost-ish
+  return false;
+}
+(() => {
+const $ = id => document.getElementById(id);
+const KEY = 'phonicsPalsSaver.v1';
+const SKINS = [
+  {id:'auto', name:'Match my device', c:['#fef9f0','#211c28']},
+  {id:'chalk', name:'Chalkboard', c:['#22352b','#fff6cf']},
+  {id:'graph', name:'Graph paper', c:['#fbfdff','#1f6feb']},
+  {id:'sunset', name:'Sunset', c:['#fff0e4','#df532a']},
+  {id:'ocean', name:'Ocean', c:['#052a33','#47d2c9']},
+  {id:'midnight', name:'Midnight', c:['#0b0d1a','#8f80ff']},
+];
+
+let S = { mode:'groups', groups:[...GROUPS], starter:true, advanced:false, under:true,
+  cats:{tricky:[], sight:[]}, speed:1, skin:'auto', notesHidden:false,
+  notes:[
+    {id:1, t:'Take a seat at your desk', done:false, tilt:-1.2},
+    {id:2, t:'Listen for instructions', done:false, tilt:1},
+    {id:3, t:'Try to read each word in your head before it blends', done:false, tilt:-.5},
+  ]};
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) S = Object.assign(S, s); } catch(e){}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+
+/* ---------- theme + speed ---------- */
+const skinBox = $('skins');
+SKINS.forEach(k => {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.id = 'skin-'+k.id; b.title = k.name; b.setAttribute('aria-label', k.name);
+  b.innerHTML = `<i style="background:linear-gradient(135deg, ${k.c[0]} 50%, ${k.c[1]} 50%)"></i>`;
+  b.onclick = () => { S.skin = k.id; applySkin(); save(); };
+  skinBox.appendChild(b);
+});
+function applySkin(){
+  if (S.skin==='auto') document.documentElement.removeAttribute('data-skin');
+  else document.documentElement.setAttribute('data-skin', S.skin);
+  skinBox.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.id==='skin-'+S.skin));
+}
+applySkin();
+$('speed').value = String(S.speed);
+$('speed').onchange = e => { S.speed = +e.target.value; save(); };
+
+/* ---------- deck ---------- */
+const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
+function catData(){ return S.mode==='sight' ? SIGHT_SETS : TRICKY_TYPES; }
+function allWords(){
+  const out = [], seen = new Set();
+  const push = w => { const k = w.word+'|'+w.group; if(!seen.has(k)){ seen.add(k); out.push(w); } };
+  if (S.mode==='groups'){
+    GROUPS.filter(g => S.groups.includes(g)).forEach(g => {
+      if (S.starter) RAW[g].starter.forEach(w => push({word:w, group:g, level:'starter'}));
+      if (S.advanced) RAW[g].advanced.forEach(w => push({word:w, group:g, level:'advanced'}));
+    });
+    return S.under ? out : out.filter(w => !UNDERLINED.has(w.word));
+  }
+  const data = catData(), sel = S.cats[S.mode];
+  (sel.length ? sel : Object.keys(data)).forEach(c => (data[c]||[]).forEach(w => push({word:w, group:c, level:S.mode})));
+  return out;
+}
+let deck = [], di = 0;
+function rebuildDeck(){
+  deck = shuffle(allWords()); di = 0;
+  const n = deck.length;
+  const kind = S.mode==='sight' ? 'sight words' : S.mode==='tricky' ? 'tricky words' : 'words';
+  $('deckInfo').textContent = `${n} ${kind}`;
+  $('pickSummary').textContent = n ? `${n} ${kind} will play, in a shuffled order.` : 'Nothing selected yet. Pick at least one group and level.';
+}
+
+/* ---------- word display ---------- */
+function chunksFor(item){
+  const w = item.word;
+  if (item.level==='sight') return [{letters:w, type:'wide', sight:true}];
+  const segs = soundSegments(w), out = [];
+  let oi = 0;
+  segs.forEach(seg => {
+    let letters = '';
+    while (letters.length < seg.letters.length && oi < w.length){
+      const ch = w[oi++];
+      if (/[a-z]/i.test(ch)) letters += ch; else out.push({letters:ch, type:'punct'});
+    }
+    out.push({letters, type:seg.type});
+  });
+  while (oi < w.length) out.push({letters:w[oi++], type:'punct'});
+  return out;
+}
+const COLOR = {dot:'var(--a)', wide:'var(--b)', star:'var(--c)', silent:'var(--muted)', punct:'var(--ink)'};
+const wordEl = $('word'), box = $('box'), wrap = $('wrap'), cap = $('cap'), tags = $('tags'), stage = document.querySelector('.stage');
+let chunks = [], cur = null;
+
+function fitWord(){
+  if (!cur) return;
+  const len = cur.word.length + (chunks.length * .45);
+  const W = wrap.clientWidth * .94, H = wrap.clientHeight;
+  const size = Math.max(36, Math.min(H * .55, W / (len * .62), 240));
+  wordEl.parentElement.style.fontSize = size + 'px';
+}
+function renderWord(item){
+  cur = item; chunks = chunksFor(item);
+  stage.classList.remove('split','blend');
+  wordEl.innerHTML = chunks.map((c,i) => {
+    const bub = c.type==='dot' ? '<span class="bub dot"></span>' : c.type==='wide' ? '<span class="bub wide"></span>'
+      : c.type==='star' ? '<span class="bub star">★</span>' : '';
+    return `<span class="chunk ${c.type}" id="ch${i}" style="--k:${COLOR[c.type]}"><span class="lt"></span><span class="mk">${bub}</span></span>`;
+  }).join('');
+  chunks.forEach((c,i) => {
+    wordEl.children[i].querySelector('.lt').textContent = c.letters;
+    const b = wordEl.children[i].querySelector('.bub'); if (b) b.style.transitionDelay = (i*90)+'ms';
+  });
+  const label = item.level==='sight' ? `Sight word · <b>${esc(item.group)}</b>`
+    : item.level==='tricky' ? `Tricky: <b>${esc(item.group)}</b>` : `Sound: <b>${esc(item.group)}</b>`;
+  tags.innerHTML = `<span class="tag">${label}</span>` + (item.level==='advanced' ? '<span class="tag">Advanced</span>' : '')
+    + (UNDERLINED.has(item.word) && item.level!=='sight' ? '<span class="tag warn">Sounds a little different</span>' : '');
+  cap.innerHTML = '';
+  fitWord();
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function captionSoFar(upto, done){
+  const parts = chunks.slice(0, upto+1).filter(c => c.type!=='silent' && c.type!=='punct')
+    .map(c => `<span class="s" style="--k:${COLOR[c.type]}">${esc(c.letters)}</span>`);
+  cap.innerHTML = parts.join(' · ') + (done ? `&nbsp; → &nbsp;<span class="whole">${esc(cur.word)}</span>` : '');
+}
+function light(i){
+  wordEl.querySelectorAll('.chunk.now').forEach(e => e.classList.remove('now'));
+  const el = $('ch'+i); el.classList.add('on','now');
+  captionSoFar(i, false);
+}
+
+/* ---------- timeline (pausable) ---------- */
+let tl = [], elapsed = 0, total = 1, paused = false, lastT = null;
+function plan(item){
+  const f = S.speed, ev = []; let t = 0;
+  ev.push({at:0, fn:() => renderWord(item)});
+  t += 1500*f;
+  ev.push({at:t, fn:() => stage.classList.add('split')});
+  t += 900*f + chunks.length*90;
+  if (item.level==='sight'){
+    ev.push({at:t, fn:() => { light(0); cap.innerHTML = `Read it by sight: <span class="whole">${esc(item.word)}</span>`; }});
+    t += 2600*f;
+  } else {
+    chunks.forEach((c,i) => {
+      if (c.type==='punct'){ ev.push({at:t, fn:() => $('ch'+i).classList.add('on')}); return; }
+      ev.push({at:t, fn:() => light(i)});
+      t += (c.type==='silent' ? 650 : 1150) * f;
+    });
+    ev.push({at:t, fn:() => {
+      wordEl.querySelectorAll('.chunk.now').forEach(e => e.classList.remove('now'));
+      stage.classList.add('blend'); captionSoFar(chunks.length-1, true);
+    }});
+    t += 2800*f;
+  }
+  return {ev, total:t};
+}
+function startWord(){
+  if (!deck.length){
+    cur = null; chunks = []; tl = []; total = 1; elapsed = 0;
+    stage.classList.remove('split','blend'); tags.innerHTML = ''; cap.innerHTML = '';
+    wordEl.innerHTML = '<div class="emptyMsg">No words selected. Open “Words” to pick sound groups.</div>';
+    wordEl.parentElement.style.fontSize = '';
+    return;
+  }
+  if (di >= deck.length){ deck = shuffle(deck); di = 0; }
+  const item = deck[di++];
+  chunks = chunksFor(item); // needed for timing before render
+  const p = plan(item);
+  tl = p.ev; total = p.total; elapsed = 0;
+  fire();
+}
+function fire(){ while (tl.length && tl[0].at <= elapsed) tl.shift().fn(); }
+function loop(t){
+  if (lastT==null) lastT = t;
+  const dt = Math.min(100, t - lastT); lastT = t;
+  if (!paused && deck.length){
+    elapsed += dt; fire();
+    $('bar').style.width = Math.min(100, elapsed/total*100) + '%';
+    if (elapsed >= total) startWord();
+  }
+  requestAnimationFrame(loop);
+}
+function setPaused(v){ paused = v; ['pause','fPause'].forEach(id => $(id).textContent = v ? 'Play' : 'Pause'); }
+$('pause').onclick = $('fPause').onclick = () => setPaused(!paused);
+$('next').onclick = $('fNext').onclick = () => startWord();
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(fitWord, 100); });
+
+/* ---------- picker ---------- */
+const picker = $('picker');
+function syncPicker(){
+  ['groups','tricky','sight'].forEach(m => $('m-'+m).setAttribute('aria-pressed', S.mode===m));
+  $('groupsPane').hidden = S.mode!=='groups'; $('catsPane').hidden = S.mode==='groups';
+  $('presets').innerHTML = PRESETS.map((p,i) => {
+    const v = p.groups.filter(g => RAW[g]);
+    const on = v.length===S.groups.length && v.every(g => S.groups.includes(g));
+    return `<button class="chip" data-p="${i}" aria-pressed="${on}">${esc(p.name)}</button>`;
+  }).join('');
+  $('groups').innerHTML = GROUPS.map(g => `<button class="chip g" data-g="${esc(g)}" aria-pressed="${S.groups.includes(g)}">${esc(g)}</button>`).join('');
+  $('gCount').textContent = `${S.groups.length} of ${GROUPS.length}`;
+  $('lv-starter').setAttribute('aria-pressed', S.starter);
+  $('lv-advanced').setAttribute('aria-pressed', S.advanced);
+  $('lv-under').setAttribute('aria-pressed', S.under);
+  if (S.mode!=='groups'){
+    const data = catData(), sel = S.cats[S.mode];
+    $('catTitle').textContent = S.mode==='sight' ? 'Sight word sets' : 'Kinds of tricky word';
+    $('cats').innerHTML = Object.keys(data).map(c => `<button class="chip" data-c="${esc(c)}" aria-pressed="${sel.includes(c)}">${esc(c)}</button>`).join('');
+    $('cCount').textContent = sel.length ? `${sel.length} selected` : 'all';
+  }
+  rebuildDeck();
+}
+let dirty = false;
+const changed = () => { dirty = true; save(); syncPicker(); };
+$('openPicker').onclick = () => { picker.hidden = false; dirty = false; syncPicker(); $('closePicker').focus(); };
+const closePicker = () => { picker.hidden = true; if (dirty) startWord(); };
+$('closePicker').onclick = closePicker;
+picker.onclick = e => { if (e.target===picker) closePicker(); };
+document.querySelectorAll('.switch button').forEach(b => b.onclick = () => { S.mode = b.dataset.m; changed(); });
+$('presets').onclick = e => { const b = e.target.closest('[data-p]'); if (!b) return; S.groups = PRESETS[+b.dataset.p].groups.filter(g => RAW[g]); changed(); };
+$('groups').onclick = e => { const b = e.target.closest('[data-g]'); if (!b) return; const g = b.dataset.g;
+  S.groups = S.groups.includes(g) ? S.groups.filter(x => x!==g) : [...S.groups, g]; changed(); };
+$('gAll').onclick = () => { S.groups = [...GROUPS]; changed(); };
+$('gNone').onclick = () => { S.groups = []; changed(); };
+$('lv-starter').onclick = () => { S.starter = !S.starter; changed(); };
+$('lv-advanced').onclick = () => { S.advanced = !S.advanced; changed(); };
+$('lv-under').onclick = () => { S.under = !S.under; changed(); };
+$('cats').onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; const c = b.dataset.c, sel = S.cats[S.mode];
+  S.cats[S.mode] = sel.includes(c) ? sel.filter(x => x!==c) : [...sel, c]; changed(); };
+$('cAll').onclick = () => { S.cats[S.mode] = Object.keys(catData()); changed(); };
+$('cNone').onclick = () => { S.cats[S.mode] = []; changed(); };
+
+/* ---------- full screen ---------- */
+let wakeLock = null;
+async function startSaver(){
+  document.body.classList.add('saver');
+  try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){}
+  if (paused) setPaused(false);
+  pokeIdle(); setTimeout(fitWord, 250);
+}
+function stopSaver(){
+  document.body.classList.remove('saver','idle');
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  try { wakeLock?.release(); } catch(e){} wakeLock = null;
+  setTimeout(fitWord, 250);
+}
+$('fs').onclick = startSaver; $('fExit').onclick = stopSaver;
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('saver')) stopSaver(); });
+let idleT;
+function pokeIdle(){ document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 2500); }
+addEventListener('mousemove', pokeIdle); addEventListener('touchstart', pokeIdle, {passive:true});
+
+/* ---------- notes ---------- */
+const list = $('list');
+function renderNotes(){
+  $('notes').classList.toggle('hiddenRail', !!S.notesHidden);
+  const open = S.notes.filter(n => !n.done).length;
+  $('count').textContent = S.notes.length ? `${open} left` : '';
+  if (!S.notes.length){ list.innerHTML = '<li class="empty">No notes yet. Type one above and press Post. It stays on screen while the words play.</li>'; return; }
+  list.innerHTML = S.notes.map(n => `
+    <li class="note${n.done?' done':''}" style="--tilt:${n.tilt}deg" data-id="${n.id}">
+      <button class="check" aria-label="Mark ${n.done?'not done':'done'}">${n.done?'✓':''}</button>
+      <span class="text"></span>
+      <button class="del" aria-label="Remove note">×</button>
+    </li>`).join('');
+  list.querySelectorAll('.note').forEach((li,i) => li.querySelector('.text').textContent = S.notes[i].t);
+}
+list.onclick = e => {
+  const li = e.target.closest('.note'); if (!li) return;
+  const id = +li.dataset.id;
+  if (e.target.closest('.del')) S.notes = S.notes.filter(n => n.id!==id);
+  else { const n = S.notes.find(n => n.id===id); n.done = !n.done; }
+  save(); renderNotes();
+};
+$('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const t = $('noteInput').value.trim(); if (!t) return;
+  S.notes.push({id:Date.now(), t, done:false, tilt:+(Math.random()*3-1.5).toFixed(2)});
+  $('noteInput').value = ''; save(); renderNotes(); list.scrollTop = list.scrollHeight;
+});
+$('clearDone').onclick = () => { S.notes = S.notes.filter(n => !n.done); save(); renderNotes(); };
+const toggleNotes = () => { S.notesHidden = !S.notesHidden; save(); renderNotes(); setTimeout(fitWord, 50); };
+$('fNotes').onclick = toggleNotes;
+
+addEventListener('keydown', e => {
+  if (e.target.matches('input,select')) return;
+  if (!picker.hidden){ if (e.key==='Escape') closePicker(); return; }
+  if (e.code==='Space'){ e.preventDefault(); setPaused(!paused); }
+  else if (e.key==='ArrowRight') startWord();
+  else if (e.key==='f' || e.key==='F') document.body.classList.contains('saver') ? stopSaver() : startSaver();
+  else if (e.key==='n' || e.key==='N') toggleNotes();
+  else if (e.key==='Escape' && document.body.classList.contains('saver')) stopSaver();
+});
+
+renderNotes();
+rebuildDeck();
+startWord();
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
