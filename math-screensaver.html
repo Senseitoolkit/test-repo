@@ -155,6 +155,11 @@ main:has(.hiddenRail), .saver main:has(.hiddenRail){grid-template-columns:minmax
 
 body:not(.saver) .note .text{cursor:text}
 .note.editing .text{outline:2px dashed var(--note-ink); outline-offset:4px; border-radius:4px; text-decoration:none; opacity:1}
+
+/* when the to-do list and timer are both off: content spans the full width, clock floats in the corner */
+main{position:relative}
+body.both-off main, body.both-off.saver main{grid-template-columns:minmax(0,1fr) !important}
+body.both-off .notes{position:absolute; top:0; right:0; z-index:5; pointer-events:none}
 </style>
 
 </head>
@@ -546,8 +551,18 @@ function apply(){
   $('timer').hidden = !on;
   const t = $('timerToggle'); t.textContent = 'Timer: ' + (on ? 'On' : 'Off'); t.setAttribute('aria-pressed', on);
   $('fTimer').textContent = on ? 'Hide timer' : 'Show timer';
+  syncLayout();
 }
 function toggle(){ on = !on; try { localStorage.setItem(KEY, on ? '1' : '0'); } catch(e){} apply(); }
+function syncLayout(){
+  const notesOff = $('notes').classList.contains('hiddenRail');
+  const both = notesOff && !on;
+  if (document.body.classList.contains('both-off') !== both){
+    document.body.classList.toggle('both-off', both);
+    setTimeout(() => dispatchEvent(new Event('resize')), 60);
+  }
+}
+new MutationObserver(syncLayout).observe($('notes'), {attributes:true, attributeFilter:['class']});
 $('timerToggle').onclick = toggle; $('fTimer').onclick = toggle;
 addEventListener('keydown', e => {
   if (e.target.matches('input,select')) return;
