@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jolly Grammar Saver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Gaegu:wght@400;700&display=swap">
+<style>
+
+/* Layout: same wall as the math saver — one big stage where a sentence lights up part by part; a third of the screen for sticky notes. */
+:root{
+  --bg:#fef9f0; --panel:#ffffff; --ink:#3a3340; --muted:#a59cad; --line:#efe4d6; --line-strong:#e0d2bf;
+  --a:#ff8a3d; --b:#7b6ef6; --c:#e0a800; --note:#fff1a6; --note-ink:#3b3220; --chip:#fff3e0;
+  --f-display:"Fredoka", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-ui:"Nunito", system-ui, -apple-system, sans-serif;
+  --f-note:"Gaegu", "Comic Sans MS", "Chalkboard SE", cursive;
+  --grid-img:radial-gradient(var(--line) 1px, transparent 1px); --grid-size:22px 22px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#211c28; --panel:#2c2533; --ink:#f4eef8; --muted:#7d7388; --line:#3d3446; --line-strong:#4d4356;
+  --a:#ff9a55; --b:#9a8fff; --c:#ffc83d; --note:#f3e38f; --note-ink:#2f2814; --chip:#36283a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#211c28; --panel:#2c2533; --ink:#f4eef8; --muted:#7d7388; --line:#3d3446; --line-strong:#4d4356;
+  --a:#ff9a55; --b:#9a8fff; --c:#ffc83d; --note:#f3e38f; --note-ink:#2f2814; --chip:#36283a; color-scheme:dark }
+:root[data-skin="chalk"]{ --bg:#22352b; --panel:#2a3f34; --ink:#f3f4e9; --muted:#7f9686; --line:#34503f; --line-strong:#466654;
+  --a:#fff6cf; --b:#ffafc5; --c:#9fe3ff; --note:#f4e39a; --note-ink:#33301c; --chip:#2f4739; color-scheme:dark; --grid-img:none }
+:root[data-skin="graph"]{ --bg:#fbfdff; --panel:#ffffff; --ink:#16314c; --muted:#94a8bd; --line:#cfe0f3; --line-strong:#b5cbe4;
+  --a:#1f6feb; --b:#e5484d; --c:#d18b00; --note:#fff3b0; --note-ink:#3a3015; --chip:#e9f1fb; color-scheme:light;
+  --grid-img:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px); --grid-size:28px 28px }
+:root[data-skin="midnight"]{ --bg:#0b0d1a; --panel:#141830; --ink:#ebe9ff; --muted:#5d6190; --line:#22284a; --line-strong:#323a66;
+  --a:#8f80ff; --b:#33d6b6; --c:#ffcf5c; --note:#ffd9f2; --note-ink:#36203a; --chip:#1b2040; color-scheme:dark; --grid-img:none }
+:root[data-skin="sunset"]{ --bg:#fff0e4; --panel:#fff8f2; --ink:#4a1e18; --muted:#b99282; --line:#f2d6c3; --line-strong:#e8c1a8;
+  --a:#df532a; --b:#7a3cbd; --c:#c98a00; --note:#fff7c2; --note-ink:#4a3418; --chip:#fbe2d2; color-scheme:light; --grid-img:none }
+:root[data-skin="ocean"]{ --bg:#052a33; --panel:#0a3641; --ink:#def6f5; --muted:#5e8f96; --line:#0f4552; --line-strong:#1b5a68;
+  --a:#47d2c9; --b:#ffcf61; --c:#ff8fa3; --note:#c9f2e4; --note-ink:#0f3a32; --chip:#0e4250; color-scheme:dark; --grid-img:none }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg); background-image:var(--grid-img); background-size:var(--grid-size); color:var(--ink);
+  font-family:var(--f-ui); font-weight:600; overflow:hidden;
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--a); outline-offset:2px}
+
+.app{height:100%; display:grid; grid-template-rows:auto 1fr; gap:12px; padding-block:12px}
+.bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px}
+.brand{font-family:var(--f-display); font-weight:700; font-size:1.35rem; margin-right:auto; display:flex; align-items:center; gap:8px}
+.brand i{width:26px; height:26px; border-radius:50%; background:var(--a); display:inline-block}
+.group{display:flex; align-items:center; gap:6px}
+.lbl{font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin-right:2px; font-weight:800}
+select{height:40px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); padding:0 10px}
+.swatch{width:28px; height:28px; border-radius:50%; border:2px solid var(--line-strong); padding:0; position:relative; overflow:hidden}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.swatch i{position:absolute; inset:0}
+.go{height:40px; padding:0 18px; border-radius:999px; border:0; background:var(--a); color:var(--bg); font-family:var(--f-display); font-weight:600}
+.ghost{height:40px; padding:0 14px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); font-family:var(--f-display); font-weight:600}
+
+main{min-height:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(320px,1fr); gap:24px}
+.stage{min-height:0; min-width:0; display:grid; grid-template-rows:auto 1fr auto auto; justify-items:center; gap:10px}
+.tags{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; min-height:34px; padding-top:1vmin}
+.tag{padding:5px 14px; border-radius:999px; background:var(--chip); color:var(--ink); font-size:clamp(.85rem,1.8vmin,1.1rem); font-weight:800}
+.tag b{font-family:var(--f-display); color:var(--b); font-weight:600}
+.tag.warn{color:var(--a)}
+.progress{width:min(520px,100%); height:8px; border-radius:8px; background:var(--line); overflow:hidden; margin-bottom:4px}
+.progress i{display:block; height:100%; width:0; background:var(--a)}
+.emptyMsg{font-family:var(--f-display); font-size:1.4rem; color:var(--muted); text-align:center; max-width:28ch}
+.hint{font-size:.8rem; color:var(--muted)}
+
+/* notes (shared with the math saver) */
+.notes{min-height:0; display:flex; flex-direction:column; gap:10px}
+.notes h2{font-family:var(--f-display); font-size:clamp(1.3rem,3vmin,2rem); font-weight:600; margin:0; display:flex; justify-content:space-between; align-items:baseline}
+.notes h2 small{font-family:var(--f-ui); color:var(--muted); font-size:.9rem}
+.add{display:flex; gap:6px}
+.add input{flex:1; min-width:0; height:40px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); padding:0 14px}
+.list{list-style:none; margin:0; padding:8px 4px 12px; overflow-y:auto; display:flex; flex-direction:column; gap:18px; flex:1}
+.note{background:var(--note); color:var(--note-ink); font-family:var(--f-note); font-size:clamp(1.6rem,4vmin,2.6rem); line-height:1.1;
+  padding:18px 40px 20px 18px; border-radius:2px 2px 14px 2px; box-shadow:0 6px 14px -8px rgba(0,0,0,.45);
+  transform:rotate(var(--tilt)); position:relative; display:flex; gap:10px; align-items:flex-start}
+.note::before{content:""; position:absolute; top:-7px; left:calc(50% - 22px); width:44px; height:14px; background:color-mix(in srgb, var(--panel) 60%, transparent); opacity:.8}
+.note .check{flex:none; width:1em; height:1em; margin-top:.08em; font-size:inherit; border-radius:5px; border:2px solid var(--note-ink); background:transparent; padding:0; display:grid; place-items:center; color:var(--note-ink)}
+.note.done .text{text-decoration:line-through; opacity:.55}
+.note .text{overflow-wrap:anywhere; min-width:0}
+.note .del{position:absolute; top:6px; right:6px; width:24px; height:24px; border:0; background:transparent; color:var(--note-ink); opacity:.5; font-size:1.1rem; line-height:1}
+.note .del:hover{opacity:1}
+.empty{color:var(--muted); font-size:.9rem; padding:8px 2px}
+.clear{align-self:flex-start; border:0; background:none; color:var(--muted); font-size:.8rem; text-decoration:underline; padding:0}
+
+/* word picker */
+.picker{position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--ink) 35%, transparent); display:grid; place-items:center;
+  padding:max(16px, env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) max(16px, env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px))}
+.sheet{background:var(--panel); border:2px solid var(--line-strong); border-radius:24px; width:min(760px,100%); max-height:100%; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px}
+.sheet h3{font-family:var(--f-display); font-weight:600; font-size:1.4rem; margin:0; display:flex; justify-content:space-between; align-items:center}
+.sec{display:flex; flex-direction:column; gap:8px}
+.sec .h{font-family:var(--f-display); font-weight:600; font-size:1rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.count{font-family:var(--f-ui); font-size:.8rem; color:var(--a); background:var(--chip); padding:2px 10px; border-radius:999px}
+.switch{display:flex; gap:6px; background:var(--chip); padding:5px; border-radius:999px}
+.switch button{flex:1; padding:9px; border-radius:999px; border:0; background:none; color:var(--muted); font-family:var(--f-display); font-weight:600}
+.switch button[aria-pressed="true"]{background:var(--panel); color:var(--ink); box-shadow:0 3px 0 rgba(0,0,0,.06)}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{padding:7px 13px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); color:var(--muted); font-weight:800; font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--b); border-color:var(--b); color:var(--bg)}
+.chip.g{font-family:var(--f-display); font-weight:600; font-size:1rem}
+.chip.g[aria-pressed="true"]{background:var(--a); border-color:var(--a)}
+.mini{border:0; background:none; color:var(--muted); text-decoration:underline; font-size:.85rem; padding:0}
+
+/* screen saver mode */
+.saver .bar{display:none}
+.saver .app{grid-template-rows:1fr}
+.saver .add,.saver .clear,.saver .hint{display:none}
+.saver .note .del{display:none}
+.floatCtl{position:fixed; right:calc(16px + env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  display:none; gap:6px; background:var(--panel); border:2px solid var(--line-strong); padding:6px; border-radius:999px; transition:opacity .4s; z-index:10}
+.saver .floatCtl{display:flex}
+.saver.idle .floatCtl{opacity:0; pointer-events:none}
+.saver.idle{cursor:none}
+.notes.hiddenRail{display:none}
+main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
+
+@media (max-width:760px){
+  body{overflow:auto}
+  .app{height:auto; min-height:100%}
+  main{grid-template-columns:minmax(0,1fr)}
+  .stage{min-height:60vh}
+}
+@media (prefers-reduced-motion:reduce){ .word,.lt,.bub,.swoosh{transition:none} .blend .wordBox{animation:none} }
+
+/* Jolly Grammar's own colour code; fixed across themes because it is the curriculum, not decoration */
+:root{ --pos-n:#1b1b1f; --pos-v:#e0262b; --pos-a:#1f6fe0; --pos-av:#f28a12; --pos-pr:#ee5fae; --pos-c:#8a3fd1; --pos-p:#249a3e;
+  --f-read:"Andika", "Century Gothic", system-ui, sans-serif }
+.sentWrap{width:100%; min-height:0; display:grid; place-items:center; overflow:hidden}
+.sent{display:flex; flex-wrap:wrap; justify-content:center; align-items:baseline; gap:.32em .28em; max-width:100%;
+  font-family:var(--f-read); font-weight:700; line-height:1.25; text-align:center}
+.w{padding:.04em .22em .1em; border-radius:.28em; color:var(--ink); transition:background .45s, color .45s, transform .4s cubic-bezier(.2,1.6,.4,1), box-shadow .45s}
+.w.x{padding-left:0; margin-left:-.28em}
+.w.on{background:var(--pc); color:#fff; box-shadow:0 0 0 .04em color-mix(in srgb, var(--ink) 30%, transparent)}
+.w.now{transform:translateY(-.1em) scale(1.06)}
+.w.dim{opacity:.35}
+.info{min-height:5.2em; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; max-width:min(900px,100%)}
+.posName{display:inline-flex; align-items:center; gap:10px; font-family:var(--f-display); font-weight:600; font-size:clamp(1.3rem,3.8vmin,2.4rem)}
+.posName i{width:.9em; height:.9em; border-radius:50%; background:var(--pc); box-shadow:0 0 0 2px color-mix(in srgb, var(--ink) 25%, transparent)}
+.posName small{font-family:var(--f-ui); font-size:.5em; color:var(--muted); font-weight:800; text-transform:uppercase; letter-spacing:.08em}
+.action{font-size:clamp(1rem,2.6vmin,1.5rem); color:var(--ink); text-wrap:balance}
+.action b{font-family:var(--f-display); font-weight:600}
+.legend{display:flex; flex-wrap:wrap; gap:6px 12px; justify-content:center; font-size:clamp(.9rem,2.2vmin,1.2rem)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.legend i{width:.9em; height:.9em; border-radius:50%; background:var(--pc); box-shadow:0 0 0 1.5px color-mix(in srgb, var(--ink) 25%, transparent)}
+.chip.pos[aria-pressed="true"]{background:var(--pc); border-color:var(--pc); color:#fff}
+.chip.pos{display:inline-flex; align-items:center; gap:6px}
+.chip.pos i{width:.75em; height:.75em; border-radius:50%; background:var(--pc)}
+.chip.pos[aria-pressed="true"] i{background:#fff}
+@media (prefers-reduced-motion:reduce){ .w{transition:none} }
+
+/* clock (top right) + timer (bottom right) */
+.clock{display:flex; flex-direction:column; align-items:flex-end; line-height:1; font-variant-numeric:tabular-nums}
+.clock .time{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,6vmin,4.2rem); letter-spacing:-.02em}
+.clock .time small{font-size:.42em; color:var(--muted); margin-left:.15em; font-weight:600}
+.clock .date{font-size:clamp(.85rem,2vmin,1.15rem); color:var(--muted); margin-top:6px; font-weight:700}
+.timer{border:2px solid var(--line); background:var(--panel); border-radius:18px; padding:10px 12px; display:flex; flex-direction:column; gap:8px}
+.timer .trow{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.tdisp{font-family:var(--f-display); font-weight:700; font-size:clamp(2rem,6vmin,3.6rem); line-height:1; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.tlabel{font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:800}
+.tbar{height:6px; border-radius:6px; background:var(--line); overflow:hidden}
+.tbar i{display:block; height:100%; width:100%; background:var(--a); transform-origin:left; transition:transform .25s linear}
+.tctl{display:flex; flex-wrap:wrap; gap:5px; transition:opacity .4s}
+.tctl button{height:34px; min-width:40px; padding:0 10px; border-radius:999px; border:2px solid var(--line); background:var(--bg); font-weight:700; font-size:.85rem}
+.tctl .tgo{background:var(--a); border-color:var(--a); color:var(--bg)}
+.timer.done{border-color:var(--a); animation:tflash 1s steps(2) infinite}
+.timer.done .tdisp{color:var(--a)}
+@keyframes tflash{50%{background:color-mix(in srgb, var(--a) 22%, var(--panel))}}
+.saver.idle .tctl{opacity:0; pointer-events:none}
+.notes.hiddenRail{display:flex !important}
+.notes.hiddenRail > :not(.clock):not(.timer){display:none !important}
+.notes.hiddenRail .timer{margin-top:auto}
+main:has(.hiddenRail), .saver main:has(.hiddenRail){grid-template-columns:minmax(0,3fr) minmax(240px,1fr) !important}
+.floatCtl{right:auto !important; left:50% !important; transform:translateX(-50%)}
+@media (prefers-reduced-motion:reduce){ .timer.done{animation:none} }
+#notesToggle[aria-pressed="true"]{border-color:var(--a)}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><i></i>Jolly Grammar Saver</div>
+    <div class="group">
+      <button class="ghost" id="openPicker">Highlight: <span id="deckInfo">…</span></button>
+      <label class="lbl" for="len">Sentences</label>
+      <select id="len"><option value="short">Short</option><option value="long">Long</option><option value="both" selected>Both</option></select>
+      <label class="lbl" for="speed">Speed</label>
+      <select id="speed"><option value="1.45">Slow</option><option value="1" selected>Medium</option><option value="0.65">Fast</option></select>
+    </div>
+    <div class="group" role="group" aria-label="Color theme" id="skins"><span class="lbl">Theme</span></div>
+    <div class="group">
+      <button class="ghost" id="notesToggle" aria-pressed="true">To-do list: On</button>
+      <button class="ghost" id="pause">Pause</button>
+      <button class="ghost" id="next">Next</button>
+      <button class="go" id="fs">Start full screen</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage" aria-live="polite">
+      <div class="tags" id="tags"></div>
+      <div class="sentWrap" id="wrap"><div class="sent" id="sent"></div></div>
+      <div class="info" id="info"></div>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    </section>
+
+    <aside class="notes" id="notes">
+      <div class="clock" id="clock" aria-label="Current time"><div class="time" id="clockTime">--:--</div><div class="date" id="clockDate"></div></div>
+      <h2>To do <small id="count"></small></h2>
+      <form class="add" id="addForm">
+        <input id="noteInput" placeholder="Post a note…" maxlength="120" autocomplete="off">
+        <button class="go" type="submit">Post</button>
+      </form>
+      <ul class="list" id="list"></ul>
+      <button class="clear" id="clearDone">Clear finished notes</button>
+      <div class="hint">Space pauses · → next · F full screen · N hides notes</div>
+      <div class="timer" id="timer">
+        <div class="trow"><span class="tlabel" id="tLabel">Timer</span><span class="tdisp" id="tDisp">05:00</span></div>
+        <div class="tbar"><i id="tBar"></i></div>
+        <div class="tctl">
+          <button data-min="1">1 min</button><button data-min="2">2 min</button><button data-min="5">5 min</button><button data-min="10">10 min</button>
+          <button id="tPlus">+1</button><button class="tgo" id="tGo">Start</button><button id="tReset">Reset</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="floatCtl">
+  <button class="ghost" id="fPause">Pause</button>
+  <button class="ghost" id="fNext">Next</button>
+  <button class="ghost" id="fNotes">Notes</button>
+  <button class="go" id="fExit">Exit</button>
+</div>
+
+<div class="picker" id="picker" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pickTitle">
+    <h3 id="pickTitle">Parts of speech to highlight <button class="go" id="closePicker">Done</button></h3>
+    <div class="sec"><div class="h">Tap to turn each one on or off</div><div class="chips" id="posChips"></div></div>
+    <div class="sec"><div class="h">Actions</div>
+      <div class="chips"><button class="chip" id="showActions">Show the Jolly Grammar action for each part</button></div></div>
+    <div class="hint">Words like “the”, “a” and “an” have no Jolly Grammar colour, so they stay plain.</div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const KEY = 'jollyGrammarSaver.v1';
+
+/* Jolly Grammar order, colours and actions (paraphrased from the Jolly Grammar action sheet) */
+const POS = {
+  n:  {name:'Nouns', one:'noun', colour:'black', v:'--pos-n', act:'Touch your forehead with your fingers: all fingers for a common noun, two fingers for a proper noun.'},
+  v:  {name:'Verbs', one:'verb', colour:'red', v:'--pos-v', act:'Clench your fists and swing your arms as if running.'},
+  a:  {name:'Adjectives', one:'adjective', colour:'blue', v:'--pos-a', act:'Touch the side of your head with your fist.'},
+  pr: {name:'Pronouns', one:'pronoun', colour:'pink', v:'--pos-pr', act:'Point to who it means: yourself for I, a friend for you, a boy for he, a girl for she.'},
+  av: {name:'Adverbs', one:'adverb', colour:'orange', v:'--pos-av', act:'Bang one fist on top of the other.'},
+  p:  {name:'Prepositions', one:'preposition', colour:'green', v:'--pos-p', act:'Point from one noun to the other.'},
+  c:  {name:'Conjunctions', one:'conjunction', colour:'purple', v:'--pos-c', act:'Hold your hands apart, palms up, then bring one on top of the other.'},
+};
+const ORDER = ['n','v','a','pr','av','p','c'];
+const TENSE = {past:'Past tense: point back over your shoulder with your thumb.', present:'Present tense: point down to the floor.', future:'Future tense: point to the front.'};
+
+/* tags: n common noun, N proper noun, v verb, a adjective, av adverb, pr pronoun, p preposition, c conjunction, d determiner (no colour), x punctuation */
+const SENTENCES = [
+ ['Sam/N ran/v to/p the/d shop/n ./x','past'],
+ ['The/d red/a bus/n stops/v here/av ./x','present'],
+ ['She/pr sings/v loudly/av ./x','present'],
+ ['The/d cat/n sat/v on/p the/d mat/n ./x','past'],
+ ['We/pr will/v swim/v tomorrow/av ./x','future'],
+ ['Tom/N and/c Pip/N play/v in/p the/d garden/n ./x','present'],
+ ['It/pr is/v cold/a ./x','present'],
+ ['The/d tiny/a ant/n crawled/v slowly/av ./x','past'],
+ ['They/pr jumped/v over/p the/d log/n ./x','past'],
+ ['I/pr like/v green/a apples/n ./x','present'],
+ ['The/d frog/n hopped/v into/p the/d pond/n ./x','past'],
+ ['He/pr eats/v crunchy/a carrots/n ./x','present'],
+ ['Mum/N baked/v a/d big/a cake/n ./x','past'],
+ ['The/d dog/n barked/v but/c the/d cat/n slept/v ./x','past'],
+ ['You/pr will/v read/v a/d good/a book/n ./x','future'],
+ ['The/d sun/n shines/v brightly/av ./x','present'],
+ ['Lucy/N hid/v under/p the/d bed/n ./x','past'],
+ ['We/pr sang/v and/c danced/v ./x','past'],
+ ['The/d old/a owl/n hooted/v softly/av ./x','past'],
+ ['A/d snail/n moves/v very/av slowly/av ./x','present'],
+ ['It/pr will/v rain/v on/p Monday/N ./x','future'],
+ ['The/d children/n ran/v outside/av ./x','past'],
+ ['She/pr painted/v a/d purple/a flower/n ./x','past'],
+ ['Ben/N kicked/v the/d ball/n hard/av ./x','past'],
+ ['The/d hungry/a fox/n crept/v quietly/av behind/p the/d old/a barn/n ./x','past'],
+ ['After/p lunch/n ,/x we/pr played/v football/n on/p the/d field/n ./x','past'],
+ ['Grandma/N knitted/v a/d warm/a scarf/n because/c winter/n was/v coming/v ./x','past'],
+ ['They/pr will/v visit/v the/d busy/a zoo/n in/p London/N ./x','future'],
+ ['The/d little/a duck/n swam/v happily/av across/p the/d lake/n ./x','past'],
+ ['I/pr wanted/v a/d biscuit/n ,/x but/c the/d jar/n was/v empty/a ./x','past'],
+ ['He/pr carefully/av carried/v the/d heavy/a box/n up/p the/d stairs/n ./x','past'],
+ ['The/d bright/a stars/n twinkle/v above/p the/d sleepy/a town/n ./x','present'],
+ ['Max/N and/c Ellie/N built/v a/d tall/a sandcastle/n at/p the/d beach/n ./x','past'],
+ ['She/pr will/v quickly/av tidy/v the/d messy/a room/n ./x','future'],
+ ['The/d playful/a puppy/n chased/v the/d ball/n around/p the/d garden/n ./x','past'],
+ ['We/pr waited/v patiently/av for/p the/d yellow/a bus/n ./x','past'],
+ ['The/d wind/n howled/v loudly/av ,/x so/c we/pr stayed/v inside/av ./x','past'],
+ ['A/d clever/a monkey/n swung/v gracefully/av through/p the/d tall/a trees/n ./x','past'],
+ ['On/p Saturday/N ,/x they/pr will/v bake/v delicious/a cookies/n ./x','future'],
+ ['The/d brave/a knight/n rode/v swiftly/av towards/p the/d dark/a castle/n ./x','past'],
+ ['I/pr love/v sunny/a days/n ,/x but/c I/pr also/av like/v rain/n ./x','present'],
+ ['The/d farmer/n gently/av fed/v the/d tiny/a lambs/n ./x','past'],
+ ['It/pr was/v late/a ,/x so/c the/d children/n went/v to/p bed/n ./x','past'],
+ ['Mia/N will/v write/v a/d long/a letter/n to/p Grandpa/N ./x','future'],
+ ['The/d noisy/a parrot/n squawked/v when/c the/d door/n opened/v ./x','past'],
+ ['Dad/N reads/v stories/n to/p us/pr every/d night/n ./x','present'],
+ ['The/d shiny/a fish/n swim/v between/p the/d rocks/n ./x','present'],
+ ['We/pr will/v plant/v seeds/n and/c water/v them/pr ./x','future'],
+].map(([s,tense]) => {
+  const words = s.split(' ').map(t => { const i = t.lastIndexOf('/'); return {w:t.slice(0,i), tag:t.slice(i+1)}; });
+  const len = words.filter(w => w.tag!=='x').length;
+  return {words, tense, len};
+});
+const posOf = tag => tag==='N' ? 'n' : tag;
+
+const SKINS = [
+  {id:'auto', name:'Match my device', c:['#fef9f0','#211c28']},
+  {id:'chalk', name:'Chalkboard', c:['#22352b','#fff6cf']},
+  {id:'graph', name:'Graph paper', c:['#fbfdff','#1f6feb']},
+  {id:'sunset', name:'Sunset', c:['#fff0e4','#df532a']},
+  {id:'ocean', name:'Ocean', c:['#052a33','#47d2c9']},
+  {id:'midnight', name:'Midnight', c:['#0b0d1a','#8f80ff']},
+];
+
+let S = { on:[...ORDER], len:'both', actions:true, speed:1, skin:'auto', notesHidden:false,
+  notes:[
+    {id:1, t:'Take a seat at your desk', done:false, tilt:-1.2},
+    {id:2, t:'Listen for instructions', done:false, tilt:1},
+    {id:3, t:'Spot the nouns and verbs before they light up', done:false, tilt:-.5},
+  ]};
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) S = Object.assign(S, s); } catch(e){}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- theme + controls ---------- */
+const skinBox = $('skins');
+SKINS.forEach(k => {
+  const b = document.createElement('button');
+  b.className = 'swatch'; b.id = 'skin-'+k.id; b.title = k.name; b.setAttribute('aria-label', k.name);
+  b.innerHTML = `<i style="background:linear-gradient(135deg, ${k.c[0]} 50%, ${k.c[1]} 50%)"></i>`;
+  b.onclick = () => { S.skin = k.id; applySkin(); save(); };
+  skinBox.appendChild(b);
+});
+function applySkin(){
+  if (S.skin==='auto') document.documentElement.removeAttribute('data-skin');
+  else document.documentElement.setAttribute('data-skin', S.skin);
+  skinBox.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.id==='skin-'+S.skin));
+}
+applySkin();
+$('speed').value = String(S.speed); $('speed').onchange = e => { S.speed = +e.target.value; save(); };
+$('len').value = S.len; $('len').onchange = e => { S.len = e.target.value; save(); rebuildDeck(); startSentence(); };
+
+/* ---------- deck ---------- */
+const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
+let deck = [], di = 0;
+function rebuildDeck(){
+  deck = shuffle(SENTENCES.filter(s => S.len==='both' || (S.len==='short' ? s.len<=6 : s.len>6))); di = 0;
+  $('deckInfo').textContent = S.on.length===ORDER.length ? 'all 7' : `${S.on.length} of 7`;
+}
+
+/* ---------- display ---------- */
+const sentEl = $('sent'), wrap = $('wrap'), info = $('info'), tags = $('tags');
+let cur = null;
+function fit(){
+  if (!cur) return;
+  const chars = cur.words.reduce((s,w) => s + w.w.length + 1.6, 0);
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  const size = Math.max(28, Math.min(150, Math.sqrt((W*H*.42)/(chars*.62*1.4)), W/8));
+  sentEl.style.fontSize = size + 'px';
+}
+function render(s){
+  cur = s;
+  sentEl.innerHTML = s.words.map((w,i) => `<span class="w ${w.tag==='x'?'x':''}" id="w${i}" style="--pc:var(${(POS[posOf(w.tag)]||{}).v||'--ink'})">${esc(w.w)}</span>`).join('');
+  info.innerHTML = '<div class="action">Read the sentence.</div>';
+  tags.innerHTML = `<span class="tag">${s.len} words</span><span class="tag">${s.tense[0].toUpperCase()+s.tense.slice(1)} tense</span>`;
+  fit();
+}
+function light(k){
+  const P = POS[k];
+  document.querySelectorAll('.w.now').forEach(e => e.classList.remove('now'));
+  const found = [];
+  cur.words.forEach((w,i) => { if (posOf(w.tag)===k){ const el = $('w'+i); el.classList.add('on','now'); found.push(w); } });
+  const list = found.map(w => w.w).join(', ');
+  let act = '';
+  if (S.actions){
+    act = P.act;
+    if (k==='v') act += ' ' + TENSE[cur.tense];
+    if (k==='n'){
+      const prop = found.some(w => w.tag==='N'), com = found.some(w => w.tag==='n');
+      act = prop && com ? 'Common noun: touch your forehead with all your fingers. Proper noun (it has a capital letter): use two fingers.'
+        : prop ? 'Proper noun (it has a capital letter): touch your forehead with two fingers.'
+        : 'Common noun: touch your forehead with all your fingers.';
+    }
+  }
+  info.innerHTML = `<div class="posName" style="--pc:var(${P.v})"><i></i>${found.length===1 ? P.one[0].toUpperCase()+P.one.slice(1) : P.name}: ${esc(list)} <small>${P.colour}</small></div>`
+    + (act ? `<div class="action"><b>Action:</b> ${esc(act)}</div>` : '');
+}
+function finale(present){
+  document.querySelectorAll('.w.now').forEach(e => e.classList.remove('now'));
+  info.innerHTML = `<div class="action">Read it again with all the colours.</div><div class="legend">`
+    + present.map(k => `<span style="--pc:var(${POS[k].v})"><i></i>${POS[k].name.toLowerCase()} · ${POS[k].colour}</span>`).join('') + '</div>';
+}
+
+/* ---------- timeline (pausable) ---------- */
+let tl = [], elapsed = 0, total = 1, paused = false, lastT = null;
+function startSentence(){
+  if (!deck.length) return;
+  if (di >= deck.length){ deck = shuffle(deck); di = 0; }
+  const s = deck[di++], f = S.speed, ev = []; let t = 0;
+  const present = ORDER.filter(k => S.on.includes(k) && s.words.some(w => posOf(w.tag)===k));
+  ev.push({at:0, fn:() => render(s)});
+  t += 2400*f;
+  present.forEach(k => { ev.push({at:t, fn:() => light(k)}); t += (S.actions ? 3600 : 2300)*f; });
+  ev.push({at:t, fn:() => finale(present)});
+  t += 3600*f;
+  tl = ev; total = t; elapsed = 0; fire();
+}
+function fire(){ while (tl.length && tl[0].at <= elapsed) tl.shift().fn(); }
+function loop(ts){
+  if (lastT==null) lastT = ts;
+  const dt = Math.min(100, ts-lastT); lastT = ts;
+  if (!paused && deck.length){
+    elapsed += dt; fire();
+    $('bar').style.width = Math.min(100, elapsed/total*100) + '%';
+    if (elapsed >= total) startSentence();
+  }
+  requestAnimationFrame(loop);
+}
+function setPaused(v){ paused = v; ['pause','fPause'].forEach(id => $(id).textContent = v ? 'Play' : 'Pause'); }
+$('pause').onclick = $('fPause').onclick = () => setPaused(!paused);
+$('next').onclick = $('fNext').onclick = () => startSentence();
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(fit, 100); });
+
+/* ---------- picker ---------- */
+const picker = $('picker');
+function syncPicker(){
+  $('posChips').innerHTML = ORDER.map(k => `<button class="chip pos" data-k="${k}" style="--pc:var(${POS[k].v})" aria-pressed="${S.on.includes(k)}"><i></i>${POS[k].name} · ${POS[k].colour}</button>`).join('');
+  $('showActions').setAttribute('aria-pressed', S.actions);
+  rebuildDeck();
+}
+let dirty = false;
+$('openPicker').onclick = () => { picker.hidden = false; dirty = false; syncPicker(); $('closePicker').focus(); };
+const closePicker = () => { picker.hidden = true; if (dirty) startSentence(); };
+$('closePicker').onclick = closePicker;
+picker.onclick = e => { if (e.target===picker) closePicker(); };
+$('posChips').onclick = e => { const b = e.target.closest('[data-k]'); if (!b) return; const k = b.dataset.k;
+  if (S.on.includes(k)){ if (S.on.length===1) return; S.on = S.on.filter(x => x!==k); } else S.on = ORDER.filter(x => S.on.includes(x) || x===k);
+  dirty = true; save(); syncPicker(); };
+$('showActions').onclick = () => { S.actions = !S.actions; dirty = true; save(); syncPicker(); };
+
+/* ---------- full screen ---------- */
+let wakeLock = null;
+async function startSaver(){
+  document.body.classList.add('saver');
+  try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){}
+  if (paused) setPaused(false);
+  pokeIdle(); setTimeout(fit, 250);
+}
+function stopSaver(){
+  document.body.classList.remove('saver','idle');
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  try { wakeLock?.release(); } catch(e){} wakeLock = null;
+  setTimeout(fit, 250);
+}
+$('fs').onclick = startSaver; $('fExit').onclick = stopSaver;
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('saver')) stopSaver(); });
+let idleT;
+function pokeIdle(){ document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 2500); }
+addEventListener('mousemove', pokeIdle); addEventListener('touchstart', pokeIdle, {passive:true});
+
+/* ---------- notes ---------- */
+const list = $('list');
+function renderNotes(){
+  $('notes').classList.toggle('hiddenRail', !!S.notesHidden);
+  { const on = !S.notesHidden; const t = $('notesToggle'); t.textContent = 'To-do list: ' + (on ? 'On' : 'Off'); t.setAttribute('aria-pressed', on); $('fNotes').textContent = on ? 'Hide to-do' : 'Show to-do'; }
+  const open = S.notes.filter(n => !n.done).length;
+  $('count').textContent = S.notes.length ? `${open} left` : '';
+  if (!S.notes.length){ list.innerHTML = '<li class="empty">No notes yet. Type one above and press Post. It stays on screen while the sentences play.</li>'; return; }
+  list.innerHTML = S.notes.map(n => `
+    <li class="note${n.done?' done':''}" style="--tilt:${n.tilt}deg" data-id="${n.id}">
+      <button class="check" aria-label="Mark ${n.done?'not done':'done'}">${n.done?'✓':''}</button>
+      <span class="text"></span>
+      <button class="del" aria-label="Remove note">×</button>
+    </li>`).join('');
+  list.querySelectorAll('.note').forEach((li,i) => li.querySelector('.text').textContent = S.notes[i].t);
+}
+list.onclick = e => {
+  const li = e.target.closest('.note'); if (!li) return;
+  const id = +li.dataset.id;
+  if (e.target.closest('.del')) S.notes = S.notes.filter(n => n.id!==id);
+  else { const n = S.notes.find(n => n.id===id); n.done = !n.done; }
+  save(); renderNotes();
+};
+$('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const t = $('noteInput').value.trim(); if (!t) return;
+  S.notes.push({id:Date.now(), t, done:false, tilt:+(Math.random()*3-1.5).toFixed(2)});
+  $('noteInput').value = ''; save(); renderNotes(); list.scrollTop = list.scrollHeight;
+});
+$('clearDone').onclick = () => { S.notes = S.notes.filter(n => !n.done); save(); renderNotes(); };
+const toggleNotes = () => { S.notesHidden = !S.notesHidden; save(); renderNotes(); setTimeout(fit, 50); };
+$('fNotes').onclick = toggleNotes;
+$('notesToggle').onclick = toggleNotes;
+
+addEventListener('keydown', e => {
+  if (e.target.matches('input,select')) return;
+  if (!picker.hidden){ if (e.key==='Escape') closePicker(); return; }
+  if (e.code==='Space'){ e.preventDefault(); setPaused(!paused); }
+  else if (e.key==='ArrowRight') startSentence();
+  else if (e.key==='f' || e.key==='F') document.body.classList.contains('saver') ? stopSaver() : startSaver();
+  else if (e.key==='n' || e.key==='N') toggleNotes();
+  else if (e.key==='Escape' && document.body.classList.contains('saver')) stopSaver();
+});
+
+renderNotes();
+rebuildDeck();
+startSentence();
+requestAnimationFrame(loop);
+})();
+</script>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+/* clock */
+function tick(){
+  const d = new Date();
+  let h = d.getHours(); const ampm = h < 12 ? 'AM' : 'PM'; h = h % 12 || 12;
+  $('clockTime').innerHTML = `${h}:${String(d.getMinutes()).padStart(2,'0')}<small>${ampm}</small>`;
+  $('clockDate').textContent = d.toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'});
+}
+tick(); setInterval(tick, 1000);
+/* timer */
+let set = 300, left = 300, running = false, endAt = 0, iv = null;
+const fmt = s => { s = Math.max(0, Math.ceil(s)); return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); };
+function draw(){
+  $('tDisp').textContent = left <= 0 ? '00:00' : fmt(left);
+  $('tBar').style.transform = `scaleX(${set ? Math.max(0, left/set) : 0})`;
+  $('tGo').textContent = running ? 'Pause' : (left < set && left > 0 ? 'Resume' : 'Start');
+  $('tLabel').textContent = left <= 0 ? "Time's up!" : running ? 'Counting down' : 'Timer';
+}
+function chime(){
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, .35, .7].forEach(o => {
+      const os = ctx.createOscillator(), g = ctx.createGain();
+      os.frequency.value = 880; os.type = 'sine';
+      g.gain.setValueAtTime(0, ctx.currentTime + o);
+      g.gain.linearRampToValueAtTime(.25, ctx.currentTime + o + .02);
+      g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + o + .3);
+      os.connect(g).connect(ctx.destination); os.start(ctx.currentTime + o); os.stop(ctx.currentTime + o + .32);
+    });
+  } catch(e){}
+}
+function step(){
+  left = (endAt - Date.now()) / 1000;
+  if (left <= 0){ left = 0; running = false; clearInterval(iv); $('timer').classList.add('done'); chime(); }
+  draw();
+}
+function start(){ if (left <= 0) left = set; $('timer').classList.remove('done'); running = true; endAt = Date.now() + left*1000; clearInterval(iv); iv = setInterval(step, 200); draw(); }
+function pause(){ running = false; clearInterval(iv); draw(); }
+function setMin(m){ pause(); set = left = m*60; $('timer').classList.remove('done'); draw(); }
+document.querySelectorAll('.tctl [data-min]').forEach(b => b.onclick = () => setMin(+b.dataset.min));
+$('tPlus').onclick = () => { left += 60; set = Math.max(set, left); if (running) endAt += 60000; $('timer').classList.remove('done'); draw(); };
+$('tGo').onclick = () => running ? pause() : start();
+$('tReset').onclick = () => { pause(); left = set; $('timer').classList.remove('done'); draw(); };
+draw();
+})();
+</script>
+
+</body>
+</html>
