@@ -141,7 +141,9 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(320p
       <button class="op" id="op-div" data-op="div" aria-pressed="true" title="Division">÷</button>
     </div>
     <div class="group">
-      <label class="lbl" for="max">Up to</label>
+      <label class="lbl" for="range">+ −</label>
+      <select id="range"><option value="20">Up to 20</option><option value="100">Up to 100</option><option value="b10">Bonds of 10</option><option value="w10">Bonds within 10</option><option value="b100">Bonds of 100</option><option value="w100">Bonds within 100</option></select>
+      <label class="lbl" for="max">× ÷ up to</label>
       <select id="max"><option value="5">5</option><option value="10" selected>10</option><option value="12">12</option></select>
       <label class="lbl" for="speed">Speed</label>
       <select id="speed"><option value="7000">Slow</option><option value="4500" selected>Medium</option><option value="2600">Fast</option></select>
@@ -196,7 +198,7 @@ const SKINS = [
 ];
 const SYM = {add:'+', sub:'−', mul:'×', div:'÷'};
 
-let S = {ops:{add:true,sub:true,mul:true,div:true}, max:10, speed:4500, skin:'auto', notesHidden:false,
+let S = {ops:{add:true,sub:true,mul:true,div:true}, max:10, range:'20', speed:4500, skin:'auto', notesHidden:false,
   notesVersion:2,
   notes:[
     {id:1, t:'Take a seat at your desk', done:false, tilt:-1.2},
@@ -218,7 +220,8 @@ document.querySelectorAll('.op').forEach(b => {
     S.ops[b.dataset.op] = on; b.setAttribute('aria-pressed', on); save(); next();
   };
 });
-$('max').value = S.max; $('speed').value = S.speed;
+$('max').value = S.max; $('range').value = S.range;
+$('range').onchange = e => { S.range = e.target.value; save(); next(); }; $('speed').value = S.speed;
 $('max').onchange = e => { S.max = +e.target.value; save(); next(); };
 $('speed').onchange = e => { S.speed = +e.target.value; save(); };
 
@@ -245,8 +248,19 @@ function makeProblem(){
   const m = S.max; let p;
   for (let tries = 0; tries < 20; tries++){
     const op = ops[rnd(0, ops.length-1)];
-    if (op==='add'){ const a=rnd(1,m), b=rnd(1,m); p={op,a,b,ans:a+b}; }
-    if (op==='sub'){ const a=rnd(2,m*2), b=rnd(1,a-1); p={op,a,b,ans:a-b}; }
+    const R = S.range;
+    if (R[0]==='b' || R[0]==='w'){
+      const top = R.endsWith('100') ? 100 : 10;
+      const T = R[0]==='b' ? top : rnd(2, top);      // "of" = exactly top, "within" = any whole up to top
+      const a = rnd(1, T-1);
+      const hideMiddle = Math.random() < .5;          // mix missing-part and missing-answer questions
+      if (op==='add') p = hideMiddle ? {op,a,b:T-a,ans:T,missing:true} : {op,a,b:T-a,ans:T};
+      if (op==='sub') p = hideMiddle ? {op,a:T,b:a,ans:T-a,missing:true} : {op,a:T,b:a,ans:T-a};
+    } else {
+      const T = R==='100' ? 100 : 20;
+      if (op==='add'){ const a=rnd(1,T-1), b=rnd(1,T-a); p={op,a,b,ans:a+b}; }
+      if (op==='sub'){ const a=rnd(2,T), b=rnd(1,a-1); p={op,a,b,ans:a-b}; }
+    }
     if (op==='mul'){ const a=rnd(1,m), b=rnd(1,m); p={op,a,b,ans:a*b}; }
     if (op==='div'){ const d=rnd(1,m), q=rnd(1,m); p={op,a:d*q,b:d,ans:q}; }
     const key = p.op+p.a+','+p.b; if (key !== last){ last = key; break; }
@@ -259,11 +273,13 @@ const q = $('q'), arr = $('arr'), wrap = $('wrap'), cap = $('cap'), bar = $('bar
 let cur = null, phase = 'q', timer = null, paused = false;
 
 function showQuestion(p){
-  q.innerHTML = `<span>${p.a}</span><span class="sym">${SYM[p.op]}</span><span>${p.b}</span><span class="sym">=</span><span class="ans" id="ans">?</span>`;
+  q.innerHTML = p.missing
+    ? `<span>${p.a}</span><span class="sym">${SYM[p.op]}</span><span class="ans" id="ans">?</span><span class="sym">=</span><span>${p.ans}</span>`
+    : `<span>${p.a}</span><span class="sym">${SYM[p.op]}</span><span>${p.b}</span><span class="sym">=</span><span class="ans" id="ans">?</span>`;
   arr.innerHTML = ''; cap.textContent = '';
 }
 function showAnswer(p){
-  const a = $('ans'); a.textContent = p.ans; a.classList.add('shown');
+  const a = $('ans'); a.textContent = p.missing ? p.b : p.ans; a.classList.add('shown');
   buildArray(p, true);
   const capText = {
     add:`<b>${p.a}</b> and <b>${p.b}</b> make <b>${p.ans}</b>`,
@@ -297,14 +313,16 @@ function buildArray(p, animate){
   const band = p.op==='div';
   const W = wrap.clientWidth, H = wrap.clientHeight;
   const unitsW = cols*1.35 + (tens && cols>5 ? .5 : 0) + (band ? 1.4 : 0);
-  const unitsH = rows.length*1.35 + (band ? rows.length*1.4 : 0);
+  const midGap = tens && rows.length > 5;
+  const unitsH = rows.length*1.35 + (band ? rows.length*1.4 : 0) + (midGap ? .5 : 0);
   const d = Math.max(6, Math.min(58, Math.floor(Math.min(W/unitsW, H/unitsH))));
   arr.style.setProperty('--d', d+'px');
   arr.style.setProperty('--gap', Math.round(d*.35)+'px');
   const total = rows.reduce((s,r)=>s+r.length,0);
   const step = animate ? Math.min(45, 1100/Math.max(total,1)) : 0;
   let i = 0, html = '';
-  rows.forEach(r => {
+  rows.forEach((r, ri) => {
+    if (midGap && ri===5) html += '<div style="height:calc(var(--gap)*.4)"></div>';
     html += `<div class="row${band?' band':''}">`;
     r.forEach((k, c) => {
       if (tens && c===5) html += '<span class="gap5"></span>';
