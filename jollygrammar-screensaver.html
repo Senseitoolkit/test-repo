@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Jolly Grammar Saver</title>
+<title>Grammar Screen Saver</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Gaegu:wght@400;700&display=swap">
 <style>
@@ -177,14 +177,17 @@ main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
 main:has(.hiddenRail), .saver main:has(.hiddenRail){grid-template-columns:minmax(0,3fr) minmax(240px,1fr) !important}
 .floatCtl{right:auto !important; left:50% !important; transform:translateX(-50%)}
 @media (prefers-reduced-motion:reduce){ .timer.done{animation:none} }
-#notesToggle[aria-pressed="true"]{border-color:var(--a)}
+#notesToggle[aria-pressed="true"],#timerToggle[aria-pressed="true"]{border-color:var(--a)}
+
+body:not(.saver) .note .text{cursor:text}
+.note.editing .text{outline:2px dashed var(--note-ink); outline-offset:4px; border-radius:4px; text-decoration:none; opacity:1}
 </style>
 
 </head>
 <body>
 <div class="app">
   <header class="bar">
-    <div class="brand"><i></i>Jolly Grammar Saver</div>
+    <div class="brand"><i></i>Grammar Screen Saver</div>
     <div class="group">
       <button class="ghost" id="openPicker">Highlight: <span id="deckInfo">…</span></button>
       <label class="lbl" for="len">Sentences</label>
@@ -195,6 +198,7 @@ main:has(.hiddenRail), .saver main:has(.hiddenRail){grid-template-columns:minmax
     <div class="group" role="group" aria-label="Color theme" id="skins"><span class="lbl">Theme</span></div>
     <div class="group">
       <button class="ghost" id="notesToggle" aria-pressed="true">To-do list: On</button>
+      <button class="ghost" id="timerToggle" aria-pressed="true">Timer: On</button>
       <button class="ghost" id="pause">Pause</button>
       <button class="ghost" id="next">Next</button>
       <button class="go" id="fs">Start full screen</button>
@@ -218,7 +222,7 @@ main:has(.hiddenRail), .saver main:has(.hiddenRail){grid-template-columns:minmax
       </form>
       <ul class="list" id="list"></ul>
       <button class="clear" id="clearDone">Clear finished notes</button>
-      <div class="hint">Space pauses · → next · F full screen · N hides notes</div>
+      <div class="hint">Click a note to edit it · Space pauses · → next · F full screen · N hides notes · T hides timer</div>
       <div class="timer" id="timer">
         <div class="trow"><span class="tlabel" id="tLabel">Timer</span><span class="tdisp" id="tDisp">05:00</span></div>
         <div class="tbar"><i id="tBar"></i></div>
@@ -235,6 +239,7 @@ main:has(.hiddenRail), .saver main:has(.hiddenRail){grid-template-columns:minmax
   <button class="ghost" id="fPause">Pause</button>
   <button class="ghost" id="fNext">Next</button>
   <button class="ghost" id="fNotes">Notes</button>
+  <button class="ghost" id="fTimer">Hide timer</button>
   <button class="go" id="fExit">Exit</button>
 </div>
 
@@ -490,18 +495,35 @@ function renderNotes(){
   list.innerHTML = S.notes.map(n => `
     <li class="note${n.done?' done':''}" style="--tilt:${n.tilt}deg" data-id="${n.id}">
       <button class="check" aria-label="Mark ${n.done?'not done':'done'}">${n.done?'✓':''}</button>
-      <span class="text"></span>
+      <span class="text" title="Click to edit"></span>
       <button class="del" aria-label="Remove note">×</button>
     </li>`).join('');
   list.querySelectorAll('.note').forEach((li,i) => li.querySelector('.text').textContent = S.notes[i].t);
 }
 list.onclick = e => {
   const li = e.target.closest('.note'); if (!li) return;
-  const id = +li.dataset.id;
-  if (e.target.closest('.del')) S.notes = S.notes.filter(n => n.id!==id);
-  else { const n = S.notes.find(n => n.id===id); n.done = !n.done; }
-  save(); renderNotes();
+  const id = +li.dataset.id, n = S.notes.find(x => x.id===id); if (!n) return;
+  if (e.target.closest('.del')){ S.notes = S.notes.filter(x => x.id!==id); save(); renderNotes(); return; }
+  if (e.target.closest('.text') && !document.body.classList.contains('saver')){ editNote(li, n); return; }
+  if (e.target.closest('.check') || e.target.closest('.text')){ n.done = !n.done; save(); renderNotes(); }
 };
+function editNote(li, n){
+  const t = li.querySelector('.text'); if (t.isContentEditable) return;
+  try { t.contentEditable = 'plaintext-only'; } catch(err){}
+  if (!t.isContentEditable) t.contentEditable = 'true';
+  li.classList.add('editing'); t.focus();
+  try { const r = document.createRange(); r.selectNodeContents(t); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch(err){}
+  let cancel = false;
+  t.onkeydown = ev => {
+    ev.stopPropagation();
+    if (ev.key==='Enter'){ ev.preventDefault(); t.blur(); }
+    else if (ev.key==='Escape'){ cancel = true; t.blur(); }
+  };
+  t.onblur = () => {
+    if (!cancel){ const v = t.textContent.replace(/\s+/g,' ').trim().slice(0,120); if (v) n.t = v; else S.notes = S.notes.filter(x => x!==n); save(); }
+    renderNotes();
+  };
+}
 $('addForm').addEventListener('submit', e => {
   e.preventDefault();
   const t = $('noteInput').value.trim(); if (!t) return;
@@ -576,6 +598,28 @@ $('tPlus').onclick = () => { left += 60; set = Math.max(set, left); if (running)
 $('tGo').onclick = () => running ? pause() : start();
 $('tReset').onclick = () => { pause(); left = set; $('timer').classList.remove('done'); draw(); };
 draw();
+})();
+</script>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const KEY = 'saverTimerOn.' + document.title;
+let on = true;
+try { const v = localStorage.getItem(KEY); if (v !== null) on = v === '1'; } catch(e){}
+function apply(){
+  $('timer').hidden = !on;
+  const t = $('timerToggle'); t.textContent = 'Timer: ' + (on ? 'On' : 'Off'); t.setAttribute('aria-pressed', on);
+  $('fTimer').textContent = on ? 'Hide timer' : 'Show timer';
+}
+function toggle(){ on = !on; try { localStorage.setItem(KEY, on ? '1' : '0'); } catch(e){} apply(); }
+$('timerToggle').onclick = toggle; $('fTimer').onclick = toggle;
+addEventListener('keydown', e => {
+  if (e.target.matches('input,select')) return;
+  const pk = document.getElementById('picker'); if (pk && !pk.hidden) return;
+  if (e.key === 't' || e.key === 'T') toggle();
+});
+apply();
 })();
 </script>
 
