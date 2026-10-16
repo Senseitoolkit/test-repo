@@ -153,6 +153,35 @@ main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
   .stage{min-height:60vh}
 }
 @media (prefers-reduced-motion:reduce){ .word,.lt,.bub,.swoosh{transition:none} .blend .wordBox{animation:none} }
+
+/* clock (top right) + timer (bottom right) */
+.clock{display:flex; flex-direction:column; align-items:flex-end; line-height:1; font-variant-numeric:tabular-nums}
+.clock .time{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,6vmin,4.2rem); letter-spacing:-.02em}
+.clock .time small{font-size:.42em; color:var(--muted); margin-left:.15em; font-weight:600}
+.clock .date{font-size:clamp(.85rem,2vmin,1.15rem); color:var(--muted); margin-top:6px; font-weight:700}
+.timer{border:2px solid var(--line); background:var(--panel); border-radius:18px; padding:10px 12px; display:flex; flex-direction:column; gap:8px}
+.timer .trow{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.tdisp{font-family:var(--f-display); font-weight:700; font-size:clamp(2rem,6vmin,3.6rem); line-height:1; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.tlabel{font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:800}
+.tbar{height:6px; border-radius:6px; background:var(--line); overflow:hidden}
+.tbar i{display:block; height:100%; width:100%; background:var(--a); transform-origin:left; transition:transform .25s linear}
+.tctl{display:flex; flex-wrap:wrap; gap:5px; transition:opacity .4s}
+.tctl button{height:34px; min-width:40px; padding:0 10px; border-radius:999px; border:2px solid var(--line); background:var(--bg); font-weight:700; font-size:.85rem}
+.tctl .tgo{background:var(--a); border-color:var(--a); color:var(--bg)}
+.timer.done{border-color:var(--a); animation:tflash 1s steps(2) infinite}
+.timer.done .tdisp{color:var(--a)}
+@keyframes tflash{50%{background:color-mix(in srgb, var(--a) 22%, var(--panel))}}
+.saver.idle .tctl{opacity:0; pointer-events:none}
+.notes.hiddenRail{display:flex !important}
+.notes.hiddenRail > :not(.clock):not(.timer){display:none !important}
+.notes.hiddenRail .timer{margin-top:auto}
+main:has(.hiddenRail), .saver main:has(.hiddenRail){grid-template-columns:minmax(0,3fr) minmax(240px,1fr) !important}
+.floatCtl{right:auto !important; left:50% !important; transform:translateX(-50%)}
+@media (prefers-reduced-motion:reduce){ .timer.done{animation:none} }
+#notesToggle[aria-pressed="true"],#timerToggle[aria-pressed="true"]{border-color:var(--a)}
+
+body:not(.saver) .note .text{cursor:text}
+.note.editing .text{outline:2px dashed var(--note-ink); outline-offset:4px; border-radius:4px; text-decoration:none; opacity:1}
 </style>
 
 </head>
@@ -167,6 +196,8 @@ main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
     </div>
     <div class="group" role="group" aria-label="Color theme" id="skins"><span class="lbl">Theme</span></div>
     <div class="group">
+      <button class="ghost" id="notesToggle" aria-pressed="true">To-do list: On</button>
+      <button class="ghost" id="timerToggle" aria-pressed="true">Timer: On</button>
       <button class="ghost" id="pause">Pause</button>
       <button class="ghost" id="next">Next</button>
       <button class="go" id="fs">Start full screen</button>
@@ -182,6 +213,7 @@ main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
     </section>
 
     <aside class="notes" id="notes">
+      <div class="clock" id="clock" aria-label="Current time"><div class="time" id="clockTime">--:--</div><div class="date" id="clockDate"></div></div>
       <h2>To do <small id="count"></small></h2>
       <form class="add" id="addForm">
         <input id="noteInput" placeholder="Post a note…" maxlength="120" autocomplete="off">
@@ -189,7 +221,15 @@ main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
       </form>
       <ul class="list" id="list"></ul>
       <button class="clear" id="clearDone">Clear finished notes</button>
-      <div class="hint">Space pauses · → next · F full screen · N hides notes</div>
+      <div class="hint">Click a note to edit it · Space pauses · → next · F full screen · N hides notes · T hides timer</div>
+      <div class="timer" id="timer">
+        <div class="trow"><span class="tlabel" id="tLabel">Timer</span><span class="tdisp" id="tDisp">05:00</span></div>
+        <div class="tbar"><i id="tBar"></i></div>
+        <div class="tctl">
+          <button data-min="1">1 min</button><button data-min="2">2 min</button><button data-min="5">5 min</button><button data-min="10">10 min</button>
+          <button id="tPlus">+1</button><button class="tgo" id="tGo">Start</button><button id="tReset">Reset</button>
+        </div>
+      </div>
     </aside>
   </main>
 </div>
@@ -198,6 +238,7 @@ main:has(.hiddenRail){grid-template-columns:minmax(0,1fr)}
   <button class="ghost" id="fPause">Pause</button>
   <button class="ghost" id="fNext">Next</button>
   <button class="ghost" id="fNotes">Notes</button>
+  <button class="ghost" id="fTimer">Hide timer</button>
   <button class="go" id="fExit">Exit</button>
 </div>
 
@@ -637,24 +678,42 @@ addEventListener('mousemove', pokeIdle); addEventListener('touchstart', pokeIdle
 const list = $('list');
 function renderNotes(){
   $('notes').classList.toggle('hiddenRail', !!S.notesHidden);
+  { const on = !S.notesHidden; const t = $('notesToggle'); t.textContent = 'To-do list: ' + (on ? 'On' : 'Off'); t.setAttribute('aria-pressed', on); $('fNotes').textContent = on ? 'Hide to-do' : 'Show to-do'; }
   const open = S.notes.filter(n => !n.done).length;
   $('count').textContent = S.notes.length ? `${open} left` : '';
   if (!S.notes.length){ list.innerHTML = '<li class="empty">No notes yet. Type one above and press Post. It stays on screen while the words play.</li>'; return; }
   list.innerHTML = S.notes.map(n => `
     <li class="note${n.done?' done':''}" style="--tilt:${n.tilt}deg" data-id="${n.id}">
       <button class="check" aria-label="Mark ${n.done?'not done':'done'}">${n.done?'✓':''}</button>
-      <span class="text"></span>
+      <span class="text" title="Click to edit"></span>
       <button class="del" aria-label="Remove note">×</button>
     </li>`).join('');
   list.querySelectorAll('.note').forEach((li,i) => li.querySelector('.text').textContent = S.notes[i].t);
 }
 list.onclick = e => {
   const li = e.target.closest('.note'); if (!li) return;
-  const id = +li.dataset.id;
-  if (e.target.closest('.del')) S.notes = S.notes.filter(n => n.id!==id);
-  else { const n = S.notes.find(n => n.id===id); n.done = !n.done; }
-  save(); renderNotes();
+  const id = +li.dataset.id, n = S.notes.find(x => x.id===id); if (!n) return;
+  if (e.target.closest('.del')){ S.notes = S.notes.filter(x => x.id!==id); save(); renderNotes(); return; }
+  if (e.target.closest('.text') && !document.body.classList.contains('saver')){ editNote(li, n); return; }
+  if (e.target.closest('.check') || e.target.closest('.text')){ n.done = !n.done; save(); renderNotes(); }
 };
+function editNote(li, n){
+  const t = li.querySelector('.text'); if (t.isContentEditable) return;
+  try { t.contentEditable = 'plaintext-only'; } catch(err){}
+  if (!t.isContentEditable) t.contentEditable = 'true';
+  li.classList.add('editing'); t.focus();
+  try { const r = document.createRange(); r.selectNodeContents(t); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch(err){}
+  let cancel = false;
+  t.onkeydown = ev => {
+    ev.stopPropagation();
+    if (ev.key==='Enter'){ ev.preventDefault(); t.blur(); }
+    else if (ev.key==='Escape'){ cancel = true; t.blur(); }
+  };
+  t.onblur = () => {
+    if (!cancel){ const v = t.textContent.replace(/\s+/g,' ').trim().slice(0,120); if (v) n.t = v; else S.notes = S.notes.filter(x => x!==n); save(); }
+    renderNotes();
+  };
+}
 $('addForm').addEventListener('submit', e => {
   e.preventDefault();
   const t = $('noteInput').value.trim(); if (!t) return;
@@ -664,6 +723,7 @@ $('addForm').addEventListener('submit', e => {
 $('clearDone').onclick = () => { S.notes = S.notes.filter(n => !n.done); save(); renderNotes(); };
 const toggleNotes = () => { S.notesHidden = !S.notesHidden; save(); renderNotes(); setTimeout(fitWord, 50); };
 $('fNotes').onclick = toggleNotes;
+$('notesToggle').onclick = toggleNotes;
 
 addEventListener('keydown', e => {
   if (e.target.matches('input,select')) return;
@@ -679,6 +739,77 @@ renderNotes();
 rebuildDeck();
 startWord();
 requestAnimationFrame(loop);
+})();
+</script>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+/* clock */
+function tick(){
+  const d = new Date();
+  let h = d.getHours(); const ampm = h < 12 ? 'AM' : 'PM'; h = h % 12 || 12;
+  $('clockTime').innerHTML = `${h}:${String(d.getMinutes()).padStart(2,'0')}<small>${ampm}</small>`;
+  $('clockDate').textContent = d.toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'});
+}
+tick(); setInterval(tick, 1000);
+/* timer */
+let set = 300, left = 300, running = false, endAt = 0, iv = null;
+const fmt = s => { s = Math.max(0, Math.ceil(s)); return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); };
+function draw(){
+  $('tDisp').textContent = left <= 0 ? '00:00' : fmt(left);
+  $('tBar').style.transform = `scaleX(${set ? Math.max(0, left/set) : 0})`;
+  $('tGo').textContent = running ? 'Pause' : (left < set && left > 0 ? 'Resume' : 'Start');
+  $('tLabel').textContent = left <= 0 ? "Time's up!" : running ? 'Counting down' : 'Timer';
+}
+function chime(){
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, .35, .7].forEach(o => {
+      const os = ctx.createOscillator(), g = ctx.createGain();
+      os.frequency.value = 880; os.type = 'sine';
+      g.gain.setValueAtTime(0, ctx.currentTime + o);
+      g.gain.linearRampToValueAtTime(.25, ctx.currentTime + o + .02);
+      g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + o + .3);
+      os.connect(g).connect(ctx.destination); os.start(ctx.currentTime + o); os.stop(ctx.currentTime + o + .32);
+    });
+  } catch(e){}
+}
+function step(){
+  left = (endAt - Date.now()) / 1000;
+  if (left <= 0){ left = 0; running = false; clearInterval(iv); $('timer').classList.add('done'); chime(); }
+  draw();
+}
+function start(){ if (left <= 0) left = set; $('timer').classList.remove('done'); running = true; endAt = Date.now() + left*1000; clearInterval(iv); iv = setInterval(step, 200); draw(); }
+function pause(){ running = false; clearInterval(iv); draw(); }
+function setMin(m){ pause(); set = left = m*60; $('timer').classList.remove('done'); draw(); }
+document.querySelectorAll('.tctl [data-min]').forEach(b => b.onclick = () => setMin(+b.dataset.min));
+$('tPlus').onclick = () => { left += 60; set = Math.max(set, left); if (running) endAt += 60000; $('timer').classList.remove('done'); draw(); };
+$('tGo').onclick = () => running ? pause() : start();
+$('tReset').onclick = () => { pause(); left = set; $('timer').classList.remove('done'); draw(); };
+draw();
+})();
+</script>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const KEY = 'saverTimerOn.' + document.title;
+let on = true;
+try { const v = localStorage.getItem(KEY); if (v !== null) on = v === '1'; } catch(e){}
+function apply(){
+  $('timer').hidden = !on;
+  const t = $('timerToggle'); t.textContent = 'Timer: ' + (on ? 'On' : 'Off'); t.setAttribute('aria-pressed', on);
+  $('fTimer').textContent = on ? 'Hide timer' : 'Show timer';
+}
+function toggle(){ on = !on; try { localStorage.setItem(KEY, on ? '1' : '0'); } catch(e){} apply(); }
+$('timerToggle').onclick = toggle; $('fTimer').onclick = toggle;
+addEventListener('keydown', e => {
+  if (e.target.matches('input,select')) return;
+  const pk = document.getElementById('picker'); if (pk && !pk.hidden) return;
+  if (e.key === 't' || e.key === 'T') toggle();
+});
+apply();
 })();
 </script>
 
