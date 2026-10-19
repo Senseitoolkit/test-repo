@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dolch Word Speller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Grandstander:wght@600;800&display=swap">
+<style>
+[hidden]{display:none!important}
+html,body{margin:0}
+/* Layout: one centered worksheet card on manila paper; answer slots sit on primary-ruled writing lines, letter blocks below. Dark = chalkboard. */
+:root{
+  --paper:#f3e6c4;       /* manila */
+  --sheet:#fffdf6;       /* worksheet */
+  --ink:#24304a;         /* pencil-graphite navy */
+  --muted:#6b6650;
+  --rule:#7aa3d6;        /* primary paper blue */
+  --margin:#d9534f;      /* red margin line */
+  --pencil:#f2b630;      /* pencil yellow accent */
+  --pencil-ink:#3a2a00;
+  --block:#f7d9a0;       /* wooden block */
+  --block-edge:#c9964a;
+  --good:#2f8f4e;
+  --bad:#c23b36;
+  --chip:#fff4d6;
+  --font-display:"Grandstander","Comic Neue","Trebuchet MS",sans-serif;
+  --font-letter:"Andika","Century Gothic","Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#1d2a24;--sheet:#26382f;--ink:#f1efe4;--muted:#b5bfae;--rule:#5f8fbf;--margin:#e07a72;
+  --pencil:#f2c14e;--pencil-ink:#2a1e00;--block:#e9cf98;--block-edge:#a87b3a;--good:#6fd08f;--bad:#ff8a80;--chip:#304539;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#1d2a24;--sheet:#26382f;--ink:#f1efe4;--muted:#b5bfae;--rule:#5f8fbf;--margin:#e07a72;
+  --pencil:#f2c14e;--pencil-ink:#2a1e00;--block:#e9cf98;--block-edge:#a87b3a;--good:#6fd08f;--bad:#ff8a80;--chip:#304539;color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--font-letter);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:10px}
+h1{font-family:var(--font-display);font-weight:800;font-size:clamp(28px,6vw,40px);line-height:1.05;margin:0;text-wrap:balance}
+h1 span{background:linear-gradient(transparent 62%,var(--pencil) 62%);padding:0 4px}
+.tally{font-family:var(--font-display);font-weight:600;color:var(--muted);font-size:15px;font-variant-numeric:tabular-nums}
+.tally b{color:var(--ink)}
+
+.levels{display:flex;flex-wrap:wrap;gap:8px}
+.lvl{font:inherit;font-family:var(--font-display);font-weight:600;font-size:14px;border:2px solid var(--ink);background:var(--chip);color:var(--ink);
+  border-radius:999px;padding:6px 14px;cursor:pointer;display:flex;gap:6px;align-items:baseline}
+.lvl small{font-family:var(--font-letter);font-weight:400;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.lvl[aria-pressed="true"]{background:var(--ink);color:var(--sheet)}
+.lvl[aria-pressed="true"] small{color:var(--sheet);opacity:.8}
+
+.sheet{background:var(--sheet);border-radius:6px;box-shadow:0 2px 0 rgba(0,0,0,.08),0 14px 30px -18px rgba(0,0,0,.35);
+  position:relative;padding:22px 22px 26px 46px;display:flex;flex-direction:column;gap:20px;overflow:hidden}
+.sheet::before{content:"";position:absolute;left:28px;top:0;bottom:0;width:2px;background:var(--margin);opacity:.7}
+.row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.dots{display:flex;gap:6px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--muted)}
+.dot.now{border-color:var(--ink);background:var(--pencil)}
+.dot.ok{border-color:var(--good);background:var(--good)}
+.dot.miss{border-color:var(--bad);background:transparent;position:relative}
+.dot.miss::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--bad)}
+.label{font-family:var(--font-display);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.prompt{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:inherit;font-family:var(--font-display);font-weight:600;font-size:16px;border-radius:12px;border:2px solid var(--ink);
+  background:var(--sheet);color:var(--ink);padding:10px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;
+  box-shadow:0 3px 0 var(--ink);transition:transform .08s, box-shadow .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--ink)}
+.btn.big{background:var(--pencil);color:var(--pencil-ink);font-size:20px;padding:14px 22px}
+.btn.go{background:var(--ink);color:var(--sheet)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible{outline:3px solid var(--rule);outline-offset:3px}
+.btn svg{width:22px;height:22px;flex:none}
+.voicewrap{margin-left:auto;display:flex;align-items:center;gap:8px}
+.voicewrap select{font:inherit;font-size:14px;max-width:190px;padding:6px 8px;border-radius:8px;border:2px solid var(--muted);background:var(--sheet);color:var(--ink)}
+.peekword{font-family:var(--font-letter);font-size:30px;font-weight:700;min-width:4ch;color:var(--rule)}
+
+/* primary ruled writing line */
+.writing{position:relative;height:110px;margin-inline:-22px -22px;padding-inline:22px;display:flex;align-items:flex-end;justify-content:center;
+  background:
+   linear-gradient(var(--rule),var(--rule)) 0 18px/100% 2px no-repeat,
+   repeating-linear-gradient(90deg,var(--rule) 0 10px,transparent 10px 18px) 0 52px/100% 2px no-repeat,
+   linear-gradient(var(--rule),var(--rule)) 0 86px/100% 2px no-repeat;}
+.slots{display:flex;gap:6px;height:100%;align-items:flex-end;padding-bottom:22px}
+.slot{width:clamp(30px,8.5vw,48px);height:78px;display:flex;align-items:flex-end;justify-content:center;
+  font-family:var(--font-letter);font-size:clamp(40px,10vw,62px);line-height:.93;color:var(--ink);border-bottom:3px solid transparent;cursor:pointer;background:none;border-top:0;border-left:0;border-right:0;padding:0}
+.slot.empty{border-bottom-color:var(--muted);opacity:.6}
+.slot.cursor{border-bottom-color:var(--pencil);opacity:1}
+.slot.right{color:var(--good)}
+.slot.wrong{color:var(--bad);text-decoration:line-through 3px}
+.writing.shake .slots{animation:shake .38s}
+@keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+
+.tray{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.tile{width:52px;height:56px;border-radius:9px;border:0;background:var(--block);color:#3b2a10;font-family:var(--font-letter);font-weight:700;font-size:30px;
+  box-shadow:inset 0 -5px 0 var(--block-edge),0 3px 0 rgba(0,0,0,.18);cursor:pointer;transition:transform .08s,opacity .15s}
+.tile:active{transform:translateY(2px)}
+.tile.used{opacity:.2;pointer-events:none}
+.controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.msg{min-height:1.6em;text-align:center;font-family:var(--font-display);font-weight:600;font-size:18px}
+.msg.ok{color:var(--good)} .msg.bad{color:var(--bad)}
+
+.done{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding-block:10px}
+.done h2{font-family:var(--font-display);font-weight:800;font-size:30px;margin:0}
+.stars{font-size:34px;letter-spacing:4px;color:var(--pencil)}
+.review{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.review span{font-family:var(--font-letter);font-size:18px;padding:2px 10px;border-radius:6px;background:var(--chip)}
+.review span.m{color:var(--bad);text-decoration:underline wavy}
+
+details{font-size:14px;color:var(--muted)}
+details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
+.wordlist{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:8px}
+.wordlist span{font-family:var(--font-letter);font-size:15px;color:var(--muted)}
+.wordlist span.k{color:var(--good);font-weight:700}
+.note{font-size:13px;color:var(--muted);max-width:65ch}
+@media (max-width:480px){.sheet{padding-left:36px}.sheet::before{left:20px}.tile{width:46px;height:50px;font-size:26px}.slot{height:70px}}
+@media (prefers-reduced-motion:reduce){.writing.shake .slots{animation:none}.btn,.tile{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span>Dolch</span> Word Speller</h1>
+    <div class="tally" id="tally"></div>
+  </header>
+
+  <div class="levels" id="levels" role="group" aria-label="Word list level"></div>
+
+  <main class="sheet" id="sheet">
+    <div class="row">
+      <div class="dots" id="dots" aria-label="Round progress"></div>
+      <div class="label" id="lvlname"></div>
+    </div>
+    <div id="play">
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <div class="prompt">
+          <button class="btn big" id="hear" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+            Hear the word
+          </button>
+          <button class="btn" id="peek" type="button">Peek</button>
+          <span class="peekword" id="peekword" aria-live="polite"></span>
+          <label class="voicewrap" id="voicewrap"><span class="label">Voice</span><select id="voice"></select></label>
+        </div>
+        <div class="writing" id="writing"><div class="slots" id="slots"></div></div>
+        <div class="tray" id="tray"></div>
+        <div class="msg" id="msg" aria-live="polite"></div>
+        <div class="controls">
+          <button class="btn" id="back" type="button">⌫ Undo</button>
+          <button class="btn" id="clear" type="button">Clear</button>
+          <button class="btn go" id="check" type="button">Check</button>
+        </div>
+      </div>
+    </div>
+    <div class="done" id="done" hidden></div>
+  </main>
+
+  <details id="listbox">
+    <summary>See the whole list for this level</summary>
+    <div class="wordlist" id="wordlist"></div>
+  </details>
+  <p class="note">Tap a letter block or type on a keyboard. Press Enter to check. Words you spell right on the first try turn green in the list. Rounds are 10 words, picked with words you haven't mastered first.</p>
+</div>
+
+<script>
+const LISTS = {
+  "Pre-primer":"a and away big blue can come down find for funny go help here I in is it jump little look make me my not one play red run said see the three to two up we where yellow you",
+  "Primer":"all am are at ate be black brown but came did do eat four get good have he into like must new no now on our out please pretty ran ride saw say she so soon that there they this too under want was well went what white who will with yes",
+  "First grade":"after again an any as ask by could every fly from give going had has her him his how just know let live may of old once open over put round some stop take thank them then think walk were when",
+  "Second grade":"always around because been before best both buy call cold does don't fast first five found gave goes green its made many off or pull read right sing sit sleep tell their these those upon us use very wash which why wish work would write your",
+  "Third grade":"about better bring carry clean cut done draw drink eight fall far full got grow hold hot hurt if keep kind laugh light long much myself never only own pick seven shall show six small start ten today together try warm"
+};
+for (const k in LISTS) LISTS[k] = LISTS[k].split(" ");
+const ROUND = 10;
+const $ = id => document.getElementById(id);
+
+let known = {};
+try { known = JSON.parse(localStorage.getItem("dolch-known") || "{}"); } catch(e){ known = {}; }
+function saveKnown(){ try{ localStorage.setItem("dolch-known", JSON.stringify(known)); }catch(e){} }
+let level = "Pre-primer";
+try { const l = localStorage.getItem("dolch-level"); if (l && LISTS[l]) level = l; } catch(e){}
+
+let round = [], idx = 0, results = [], typed = [], tiles = [], tries = 0, locked = false;
+
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function renderLevels(){
+  const box = $("levels"); box.innerHTML = "";
+  for (const name in LISTS){
+    const n = LISTS[name].filter(w => known[w]).length;
+    const b = document.createElement("button");
+    b.className = "lvl"; b.type="button"; b.id = "lvl-"+name.replace(/\s/g,"");
+    b.setAttribute("aria-pressed", name===level);
+    b.innerHTML = `${name} <small>${n}/${LISTS[name].length}</small>`;
+    b.onclick = () => { level = name; try{localStorage.setItem("dolch-level",name)}catch(e){}; startRound(); };
+    box.appendChild(b);
+  }
+  const all = Object.values(LISTS).flat(), k = all.filter(w=>known[w]).length;
+  $("tally").innerHTML = `<b>${k}</b> of ${all.length} words mastered`;
+  $("lvlname").textContent = level;
+  $("wordlist").innerHTML = LISTS[level].map(w=>`<span class="${known[w]?'k':''}">${w}</span>`).join("");
+}
+
+function startRound(){
+  const words = LISTS[level];
+  const fresh = shuffle(words.filter(w=>!known[w])), old = shuffle(words.filter(w=>known[w]));
+  round = fresh.concat(old).slice(0, ROUND);
+  idx = 0; results = [];
+  $("play").hidden = false; $("done").hidden = true;
+  renderLevels(); loadWord();
+}
+
+function loadWord(){
+  const w = round[idx];
+  typed = []; tries = 0; locked = false;
+  const letters = w.split("").filter(c=>c!=="'");
+  const pool = "abcdefghijklmnoprstuwy".split("").filter(c=>!letters.includes(c.toLowerCase()));
+  const decoys = shuffle(pool).slice(0, Math.max(2, Math.min(4, 8-letters.length)));
+  tiles = shuffle(letters.concat(decoys)).map((c,i)=>({c, used:false, id:i}));
+  if (w.includes("'")) tiles.push({c:"'", used:false, id:tiles.length});
+  $("msg").textContent = ""; $("msg").className="msg"; $("peekword").textContent="";
+  renderDots(); renderSlots(); renderTray();
+}
+
+function renderDots(){
+  $("dots").innerHTML = round.map((_,i)=>{
+    let c = "dot";
+    if (i<results.length) c += results[i].first ? " ok" : " miss";
+    else if (i===idx) c += " now";
+    return `<span class="${c}"></span>`;
+  }).join("");
+}
+function renderSlots(state){
+  const w = round[idx];
+  $("slots").innerHTML = w.split("").map((ch,i)=>{
+    const t = typed[i];
+    let cls = "slot";
+    if (!t) cls += i===typed.length ? " cursor" : " empty";
+    if (state && t) cls += t.c===ch ? " right" : " wrong";
+    return `<button type="button" class="${cls}" data-i="${i}" aria-label="letter ${i+1}">${t?t.c:""}</button>`;
+  }).join("");
+  $("slots").querySelectorAll(".slot").forEach(s=>s.onclick=()=>{ if(locked) return; const i=+s.dataset.i; while(typed.length>i) removeLast(); });
+}
+function renderTray(){
+  $("tray").innerHTML = "";
+  tiles.forEach(t=>{
+    const b = document.createElement("button");
+    b.type="button"; b.className = "tile"+(t.used?" used":""); b.textContent = t.c;
+    b.setAttribute("aria-label","letter "+t.c);
+    b.onclick = ()=>addTile(t);
+    $("tray").appendChild(b);
+  });
+}
+function addTile(t){
+  if (locked || t.used || typed.length >= round[idx].length) return;
+  t.used = true; typed.push(t); $("msg").textContent=""; renderSlots(); renderTray();
+  if (typed.length === round[idx].length) $("check").focus({preventScroll:true});
+}
+function removeLast(){ const t = typed.pop(); if (t) t.used=false; }
+
+let voices = [], chosenVoice = null;
+function scoreVoice(v){
+  let s = 0;
+  if (/^en[-_]US/i.test(v.lang)) s += 40; else if (/^en/i.test(v.lang)) s += 25; else return -1;
+  if (/natural|neural|online|enhanced|premium/i.test(v.name)) s += 30;
+  if (/google us english|samantha|aria|jenny|ava|allison|zira|karen|daniel/i.test(v.name)) s += 15;
+  if (/novelty|albert|bad news|bells|boing|bubbles|cellos|whisper|zarvox|trinoids|organ|jester|superstar|wobble|grandpa|grandma|eddy|flo|reed|rocko|sandy|shelley/i.test(v.name)) s -= 60;
+  return s;
+}
+// Popular voices across Edge, Chrome, Safari/iOS and Windows.
+// Men and women are picked separately (5 each), one per accent first.
+// The first men's group is the deepest-sounding voices.
+const MEN = [
+  ["US","deep",["Christopher","Davis","Steffan","Roger","Tom","Evan","David"]],
+  ["UK","",["Ryan","Thomas","Daniel","Google UK English Male","George","Oliver","Arthur"]],
+  ["US","",["Guy","Andrew","Brian","Eric","Alex","Mark"]],
+  ["Australia","",["William","Lee","Gordon"]],
+  ["Canada","",["Liam"]],
+  ["India","",["Prabhat","Rishi"]],
+  ["Ireland","",["Connor"]],
+  ["South Africa","",["Luke"]],
+  ["New Zealand","",["Mitchell"]]
+];
+const WOMEN = [
+  ["US","",["Aria","Jenny","Google US English","Samantha","Ava","Emma","Michelle","Allison","Zira"]],
+  ["UK","",["Sonia","Libby","Google UK English Female","Serena","Kate","Hazel","Martha"]],
+  ["Australia","",["Natasha","Karen","Catherine","Matilda"]],
+  ["Ireland","",["Emily","Moira"]],
+  ["Canada","",["Clara"]],
+  ["India","",["Neerja","Veena","Isha"]],
+  ["South Africa","",["Leah","Tessa"]],
+  ["Scotland","",["Fiona"]],
+  ["New Zealand","",["Molly"]]
+];
+const MAX_VOICES = 10;
+let voiceLabels = new Map();
+function findVoice(all, key, used){
+  const re = key.includes(" ") ? new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i") : new RegExp("\\b"+key+"\\b","i");
+  const matches = all.filter(v=>!used.has(v.name) && /^en/i.test(v.lang) && re.test(v.name));
+  matches.sort((a,b)=>scoreVoice(b)-scoreVoice(a)); // prefer Natural/Online/Enhanced copies
+  return matches[0] || null;
+}
+function pickGroup(all, groups, who, used, limit){
+  const out = [];
+  const label = (k, acc, deep)=> `${k.startsWith("Google") ? "Google" : k} (${acc}, ${who}${deep ? ", deep voice" : ""})`;
+  // pass 1: one voice per accent group
+  for (const [acc, tag, keys] of groups){
+    if (out.length >= limit) break;
+    for (const k of keys){ const v = findVoice(all, k, used); if (v){ used.add(v.name); out.push([v, label(k, acc, tag==="deep")]); break; } }
+  }
+  // pass 2: more voices from the same groups if the device has few accents
+  for (const [acc, tag, keys] of groups){
+    for (const k of keys){
+      if (out.length >= limit) break;
+      const v = findVoice(all, k, used); if (v){ used.add(v.name); out.push([v, label(k, acc, tag==="deep")]); }
+    }
+  }
+  return out;
+}
+function pickVoices(all){
+  voiceLabels = new Map();
+  const used = new Set();
+  const half = MAX_VOICES / 2;
+  let men = pickGroup(all, MEN, "man", used, half);
+  let women = pickGroup(all, WOMEN, "woman", used, half);
+  // if one side is short, let the other side fill the gap
+  if (men.length < half) women = women.concat(pickGroup(all, WOMEN, "woman", used, half - men.length));
+  if (women.length < half) men = men.concat(pickGroup(all, MEN, "man", used, half - women.length));
+  // alternate woman, man, woman, man… in the menu
+  const list = [];
+  for (let i = 0; i < Math.max(men.length, women.length); i++){ if (women[i]) list.push(women[i]); if (men[i]) list.push(men[i]); }
+  // last resort: any other decent English voice
+  for (const v of all.filter(v=>scoreVoice(v)>=0 && !used.has(v.name)).sort((a,b)=>scoreVoice(b)-scoreVoice(a))){
+    if (list.length >= MAX_VOICES) break;
+    used.add(v.name);
+    list.push([v, v.name.replace(/^(Microsoft|Google) /,"").replace(/ - .*$/,"").replace(/\s*\(.*\)$/,"")]);
+  }
+  list.forEach(([v, l])=>voiceLabels.set(v.name, l));
+  return list.map(([v])=>v);
+}
+function loadVoices(){
+  try{ voices = pickVoices(speechSynthesis.getVoices().filter(v=>scoreVoice(v)>=0)); }catch(e){ voices=[]; }
+  const sel = $("voice"); if (!sel) return;
+  let saved = null; try{ saved = localStorage.getItem("dolch-voice"); }catch(e){}
+  chosenVoice = voices.find(v=>v.name===saved) || voices[0] || null;
+  sel.innerHTML = voices.length ? voices.map(v=>`<option value="${v.name.replace(/"/g,'&quot;')}">${voiceLabels.get(v.name) || v.name}</option>`).join("") : '<option value="">No English voice found</option>';
+  if (chosenVoice) sel.value = chosenVoice.name;
+}
+function say(text, opts){
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = chosenVoice ? chosenVoice.lang : "en-US";
+  if (chosenVoice) u.voice = chosenVoice;
+  u.rate = opts && opts.rate || 0.9; u.pitch = 1;
+  speechSynthesis.speak(u);
+}
+function speak(){
+  const w = round[idx];
+  if (!("speechSynthesis" in window)) { peek(); return; }
+  try{
+    if (!voices.length) loadVoices();
+    speechSynthesis.cancel();
+    const word = w==="I" ? "I" : w;
+    say(word + ".", {rate:0.85});
+    say("Spell, " + word + ".");
+  }catch(e){ peek(); }
+}
+let peekTimer;
+function peek(){
+  clearTimeout(peekTimer);
+  $("peekword").textContent = round[idx];
+  peekTimer = setTimeout(()=>$("peekword").textContent="", 1500);
+}
+
+function check(){
+  if (locked) return;
+  const w = round[idx];
+  if (typed.length < w.length){ $("msg").className="msg bad"; $("msg").textContent = `This word has ${w.length} letters. Keep going!`; return; }
+  const guess = typed.map(t=>t.c).join("");
+  if (guess === w){
+    locked = true; renderSlots(true);
+    const first = tries === 0;
+    if (first){ known[w] = true; saveKnown(); }
+    results.push({w, first});
+    $("msg").className="msg ok";
+    $("msg").textContent = first ? ["Great spelling!","You got it!","Super!","Nice work!"][Math.floor(Math.random()*4)] : "Yes! That's it.";
+    renderDots();
+    setTimeout(next, 1100);
+  } else {
+    tries++;
+    renderSlots(true);
+    $("writing").classList.remove("shake"); void $("writing").offsetWidth; $("writing").classList.add("shake");
+    $("msg").className="msg bad";
+    if (tries >= 2){
+      locked = true;
+      $("msg").textContent = `It's spelled "${w}". Let's build it together.`;
+      setTimeout(()=>{ // fill correct answer for practice
+        typed.forEach(t=>t.used=false); typed=[];
+        for (const ch of w){ const t = tiles.find(t=>!t.used && t.c===ch); t.used=true; typed.push(t); }
+        renderSlots(true); renderTray(); locked=false; tries=99;
+      }, 1300);
+      // after reveal, user presses Check to continue
+    } else {
+      $("msg").textContent = "Not quite. Red letters need fixing.";
+      setTimeout(()=>{ // keep correct prefix
+        let keep = 0; while (keep<typed.length && typed[keep].c===w[keep]) keep++;
+        while (typed.length>keep) removeLast();
+        renderSlots(); renderTray();
+      }, 1100);
+    }
+  }
+}
+function next(){
+  idx++;
+  if (idx >= round.length) return finish();
+  loadWord(); speak();
+}
+function finish(){
+  renderLevels();
+  const firsts = results.filter(r=>r.first).length;
+  const starCount = firsts>=9?3:firsts>=6?2:1;
+  $("play").hidden = true;
+  const d = $("done"); d.hidden = false;
+  d.innerHTML = `<div class="stars" aria-label="${starCount} stars">${"★".repeat(starCount)}${"☆".repeat(3-starCount)}</div>
+    <h2>${firsts} of ${round.length} on the first try</h2>
+    <div class="review">${results.map(r=>`<span class="${r.first?'':'m'}">${r.w}</span>`).join("")}</div>
+    <button class="btn big" id="again" type="button">Play another round</button>`;
+  dots();
+  $("again").onclick = ()=>{ startRound(); speak(); };
+}
+function dots(){ idx = round.length; renderDots(); }
+
+$("hear").onclick = speak;
+$("peek").onclick = peek;
+$("back").onclick = ()=>{ if(locked) return; removeLast(); renderSlots(); renderTray(); };
+$("clear").onclick = ()=>{ if(locked) return; while(typed.length) removeLast(); renderSlots(); renderTray(); };
+$("check").onclick = check;
+document.addEventListener("keydown", e=>{
+  if ($("play").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest && e.target.closest(".lvl,summary")) { if (e.key==="Enter"||e.key===" ") return; }
+  if (e.key==="Enter"){ e.preventDefault(); check(); return; }
+  if (e.key==="Backspace"){ e.preventDefault(); $("back").click(); return; }
+  if (e.key.length===1){
+    const k = e.key;
+    const t = tiles.find(t=>!t.used && t.c===k) || tiles.find(t=>!t.used && t.c.toLowerCase()===k.toLowerCase());
+    if (t){ e.preventDefault(); addTile(t); }
+  }
+});
+if ("speechSynthesis" in window) {
+  loadVoices();
+  try{ speechSynthesis.addEventListener("voiceschanged", loadVoices); }catch(e){}
+  $("voice").onchange = e=>{ chosenVoice = voices.find(v=>v.name===e.target.value) || null; try{localStorage.setItem("dolch-voice", e.target.value)}catch(_){}; speak(); };
+} else { $("voicewrap").hidden = true; }
+startRound();
+</script>
+
+</body>
+</html>
