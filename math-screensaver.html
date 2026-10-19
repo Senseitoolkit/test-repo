@@ -160,6 +160,13 @@ body:not(.saver) .note .text{cursor:text}
 main{position:relative}
 body.both-off main, body.both-off.saver main{grid-template-columns:minmax(0,1fr) !important}
 body.both-off .notes{position:absolute; top:0; right:0; z-index:5; pointer-events:none}
+
+/* math board models */
+.mdl{display:block; overflow:visible; max-width:100%}
+.mdl .pc{animation:dotIn .4s backwards ease-out; transform-box:fill-box; transform-origin:center}
+.mdl.still .pc{animation:none}
+.caption .mname{color:var(--muted); font-size:.8em; white-space:nowrap}
+@media (prefers-reduced-motion:reduce){ .mdl .pc{animation:none} }
 </style>
 
 </head>
@@ -179,6 +186,8 @@ body.both-off .notes{position:absolute; top:0; right:0; z-index:5; pointer-event
       <select id="range"><option value="20">Up to 20</option><option value="100">Up to 100</option><option value="b10">Bonds of 10</option><option value="w10">Bonds within 10</option><option value="b100">Bonds of 100</option><option value="w100">Bonds within 100</option></select>
       <label class="lbl" for="max">× ÷ up to</label>
       <select id="max"><option value="5">5</option><option value="10" selected>10</option><option value="12">12</option></select>
+      <label class="lbl" for="model">Model</label>
+      <select id="model"><option value="mix">Random</option><option value="array">Array (dots)</option><option value="counters">Counters</option><option value="tenframes">Ten frames</option><option value="shapes">Number shapes</option><option value="rods">Number rods</option><option value="base10">Base ten</option><option value="beads">Bead string</option><option value="numberline">Number line</option><option value="bar">Bar model</option><option value="partwhole">Part–whole</option></select>
       <label class="lbl" for="speed">Speed</label>
       <select id="speed"><option value="7000">Slow</option><option value="4500" selected>Medium</option><option value="2600">Fast</option></select>
     </div>
@@ -244,7 +253,7 @@ const SKINS = [
 ];
 const SYM = {add:'+', sub:'−', mul:'×', div:'÷'};
 
-let S = {ops:{add:true,sub:true,mul:true,div:true}, max:10, range:'20', speed:4500, skin:'auto', notesHidden:false,
+let S = {ops:{add:true,sub:true,mul:true,div:true}, max:10, range:'20', model:'array', speed:4500, skin:'auto', notesHidden:false,
   notesVersion:2,
   notes:[
     {id:1, t:'Take a seat at your desk', done:false, tilt:-1.2},
@@ -256,6 +265,7 @@ try {
   if (saved){ const fresh = S.notes; S = Object.assign(S, saved); if (saved.notesVersion !== 2){ S.notes = fresh; S.notesVersion = 2; } }
 } catch(e){}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+S.notesHidden = true; // start clean: no to-do list until it is switched on
 
 /* ---------- settings UI ---------- */
 document.querySelectorAll('.op').forEach(b => {
@@ -270,6 +280,8 @@ $('max').value = S.max; $('range').value = S.range;
 $('range').onchange = e => { S.range = e.target.value; save(); next(); }; $('speed').value = S.speed;
 $('max').onchange = e => { S.max = +e.target.value; save(); next(); };
 $('speed').onchange = e => { S.speed = +e.target.value; save(); };
+$('model').value = S.model;
+$('model').onchange = e => { S.model = e.target.value; save(); if (cur){ cur.model = pickModel(); if (phase==='a') buildArray(cur, true); } };
 
 const skinBox = $('skins');
 SKINS.forEach(k => {
@@ -333,7 +345,8 @@ function showAnswer(p){
     mul:`<b>${p.a}</b> rows of <b>${p.b}</b> is <b>${p.ans}</b>`,
     div:`<b>${p.a}</b> shared into <b>${p.b}</b> ${p.b===1?'group':'groups'} gives <b>${p.ans}</b> in each`,
   }[p.op];
-  cap.innerHTML = capText;
+  const mn = MODEL_NAME[p.model || S.model];
+  cap.innerHTML = capText + (mn && (p.model||S.model)!=='array' ? ` <span class="mname">· ${mn}</span>` : '');
 }
 function layout(p){
   // returns rows: array of arrays of cell kinds
@@ -352,7 +365,271 @@ function layout(p){
   }
   return rows;
 }
+/* ---------- math board models ---------- */
+const MODELS = [
+  ['array','Array (dots)'], ['counters','Counters'], ['tenframes','Ten frames'], ['shapes','Number shapes'],
+  ['rods','Number rods'], ['base10','Base ten'], ['beads','Bead string'], ['numberline','Number line'],
+  ['bar','Bar model'], ['partwhole','Part–whole'], ['mix','Random']];
+const MIXABLE = MODELS.map(m => m[0]).filter(k => k!=='mix');
+const MODEL_NAME = Object.fromEntries(MODELS);
+const SHAPE_COL=['','#9aa5b1','#f28c8c','#7cc6a4','#f5c451','#6c9ee8','#b48ad8','#f39c5a','#4fb3bf','#d7739f','#5a8a3c'];
+const ROD_COL=['','#f4f1ea','#e03c31','#7fc97f','#8e5cc2','#f2d43d','#1f7a3d','#2b2b2b','#8b5a2b','#2f6fd1','#f08a24'];
+const WOOD=['#e9b949','#f3d27a','#c9971f'];
+const CTR={a:'#e04848', b:'#f5c542', x:'#9aa5b1'};
+const shade=(hex,p)=>{const n=parseInt(hex.slice(1),16);const r=n>>16,g=n>>8&255,b=n&255;const f=x=>Math.round(p<0?x*(1+p):x+(255-x)*p);return `rgb(${f(r)},${f(g)},${f(b)})`};
+const U = 26;
+let mixLast = '';
+function pickModel(){
+  if (S.model!=='mix') return S.model;
+  let m; do { m = MIXABLE[Math.floor(Math.random()*MIXABLE.length)]; } while (m===mixLast && MIXABLE.length>1);
+  return mixLast = m;
+}
+
+/* groups: what each row of the model shows. cells carry the colour of every unit. */
+function groupsFor(p){
+  const fill = (n,k) => Array(n).fill(k);
+  const alt = (count,size) => { const g=[]; for (let i=0;i<count;i++) g.push({n:size, cells:fill(size, i%2?'b':'a')}); return g; };
+  const whole = gs => ({n:gs.reduce((s,g)=>s+g.n,0), cells:gs.flatMap(g=>g.cells)});
+  if (p.op==='add'){ const top=[{n:p.a,cells:fill(p.a,'a')},{n:p.b,cells:fill(p.b,'b')}]; return {top, bot:[whole(top)], tl:`${p.a} + ${p.b}`, bl:`${p.ans} altogether`}; }
+  if (p.op==='sub'){ const bot=[{n:p.ans,cells:fill(p.ans,'a')},{n:p.b,cells:fill(p.b,'x')}]; return {top:[{n:p.a,cells:fill(p.a,'a')}], bot, tl:`${p.a}`, bl:`take away ${p.b}, ${p.ans} left`}; }
+  if (p.op==='mul'){ const top=alt(p.a,p.b); return {top, bot:[whole(top)], tl:`${p.a} groups of ${p.b}`, bl:`${p.ans} altogether`}; }
+  const bot=alt(p.b,p.ans); return {top:[whole(bot)], bot, tl:`${p.a}`, bl:`${p.b} equal groups of ${p.ans}`};
+}
+
+/* pieces: {w,h,svg(x,y)} in board units */
+const crossed = (w,h) => `<path d="M2 2L${w-2} ${h-2}M${w-2} 2L2 ${h-2}" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" opacity=".75"/>`;
+const allX = g => g.cells.every(c => c==='x');
+function piecesFor(model, g){
+  const out = [], x = allX(g);
+  const wrapG = (w,h,body) => ({w,h,svg:(px,py)=>`<g transform="translate(${px} ${py})"${x?' opacity=".45"':''}>${body}${x?crossed(w,h):''}</g>`});
+  if (model==='counters'){
+    const cols = Math.min(10, g.n), rows = Math.ceil(g.n/cols), gap = cols>5 ? U*.4 : 0;
+    let b = '';
+    g.cells.forEach((k,i) => { const c=i%cols, r=Math.floor(i/cols), cx=c*U+(c>=5?gap:0)+U/2, cy=r*U+U/2, col=CTR[k];
+      b += `<circle cx="${cx}" cy="${cy}" r="${U/2-1.5}" fill="${col}" stroke="${shade(col,-.3)}" stroke-width="1.5"/><circle cx="${cx}" cy="${cy}" r="${U/2-6}" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.5"/>`;
+      if (k==='x') b += `<path d="M${cx-6} ${cy-6}L${cx+6} ${cy+6}M${cx+6} ${cy-6}L${cx-6} ${cy+6}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/>`; });
+    out.push({w:cols*U+gap, h:rows*U, svg:(px,py)=>`<g transform="translate(${px} ${py})">${b}</g>`});
+  }
+  else if (model==='tenframes'){
+    const c = U*1.3;
+    for (let f=0; f<Math.ceil(g.n/10); f++){
+      let b = `<rect x="0" y="0" width="${5*c}" height="${2*c}" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5"/>`;
+      for (let i=1;i<5;i++) b += `<line x1="${i*c}" x2="${i*c}" y1="0" y2="${2*c}" stroke="var(--ink)" stroke-width="1.5"/>`;
+      b += `<line x1="0" x2="${5*c}" y1="${c}" y2="${c}" stroke="var(--ink)" stroke-width="1.5"/>`;
+      for (let i=0;i<10;i++){ const k=g.cells[f*10+i]; if (!k) continue; const cx=(i%5)*c+c/2, cy=Math.floor(i/5)*c+c/2, col=CTR[k];
+        b += `<circle cx="${cx}" cy="${cy}" r="${c*.36}" fill="${col}" stroke="${shade(col,-.3)}" stroke-width="1.5"/>`;
+        if (k==='x') b += `<path d="M${cx-7} ${cy-7}L${cx+7} ${cy+7}M${cx+7} ${cy-7}L${cx-7} ${cy+7}" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/>`; }
+      out.push({w:5*c, h:2*c, svg:(px,py)=>`<g transform="translate(${px} ${py})">${b}</g>`});
+    }
+  }
+  else if (model==='shapes'){
+    const parts = [...Array(Math.floor(g.n/10)).fill(10), ...(g.n%10 ? [g.n%10] : [])];
+    parts.forEach(n => {
+      const col = SHAPE_COL[n], st = shade(col,-.28), r = Math.ceil(n/2), odd = n%2;
+      let b = '';
+      if (n===1){ b = `<rect x="0" y="0" width="${U}" height="${U}" rx="2" fill="${col}" stroke="${st}" stroke-width="2"/><circle cx="${U/2}" cy="${U/2}" r="${U*.3}" fill="#fff" stroke="${shade(col,-.2)}"/>`; out.push(wrapG(U,U,b)); return; }
+      const pts = odd ? [[U,0],[2*U,0],[2*U,r*U],[0,r*U],[0,U],[U,U]] : [[0,0],[2*U,0],[2*U,r*U],[0,r*U]];
+      b = `<polygon points="${pts.map(q=>q.join(',')).join(' ')}" fill="${col}" stroke="${st}" stroke-width="2" stroke-linejoin="round"/>`;
+      const cells = []; if (odd){ cells.push([1,0]); for (let y=1;y<r;y++) cells.push([0,y],[1,y]); } else for (let y=0;y<r;y++) cells.push([0,y],[1,y]);
+      cells.forEach(([cx,cy]) => b += `<circle cx="${cx*U+U/2}" cy="${cy*U+U/2}" r="${U*.3}" fill="#fff" stroke="${shade(col,-.2)}"/>`);
+      out.push(wrapG(2*U, r*U, b));
+    });
+  }
+  else if (model==='rods'){
+    const parts = [...Array(Math.floor(g.n/10)).fill(10), ...(g.n%10 ? [g.n%10] : [])];
+    parts.forEach(n => { const col = ROD_COL[n];
+      out.push(wrapG(n*U, U, `<rect x=".5" y=".5" width="${n*U-1}" height="${U-1}" rx="3" fill="${col}" stroke="${shade(col,n===1?-.35:-.3)}" stroke-width="1.5"/><rect x="3" y="3" width="${n*U-6}" height="5" rx="2" fill="rgba(255,255,255,.22)"/>`)); });
+  }
+  else if (model==='base10'){
+    const u = U*.8, gridR = (x,y,w,h,cols,rows) => { let s=`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${WOOD[0]}" stroke="${WOOD[2]}" stroke-width="1.5"/>`;
+      for (let i=1;i<cols;i++) s+=`<line x1="${x+i*w/cols}" x2="${x+i*w/cols}" y1="${y}" y2="${y+h}" stroke="rgba(80,50,0,.35)"/>`;
+      for (let i=1;i<rows;i++) s+=`<line x1="${x}" x2="${x+w}" y1="${y+i*h/rows}" y2="${y+i*h/rows}" stroke="rgba(80,50,0,.35)"/>`; return s; };
+    const H = Math.floor(g.n/100), T = Math.floor(g.n%100/10), O = g.n%10;
+    for (let i=0;i<H;i++) out.push(wrapG(10*u,10*u,gridR(0,0,10*u,10*u,10,10)));
+    for (let i=0;i<T;i++) out.push(wrapG(10*u,u,gridR(0,0,10*u,u,10,1)));
+    if (O){ const gp=u*.45; let b=''; for (let i=0;i<O;i++) b += gridR(i*(u+gp), 0, u, u, 1, 1); out.push(wrapG(O*(u+gp)-gp, u, b)); }
+  }
+  else if (model==='beads'){
+    const d = U*.95;
+    for (let s=0; s<g.n; s+=10){
+      const run = g.cells.slice(s, s+10); let b = '';
+      run.forEach((k,i) => { const idx=s+i, light=Math.floor(idx/5)%2===1;
+        const col = k==='x' ? '#c9cfd6' : k==='b' ? (light?'#cfe0fb':'#2a78d6') : (light?'#f6f3ea':'#d64541');
+        const st = k==='x' ? '#8a939c' : k==='b' ? (light?'#7d9cc9':'#1b4f93') : (light?'#a89f8a':'#9e2a27');
+        b += `<circle cx="${i*d+d/2}" cy="${d/2}" r="${d/2-1}" fill="${col}" stroke="${st}" stroke-width="1.5"/>`;
+        if (k==='x') b += `<path d="M${i*d+d/2-6} ${d/2-6}l12 12m0 -12l-12 12" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"/>`; });
+      out.push({w:run.length*d, h:d, svg:(px,py)=>`<g transform="translate(${px} ${py})">${b}</g>`});
+    }
+  }
+  return out;
+}
+
+/* flow two rows of groups into lines that fit the stage */
+function layoutFlow(model, G, maxW){
+  const PG = U*.35, GG = U*1.1, LG = U*.5, LBL = U*.95, HEAD = U*1.15, SEC = U*1.2;
+  const string = model==='beads';
+  let y = 0, w = 0, body = '', heads = '', labels = '';
+  [[G.top,G.tl],[G.bot,G.bl]].forEach(([groups, head], si) => {
+    if (si===1){ y += SEC*.35; body += `<line x1="0" x2="__W__" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="2" stroke-dasharray="6 6"/>`; y += SEC*.65; }
+    heads += `<text x="0" y="${y+HEAD*.75}" font-size="${U*.8}" fill="var(--muted)" font-family="var(--f-ui)" font-weight="600">${head}</text>`;
+    y += HEAD; w = Math.max(w, String(head).length*U*.44);
+    let line = [], lineW = 0, lineH = 0;
+    const flush = () => {
+      if (!line.length) return;
+      if (string) body += `<line x1="${-U*.3}" x2="${lineW+U*.3}" y1="${y+lineH/2}" y2="${y+lineH/2}" stroke="var(--muted)" stroke-width="2"/>`;
+      const seen = new Set();
+      line.forEach(it => { body += `<g class="pc" style="animation-delay:${it.delay}ms">${it.p.svg(it.x, y + (string?0:lineH-it.p.h))}</g>`;
+        if (!seen.has(it.g)){ seen.add(it.g); const segs = line.filter(o => o.g===it.g); const x0 = segs[0].x, x1 = segs[segs.length-1].x + segs[segs.length-1].p.w;
+          if (it.first) labels += `<text x="${(x0+x1)/2}" y="${y+lineH+LBL*.78}" text-anchor="middle" font-size="${U*.85}" font-weight="700" fill="var(--ink)" font-family="var(--f-display)">${it.gn}</text>`; } });
+      w = Math.max(w, lineW); y += lineH + LBL + LG; line = []; lineW = 0; lineH = 0;
+    };
+    let delay = 0;
+    groups.forEach((g, gi) => {
+      const ps = piecesFor(model, g);
+      const gw = ps.reduce((s,p)=>s+p.w,0) + PG*(ps.length-1);
+      if (line.length && lineW + GG + gw > maxW && gw <= maxW) flush();
+      ps.forEach((p, pi) => {
+        const gap = !line.length ? 0 : pi===0 ? GG : PG;
+        if (line.length && lineW + gap + p.w > maxW) flush();
+        const x = line.length ? lineW + (pi===0 ? GG : PG) : 0;
+        line.push({p, x, g:si+'-'+gi, gn:g.n, first:pi===0, delay});
+        delay += 40; lineW = x + p.w; lineH = Math.max(lineH, p.h);
+      });
+    });
+    flush();
+  });
+  const H = y - LG;
+  return {w, h:H, svg: heads + body.replaceAll('__W__', w) + labels};
+}
+function fitFlow(model, G, W, H){
+  let maxPiece = 0, total = 0;
+  [...G.top, ...G.bot].forEach(g => piecesFor(model,g).forEach(p => { maxPiece = Math.max(maxPiece, p.w); total += p.w + U*.6; }));
+  let best = null;
+  for (let i=0;i<=16;i++){
+    const mw = maxPiece * Math.pow(Math.max(1, total/maxPiece), i/16);
+    const L = layoutFlow(model, G, Math.max(mw, U*8));
+    const s = Math.min(W/L.w, H/L.h);
+    if (!best || s > best.s) best = {s, L};
+  }
+  return best;
+}
+
+/* number line */
+function numberLine(p){
+  const W = 1000, P = 40;
+  let lo = 0, hi, jumps = [];
+  /* add and subtract: jump to the nearest ten, then by tens, then the ones */
+  const bridge = (start, amount, dir) => {
+    const js = []; let at = start, left = amount;
+    const push = (n, kind) => { js.push({from:at, to:at+dir*n, lab:(dir>0?'+':'−')+n, kind}); at += dir*n; left -= n; };
+    const toTen = dir>0 ? (10 - at%10) % 10 : at%10;
+    if (toTen && left >= toTen && amount % 10) push(toTen, 'bridge'); // whole tens: jump straight by tens
+    while (left >= 10) push(10, 'ten');
+    if (left) push(left, 'ones');
+    return js;
+  };
+  if (p.op==='add'){ hi = p.ans; jumps = bridge(p.a, p.b, 1); }
+  else if (p.op==='sub'){ hi = p.a; jumps = bridge(p.a, p.b, -1); }
+  else if (p.op==='mul'){ hi = p.ans; for (let i=0;i<p.a;i++) jumps.push({from:i*p.b, to:(i+1)*p.b, lab:'+'+p.b}); }
+  else { hi = p.a; for (let i=0;i<p.b;i++) jumps.push({from:i*p.ans, to:(i+1)*p.ans, lab:'+'+p.ans}); }
+  hi = Math.max(hi, 1);
+  const end = hi <= 20 ? hi : Math.ceil(hi/10)*10;
+  if ((p.op==='add'||p.op==='sub') && hi > 20) lo = Math.floor(Math.min(...jumps.map(j=>Math.min(j.from,j.to)))/10)*10;
+  const X = v => P + (v-lo)/(end-lo)*(W-2*P);
+  const span = end - lo;
+  const minor = span<=60 ? 1 : span<=150 ? 5 : 10, major = span<=20 ? 1 : span<=60 ? 5 : 10;
+  const base = 260;
+  const key = [...new Set(jumps.flatMap(j=>[j.from,j.to]))];
+  const many = p.op==='mul' || p.op==='div';
+  const labelled = many ? key : [...new Set([...Array(Math.floor(span/major)+1)].map((_,i)=>lo+i*major).concat(key))];
+  const fs = Math.max(15, Math.min(28, 700/Math.max(labelled.length, 1)));
+  const tooClose = (v, w) => key.some(k => k!==v && Math.abs(X(k)-X(v)) < fs*(String(Math.max(k,v)).length*.62+.4) && w);
+  let s = `<line x1="${P-15}" x2="${W-P+15}" y1="${base}" y2="${base}" stroke="var(--ink)" stroke-width="3"/>`;
+  for (let v=lo; v<=end; v+=minor){ const big = v%major===0;
+    s += `<line x1="${X(v)}" x2="${X(v)}" y1="${base-(big?14:8)}" y2="${base+(big?14:8)}" stroke="var(--ink)" stroke-width="${big?2.5:1.5}"/>`; }
+  key.forEach(v => { s += `<line x1="${X(v)}" x2="${X(v)}" y1="${base-16}" y2="${base+16}" stroke="var(--ink)" stroke-width="3"/>`; });
+  labelled.forEach(v => { const isKey = key.includes(v);
+    if (!isKey && tooClose(v, true)) return;
+    s += `<text x="${X(v)}" y="${base+44}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="${isKey?'var(--a)':'var(--ink)'}" font-family="var(--f-display)">${v}</text>`; });
+  jumps.forEach((j,i) => {
+    const x1 = X(j.from), x2 = X(j.to), mid = (x1+x2)/2, span = Math.abs(x2-x1), hgt = Math.min(170, Math.max(40, span*.55));
+    const col = j.kind==='ten' ? 'var(--a)' : j.kind ? 'var(--b)' : (i%2 ? 'var(--b)' : 'var(--a)');
+    const dir = x2 > x1 ? 1 : -1;
+    s += `<g class="pc" style="animation-delay:${i*90}ms"><path d="M${x1} ${base-4} Q${mid} ${base-4-hgt*1.3} ${x2} ${base-4}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round"/>`
+      + `<path d="M${x2} ${base-4} l${-dir*14} -12 M${x2} ${base-4} l${-dir*2} -18" stroke="${col}" stroke-width="4" stroke-linecap="round" fill="none"/>`
+      + `<text x="${mid}" y="${base-hgt*.68-14}" text-anchor="middle" font-size="${Math.max(21, Math.min(30, span*.45))}" font-weight="700" fill="${col}" font-family="var(--f-display)">${j.lab}</text></g>`;
+  });
+  const start = jumps[0].from;
+  s += `<circle cx="${X(start)}" cy="${base}" r="9" fill="var(--a)" stroke="var(--panel)" stroke-width="3"/>`;
+  return {w:W, h:base+60, svg:s};
+}
+
+/* bar model */
+function barModel(p){
+  const W = 1000, BH = 110, G = groupsFor(p);
+  const total = G.top.reduce((s,g)=>s+g.n,0);
+  const row = (groups, y, whole) => { let x = 0, s = '';
+    groups.forEach((g,i) => { const w = W*g.n/total, x2 = x + w;
+      const fill = allX(g) ? 'transparent' : whole ? '#cfe8dc' : (i%2 ? '#f9e3b5' : '#cfe8dc');
+      s += `<g class="pc" style="animation-delay:${(y?300:0)+i*70}ms"><rect x="${x}" y="${y}" width="${w}" height="${BH}" fill="${fill}" stroke="var(--ink)" stroke-width="3"${allX(g)?' stroke-dasharray="10 7"':''}/>`;
+      const fs = Math.min(46, Math.max(16, w*.42));
+      s += `<text x="${x+w/2}" y="${y+BH/2+fs*.36}" text-anchor="middle" font-size="${fs}" font-weight="700" fill="${allX(g)?'var(--ink)':'#1b2a31'}" font-family="var(--f-display)">${g.n}</text></g>`;
+      x = x2; });
+    return s; };
+  const top = 0, bot = top + BH + 40;
+  let s = '';
+  s += row(G.top, top, p.op==='sub'||p.op==='div');
+  s += row(G.bot, bot, p.op==='add'||p.op==='mul');
+  if (p.op==='sub') s += `<text x="${W - W*p.b/total/2}" y="${bot+BH+38}" text-anchor="middle" font-size="26" fill="var(--muted)" font-family="var(--f-ui)" font-weight="700">taken away</text>`;
+  return {w:W, h:bot+BH+50, svg:s};
+}
+
+/* part–whole model */
+function partWhole(p){
+  const G = groupsFor(p);
+  const wholeN = p.op==='add'||p.op==='mul' ? p.ans : p.a;
+  const parts = p.op==='add' ? [p.a,p.b] : p.op==='sub' ? [p.ans,p.b] : p.op==='mul' ? Array(p.a).fill(p.b) : Array(p.b).fill(p.ans);
+  const n = parts.length, W = 1000, rows = n>6 ? 2 : 1, perRow = Math.ceil(n/rows);
+  const R = Math.min(110, (W/perRow)*.38), RW = 120, wy = RW+10;
+  const py0 = wy + RW + 130 + R;
+  let s = '', circles = '';
+  parts.forEach((v,i) => { const r = Math.floor(i/perRow), c = i%perRow, inRow = Math.min(perRow, n - r*perRow);
+    const cx = (c+.5)*W/inRow, cy = py0 + r*(R*2+30);
+    s += `<line x1="${W/2}" y1="${wy+RW}" x2="${cx}" y2="${cy-R}" stroke="var(--ink)" stroke-width="3"/>`;
+    const fill = p.op==='sub' && i===1 ? 'var(--panel)' : (i%2 && p.op!=='sub' ? '#f9e3b5' : '#cfe8dc');
+    circles += `<g class="pc" style="animation-delay:${200+i*70}ms"><circle cx="${cx}" cy="${cy}" r="${R}" fill="${fill}" stroke="var(--ink)" stroke-width="3"${p.op==='sub'&&i===1?' stroke-dasharray="10 7"':''}/>`
+      + `<text x="${cx}" y="${cy+R*.2}" text-anchor="middle" font-size="${R*.62}" font-weight="700" fill="${p.op==='sub'&&i===1?'var(--ink)':'#1b2a31'}" font-family="var(--f-display)">${v}</text></g>`; });
+  s += circles + `<g class="pc"><circle cx="${W/2}" cy="${wy}" r="${RW}" fill="#cfe8dc" stroke="var(--ink)" stroke-width="3.5"/>`
+    + `<text x="${W/2}" y="${wy+RW*.22}" text-anchor="middle" font-size="${RW*.62}" font-weight="700" fill="#1b2a31" font-family="var(--f-display)">${wholeN}</text></g>`;
+  return {w:W, h:py0 + (rows-1)*(R*2+30) + R + 6, svg:s};
+}
+
+function themeAttrs(svg){
+  return svg.replace(/<(\w+)([^>]*?)(\/?)>/g, (m, tag, attrs, close) => {
+    let style = '';
+    attrs = attrs.replace(/\s(fill|stroke|font-family)="([^"]*var\([^"]*)"/g, (_, k, v) => { style += `${k}:${v};`; return ''; });
+    return style ? `<${tag}${attrs} style="${style}"${close}>` : m;
+  });
+}
+function buildModel(p, model, animate){
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  let L, s;
+  if (model==='numberline') L = numberLine(p);
+  else if (model==='bar') L = barModel(p);
+  else if (model==='partwhole') L = partWhole(p);
+  if (L){ s = Math.min(W/L.w, H/L.h); }
+  else { const b = fitFlow(model, groupsFor(p), W, H); L = b.L; s = Math.min(b.s, 4); }
+  const pad = 8;
+  arr.innerHTML = `<svg class="mdl${animate?'':' still'}" width="${Math.floor(L.w*s)}" height="${Math.floor(L.h*s)}" viewBox="${-pad} ${-pad} ${L.w+2*pad} ${L.h+2*pad}" role="img" aria-label="${MODEL_NAME[model]} for ${p.a} ${SYM[p.op]} ${p.b}">${themeAttrs(L.svg)}</svg>`;
+}
+
 function buildArray(p, animate){
+  const m = p.model || S.model;
+  arr.classList.toggle('isModel', m!=='array');
+  if (m!=='array' && m!=='mix') return buildModel(p, m, animate);
+  return buildDots(p, animate);
+}
+function buildDots(p, animate){
   const rows = layout(p);
   const cols = Math.max(...rows.map(r => r.length));
   const tens = p.op==='add' || p.op==='sub';
@@ -392,7 +669,7 @@ function schedule(){
   const ms = phaseMs(); runBar(ms);
   timer = setTimeout(() => { if (phase==='q') reveal(); else next(); }, ms);
 }
-function next(){ cur = makeProblem(); phase='q'; showQuestion(cur); schedule(); }
+function next(){ cur = makeProblem(); cur.model = pickModel(); phase='q'; showQuestion(cur); schedule(); }
 function reveal(){ phase='a'; showAnswer(cur); schedule(); }
 function setPaused(v){
   paused = v;
@@ -545,8 +822,7 @@ draw();
 (() => {
 const $ = id => document.getElementById(id);
 const KEY = 'saverTimerOn.' + document.title;
-let on = true;
-try { const v = localStorage.getItem(KEY); if (v !== null) on = v === '1'; } catch(e){}
+let on = false; // the timer starts hidden each time the saver opens
 function apply(){
   $('timer').hidden = !on;
   const t = $('timerToggle'); t.textContent = 'Timer: ' + (on ? 'On' : 'Off'); t.setAttribute('aria-pressed', on);
