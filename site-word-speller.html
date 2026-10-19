@@ -81,6 +81,9 @@ h1 span{background:linear-gradient(transparent 62%,var(--pencil) 62%);padding:0 
 .btn:disabled{opacity:.45;cursor:not-allowed}
 button:focus-visible{outline:3px solid var(--rule);outline-offset:3px}
 .btn svg{width:22px;height:22px;flex:none}
+.accent{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:17px;padding:6px 14px;border-radius:999px;background:var(--chip);border:2px dashed var(--rule)}
+.accent .flag{font-size:22px;line-height:1}
+.voicewrap select:disabled{opacity:.5}
 .voicewrap{margin-left:auto;display:flex;align-items:center;gap:8px}
 .voicewrap select{font:inherit;font-size:14px;max-width:190px;padding:6px 8px;border-radius:8px;border:2px solid var(--muted);background:var(--sheet);color:var(--ink)}
 .peekword{font-family:var(--font-letter);font-size:30px;font-weight:700;min-width:4ch;color:var(--rule)}
@@ -142,6 +145,7 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
   <div class="settings" role="group" aria-label="Difficulty">
     <button type="button" class="switch" id="sw-hints" role="switch" aria-checked="true"><span class="track"></span>Hints</button>
     <button type="button" class="switch" id="sw-spaces" role="switch" aria-checked="true"><span class="track"></span>Letter spaces</button>
+    <button type="button" class="switch" id="sw-random" role="switch" aria-checked="false"><span class="track"></span>Random accents</button>
     <span class="mode" id="mode">Easy</span>
   </div>
 
@@ -159,6 +163,7 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
           </button>
           <button class="btn" id="peek" type="button">Peek</button>
           <span class="peekword" id="peekword" aria-live="polite"></span>
+          <span class="accent" id="accent" aria-live="polite" hidden></span>
           <label class="voicewrap" id="voicewrap"><span class="label">Voice</span><select id="voice"></select></label>
         </div>
         <div class="writing" id="writing"><div class="slots" id="slots"></div></div>
@@ -178,7 +183,7 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
     <summary>See the whole list for this level</summary>
     <div class="wordlist" id="wordlist"></div>
   </details>
-  <p class="note">Tap a letter block or type on a keyboard. Press Enter to check. For a harder game, turn off <b>Hints</b> (no Peek, a full A–Z keyboard instead of just the word's letters, and no red-letter clues) and <b>Letter spaces</b> (no blanks showing how long the word is). Words you spell right on the first try turn green in the list. Rounds are 10 words, picked with words you haven't mastered first.</p>
+  <p class="note">Tap a letter block or type on a keyboard. Press Enter to check. For a harder game, turn on <b>Random accents</b> to hear each word in a different country's English (the country is the hint), or turn off <b>Hints</b> (no Peek, a full A–Z keyboard instead of just the word's letters, and no red-letter clues) and <b>Letter spaces</b> (no blanks showing how long the word is). Words you spell right on the first try turn green in the list. Rounds are 10 words, picked with words you haven't mastered first.</p>
 </div>
 
 <script>
@@ -200,7 +205,7 @@ let level = "Pre-primer";
 try { const l = localStorage.getItem("dolch-level"); if (l && LISTS[l]) level = l; } catch(e){}
 
 let round = [], idx = 0, results = [], typed = [], tiles = [], tries = 0, locked = false;
-let settings = { hints:true, spaces:true };
+let settings = { hints:true, spaces:true, random:false };
 try { Object.assign(settings, JSON.parse(localStorage.getItem("dolch-settings") || "{}")); } catch(e){}
 const MAX_LEN = 14;
 const maxLen = () => settings.spaces ? round[idx].length : MAX_LEN;
@@ -212,12 +217,15 @@ function renderSettings(){
   $("mode").textContent = ["Easy","Harder","Hardest"][off];
   $("mode").classList.toggle("hard", off > 0);
   $("peek").hidden = !settings.hints;
+  $("sw-random").setAttribute("aria-checked", settings.random);
 }
 function toggleSetting(key){
   settings[key] = !settings[key];
   try{ localStorage.setItem("dolch-settings", JSON.stringify(settings)); }catch(e){}
   renderSettings();
+  if (key === "random"){ wordVoice = null; if (settings.random && round.length) pickWordVoice(); renderAccent(); if (settings.random) speak(); return; }
   if (!$("play").hidden && round.length) loadWord();
+  renderAccent();
 }
 
 function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
@@ -263,6 +271,9 @@ function loadWord(){
   }
   $("tray").classList.toggle("abc", !settings.hints);
   $("msg").textContent = ""; $("msg").className="msg"; $("peekword").textContent="";
+  accentShown = false;
+  if (settings.random) pickWordVoice();
+  renderAccent();
   renderDots(); renderSlots(); renderTray();
 }
 
@@ -314,89 +325,109 @@ function scoreVoice(v){
   if (/novelty|albert|bad news|bells|boing|bubbles|cellos|whisper|zarvox|trinoids|organ|jester|superstar|wobble|grandpa|grandma|eddy|flo|reed|rocko|sandy|shelley/i.test(v.name)) s -= 60;
   return s;
 }
-// Popular voices across Edge, Chrome, Safari/iOS and Windows.
-// Men and women are picked separately (5 each), one per accent first.
-// The first men's group is the deepest-sounding voices.
-const MEN = [
-  ["US","deep",["Christopher","Davis","Steffan","Roger","Tom","Evan","David"]],
-  ["UK","",["Ryan","Thomas","Daniel","Google UK English Male","George","Oliver","Arthur"]],
-  ["US","",["Guy","Andrew","Brian","Eric","Alex","Mark"]],
-  ["Australia","",["William","Lee","Gordon"]],
-  ["Canada","",["Liam"]],
-  ["India","",["Prabhat","Rishi"]],
-  ["Ireland","",["Connor"]],
-  ["South Africa","",["Luke"]],
-  ["New Zealand","",["Mitchell"]]
+// English accents, keyed by the region in the voice's language code (en-GB, en-IN…).
+// Edge has a man and a woman for nearly all of these; Chrome, Safari and Windows have fewer.
+const REGIONS = [
+  ["US","United States","🇺🇸"], ["GB","United Kingdom","🇬🇧"], ["SCT","Scotland","🏴󠁧󠁢󠁳󠁣󠁴󠁿"],
+  ["IE","Ireland","🇮🇪"], ["AU","Australia","🇦🇺"], ["NZ","New Zealand","🇳🇿"],
+  ["CA","Canada","🇨🇦"], ["ZA","South Africa","🇿🇦"], ["IN","India","🇮🇳"],
+  ["NG","Nigeria","🇳🇬"], ["KE","Kenya","🇰🇪"], ["TZ","Tanzania","🇹🇿"],
+  ["PH","Philippines","🇵🇭"], ["SG","Singapore","🇸🇬"], ["HK","Hong Kong","🇭🇰"]
 ];
-const WOMEN = [
-  ["US","",["Aria","Jenny","Google US English","Samantha","Ava","Emma","Michelle","Allison","Zira"]],
-  ["UK","",["Sonia","Libby","Google UK English Female","Serena","Kate","Hazel","Martha"]],
-  ["Australia","",["Natasha","Karen","Catherine","Matilda"]],
-  ["Ireland","",["Emily","Moira"]],
-  ["Canada","",["Clara"]],
-  ["India","",["Neerja","Veena","Isha"]],
-  ["South Africa","",["Leah","Tessa"]],
-  ["Scotland","",["Fiona"]],
-  ["New Zealand","",["Molly"]]
-];
-const MAX_VOICES = 10;
-let voiceLabels = new Map();
-function findVoice(all, key, used){
-  const re = key.includes(" ") ? new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"i") : new RegExp("\\b"+key+"\\b","i");
-  const matches = all.filter(v=>!used.has(v.name) && /^en/i.test(v.lang) && re.test(v.name));
-  matches.sort((a,b)=>scoreVoice(b)-scoreVoice(a)); // prefer Natural/Online/Enhanced copies
-  return matches[0] || null;
+const REGION = Object.fromEntries(REGIONS.map(([c,n,f])=>[c,{code:c,country:n,flag:f}]));
+const MALE = "guy christopher eric davis andrew brian steffan roger tony jason ryan thomas william liam connor prabhat luke mitchell abeo chilemba elimu james wayne sam david mark george ravi sean alex daniel fred tom evan aaron arthur gordon lee rishi oliver".split(" ");
+const FEMALE = "aria jenny emma michelle ava jane nancy sara ashley amber monica sonia libby natasha clara emily neerja leah molly ezinne asilia imani rosa luna yan zira hazel susan heera linda heather samantha victoria karen moira tessa fiona veena allison kate serena nicky catherine matilda martha isha".split(" ");
+const CHILD = ["ana","maisie"];
+const DEEP = ["christopher","davis","steffan","roger","tom","evan","david"];
+function regionOf(v){
+  const lang = v.lang || "", name = v.name || "";
+  if (/sct|scotland/i.test(lang) || /\bfiona\b/i.test(name)) return "SCT";
+  const m = lang.match(/^en[-_]([a-z]{2})/i);
+  if (m && REGION[m[1].toUpperCase()]) return m[1].toUpperCase();
+  if (/united kingdom|\buk\b/i.test(name)) return "GB";
+  if (/^en/i.test(lang)) return "US";
+  return null;
 }
-function pickGroup(all, groups, who, used, limit){
-  const out = [];
-  const label = (k, acc, deep)=> `${k.startsWith("Google") ? "Google" : k} (${acc}, ${who}${deep ? ", deep voice" : ""})`;
-  // pass 1: one voice per accent group
-  for (const [acc, tag, keys] of groups){
-    if (out.length >= limit) break;
-    for (const k of keys){ const v = findVoice(all, k, used); if (v){ used.add(v.name); out.push([v, label(k, acc, tag==="deep")]); break; } }
+function firstName(v){
+  return v.name.replace(/^(Microsoft|Google|Apple)\s+/i,"").replace(/\s*\(.*$/,"").replace(/\s+-\s+.*$/,"").replace(/\s+Online.*$/i,"").trim().split(/\s+/)[0];
+}
+function genderOf(v){
+  if (/google .*english male/i.test(v.name)) return "man";
+  if (/google .*english( female)?$/i.test(v.name)) return "woman";
+  const n = firstName(v).toLowerCase();
+  if (CHILD.includes(n)) return "child";
+  if (MALE.includes(n)) return "man";
+  if (FEMALE.includes(n)) return "woman";
+  return "";
+}
+let voiceInfo = new Map();
+function pickVoices(all){
+  voiceInfo = new Map();
+  const groups = {};
+  for (const v of all){
+    const r = regionOf(v), g = genderOf(v);
+    if (!r || g === "child") continue;
+    let s = scoreVoice(v); if (s < 0) continue;
+    if (g === "man" && DEEP.includes(firstName(v).toLowerCase())) s += 20;
+    (groups[r] ||= {man:[], woman:[], "":[]})[g].push([s, v]);
   }
-  // pass 2: more voices from the same groups if the device has few accents
-  for (const [acc, tag, keys] of groups){
-    for (const k of keys){
-      if (out.length >= limit) break;
-      const v = findVoice(all, k, used); if (v){ used.add(v.name); out.push([v, label(k, acc, tag==="deep")]); }
+  const out = [];
+  for (const [code] of REGIONS){
+    const grp = groups[code]; if (!grp) continue;
+    const best = list => list.sort((a,b)=>b[0]-a[0])[0];
+    const picks = [["woman", best(grp.woman)], ["man", best(grp.man)]].filter(p=>p[1]);
+    if (!picks.length && grp[""].length) picks.push(["", best(grp[""])]);
+    for (const [g, [, v]] of picks){
+      const n = /^google/i.test(v.name) ? "Google" : firstName(v);
+      const deep = g === "man" && DEEP.includes(n.toLowerCase());
+      voiceInfo.set(v.name, { ...REGION[code], gender:g, label: `${n} (${g || "voice"}${deep ? ", deep voice" : ""})` });
+      out.push(v);
     }
   }
   return out;
 }
-function pickVoices(all){
-  voiceLabels = new Map();
-  const used = new Set();
-  const half = MAX_VOICES / 2;
-  let men = pickGroup(all, MEN, "man", used, half);
-  let women = pickGroup(all, WOMEN, "woman", used, half);
-  // if one side is short, let the other side fill the gap
-  if (men.length < half) women = women.concat(pickGroup(all, WOMEN, "woman", used, half - men.length));
-  if (women.length < half) men = men.concat(pickGroup(all, MEN, "man", used, half - women.length));
-  // alternate woman, man, woman, man… in the menu
-  const list = [];
-  for (let i = 0; i < Math.max(men.length, women.length); i++){ if (women[i]) list.push(women[i]); if (men[i]) list.push(men[i]); }
-  // last resort: any other decent English voice
-  for (const v of all.filter(v=>scoreVoice(v)>=0 && !used.has(v.name)).sort((a,b)=>scoreVoice(b)-scoreVoice(a))){
-    if (list.length >= MAX_VOICES) break;
-    used.add(v.name);
-    list.push([v, v.name.replace(/^(Microsoft|Google) /,"").replace(/ - .*$/,"").replace(/\s*\(.*\)$/,"")]);
-  }
-  list.forEach(([v, l])=>voiceLabels.set(v.name, l));
-  return list.map(([v])=>v);
-}
 function loadVoices(){
-  try{ voices = pickVoices(speechSynthesis.getVoices().filter(v=>scoreVoice(v)>=0)); }catch(e){ voices=[]; }
+  try{ voices = pickVoices(speechSynthesis.getVoices()); }catch(e){ voices=[]; }
   const sel = $("voice"); if (!sel) return;
   let saved = null; try{ saved = localStorage.getItem("dolch-voice"); }catch(e){}
   chosenVoice = voices.find(v=>v.name===saved) || voices[0] || null;
-  sel.innerHTML = voices.length ? voices.map(v=>`<option value="${v.name.replace(/"/g,'&quot;')}">${voiceLabels.get(v.name) || v.name}</option>`).join("") : '<option value="">No English voice found</option>';
+  if (!voices.length){ sel.innerHTML = '<option value="">No English voice found</option>'; return; }
+  let html = "", cur = "";
+  for (const v of voices){
+    const i = voiceInfo.get(v.name);
+    if (i.code !== cur){ if (cur) html += "</optgroup>"; html += `<optgroup label="${i.flag} ${i.country}">`; cur = i.code; }
+    html += `<option value="${v.name.replace(/"/g,'&quot;')}">${i.label}</option>`;
+  }
+  sel.innerHTML = html + "</optgroup>";
   if (chosenVoice) sel.value = chosenVoice.name;
+  if (settings.random && round.length && !wordVoice) pickWordVoice();
+  renderAccent();
+}
+// Random accents mode: a new voice for every word, never the same country twice in a row.
+let wordVoice = null, lastRegion = null, accentShown = false;
+function pickWordVoice(){
+  if (!voices.length){ wordVoice = null; return; }
+  let pool = voices.filter(v=>voiceInfo.get(v.name).code !== lastRegion);
+  if (!pool.length) pool = voices;
+  wordVoice = pool[Math.floor(Math.random()*pool.length)];
+  lastRegion = voiceInfo.get(wordVoice.name).code;
+}
+function activeVoice(){ return settings.random && wordVoice ? wordVoice : chosenVoice; }
+function renderAccent(){
+  const box = $("accent");
+  box.hidden = !settings.random;
+  $("voice").disabled = settings.random;
+  if (!settings.random) return;
+  const i = wordVoice && voiceInfo.get(wordVoice.name);
+  if (!i){ box.innerHTML = `<span class="label">Accent</span> No voices`; return; }
+  const show = settings.hints || accentShown;
+  box.innerHTML = `<span class="label">Accent</span> <span class="flag">${show ? i.flag : "?"}</span> <span>${show ? i.country : "Guess where!"}</span>`;
 }
 function say(text, opts){
   const u = new SpeechSynthesisUtterance(text);
-  u.lang = chosenVoice ? chosenVoice.lang : "en-US";
-  if (chosenVoice) u.voice = chosenVoice;
+  const v = activeVoice();
+  u.lang = v ? v.lang : "en-US";
+  if (v) u.voice = v;
   u.rate = opts && opts.rate || 0.9; u.pitch = 1;
   speechSynthesis.speak(u);
 }
@@ -426,6 +457,7 @@ function check(){
   const guess = typed.map(t=>t.c).join("");
   if (same(guess, w)){
     locked = true; renderSlots("solved");
+    accentShown = true; renderAccent();
     const first = tries === 0;
     if (first){ known[w] = true; saveKnown(); }
     results.push({w, first});
@@ -441,6 +473,7 @@ function check(){
     if (tries >= 2){
       locked = true;
       $("msg").textContent = `It's spelled "${w}". Let's build it together.`;
+      accentShown = true; renderAccent();
       setTimeout(()=>{ // fill correct answer for practice
         while (typed.length) removeLast();
         for (const ch of w){
@@ -488,6 +521,7 @@ $("clear").onclick = ()=>{ if(locked) return; while(typed.length) removeLast(); 
 $("check").onclick = check;
 $("sw-hints").onclick = ()=>toggleSetting("hints");
 $("sw-spaces").onclick = ()=>toggleSetting("spaces");
+$("sw-random").onclick = ()=>toggleSetting("random");
 document.addEventListener("keydown", e=>{
   if ($("play").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest && e.target.closest(".lvl,summary,.switch")) { if (e.key==="Enter"||e.key===" ") return; }
