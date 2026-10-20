@@ -1,5 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Frameline Movie Editor</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&family=JetBrains+Mono:wght@500&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Bebas+Neue&family=Caveat:wght@400;700&display=swap">
 <style>
@@ -24,7 +28,9 @@
   --music:#69c38b; --music-soft:#1d3628; --cap:#e2a44a; --cap-soft:#3a2d1b;
   --ctx:#b08cff; --ctx-soft:#2d2546; --rowbg:#1c212b; --monitor:#05060a; --danger:#ff7b72; color-scheme:dark}
 
-html,body{height:100%}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+img{max-width:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:13px;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0;box-sizing:border-box}
 *,*::before,*::after{box-sizing:border-box}
@@ -162,6 +168,8 @@ textarea.txt{background:var(--panel2);border:1px solid var(--line);border-radius
 @media (prefers-reduced-motion:reduce){#toast{transition:none}}
 </style>
 
+</head>
+<body>
 <div class="app">
   <header class="appbar">
     <div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="20" rx="4" fill="var(--accent)"/><g fill="var(--panel2)"><rect x="6" y="8.5" width="2.5" height="2.5" rx=".6"/><rect x="6" y="14.75" width="2.5" height="2.5" rx=".6"/><rect x="6" y="21" width="2.5" height="2.5" rx=".6"/><rect x="23.5" y="8.5" width="2.5" height="2.5" rx=".6"/><rect x="23.5" y="14.75" width="2.5" height="2.5" rx=".6"/><rect x="23.5" y="21" width="2.5" height="2.5" rx=".6"/><path d="M13.5 11.5v9l7-4.5z"/></g></svg>Frameline</div>
@@ -282,7 +290,7 @@ const clipVideos=new Map();
 let project=null, TL={items:[],total:0}, sel=null, tab='home', isSample=false;
 let ui={quality:720,thumbs:'large',zoom:1};
 let t=0, playing=false, playStartT=0, playStartAc=0, playStartPerf=0, playUntil=null, onPlaybackEnd=null;
-let history=[], future=[], pendingEdit=false;
+let hist=[], future=[], pendingEdit=false;
 let ac=null, master=null, recDest=null, videoBus=null, musicBus=null, musicNodes=[];
 
 function setRes(){const [a,b]=project.aspect==='4:3'?[4,3]:[16,9];W=Math.round(H*a/b/2)*2;
@@ -462,12 +470,12 @@ function seek(v){t=clamp(v,0,TL.total);if(playing){playStartT=t;playStartAc=ac.c
 function updatePlayBtn(){const b=$('#bPlay');b.innerHTML=ic(playing?'pause':'play');b.setAttribute('aria-label',playing?'Pause':'Play')}
 function updateTransport(){$('#tc').innerHTML=`<b>${fmt(t)}</b> / ${fmt(TL.total)}`;const s=$('#scrub');if(document.activeElement!==s||playing)s.value=TL.total?Math.round(t/TL.total*1000):0}
 
-/* ---------- history ---------- */
+/* ---------- hist ---------- */
 function snap(){return JSON.stringify(project)}
-function pushHistory(){history.push(snap());if(history.length>80)history.shift();future=[];updateUndo()}
-function undo(){if(!history.length)return;future.push(snap());project=JSON.parse(history.pop());afterLoad()}
-function redo(){if(!future.length)return;history.push(snap());project=JSON.parse(future.pop());afterLoad()}
-function updateUndo(){$('#undoBtn').disabled=!history.length;$('#redoBtn').disabled=!future.length}
+function pushHistory(){hist.push(snap());if(hist.length>80)hist.shift();future=[];updateUndo()}
+function undo(){if(!hist.length)return;future.push(snap());project=JSON.parse(hist.pop());afterLoad()}
+function redo(){if(!future.length)return;hist.push(snap());project=JSON.parse(future.pop());afterLoad()}
+function updateUndo(){$('#undoBtn').disabled=!hist.length;$('#redoBtn').disabled=!future.length}
 function afterLoad(){if(sel&&!selObj())sel=null;setRes();invalidate(true);applyMix();$('#projName').value=project.name}
 
 function invalidate(ribbonToo){computeTimeline();t=clamp(t,0,TL.total);
@@ -576,7 +584,7 @@ function updateDrag(tn,cy){const d=dragS;
   else{const arr=d.type==='caption'?project.captions:project.music,o=arr.find(x=>x.id===d.id);o.start=Math.max(0,Math.round((d.orig+tn-d.t0)*10)/10);
     renderBoard();rowsEl.querySelectorAll(`[data-id="${d.id}"]`).forEach(n=>n.classList.add('dragging'));requestRender()}}
 function endDrag(d){if(d.type==='clip'&&d.idx!=null){const from=project.clips.findIndex(c=>c.id===d.id);const[c]=project.clips.splice(from,1);project.clips.splice(d.idx,0,c)}
-  else if(d.type==='clip'){history.pop()}invalidate(true)}
+  else if(d.type==='clip'){hist.pop()}invalidate(true)}
 
 boardEl.addEventListener('dragover',e=>{if([...e.dataTransfer.types].includes('Files')){e.preventDefault();boardEl.classList.add('dropping')}});
 boardEl.addEventListener('dragleave',()=>boardEl.classList.remove('dropping'));
@@ -867,3 +875,6 @@ getDownloads();
 loadSample(false);
 if(document.fonts){FONTS.forEach(f=>{document.fonts.load(`700 40px "${f}"`).catch(()=>{});document.fonts.load(`400 40px "${f}"`).catch(()=>{})});document.fonts.ready.then(()=>requestRender());document.fonts.addEventListener&&document.fonts.addEventListener('loadingdone',()=>requestRender())}
 </script>
+
+</body>
+</html>
