@@ -230,6 +230,7 @@ canvas.w3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-
     </div>
     <div class="spacer"></div>
     <button class="pill" id="voiceBtn" aria-pressed="true">Voice on</button>
+    <button class="pill" id="fsBtn" aria-label="Full screen">⛶ Full screen</button>
     <button class="pill" id="meBtn">Me</button>
     <button class="pill" id="mapBtn">Town map</button>
     <button class="pill" id="passBtn">Career Passport</button>
@@ -308,7 +309,7 @@ const $=s=>document.querySelector(s);
 // Picks the most natural voice the device offers (neural / enhanced voices first, novelty voices never),
 // reads one sentence at a time for natural pauses, and strips emoji and symbols that sound odd aloud.
 const hasTTS='speechSynthesis' in window;
-let VOICES=[],voice=null;
+let VOICES=[],ALLV=[],voice=null;
 function voiceScore(v){
   if(!/^en/i.test(v.lang))return -1;
   const n=v.name.toLowerCase();let sc=0;
@@ -326,7 +327,7 @@ function loadVoices(){
   const all=speechSynthesis.getVoices();
   let list=all.filter(v=>voiceScore(v)>=0);
   if(!list.length)list=all.filter(v=>/^en/i.test(v.lang));
-  VOICES=list.sort((a,b)=>voiceScore(b)-voiceScore(a));
+  VOICES=list.sort((a,b)=>voiceScore(b)-voiceScore(a));ALLV=all.filter(v=>/^en/i.test(v.lang));
   voice=VOICES.find(v=>v.voiceURI===S.voiceURI)||VOICES[0]||null;
   if(!$('#scene').hidden&&$('#voiceSel'))voicePanel();
 }
@@ -336,15 +337,26 @@ function speakable(t){
     .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}]/gu,'')
     .replace(/[·•]/g,',').replace(/\s*…\s*/g,'. ').replace(/\s+/g,' ').trim();
 }
-function say(text){
+// every character gets their own voice: a different device voice where possible, plus their own pitch and pace
+const FEMALE=/samantha|karen|moira|tessa|ava|allison|susan|zoe|victoria|fiona|serena|female|aria|jenny|emma|michelle|libby|sonia|natasha|kate|joanna|salli|kimberly|ivy|amy|olivia|nicky|catherine|hazel|zira|veena|kathy|princess|vicki/i;
+const MALE=/daniel|alex|fred|\btom\b|aaron|arthur|\bmale|guy|ryan|christopher|eric|evan|nathan|thomas|oliver|rishi|george|david|mark|james|matthew|joey|justin|gordon|lee|reed|eddy|rocko/i;
+const GENDER={'Officer Rivera':'f','Mr. Okafor':'m','Baker Sam':'m','Chef Arjun':'m','Captain Mei':'f','Nurse Tomás':'m','Dr. Lin':'f','Dr. Ama':'f','Mr. Haru':'m','Builder Rosa':'f','Kai':'m','Jade':'f','Farmer Ines':'f','Ms. Patel':'f','Ranger Kofi':'m','Jo':'f','Mr. Rossi':'m','Ms. Ade':'f','Dee':'f','Ana':'f','Dr. Mia':'f','Mr. Green':'m','Maya':'f','Luis':'m','Zoe':'f','Mr. Kim':'m','Priya':'f'};
+const hashS=t=>[...String(t)].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7);
+function voiceFor(p){if(!p)return null;const n=p.name||p.n||'';const g=GENDER[n]||(hashS(n)%2?'f':'m'),h=hashS(n);
+  const pool=VOICES.filter(v=>(g==='f'?FEMALE:MALE).test(v.name)&&!(g==='f'?MALE:FEMALE).test(v.name)),list=pool.length?pool:VOICES;
+  const base=g==='f'?1.08:.86,shift=pool.length?0:(g==='f'?.18:-.22);
+  return {voice:list.length?list[h%list.length]:null,pitch:Math.max(.3,Math.min(1.8,base+shift+((h>>>3)%5-2)*.06)),rate:.92+((h>>>6)%4)*.04}}
+function robotVoice(){const rv=ALLV.find(v=>/zarvox|trinoids|robot/i.test(v.name))||ALLV.find(v=>/albert|ralph|fred/i.test(v.name));return {voice:rv||null,pitch:rv?1:.2,rate:rv?1:1.12,robot:true}}
+function say(text,prof){
   if(!S.voice||!hasTTS)return;
   try{
     speechSynthesis.cancel();
+    if(prof&&prof.robot){[1200,800,1500].forEach((f,i)=>setTimeout(()=>tone(f,.07,'square'),i*70))}
     const parts=speakable(text).match(/[^.!?]+[.!?]+["”']?|[^.!?]+$/g)||[];
     parts.forEach((p,i)=>{p=p.trim();if(!p)return;
       const u=new SpeechSynthesisUtterance(p);
-      if(voice){u.voice=voice;u.lang=voice.lang}else u.lang='en-US';
-      u.rate=S.rate||.95;u.pitch=1;u.volume=1;
+      const vv=prof&&prof.voice?prof.voice:voice;if(vv){u.voice=vv;u.lang=vv.lang}else u.lang='en-US';
+      u.rate=(S.rate||.95)*(prof?prof.rate:1);u.pitch=prof?prof.pitch:1;u.volume=1;
       speechSynthesis.speak(u)});
     if(speechSynthesis.paused)speechSynthesis.resume();
   }catch(e){}
@@ -641,6 +653,17 @@ JOBS.push(
   summary:'You sorted recycling, compost and trash, caught cans on the line, and handled a battery safely.',
   duty:'Recycling workers collect and sort materials, keep the town clean, and help turn old things into new ones.'}
 );
+JOBS.push({id:'delivery',name:'Delivery Driver',place:'Delivery Depot',icon:'📦',body:'#c0783c',roof:'#6e3c16',
+  mentor:{name:'Dee',skin:'#8a5a3b',hair:'#1b1210',hat:'mail',shirt:'#b5652b',long:true},
+  intro:["Hey! I'm <b>Dee</b>, and I drive a delivery truck.","Delivery drivers bring packages from the <b>warehouse</b> to homes and businesses all over town. People count on us to be <b>on time</b>.","Ready? Let's load up and hit the road!"],
+  words:[['delivery','Bringing something to the person who needs it.','📦'],['warehouse','A big building where things are stored before they are sent out.','🏭'],['scanner','A tool that reads the barcode on a package.','📟'],['signature','Your name written to show you got something.','✍️'],['on time','Arriving when you said you would.','⏰'],['fragile','Easy to break, so handle it with care.','🥚']],
+  tasks:[
+   {type:'order',label:'Load',title:'Load the truck',lead:'Drivers follow steps to load safely. Tap them in order.',tag:'solving',steps:[['📟','Scan each package'],['🏠','Check every address'],['🏋️','Put heavy boxes on the bottom'],['🥚','Put fragile boxes on top'],['🔒','Close and lock the door']],win:'Truck loaded! Careful loading means nothing gets squished.'},
+   {type:'sort',label:'Handle',title:'Fragile or sturdy?',lead:'Some packages need extra care. Sort each one.',tag:'safety',bins:[['🥚','Fragile'],['🧱','Sturdy']],items:[['🏺','A glass vase',0,'Glass breaks easily, so it is fragile.'],['📚','A box of books',1,'Books are sturdy and heavy.'],['🥚','A carton of eggs',0,'Eggs crack easily!'],['🔧','A box of tools',1,'Tools are tough and sturdy.'],['💡','Light bulbs',0,'Light bulbs are glass, so handle with care.'],['👟','A pair of shoes',1,'Shoes can handle a few bumps.']],win:'Every package is handled the right way.'},
+   {type:'build',label:'Pack',title:'Pack the orders',lead:'Read each order and pack the right things in the box.',tag:'people',ingredients:[['📚','book'],['👟','shoe'],['🧸','teddy'],['🎮','game'],['🧦','sock'],['🪴','plant']],rounds:[['book','teddy'],['shoe','shoe','sock'],['game','plant','book']],who:['Mrs. Kim','Coach Ray','Grandma Rose'],win:'Every order was packed just right!'}],
+  problem:{text:'Nobody answers the door, and the package needs a signature. <b>What do you do?</b>',opts:[['Leave a note and bring the package back to try again later',1,'Yes! A note tells them you came, and the package stays safe.'],['Leave it on the sidewalk',0,'It could get lost or taken. Keep it safe and try again.'],['Toss it over the fence',0,'It might break! Leave a note and try again later.']]},
+  summary:'You loaded your truck, delivered packages all over town, and kept every delivery safe.',
+  duty:'Delivery drivers follow a route, handle packages with care, deliver on time, and are friendly to every customer.'});
 const JOB=Object.fromEntries(JOBS.map(j=>[j.id,j]));
 JOBS.forEach(j=>j.words&&addWords(j.words));
 const TAGS={people:'helping people',safety:'keeping people safe',creating:'creating things',solving:'solving problems',nature:'working with animals and nature',building:'building and fixing things'};
@@ -663,7 +686,7 @@ function near(){return BUILD.find(b=>b.kind!=='park'&&Math.abs(P.x-doorX(b))<52)
 // ---------- art ----------
 // Storybook town: soft sky, three parallax layers, ink-outlined buildings with a facade style per kind of workplace.
 const INK='#22263a';
-const STYLE={librarian:'civic',ranger:'house',mail:'modern',grocer:'shop',recycle:'garage',teacher:'civic',baker:'shop',chef:'shop',police:'civic',fire:'garage',nurse:'civic',vet:'shop',scientist:'modern',electrician:'modern',builder:'garage',musician:'marquee',creator:'marquee',farmer:'barn'};
+const STYLE={delivery:'garage',librarian:'civic',ranger:'house',mail:'modern',grocer:'shop',recycle:'garage',teacher:'civic',baker:'shop',chef:'shop',police:'civic',fire:'garage',nurse:'civic',vet:'shop',scientist:'modern',electrician:'modern',builder:'garage',musician:'marquee',creator:'marquee',farmer:'barn'};
 BUILD.forEach(b=>b.style=b.kind==='home'?'house':(STYLE[b.id]||'modern'));
 const ROOF_UP={house:66,civic:52,barn:16,shop:16,garage:16,modern:44,marquee:16};
 function shade(hex,amt){const n=parseInt(hex.slice(1),16),c=[n>>16,n>>8&255,n&255].map(v=>Math.round(amt<0?v*(1+amt):v+(255-v)*amt));return `rgb(${c})`}
@@ -974,7 +997,7 @@ function mentorLines(lines,done,{title='',btn='Next',scene=''}={}){
   let i=0;
   const draw=()=>{body.innerHTML=`${scene?sceneArt(scene):''}${title?`<h2>${title}</h2>`:''}<div class="mentor">${mentorSVG()}<div class="bubble" id="bub">${lines[i]}</div></div>
     <div class="row"><button class="btn" id="nx">${i<lines.length-1?'Next':btn}</button><button class="btn ghost" id="rp">Hear again</button></div>`;
-    paintArt();say(lines[i]);$('#rp').onclick=()=>say(lines[i]);$('#nx').onclick=()=>{i++;i<lines.length?draw():done()};$('#nx').focus()};
+    paintArt();say(lines[i],voiceFor(curMentor));$('#rp').onclick=()=>say(lines[i],voiceFor(curMentor));$('#nx').onclick=()=>{i++;i<lines.length?draw():done()};$('#nx').focus()};
   draw();
 }
 function wordCards(keys){return `<div class="words">${keys.map(k=>`<button class="word" data-w="${k}"><span class="w">${WORDS[k][0]}<span class="speak">Hear it</span></span><span class="m">${WORDS[k][1]}</span></button>`).join('')}</div>`}
@@ -1220,9 +1243,9 @@ function stationMenu(job){
   else tiles=job.tasks.map((t,i)=>tile(`data-t="${i}"`,taskIcon(t),t.title,TYPE_INFO[t.type][0])).join('')
     +tile('data-g="memory"','🃏','Word match',`Match ${job.name.toLowerCase()} words to pictures${b['memory-'+job.id]?` · best: ${b['memory-'+job.id]} tries`:''}`);
   body.innerHTML=`${sceneArt(job.id)}<div class="mentor">${mentorSVG()}<div class="bubble">Hi${nm()}! I'm <b>${job.mentor.name}</b>. Want to work a shift as ${art(job.name)} <b>${job.name.toLowerCase()}</b>, or try a quick game?</div></div>
-    <div class="menu"><button class="tile main" id="gShift"><span class="e">${job.icon}</span><b>${got?'Work another shift':'Work a shift'}</b><small>About ${job.id==='police'?10:6} minutes${got?' · badge earned':` · earn the ${job.name.toLowerCase()} badge`}</small></button>${tiles}</div>`;
-  paintArt();say(`Hi${S.name?' '+S.name:''}! I'm ${job.mentor.name}. Want to work a shift, or try a quick game?`);
-  $('#gShift').onclick=()=>applyFor(job,()=>job.id==='police'?startShift():jobShift(job));
+    <div class="menu"><button class="tile main" id="gShift"><span class="e">${job.icon}</span><b>${job.id==='delivery'&&W3D.on?(got?'Start another delivery route':'Start a delivery route'):(got?'Work another shift':'Work a shift')}</b><small>${job.id==='delivery'&&W3D.on?'Deliver 5 packages around town':`About ${job.id==='police'?10:6} minutes`}${got?' · badge earned':` · earn the ${job.name.toLowerCase()} badge`}</small></button>${tiles}</div>`;
+  paintArt();say(`Hi${S.name?' '+S.name:''}! I'm ${job.mentor.name}. Want to work a shift, or try a quick game?`,voiceFor(job.mentor));
+  $('#gShift').onclick=()=>applyFor(job,()=>job.id==='police'?startShift():job.id==='delivery'&&W3D.on?routeBriefing(job):jobShift(job));
   body.querySelectorAll('[data-t]').forEach(t=>t.onclick=()=>{$('#jobTag').textContent=job.name;runTask(job.tasks[+t.dataset.t])});
   body.querySelectorAll('[data-g]').forEach(t=>t.onclick=()=>{const g=t.dataset.g;
     if(g==='memory')return job.id==='police'?memoryGame():memoryGame(job.words.map(w=>[w[0],w[2]]),'memory-'+job.id);
@@ -1489,11 +1512,11 @@ function jobShift(job){
 function jobProblem(job,done){const p=job.problem;
   body.innerHTML=`<h2>Something comes up</h2><div class="mentor">${mentorSVG()}<div class="bubble">${p.text}</div></div>
     <div class="q" id="opts">${shuffle(p.opts.map((o,i)=>i)).map(i=>`<button class="choice" data-i="${i}">${p.opts[i][0]}</button>`).join('')}</div><div id="pfb"></div>`;
-  say(p.text);
+  say(p.text,voiceFor(job.mentor));
   body.querySelectorAll('#opts .choice').forEach(b=>b.onclick=()=>{const o=p.opts[+b.dataset.i];
     if(o[1]){body.querySelectorAll('#opts .choice').forEach(x=>x.disabled=true);b.classList.add('right');
-      $('#pfb').innerHTML=`<div class="note good">${o[2]}</div><div class="row"><button class="btn" id="nx">Finish the shift</button></div>`;say(o[2]);$('#nx').onclick=done;$('#nx').focus()}
-    else{b.classList.add('wrongc');$('#pfb').innerHTML=`<div class="note soft">${o[2]}</div>`;say(o[2])}})}
+      $('#pfb').innerHTML=`<div class="note good">${o[2]}</div><div class="row"><button class="btn" id="nx">Finish the shift</button></div>`;say(o[2],voiceFor(curMentor));$('#nx').onclick=done;$('#nx').focus()}
+    else{b.classList.add('wrongc');$('#pfb').innerHTML=`<div class="note soft">${o[2]}</div>`;say(o[2],voiceFor(job.mentor))}})}
 function jobDebrief(job){
   const ks=job.words.map(w=>w[0]);let favTag=null;
   body.innerHTML=`<h2>Shift complete!</h2><div class="mentor">${mentorSVG()}<div class="bubble">Great work today${nm()}! ${job.summary}</div></div>
@@ -1502,7 +1525,7 @@ function jobDebrief(job){
       <button class="chip" data-v="loved">Loved it</button><button class="chip" data-v="ok">It was OK</button><button class="chip" data-v="no">Not for me</button></div></div>
     <div class="q"><span class="lbl">Which part did you like most?</span><div class="chips" id="fav">${job.tasks.map(t=>`<button class="chip" data-v="${t.tag}">${t.title}</button>`).join('')}<button class="chip" data-v="people">Helping someone</button></div></div>
     <div class="row"><button class="btn blue" id="nx">Get my badge</button></div>`;
-  say('Shift complete! '+job.summary);
+  say('Shift complete! '+job.summary,voiceFor(job.mentor));
   const pick=(id,cb)=>body.querySelectorAll(`#${id} .chip`).forEach(b=>b.onclick=()=>{body.querySelectorAll(`#${id} .chip`).forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(b.dataset.v)});
   pick('react',v=>{S.reactions[job.id]=v;save()});pick('fav',v=>favTag=v);
   $('#nx').onclick=()=>{
@@ -1698,7 +1721,7 @@ function start3D(){
   const LBL=(b,x,y,z)=>{const s=new THREE.Sprite(new THREE.SpriteMaterial({map:labelTex(b),depthWrite:false}));s.scale.set(3.6,2.67,1);s.position.set(x,y,z);scene.add(s);LABELS.push({s,b,y});return s};
   const emojiTex=(e,ring)=>canvasTex(128,128,(g,w,h)=>{if(ring){g.fillStyle='#ffe27a';g.strokeStyle='#22263a';g.lineWidth=7;g.beginPath();g.arc(64,64,54,0,7);g.fill();g.stroke()}g.font='72px sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(e,64,70)});
   const emojiSprite=(e,s=1.2,ring=false)=>{const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:emojiTex(e,ring),depthWrite:false}));sp.scale.set(s,s,1);scene.add(sp);return sp};
-  const info=(msg,word)=>{toast(msg);say(msg);if(word){addWords([word]);learn(word[0])}};
+  const info=(msg,word,prof)=>{toast(msg);say(msg,prof);if(word){addWords([word]);learn(word[0])}};
   function signPost(x,z,lines,bg,w=4.4){const t=canvasTex(512,256,(g,W,H)=>{g.fillStyle=bg;g.beginPath();g.roundRect(6,6,W-12,H-12,26);g.fill();g.lineWidth=8;g.strokeStyle='#22263a';g.stroke();
       g.fillStyle='#fffaf0';g.textAlign='center';g.textBaseline='middle';g.font='700 76px Fredoka, sans-serif';g.fillText(lines[0],W/2,H*.37);g.font='600 42px Fredoka, sans-serif';g.fillText(lines[1]||'',W/2,H*.74)});
     const grp=new THREE.Group();grp.position.set(x,0,z);scene.add(grp);[-1,1].forEach(s=>box(.2,2.3,.2,M('#8a5a34'),s*w*.36,1.15,0,grp));
@@ -1826,8 +1849,17 @@ function start3D(){
     if(id==='recycle')binStation(cx-6.5,cz+8)}));
   binStation(33,11.6);binStation(-31,-20.4);binStation(-31,43.6);
   BC.forEach(cx=>BC.forEach(cz=>{lamp3D(cx-10.9,cz+10.9);lamp3D(cx+10.9,cz+10.9)}));
+  // delivery depot on the west edge, joined to the ring road by a driveway
+  {const DX=-104,DZ=0;lot(DX,DZ,'#b8c3cf');makeBuilding(BUILD.find(x=>x.id==='delivery'),DX,DZ-3,1);
+   const dw=mesh(new THREE.PlaneGeometry(10,7),asphalt,-88,.03,DZ+8.5,scene,{shadow:false});dw.rotation.x=-Math.PI/2;
+   function truck(x,z,rot){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);box(4.2,2.6,2.3,M('#f4f1ea'),-.8,1.75,0,g);box(1.9,1.8,2.2,M('#c0783c'),2.2,1.35,0,g);box(.1,.8,1.9,glassM,3.16,1.8,0,g,{edge:false});
+     const lt=canvasTex(256,96,(c,w,h)=>{c.fillStyle='#f4f1ea';c.fillRect(0,0,w,h);c.fillStyle='#c0783c';c.font='700 46px Fredoka, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('📦 Delivery',w/2,h/2+3)});
+     box(3.4,1.1,.05,new THREE.MeshBasicMaterial({map:lt}),-.8,1.9,1.18,g,{edge:false});[[-2,1.1],[2,1.1],[-2,-1.1],[2,-1.1]].forEach(([a,d])=>{const w=mesh(new THREE.CylinderGeometry(.48,.48,.3,14),M('#2b2f40'),a,.48,d,g,{hull:.04});w.rotation.x=Math.PI/2});COLLIDE.push({x,z,hw:3.2,hd:3.2})}
+   truck(DX-6.5,DZ+7.6,0);truck(DX+7.5,DZ+7.6,Math.PI);
+   for(let i=0;i<5;i++)box(.9,.8,.9,M('#c99a5e'),DX-8+(i%3)*1,.4+Math.floor(i/3)*.8,DZ-6,scene);
+   tree3D(DX-10,DZ-10,.8);tree3D(DX+10,DZ-10,.8);lamp3D(DX+10.9,DZ+10.9)}
   // countryside around the model town
-  for(let i=0;i<90;i++){const a=rnd(i)*Math.PI*2,r=100+rnd(i+30)*50;tree3D(Math.cos(a)*r,Math.sin(a)*r,.8+rnd(i+7)*.7)}
+  for(let i=0;i<90;i++){const a=rnd(i)*Math.PI*2,r=100+rnd(i+30)*50,tx=Math.cos(a)*r,tz=Math.sin(a)*r;if(Math.hypot(tx+104,tz)<20)continue;tree3D(tx,tz,.8+rnd(i+7)*.7)}
   const pastel=['#f2a65a','#ef7aa7','#7fcdf0','#ffd65a','#9fdc8f','#c9a0f0','#f4f1ea'];
   for(let i=0;i<12;i++){const a=i/12*Math.PI*2+.25,r=190+rnd(i)*25,R=46+rnd(i+3)*22,hx=Math.cos(a)*r,hz=Math.sin(a)*r;
     const hill=mesh(new THREE.SphereGeometry(R,28,16),M(i%2?'#9fdc95':'#86cc80'),hx,-R*.42,hz,scene,{shadow:false});hill.scale.y=.62;
@@ -1979,7 +2011,7 @@ function start3D(){
     if(Z.state==='hide'){zero.position.y=Math.abs(Math.sin(T*2))*.05;u.bodyG.rotation.x=Math.sin(T*1.5)*.04;
       if(!builderOpen&&Math.hypot(pl.x-Z.x,pl.z-Z.z)<2.7){S.zeroFound=(S.zeroFound||0)+1;save();Z.bubble=3.8;
         const first=S.zeroFound===1,line=first?"You found me! I'm Zero! You got me, I'll go find a new place to hide!":"You got me! I'll go find a new place to hide!";
-        toast(`🤖 ${line} (Found Zero ${S.zeroFound} ${S.zeroFound===1?'time':'times'})`);say(line);[880,1320,990,1480].forEach((f,i)=>setTimeout(()=>tone(f,.09,'square'),i*90));
+        toast(`🤖 ${line} (Found Zero ${S.zeroFound} ${S.zeroFound===1?'time':'times'})`);say(line,robotVoice());[880,1320,990,1480].forEach((f,i)=>setTimeout(()=>tone(f,.09,'square'),i*90));
         let dx=Z.x-pl.x,dz=Z.z-pl.z;const d=Math.hypot(dx,dz)||1;Z.vx=dx/d;Z.vz=dz/d;Z.state='roll';Z.t=2.2;zero.rotation.y=Math.atan2(Z.vx,Z.vz)}}
     else if(Z.state==='roll'){Z.t-=dt;Z.x+=Z.vx*7*dt;Z.z+=Z.vz*7*dt;zero.position.set(Z.x,0,Z.z);u.wheel.rotation.x+=dt*16;u.bodyG.rotation.x=.25;
       if(Z.t<.4)zero.scale.setScalar(Math.max(.01,Z.t/.4));
@@ -2018,7 +2050,7 @@ function start3D(){
   $('#zIn').onclick=()=>{zoom=Math.max(14,zoom-8)};$('#zOut').onclick=()=>{zoom=Math.min(80,zoom+8)};
   $('#enter3d').onclick=()=>enter3D();
   function nearT(){let best=null,bd=3.2;TRIGGERS.forEach(t=>{const d=Math.hypot(pl.x-t.x,pl.z-t.z);if(d<bd){bd=d;best=t}});return best}
-  function enter3D(){if(!$('#scene').hidden||builderOpen)return;const t=nearT();if(!t){const f=nearFolk();if(f){f.talk=5;info(f.R.line);return}toast('Walk up to a door first, or open the Town map.');return}
+  function enter3D(){if(!$('#scene').hidden||builderOpen)return;const t=nearT();if(!t){const f=nearFolk();if(f){f.talk=5;info(f.R.line,null,voiceFor(f.R));return}toast('Walk up to a door first, or open the Town map.');return}
     keys3.f=keys3.b=keys3.l=keys3.r=0;if(t.act){t.act();return}if(t.info){toast(t.info);say(t.info);if(t.word){addWords([t.word]);learn(t.word[0])}return}if(!t.b.id){openBuilder();return}stationMenu(JOB[t.b.id])}
   W3D.goTo=id=>{const t=TRIGGERS.find(t=>t.b.id===id||t.key===id);if(!t)return;pl.x=t.x;pl.z=t.z+t.face*(fp?2.4:1.2);pl.rot=t.face>0?Math.PI:0;camPos.set(pl.x,camH,pl.z+camH*.38);camLook.set(pl.x,0,pl.z-1);return t.b.name};
   W3D.refresh=()=>{LABELS.forEach(l=>{l.s.material.map.dispose();l.s.material.map=labelTex(l.b);l.s.material.needsUpdate=true})};
@@ -2037,22 +2069,29 @@ function start3D(){
     {item:'📚',name:'library books',from:'librarian',to:'home',fact:'Libraries let everyone borrow books for free, and librarians help you find them.'},
     {item:'♻️',name:'the recycling',from:'home',to:'recycle',fact:'Recycling workers turn old cans, paper and bottles into new things.'},
     {item:'🗳️',name:'a ballot',from:'townhall',to:'creator',fact:'Video creators and reporters help people learn what is happening in their town.'}];
-  let qPhase='pickup',qItem=null,qWait=0,qTxt='';S.quest=S.quest||0;
+  let qPhase='pickup',qItem=null,qWait=0,qTxt='',route=null;
   const findT=k=>TRIGGERS.find(t=>t.key===k||(t.b&&t.b.id===k)||(k==='home'&&t.b&&t.b.kind==='home'));
   const placeTxt=k=>k==='home'?'your home':'the '+((findT(k)||{b:{name:k}}).b.name);
-  const qMark=emojiSprite('⭐',2.6,true),qArrowG={visible:false,position:{set(){}},rotation:{}};
+  const qMark=emojiSprite('⭐',2.6,true);
   const qBeam=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,40,20,1,true),new THREE.MeshBasicMaterial({color:0xffd23d,transparent:true,opacity:.22,depthWrite:false,side:THREE.DoubleSide}));scene.add(qBeam);
-
-  function updateQuest(dt){const q=QUESTS[S.quest%QUESTS.length];let txt;
-    if(qWait>0){qWait-=dt;qMark.visible=qArrowG.visible=qBeam.visible=false;txt='<b>Town task</b><div>Great job! A new task is coming…</div>'}
-    else{const tgt=findT(qPhase==='pickup'?q.from:q.to);if(!tgt)return;
-      qMark.visible=qBeam.visible=true;qMark.position.set(tgt.x,6+Math.sin(T*3)*.3,tgt.z-1.4);qBeam.position.set(tgt.x,20,tgt.z-1.4);qBeam.material.opacity=.16+Math.sin(T*3)*.06;
-      const dx=tgt.x-pl.x,dz=tgt.z-pl.z,d=Math.hypot(dx,dz);qArrowG.visible=d>6&&!fp&&!builderOpen;qArrowG.position.set(pl.x,0,pl.z);qArrowG.rotation.y=Math.atan2(dx,dz);
-      if(d<3.2&&!builderOpen){if(qPhase==='pickup'){qPhase='deliver';qItem=emojiSprite(q.item,1.3);tone(600,.12,'triangle');info(`You picked up ${q.name}. Now bring it to ${placeTxt(q.to)}!`)}
-        else{scene.remove(qItem);qItem=null;qPhase='pickup';S.questsDone=(S.questsDone||0)+1;S.quest=(S.quest+1)%QUESTS.length;save();qWait=5;[660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle'),i*120));info(`Delivered! ${q.fact}`)}}
-      txt=`<b>Town task</b><div>${qPhase==='pickup'?`Pick up ${q.item} ${q.name} at ${placeTxt(q.from)}`:`Bring ${q.item} ${q.name} to ${placeTxt(q.to)}`}</div>`}
+  W3D.startRoute=()=>{route={list:shuffle(QUESTS.slice()).slice(0,5),i:0};qPhase='pickup';qWait=0;S.outfit='delivery';save();
+    info('Your route has 5 deliveries. Follow the glowing beam to each pickup and drop-off. Watch for cars and use the crosswalks!',['route','The path you follow to get somewhere.','🗺️'])};
+  W3D.routeOn=()=>!!route;W3D.rdbg=()=>route?{i:route.i,n:route.list.length,ph:qPhase,w:qWait,q:route.list.map(q=>q.from+'>'+q.to)}:null;
+  W3D.routeTarget=()=>{if(!route)return null;const q=route.list[route.i],t=findT(qPhase==='pickup'?q.from:q.to);return [t.x,t.z]};
+  function updateQuest(dt){const stats=`<div class="stats">⭐ ${S.tokens.length}/12 words · ♻️ ${S.sorted||0} sorted · 📦 ${S.questsDone||0} deliveries · 🤖 Zero found ${S.zeroFound||0}</div>`;let txt;
+    if(!route){qMark.visible=qBeam.visible=false;txt=`<b>Town explorer</b><div>Want to deliver packages? Visit the 📦 Delivery Depot on the west side of town.</div>${stats}`}
+    else{const q=route.list[route.i];
+      if(qWait>0){qWait-=dt;qMark.visible=qBeam.visible=false;txt=`<b>Delivery route ${route.i+1} of 5</b><div>Great job! Your next package is coming…</div>`}
+      else{const tgt=findT(qPhase==='pickup'?q.from:q.to);if(!tgt)return;
+        qMark.visible=qBeam.visible=true;qMark.position.set(tgt.x,6+Math.sin(T*3)*.3,tgt.z-1.4);qBeam.position.set(tgt.x,20,tgt.z-1.4);qBeam.material.opacity=.16+Math.sin(T*3)*.06;
+        const d=Math.hypot(tgt.x-pl.x,tgt.z-pl.z);
+        if(d<3.2&&!builderOpen){if(qPhase==='pickup'){qPhase='deliver';qItem=emojiSprite(q.item,1.3);tone(600,.12,'triangle');info(`You picked up ${q.name}. Now bring it to ${placeTxt(q.to)}!`)}
+          else{scene.remove(qItem);qItem=null;qPhase='pickup';S.questsDone=(S.questsDone||0)+1;save();route.i++;[660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle'),i*120));
+            if(route.i>=route.list.length){route=null;qMark.visible=qBeam.visible=false;info(`Delivered! ${q.fact} That was your last delivery. Route complete!`);{const tryFin=()=>{$('#scene').hidden&&!builderOpen?finishRoute():setTimeout(tryFin,1000)};setTimeout(tryFin,2600)}}
+            else{qWait=4;info(`Delivered! ${q.fact}`)}}}
+        if(route)txt=`<b>Delivery route ${route.i+1} of 5</b><div>${qPhase==='pickup'?`Pick up ${q.item} ${q.name} at ${placeTxt(q.from)}`:`Bring ${q.item} ${q.name} to ${placeTxt(q.to)}`}</div>`}
+      if(txt)txt+=stats;else txt=qTxt}
     if(qItem)qItem.position.set(pl.x,3.5+Math.sin(T*4)*.08,pl.z);
-    txt+=`<div class="stats">⭐ ${S.tokens.length}/12 words · ♻️ ${S.sorted||0} sorted · 📦 ${S.questsDone||0} tasks · 🤖 Zero found ${S.zeroFound||0}</div>`;
     if(txt!==qTxt){qTxt=txt;$('#quest3d').innerHTML=txt}}
   W3D.places=()=>[['townhall','🏛️','Town Hall'],['pond','🦆','Duck pond'],['garden','🌻','Community garden'],['playground','🛝','Playground'],['sports','⚽','Sports field'],['construction','🚧','Construction site']];
   // see-through cutaway for buildings between the player and the camera
@@ -2067,7 +2106,7 @@ function start3D(){
   let last=performance.now(),T=0,lastNear=null;
   function collide(){for(const c of COLLIDE){if(c.circle){const dx=pl.x-c.x,dz=pl.z-c.z,d=Math.hypot(dx,dz),m=c.r+.5;if(d<m&&d>0){pl.x=c.x+dx/d*m;pl.z=c.z+dz/d*m}continue}
       const ox=c.hw+.5-Math.abs(pl.x-c.x),oz=c.hd+.5-Math.abs(pl.z-c.z);if(ox>0&&oz>0){if(ox<oz)pl.x+=Math.sign(pl.x-c.x)*ox;else pl.z+=Math.sign(pl.z-c.z)*oz}}
-    pl.x=Math.max(-90,Math.min(90,pl.x));pl.z=Math.max(-90,Math.min(90,pl.z))}
+    pl.x=Math.max(pl.z>-14&&pl.z<14?-118:-90,Math.min(90,pl.x));pl.z=Math.max(-90,Math.min(90,pl.z))}
   function loop(now){requestAnimationFrame(loop);
     const dt=Math.min(.05,(now-last)/1000);last=now;
     if(!$('#scene').hidden)return;
@@ -2164,7 +2203,7 @@ function openBuilder(){
     if(W3D.on)W3D.draft({...draft});else previewKid()};
   b.onclick=e=>{const t=e.target.closest('[data-k]');if(!t)return;const k=t.dataset.k;draft[k]=k==='glasses'?t.dataset.v==='1':t.dataset.v;draw()};
   $('#bRand').onclick=()=>{const p=a=>a[Math.random()*a.length|0];draft={skin:p(LOOKS.skins),hair:p(LOOKS.hairs),style:p(LOOKS.styles)[0],shirt:p(LOOKS.shirts),pants:p(LOOKS.pants),glasses:Math.random()<.3};draw()};
-  $('#bGo').onclick=()=>{S.look={...draft};S.name=$('#bName').value.trim().slice(0,16)||'Explorer';save();b.hidden=true;paused=false;W3D.on&&W3D.builder(false);W3D.on&&W3D.draft(null);
+  $('#bGo').onclick=()=>{goFull();S.look={...draft};S.name=$('#bName').value.trim().slice(0,16)||'Explorer';save();b.hidden=true;paused=false;W3D.on&&W3D.builder(false);W3D.on&&W3D.draft(null);
     const m=`Welcome to Career Town, ${S.name}! Walk to any door to try a job. Psst, Zero the robot is hiding somewhere in town. Can you find him?`;toast(m);say(m)};
   draw();say("Let's make your explorer! Type your name and pick how you want to look.");
   setTimeout(()=>$('#bName').focus(),50);
@@ -2205,6 +2244,7 @@ const APPLY={
   ranger:{s:['Knowing nature','Safety rules','Teaching'],t:['Responsible','Calm'],xs:['Typing','Baking','Video editing'],xt:['Fancy','Loud']},
   mail:{s:['Reading addresses','Map reading','Walking far'],t:['Reliable','Friendly'],xs:['Painting','Singing','Science'],xt:['Dreamy','Silly']},
   grocer:{s:['Math','Talking with people','Organizing'],t:['Friendly','Helpful'],xs:['Climbing','Drawing','Fixing'],xt:['Daring','Quiet']},
+  delivery:{s:['Map reading','Lifting safely','Driving'],t:['Reliable','Friendly'],xs:['Painting','Singing','Science'],xt:['Dreamy','Silly']},
   recycle:{s:['Sorting','Teamwork','Safety rules'],t:['Responsible','Hard-working'],xs:['Singing','Writing stories','Dancing'],xt:['Fancy','Dreamy']}};
 addWords([['application','A form you fill out to ask for a job.','📝'],['skill','Something you have learned to do well.','🛠️'],['trait','A quality that describes how you act and treat others.','🌟'],['hired','Chosen to do a job.','🤝']]);
 function applyFor(job,start){
@@ -2234,7 +2274,7 @@ function applyFor(job,start){
   const hired=()=>{S.hired.push(job.id);save();['application','skill','trait','hired'].forEach(learn);
     body.innerHTML=`${sceneArt(job.id)}<div class="mentor">${mentorSVG()}<div class="bubble">Great application${nm()}! ${art(job.name)[0].toUpperCase()+art(job.name).slice(1)} ${job.name.toLowerCase()} needs <b>${A.s.join(', ').toLowerCase()}</b>, and someone <b>${A.t.join(' and ').toLowerCase()}</b>. <b>You're hired!</b></div></div>
       <div class="row"><button class="btn" id="aStart">Start my first shift</button></div>`;
-    paintArt();const m=`Great application! You're hired!`;say(m);[660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle'),i*120));$('#aStart').onclick=start;$('#aStart').focus()};
+    paintArt();const m=`Great application! You're hired!`;say(m,voiceFor(job.mentor));[660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,.15,'triangle'),i*120));$('#aStart').onclick=start;$('#aStart').focus()};
   draw();say(`Before you can work here, fill out a job application. Pick the skills and traits ${art(job.name)} ${job.name.toLowerCase()} needs most.`);
 }
 function earnSkills(job){const A=APPLY[job.id];if(!A)return '';S.skills=S.skills||{};S.traits=S.traits||{};
@@ -2242,6 +2282,18 @@ function earnSkills(job){const A=APPLY[job.id];if(!A)return '';S.skills=S.skills
   return `<div class="earned"><div><b>🛠️ Skills you practiced</b><div class="chips">${A.s.map(v=>`<span class="chip got">${v}${S.skills[v]>1?` ×${S.skills[v]}`:''}</span>`).join('')}</div></div>
     <div><b>🌟 Traits you showed</b><div class="chips">${A.t.map(v=>`<span class="chip got">${v}${S.traits[v]>1?` ×${S.traits[v]}`:''}</span>`).join('')}</div></div>
     <p class="lead" style="margin:0">They're saved in your Career Passport. Skills you collect here will help with other job applications too!</p></div>`}
+function routeBriefing(job){curJob=job;curMentor=job.mentor;openScene();$('#jobTag').textContent=job.name;setStep(0,['Briefing','Route','Debrief']);
+  mentorLines([...job.intro,"Your truck is loaded with 5 deliveries. Follow the glowing beam to each stop. I'll see you back here when you're done!"],()=>{closeScene();W3D.startRoute()},{title:'Delivery route briefing',scene:job.id,btn:'Start my route'})}
+function finishRoute(){const job=JOB.delivery;curJob=job;curMentor=job.mentor;openScene();$('.card').style.setProperty('--jobc',job.roof);$('#jobTag').textContent=job.name;setStep(2,['Briefing','Route','Debrief']);
+  const ks=job.words.map(w=>w[0]);ks.forEach(learn);jobDebrief(job)}
+// ---------- full screen ----------
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+function goFull(){const el=document.documentElement,req=el.requestFullscreen||el.webkitRequestFullscreen;if(!req||fsEl())return;
+  try{const r=req.call(el,{navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+function exitFull(){const ex=document.exitFullscreen||document.webkitExitFullscreen;try{const r=ex&&ex.call(document);if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+const syncFs=()=>{const b=$('#fsBtn');b.textContent=fsEl()?'⛶ Exit full screen':'⛶ Full screen';b.hidden=!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen)};
+$('#fsBtn').onclick=()=>{fsEl()?exitFull():goFull()};
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{syncFs();dispatchEvent(new Event('resize'))}));syncFs();
 // ---------- passport + map ----------
 $('#passBtn').onclick=()=>{
   openScene();$('#steps').innerHTML='';$('#jobTag').textContent='Career Passport';$('.card').style.setProperty('--jobc','#1f4fa3');
