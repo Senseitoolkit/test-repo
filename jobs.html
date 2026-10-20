@@ -190,6 +190,13 @@ canvas.w3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-
 .chip.on .have{color:#e3f5ea}
 .earned{background:var(--card);border:3px dashed var(--line);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .earned b{font-family:var(--display)}
+.mapwrap{overflow:auto;border:3px solid var(--ink);border-radius:18px;background:#9fdc8f;box-shadow:0 4px 0 var(--line);max-height:72vh}
+.townmap{display:block;width:100%;min-width:760px;height:auto}
+.townmap .mp{cursor:pointer}
+.townmap .mp:hover .foot,.townmap .mp:focus .foot{stroke:#ffc23d;stroke-width:1.4}
+.townmap .mp:focus{outline:none}
+.townmap .you{animation:blink 1.2s ease-in-out infinite}
+@keyframes blink{50%{opacity:.45}}
 .vbar{display:grid;grid-template-columns:minmax(0,1fr) 2fr auto;gap:10px;align-items:center;font-weight:700}
 .vtrack{height:16px;background:var(--card);border:2px solid var(--ink);border-radius:999px;overflow:hidden}
 .vfill{height:100%;background:var(--police)}
@@ -1758,7 +1765,7 @@ function start3D(){
     box(2.4,3.8,.3,M('#7f8a99'),0,1.9,fz+.14,g);box(6.4,1.1,.25,M('#e9e4da'),0,H-1,fz+.15,g);
     signPost(gx+3.5,cz+8.8,['FOR SALE','Open your own shop!'],'#d23f37');
     LBL({icon:'🏷️',name:'For sale'},gx,H+3,gz);
-    TRIGGERS.push({b:{name:'Shop for sale'},x:gx,z:gz+fz+2.4,face:1,prompt:'Shop for sale · Press Enter to look',
+    TRIGGERS.push({key:'sale',b:{name:'Shop for sale'},x:gx,z:gz+fz+2.4,face:1,prompt:'Shop for sale · Press Enter to look',
       info:'This shop is for sale! A person who starts their own business is called an entrepreneur. What kind of shop would you open here?',word:['entrepreneur','A person who starts their own business.','💡']});
     const lx=cx+6.3;box(8.2,.2,17,M('#c9a06a'),lx,.1,cz,scene,{edge:false,shadow:false});
     for(let i=0;i<16;i++)mesh(new THREE.ConeGeometry(.16,.7,5),M(i%3?'#5cbf6a':'#86cc80'),lx-3.4+rnd(i)*6.8,.42,cz-7.5+rnd(i+20)*14,scene);
@@ -1766,7 +1773,7 @@ function start3D(){
     [[-2,-6,.5],[2.5,2,.35],[-1,5,.4]].forEach(([a,b,r])=>mesh(new THREE.IcosahedronGeometry(r,0),M('#a9b2bf'),lx+a,r*.6,cz+b,scene,{hull:.06}));
     signPost(lx,cz+6.2,['EMPTY LOT','What could go here?'],'#25915a',4);
     LBL({icon:'🌱',name:'Empty lot'},lx,6.5,cz);
-    TRIGGERS.push({b:{name:'Empty lot'},x:lx,z:cz+9.2,face:1,prompt:'Empty lot · Press Enter to look',
+    TRIGGERS.push({key:'lot',b:{name:'Empty lot'},x:lx,z:cz+9.2,face:1,prompt:'Empty lot · Press Enter to look',
       info:'An empty lot. Someday it could be a home, a shop or a garden. An architect draws the plans, and builders make them real! Vote at Town Hall for what to build.',word:['architect','A person who designs buildings and draws their plans.','📐']});
   }
   function townHall(cx,cz){lot(cx,cz,'#b7e3a8');
@@ -1843,13 +1850,76 @@ function start3D(){
   }
   function binStation(x,z){[['#3a7bd5','♻️',0],['#4caf5f','🍂',1],['#7f8a99','🗑️',2]].forEach(([c,e,k],i)=>{const bx=x+(i-1)*1.5;box(1.2,1.5,1.2,M(c),bx,.75,z,scene);box(1.35,.18,1.35,M(shade(c,-.25)),bx,1.56,z,scene);
     const sp=emojiSprite(e,1.1,true);sp.position.set(bx,2.5,z);BINS.push({x:bx,z,k})});COLLIDE.push({x,z,hw:2.3,hd:.7})}
-  const GRID=[['police','fire','nurse','vet','mail'],['teacher','scientist','librarian','electrician','builder'],['baker','chef','townhall','home','sale'],['grocer','musician','creator','park','garden'],['playground','sports','construction','recycle','farmer']];
+  const GRID=[['farmer','vet','garden','recycle','builder'],['scientist','librarian','mail','electrician','construction'],['park','teacher','townhall','baker','nurse'],['playground','sports','grocer','chef','fire'],['home','musician','creator','sale','police']];
   GRID.forEach((row,r)=>row.forEach((id,c)=>{const cx=BC[c],cz=BC[r];
     const special={construction,sale:forSale,townhall:townHall,park:parkBlock,garden:gardenBlock,playground,sports:sportsField}[id];if(special)return special(cx,cz);
     const b=id==='home'?BUILD.find(x=>x.kind==='home'):BUILD.find(x=>x.id===id);lot(cx,cz);makeBuilding(b,cx,cz-3,1);
     tree3D(cx-9.6,cz-9.6,.72);tree3D(cx+9.6,cz-9.6,.72);if(id!=='home')bush3D(cx-7.6,cz+5.4);
     if(id==='recycle')binStation(cx-6.5,cz+8)}));
-  binStation(33,11.6);binStation(-31,-20.4);binStation(-31,43.6);
+  // ---------- landmarks: statue, street signs, welcome signs ----------
+  const blockOf=id=>{for(let r=0;r<5;r++)for(let c=0;c<5;c++)if(GRID[r][c]===id)return [BC[c],BC[r]];return [0,0]};
+  {const [hx,hz]=blockOf('townhall'),sx=hx+6.2,sz=hz+6.6,stone=M('#c9ccd3');
+    box(2.2,.5,2.2,M('#a9adb3'),sx,.25,sz,scene);box(1.6,1.4,1.6,stone,sx,1.2,sz,scene);
+    const st=makeKid({skin:'#c9ccd3',hair:'#b8bcc4',shirt:'#c9ccd3',pants:'#b8bcc4',style:'short'},'none');st.position.set(sx,1.9,sz);st.scale.setScalar(1.15);
+    st.traverse(o=>{if(o.isMesh&&o.material!==HULL)o.material=o.material===M('#22263a')?M('#9aa0aa'):stone});animKid(st,0,false,{wave:true});scene.add(st);
+    const pl=canvasTex(256,96,(c,w,h)=>{c.fillStyle='#d9b44a';c.fillRect(0,0,w,h);c.fillStyle='#5a4010';c.font='700 30px Fredoka, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText('To every helper',w/2,34);c.fillText('who built our town',w/2,68)});
+    box(1.3,.5,.05,new THREE.MeshBasicMaterial({map:pl}),sx,1.2,sz+.83,scene,{edge:false});COLLIDE.push({circle:true,x:sx,z:sz,r:1.3});
+    TRIGGERS.push({key:'statue',b:{name:'Town statue'},x:sx,z:sz+2.3,face:1,prompt:'Town statue · Press Enter to read the plaque',
+      act:()=>info('The plaque says: "To every helper who built our town." A statue like this is called a monument. It honors people who helped the community, like builders, teachers and nurses.',['monument','A statue or building that helps people remember someone important.','🗽'])})}
+  const STREETS={z:{'-80':'North Rd','-48':'Oak St','-16':'Maple St','16':'Main St','48':'Pine St','80':'South Rd'},x:{'-80':'West Ave','-48':'School Ave','-16':'1st Ave','16':'2nd Ave','48':'Market Ave','80':'East Ave'}};
+  const bladeTex=n=>canvasTex(256,64,(c,w,h)=>{c.fillStyle='#2a8a4a';c.fillRect(0,0,w,h);c.strokeStyle='#fffaf0';c.lineWidth=4;c.strokeRect(4,4,w-8,h-8);c.fillStyle='#fffaf0';c.font='700 34px Fredoka, sans-serif';c.textAlign='center';c.textBaseline='middle';c.fillText(n,w/2,h/2+2)});
+  [-48,-16,16,48].forEach(X=>[-48,-16,16,48].forEach(Z=>{const x=X-4.5,z=Z-4.5;box(.1,3.2,.1,M('#7f8a99'),x,1.6,z,scene,{edge:false});
+    const a=new THREE.MeshBasicMaterial({map:bladeTex(STREETS.z[Z])}),b=new THREE.MeshBasicMaterial({map:bladeTex(STREETS.x[X])}),gm=M('#2a8a4a');
+    mesh(new THREE.BoxGeometry(2.4,.6,.06),[gm,gm,gm,gm,a,a],x,3.1,z,scene,{edge:true});const bb=mesh(new THREE.BoxGeometry(2.4,.6,.06),[gm,gm,gm,gm,b,b],x,2.4,z,scene,{edge:true});bb.rotation.y=Math.PI/2;COLLIDE.push({circle:true,x,z,r:.25})}));
+  const welcome=(x,z,rot)=>{const t=canvasTex(512,256,(c,w,h)=>{c.fillStyle='#3e7a3a';c.beginPath();c.roundRect(8,8,w-16,h-16,30);c.fill();c.lineWidth=10;c.strokeStyle='#fffaf0';c.stroke();c.fillStyle='#fffaf0';c.textAlign='center';c.textBaseline='middle';
+      c.font='600 36px Fredoka, sans-serif';c.fillText('Welcome to',w/2,64);c.font='700 76px Fredoka, sans-serif';c.fillText('Career Town',w/2,130);c.font='600 30px Fredoka, sans-serif';c.fillText('Where every job matters',w/2,196)});
+    const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);[-2.6,2.6].forEach(a=>box(.3,3.2,.3,M('#8a5a34'),a,1.6,0,g));const sm=new THREE.MeshBasicMaterial({map:t}),fm=M('#3e7a3a');
+    mesh(new THREE.BoxGeometry(6.4,3.2,.25),[fm,fm,fm,fm,sm,sm],0,3.6,0,g,{edge:true});bush3D(x-4,z);bush3D(x+4,z);COLLIDE.push({circle:true,x,z,r:3})};
+  // ---------- roads out of town, forest, lakes, a river with a bridge ----------
+  const ROUTES=[{axis:'x',at:16,from:-84,to:-225},{axis:'x',at:-16,from:84,to:225},{axis:'z',at:-16,from:-84,to:-225},{axis:'z',at:16,from:84,to:225}];
+  ROUTES.forEach(R=>{const len=Math.abs(R.to-R.from),mid=(R.to+R.from)/2;
+    const rd=mesh(new THREE.PlaneGeometry(R.axis==='x'?len:8,R.axis==='x'?8:len),asphalt,R.axis==='x'?mid:R.at,.022,R.axis==='x'?R.at:mid,scene,{shadow:false});rd.rotation.x=-Math.PI/2;
+    for(let p=R.from+Math.sign(R.to-R.from)*6;Math.abs(p)<Math.abs(R.to);p+=Math.sign(R.to-R.from)*4){R.axis==='x'?box(2,.04,.3,dashM,p,.045,R.at,scene,{edge:false,shadow:false}):box(.3,.04,2,dashM,R.at,.045,p,scene,{edge:false,shadow:false})}
+    const sg=Math.sign(R.to-R.from);welcome(R.axis==='x'?R.from+sg*15:R.at+10.5,R.axis==='x'?R.at+9.5:R.from+sg*15,0)});
+  const riverX=z=>134+9*Math.sin(z/34),water=M('#4fa9de',{emissive:new THREE.Color('#1d5f8a'),emissiveIntensity:.12}),sand=M('#e8d6a8');
+  for(let z=-230;z<230;z+=5){const x=riverX(z),x2=riverX(z+5),ang=Math.atan2(x2-x,5);const seg=mesh(new THREE.BoxGeometry(10,.1,5.6),water,(x+x2)/2,.05,z+2.5,scene,{shadow:false});seg.rotation.y=ang;
+    const bank=mesh(new THREE.BoxGeometry(13,.06,5.6),sand,(x+x2)/2,.03,z+2.5,scene,{shadow:false});bank.rotation.y=ang;
+    if(Math.abs(z+2.5+16)>8)COLLIDE.push({circle:true,x:(x+x2)/2,z:z+2.5,r:5.2})}
+  {const bx=riverX(-16),g=new THREE.Group();g.position.set(bx,0,-16);scene.add(g);const wood=M('#c77d43'),stoneB=M('#b8bcc4');
+    box(18,.5,8.6,stoneB,0,.25,0,g);box(14,.3,8,wood,0,.55,0,g);for(let i=-6;i<=6;i+=2)box(.3,.32,8,M('#a8642f'),i,.72,0,g,{edge:false});
+    [-4.2,4.2].forEach(zz=>{box(16,.25,.25,wood,0,1.6,zz,g);for(let i=-7;i<=7;i+=1.75)box(.25,1.3,.25,wood,i,1,zz,g)});
+    [-8.6,8.6].forEach(xx=>box(1.2,1.2,9.2,stoneB,xx,.4,0,g));
+    TRIGGERS.push({key:'bridge',b:{name:'River bridge'},x:bx,z:-11.5,face:1,prompt:'River bridge · Press Enter to look',
+      act:()=>info('This bridge lets people and cars cross the river. Civil engineers design bridges, and construction workers build them strong enough to hold heavy trucks!',['bridge','A structure that carries a road or path over water or a valley.','🌉'])})}
+  const LAKES=[[-150,-118,22,'Mirror Lake'],[172,92,15,'Pine Lake'],[-128,142,18,'Sunny Lake'],[-170,40,14,'Frog Pond'],[60,-160,16,'Blue Lake'],[175,-120,13,'Echo Pond']];
+  LAKES.forEach(([x,z,r,name],i)=>{mesh(new THREE.CylinderGeometry(r+2.4,r+2.8,.12,40),sand,x,.06,z,scene,{shadow:false});const w=mesh(new THREE.CylinderGeometry(r,r,.16,40),water,x,.08,z,scene,{shadow:false});
+    for(let k=0;k<10;k++){const a=k/10*Math.PI*2+i;mesh(new THREE.ConeGeometry(.18,1.4,5),M('#5a9a3a'),x+Math.cos(a)*(r+1),.7,z+Math.sin(a)*(r+1),scene,{shadow:false})}
+    for(let k=0;k<5;k++){const a=rnd(k+i*7)*Math.PI*2,d=rnd(k+i*3)*r*.7;const lp=mesh(new THREE.CylinderGeometry(.7,.7,.05,12),M('#5cbf6a'),x+Math.cos(a)*d,.18,z+Math.sin(a)*d,scene,{shadow:false});if(k===0)mesh(new THREE.SphereGeometry(.22,8,6),M('#ff8fb1'),x+Math.cos(a)*d,.35,z+Math.sin(a)*d,scene,{shadow:false})}
+    const dk=box(2,.25,6,M('#c77d43'),x,.35,z+r-1.5,scene);[-1,1].forEach(s=>box(.2,.8,.2,M('#8a5a34'),x+s*.9,.2,z+r+1.2,scene,{edge:false}));
+    COLLIDE.push({circle:true,x,z,r:r+.4});
+    signPost(x+r*.7+3,z+r+3,[name,'No swimming without an adult'],'#2f6db5',4.4);
+    TRIGGERS.push({key:'lake'+i,b:{name},x,z:z+r+3.2,face:1,prompt:`${name} · Press Enter to look`,
+      act:()=>info(`${name}! Lakes are habitats for fish, frogs and birds. Park rangers and scientists check that the water stays clean and healthy.`,['habitat','The natural home where an animal lives.','🏞️'])})});
+  // forest of pines, drawn with instancing so it stays fast
+  const nearRoad=(x,z,m)=>ROUTES.some(R=>R.axis==='x'?(Math.abs(z-R.at)<m&&Math.sign(x)===Math.sign(R.to)&&Math.abs(x)>80):(Math.abs(x-R.at)<m&&Math.sign(z)===Math.sign(R.to)&&Math.abs(z)>80));
+  const PINES=[];for(let i=0;PINES.length<950&&i<6000;i++){const x=(rnd(i*3+1)-.5)*460,z=(rnd(i*3+2)-.5)*460,R=Math.hypot(x,z);
+    if(Math.max(Math.abs(x),Math.abs(z))<100||R>225)continue;if(nearRoad(x,z,7))continue;if(Math.hypot(x+104,z)<22)continue;if(Math.abs(x-riverX(z))<10)continue;
+    if(LAKES.some(([lx,lz,lr])=>Math.hypot(x-lx,z-lz)<lr+5))continue;if(PINES.some(p=>Math.hypot(p[0]-x,p[1]-z)<4.2))continue;
+    const close=nearRoad(x,z,26);if(!close&&rnd(i+999)<.45)continue;PINES.push([x,z,.85+rnd(i*5)*.6])}
+  {const tg=new THREE.CylinderGeometry(.35,.5,2.4,5),c1=new THREE.ConeGeometry(2.4,3.6,7),c2=new THREE.ConeGeometry(1.7,3,7),hc1=new THREE.ConeGeometry(2.55,3.75,7),hc2=new THREE.ConeGeometry(1.84,3.15,7);
+    const n=PINES.length,mk=(geo,mat,y)=>{const im=new THREE.InstancedMesh(geo,mat,n);im.userData.y=y;im.frustumCulled=false;scene.add(im);return im};
+    const parts=[mk(tg,M('#8a5a34'),1.2),mk(c1,M('#3f8f4f'),3.6),mk(c2,M('#4caf5f'),5.6),mk(hc1,HULL,3.6),mk(hc2,HULL,5.6)];
+    const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),pos=new THREE.Vector3(),sc=new THREE.Vector3();
+    PINES.forEach(([x,z,s],i)=>{parts.forEach(p=>{pos.set(x,p.userData.y*s,z);sc.set(s,s,s);q.setFromAxisAngle(new THREE.Vector3(0,1,0),i);m4.compose(pos,q,sc);p.setMatrixAt(i,m4)});COLLIDE.push({circle:true,x,z,r:.7*s})});
+    parts.forEach(p=>p.instanceMatrix.needsUpdate=true)}
+  [[-110,-40],[-120,60],[112,40],[-60,-118],[30,120],[110,-60],[-150,-90],[150,80]].forEach(([x,z],i)=>tree3D(x,z,.9+rnd(i)*.3));
+  // far hills with little houses, beyond the forest
+  const pastel=['#f2a65a','#ef7aa7','#7fcdf0','#ffd65a','#9fdc8f','#c9a0f0','#f4f1ea'];
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2+.25,r=275+rnd(i)*25,R=52+rnd(i+3)*22,hx=Math.cos(a)*r,hz=Math.sin(a)*r;
+    const hill=mesh(new THREE.SphereGeometry(R,28,16),M(i%2?'#9fdc95':'#86cc80'),hx,-R*.42,hz,scene,{shadow:false});hill.scale.y=.62;
+    for(let k=0;k<3;k++){const d=R*(.15+k*.22),ang=a+Math.PI+(k-1)*.5,x=hx+Math.cos(ang)*d,z=hz+Math.sin(ang)*d,y=-R*.42+.62*Math.sqrt(Math.max(0,R*R-d*d));
+      box(3,2.6,3,M(pastel[(i+k)%7]),x,y+1.1,z,scene);const roof=mesh(new THREE.ConeGeometry(2.5,1.8,4),M(['#b85c3c','#7a59c9','#3a7bd5'][k]),x,y+3.3,z,scene,{edge:true});roof.rotation.y=Math.PI/4}}
+  ['home','teacher','grocer'].forEach(id=>{const [a,b]=blockOf(id);binStation(a+1,b+11.6)});
   BC.forEach(cx=>BC.forEach(cz=>{lamp3D(cx-10.9,cz+10.9);lamp3D(cx+10.9,cz+10.9)}));
   // delivery depot on the west edge, joined to the ring road by a driveway
   {const DX=-104,DZ=0;lot(DX,DZ,'#b8c3cf');makeBuilding(BUILD.find(x=>x.id==='delivery'),DX,DZ-3,1);
@@ -1860,13 +1930,6 @@ function start3D(){
    truck(DX-6.5,DZ+7.6,0);truck(DX+7.5,DZ+7.6,Math.PI);
    for(let i=0;i<5;i++)box(.9,.8,.9,M('#c99a5e'),DX-8+(i%3)*1,.4+Math.floor(i/3)*.8,DZ-6,scene);
    tree3D(DX-10,DZ-10,.8);tree3D(DX+10,DZ-10,.8);lamp3D(DX+10.9,DZ+10.9)}
-  // countryside around the model town
-  for(let i=0;i<90;i++){const a=rnd(i)*Math.PI*2,r=100+rnd(i+30)*50,tx=Math.cos(a)*r,tz=Math.sin(a)*r;if(Math.hypot(tx+104,tz)<20)continue;tree3D(tx,tz,.8+rnd(i+7)*.7)}
-  const pastel=['#f2a65a','#ef7aa7','#7fcdf0','#ffd65a','#9fdc8f','#c9a0f0','#f4f1ea'];
-  for(let i=0;i<12;i++){const a=i/12*Math.PI*2+.25,r=190+rnd(i)*25,R=46+rnd(i+3)*22,hx=Math.cos(a)*r,hz=Math.sin(a)*r;
-    const hill=mesh(new THREE.SphereGeometry(R,28,16),M(i%2?'#9fdc95':'#86cc80'),hx,-R*.42,hz,scene,{shadow:false});hill.scale.y=.62;
-    for(let k=0;k<3;k++){const d=R*(.15+k*.22),ang=a+Math.PI+(k-1)*.5,x=hx+Math.cos(ang)*d,z=hz+Math.sin(ang)*d,y=-R*.42+.62*Math.sqrt(Math.max(0,R*R-d*d));
-      box(3,2.6,3,M(pastel[(i+k)%7]),x,y+1.1,z,scene);const roof=mesh(new THREE.ConeGeometry(2.5,1.8,4),M(['#b85c3c','#7a59c9','#3a7bd5'][k]),x,y+3.3,z,scene,{edge:true});roof.rotation.y=Math.PI/4}}
   // ---------- collectible town words ----------
   const TOKEN_WORDS=[['community','People who live, work and help each other in one place.','🏘️'],['citizen','A member of a town or country.','🧑‍🤝‍🧑'],['volunteer','Someone who helps others for free.','🙌'],['neighbor','Someone who lives near you.','🏡'],['teamwork','Working together to reach a goal.','🤝'],['earn','To get money for doing work.','💰'],['save','To keep money to use later.','🐷'],['goal','Something you work hard to reach.','🎯'],['skill','Something you have learned to do well.','🛠️'],['career','The work a person does for many years.','💼'],['interview','A meeting where someone asks questions, like for a job.','🎤'],['practice','Doing something again and again to get better.','🔁']];
   const TOKEN_POS=[[0,1],[0,3],[1,0],[1,4],[2,1],[1,2],[3,0],[3,2],[3,4],[4,1],[4,3],[2,4]].map(([r,c])=>[BC[c]+4,BC[r]+11.2]);
@@ -1931,9 +1994,9 @@ function start3D(){
     WALKERS.push({k,cx:bc[0],cz:bc[1],s:rnd(i+11)*80,dir:i%2?1:-1,v:1.6+rnd(i+4)*.8,ph:rnd(i)*9,dog:i%5===0?makeDog(['#c77d43','#f4f1ea','#3b2418','#e8c46e'][i%4]):null})}
   // kids on the swings, runners on the field, people resting on benches
   SWINGS.forEach((sw,i)=>{const k=seatKid(makeKid(randLook(i+30)),-3.92);k.scale.setScalar(.8);sw.g.add(k)});
-  [[-32,64,0],[-32,64,Math.PI]].forEach(([cx,cz,p],i)=>{const k=makeKid(randLook(i+40));scene.add(k);RUNNERS.push({k,cx:cx+3,cz:cz-1,p})});
-  [[37.5,32+3.4,0],[37.5,32+5.6,Math.PI]].forEach(([x,z,r],i)=>{const k=seatKid(makeKid(randLook(i+50)),.08);k.position.set(x,.08,z);k.rotation.y=r;scene.add(k)});
-  bench(5.5,8,0);{const k=seatKid(makeKid({...PEOPLE[2],style:'short'}),-.22);k.position.set(5.5,-.22,8.1);scene.add(k)}
+  (()=>{const [a,b]=blockOf('sports');return [[a,b,0],[a,b,Math.PI]]})().forEach(([cx,cz,p],i)=>{const k=makeKid(randLook(i+40));scene.add(k);RUNNERS.push({k,cx:cx+3,cz:cz-1,p})});
+  (()=>{const [a,b]=blockOf('park');return [[a+5.5,b+3.4,0],[a+5.5,b+5.6,Math.PI]]})().forEach(([x,z,r],i)=>{const k=seatKid(makeKid(randLook(i+50)),.08);k.position.set(x,.08,z);k.rotation.y=r;scene.add(k)});
+  bench(-4.5,8.4,0);{const k=seatKid(makeKid({...PEOPLE[2],style:'short'}),-.22);k.position.set(-4.5,-.22,8.5);scene.add(k)}
   // a town bus with shelters, and kids riding bikes
   const busG=new THREE.Group();scene.add(busG);box(7.6,2.3,2.3,M('#ffc23d'),0,1.55,0,busG);box(7.62,.75,2.32,glassM,0,2.05,0,busG,{edge:false});box(.1,1.3,2,glassM,3.82,1.7,0,busG,{edge:false});
   box(7.7,.18,2.4,M('#e8a400'),0,2.75,0,busG);box(7.62,.25,2.32,M('#3a7bd5'),0,1.05,0,busG,{edge:false});
@@ -1949,13 +2012,14 @@ function start3D(){
   const wingG=new THREE.PlaneGeometry(.38,.3);
   for(let i=0;i<14;i++){const g=new THREE.Group();scene.add(g);const col=['#ff8fb1','#ffd65a','#7fcdf0','#c9a0f0','#f28c28'][i%5];
     const w=[-1,1].map(s=>{const m=new THREE.Mesh(wingG,new THREE.MeshBasicMaterial({color:col,side:THREE.DoubleSide}));m.position.x=s*.19;g.add(m);return m});
-    const spots=[[64,32],[32,32],[-32,64],[0,0],[-64,-32],[64,-64],[-64,32]],sp=spots[i%7];FLUTTER.push({g,w,x:sp[0]+(rnd(i)-.5)*10,z:sp[1]+(rnd(i+5)-.5)*10,a:.3+rnd(i)*.4,b:.25+rnd(i+2)*.4,p:rnd(i+9)*6})}
+    const spots=['garden','park','playground','townhall','vet','farmer','home'].map(blockOf),sp=spots[i%7];FLUTTER.push({g,w,x:sp[0]+(rnd(i)-.5)*10,z:sp[1]+(rnd(i+5)-.5)*10,a:.3+rnd(i)*.4,b:.25+rnd(i+2)*.4,p:rnd(i+9)*6})}
   for(let i=0;i<9;i++){const g=new THREE.Group();scene.add(g);mesh(new THREE.SphereGeometry(.28,8,6),M('#3a4566'),0,0,0,g,{shadow:false});
     const w=[-1,1].map(s=>{const m=box(.9,.06,.4,M('#3a4566'),s*.5,0,0,g,{edge:false,shadow:false});return m});BIRDS3.push({g,w,i})}
   function makeCat(x,y,z,col){const g=new THREE.Group();g.position.set(x,y,z);scene.add(g);const m=M(col);const b=mesh(new THREE.SphereGeometry(.32,10,8),m,0,.3,0,g,{hull:.06});b.scale.set(1,1.1,.85);
     mesh(new THREE.SphereGeometry(.24,10,8),m,0,.72,.08,g,{hull:.06});[-1,1].forEach(s=>{const e=mesh(new THREE.ConeGeometry(.09,.18,4),m,s*.13,.95,.08,g);e.rotation.z=-s*.2});
     const tail=box(.07,.07,.5,m,0,.25,-.38,g,{edge:false});CATS.push(tail);return g}
-  makeCat(-67,1.1,-41.7,'#f28c28');makeCat(29,1.1,-9.7,'#3a3f55');makeCat(61,1.1,-41.7,'#f4f1ea');
+  [['teacher','#f28c28'],['baker','#3a3f55'],['musician','#f4f1ea']].forEach(([id,col])=>{const [a,b]=blockOf(id);makeCat(a-3,1.1,b-9.7,col)});
+  const HOMEB=blockOf('home');
   const smokeM=[0,1,2,3,4,5].map(()=>new THREE.MeshBasicMaterial({color:0xf4f6fa,transparent:true,opacity:.6,depthWrite:false}));
   for(let i=0;i<6;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(.5,10,8),smokeM[i]);scene.add(p);PUFFS.push({p,t:i*.7})}
 
@@ -1996,8 +2060,10 @@ function start3D(){
     g.userData={wheel,bodyG,bolt,pts,armL,armR,segL,segR};
     return g;
   }
-  const ZERO_SPOTS=[[-61,-72.9],[3,-72.9],[67,-72.9],[-23.5,-68],[-3,-40.9],[23.5,-36],[72.5,-36],[-67,-40.9],[-72.5,-4],[-29,-8.9],[3,-8.9],[40.5,-4],[71,-6],[59,-8.6],
-    [-61,23.1],[-23.5,28],[3,23.1],[37.2,22.6],[24.5,37.5],[64,23.4],[-71.5,62],[-21,66],[-7.5,68],[40.5,60],[72.5,60],[-9.8,3.6]];
+  const ZERO_SPOTS=[];GRID.forEach((row,r)=>row.forEach((id,c)=>{const cx=BC[c],cz=BC[r];
+    const sp={park:[[cx+5.2,cz-9.4],[cx-9.2,cz-1.5]],garden:[[cx,cz-8.6]],playground:[[cx-7.5,cz-1.5]],sports:[[cx+11,cz+2]],construction:[[cx-7.5,cz+4]],sale:[[cx-5,cz-8.6],[cx+8.5,cz-6]],townhall:[[cx-9.8,cz+3.6]]}[id];
+    if(sp)ZERO_SPOTS.push(...sp);else ZERO_SPOTS.push((r+c)%2?[cx+3,cz-8.9]:[cx+8.5*(r%2?1:-1),cz-3.2])}));
+  ZERO_SPOTS.push([riverX(-16)-9,-24],[LAKES[0][0]+LAKES[0][2]+4,LAKES[0][1]+6],[LAKES[3][0]+LAKES[3][2]+3,LAKES[3][1]-4],[-98,32],[30,100]);
   const zero=makeZero();scene.add(zero);
   const zBubble=new THREE.Sprite(new THREE.SpriteMaterial({map:canvasTex(512,256,(g,w,h)=>{g.fillStyle='#fffaf0';g.strokeStyle='#22263a';g.lineWidth=10;g.beginPath();g.roundRect(10,10,w-20,h-70,40);g.moveTo(w*.3,h-62);g.lineTo(w*.24,h-12);g.lineTo(w*.42,h-62);g.fill();g.stroke();
     g.fillStyle='#22263a';g.font='700 46px Fredoka, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText('You got me!',w/2,64);g.font='600 32px Fredoka, sans-serif';g.fillText("I'll go find a new",w/2,118);g.fillText('place to hide!',w/2,156)}),depthWrite:false}));
@@ -2095,6 +2161,8 @@ function start3D(){
       if(txt)txt+=stats;else txt=qTxt}
     if(qItem)qItem.position.set(pl.x,3.5+Math.sin(T*4)*.08,pl.z);
     if(txt!==qTxt){qTxt=txt;$('#quest3d').innerHTML=txt}}
+  {const ht=TRIGGERS.find(t=>t.b&&t.b.kind==='home');if(ht)ht.key='home'}
+  W3D.layout={GRID,BC,LINES,ROUTES,LAKES,riverX,PINES,STREETS};
   W3D.places=()=>[['townhall','🏛️','Town Hall'],['pond','🦆','Duck pond'],['garden','🌻','Community garden'],['playground','🛝','Playground'],['sports','⚽','Sports field'],['construction','🚧','Construction site']];
   // see-through cutaway for buildings between the player and the camera
   const FADE=new Map();const fadeMat=m=>{if(Array.isArray(m))return m.map(fadeMat);if(!FADE.has(m)){const c=m.clone();c.transparent=true;c.opacity=.22;c.depthWrite=false;FADE.set(m,c)}return FADE.get(m)};
@@ -2108,10 +2176,14 @@ function start3D(){
   let last=performance.now(),T=0,lastNear=null;
   function collide(){for(const c of COLLIDE){if(c.circle){const dx=pl.x-c.x,dz=pl.z-c.z,d=Math.hypot(dx,dz),m=c.r+.5;if(d<m&&d>0){pl.x=c.x+dx/d*m;pl.z=c.z+dz/d*m}continue}
       const ox=c.hw+.5-Math.abs(pl.x-c.x),oz=c.hd+.5-Math.abs(pl.z-c.z);if(ox>0&&oz>0){if(ox<oz)pl.x+=Math.sign(pl.x-c.x)*ox;else pl.z+=Math.sign(pl.z-c.z)*oz}}
-    pl.x=Math.max(pl.z>-14&&pl.z<14?-118:-90,Math.min(90,pl.x));pl.z=Math.max(-90,Math.min(90,pl.z))}
+    {const R=Math.hypot(pl.x,pl.z);if(R>212){pl.x*=212/R;pl.z*=212/R}}}
+  // adaptive quality: slower devices drop to 1x resolution, then switch off shadows
+  const perf={n:0,sum:0,level:0};
+  function tunePerf(raw){if(perf.level>=2||raw>.5)return;perf.n++;perf.sum+=raw;if(perf.n<90)return;const avg=perf.sum/perf.n;perf.n=0;perf.sum=0;
+    if(avg>1/28){perf.level++;if(perf.level===1){renderer.setPixelRatio(1);resize()}else{renderer.shadowMap.enabled=false;sun.castShadow=false;scene.traverse(o=>{if(o.material){(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true)}})}}else perf.level=2}
   function loop(now){requestAnimationFrame(loop);
-    const dt=Math.min(.05,(now-last)/1000);last=now;
-    if(!$('#scene').hidden)return;
+    const raw=(now-last)/1000,dt=Math.min(.05,raw);last=now;
+    if(!$('#scene').hidden)return;tunePerf(raw);
     T+=dt;
     if(pl.key!==JSON.stringify(builderOpen&&draftLook?draftLook:myLook())+S.outfit)rebuildPlayer(builderOpen&&draftLook?draftLook:myLook());
     // input
@@ -2176,7 +2248,7 @@ function start3D(){
     FLUTTER.forEach(f=>{f.g.position.set(f.x+Math.sin(T*f.a+f.p)*2.6,1.3+Math.sin(T*2.5+f.p)*.5,f.z+Math.cos(T*f.b+f.p)*2.6);const fl=Math.sin(T*22+f.p)*1.1;f.w[0].rotation.y=fl;f.w[1].rotation.y=-fl;f.g.rotation.y=T*f.a});
     BIRDS3.forEach(b=>{const a=T*.12+b.i*.22,r=46+(b.i%3)*3;b.g.position.set(Math.cos(a)*r,24+Math.sin(T+b.i)*.6,Math.sin(a)*r);b.g.rotation.y=-a;const fl=Math.sin(T*9+b.i)*.6;b.w[0].rotation.z=fl;b.w[1].rotation.z=-fl});
     CATS.forEach((t,i)=>{t.rotation.y=Math.sin(T*2+i)*.5});FANS.forEach(f=>{f.rotation.y+=dt*6});
-    PUFFS.forEach(q=>{q.t+=dt;if(q.t>4.2)q.t=0;q.p.position.set(35.8+q.t*.5,10.9+q.t*1.3,-4.6);q.p.scale.setScalar(.45+q.t*.4);q.p.material.opacity=.65*(1-q.t/4.2)});
+    PUFFS.forEach(q=>{q.t+=dt;if(q.t>4.2)q.t=0;q.p.position.set(HOMEB[0]+3.8+q.t*.5,10.9+q.t*1.3,HOMEB[1]-4.6);q.p.scale.setScalar(.45+q.t*.4);q.p.material.opacity=.65*(1-q.t/4.2)});
     xwCool-=dt;
     {const inZone=XZONES.some(q=>pl.x>q.x1&&pl.x<q.x2&&pl.z>q.z1&&pl.z<q.z2);
      const onRoad=LINES.some(l=>Math.abs(pl.z-l)<4)||LINES.some(l=>Math.abs(pl.x-l)<4);
@@ -2316,11 +2388,57 @@ $('#passBtn').onclick=()=>{
   $('#nx').onclick=closeScene;
 };
 function goTo(id){if(W3D.on){const n=W3D.goTo(id);if(n){closeScene();toast(BUILD.some(x=>x.id===id)?`You're at the ${n}. Press Enter to go in!`:`You're at the ${n}. Press Enter to look around!`)}return}const b=BUILD.find(x=>x.id===id);if(!b)return;P.x=doorX(b);cam=Math.max(0,Math.min(WORLD-VW,P.x-VW/2));closeScene();toast(`You're at the ${b.name}. Press Enter to go in!`)}
+function townMapSVG(){
+  const {GRID,BC,LINES,ROUTES,LAKES,riverX,PINES,STREETS}=W3D.layout,me=W3D.pos(),tg=W3D.routeOn()?W3D.routeTarget():null;let o='';
+  const t=(x,y,str,sz=3.2,col='#22263a',w=700)=>`<text x="${x}" y="${y}" font-size="${sz}" font-weight="${w}" text-anchor="middle" fill="${col}" font-family="Fredoka, sans-serif">${str}</text>`;
+  const e=(x,y,str,sz=6)=>`<text x="${x}" y="${y}" font-size="${sz}" text-anchor="middle" dominant-baseline="central">${str}</text>`;
+  const tree=(x,y,r=1.6)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#4caf5f" stroke="#22263a" stroke-width=".35"/>`;
+  const place=(key,inner)=>`<g class="mp" data-go="${key}" tabindex="0" role="button">${inner}</g>`;
+  // ground, countryside, roads
+  o+=`<rect x="-152" y="-112" width="304" height="224" fill="#9fdc8f"/>`;
+  let rv='';for(let z=-112;z<=112;z+=4)rv+=`${riverX(z)},${z} `;o+=`<polyline points="${rv}" fill="none" stroke="#e8d6a8" stroke-width="13"/><polyline points="${rv}" fill="none" stroke="#6fc3ea" stroke-width="10"/>`;
+  LAKES.forEach(([x,z,r,n])=>{o+=`<circle cx="${x}" cy="${z}" r="${r+2.4}" fill="#e8d6a8"/><circle cx="${x}" cy="${z}" r="${r}" fill="#6fc3ea"/>`});
+  PINES.forEach(([x,z,sc])=>{if(Math.abs(x)<152&&Math.abs(z)<112)o+=`<circle cx="${x}" cy="${z}" r="${2.1*sc}" fill="#3f8f4f" stroke="#2c6b3a" stroke-width=".3"/>`});
+  ROUTES.forEach(R=>{const a=Math.min(R.from,R.to),len=Math.abs(R.to-R.from);o+=R.axis==='x'?`<rect x="${a}" y="${R.at-4}" width="${len}" height="8" fill="#6b7488"/><line x1="${a}" y1="${R.at}" x2="${a+len}" y2="${R.at}" stroke="#ffd65a" stroke-width=".5" stroke-dasharray="2 2"/>`:`<rect x="${R.at-4}" y="${a}" width="8" height="${len}" fill="#6b7488"/><line x1="${R.at}" y1="${a}" x2="${R.at}" y2="${a+len}" stroke="#ffd65a" stroke-width=".5" stroke-dasharray="2 2"/>`});
+  {const bx=riverX(-16);o+=`<rect x="${bx-9}" y="-20.3" width="18" height="8.6" rx="1" fill="#c77d43" stroke="#8a5a34" stroke-width=".6"/>${t(bx,-24.5,'🌉 Bridge',3)}`}
+  LAKES.forEach(([x,z,r,n],i)=>{if(Math.abs(x)<150&&Math.abs(z)<110)o+=place('lake'+i,`${e(x,z-2,'🏞️',5)}${t(x,z+4,n,3,'#14456b')}`)});
+  [['↑ North to the forest',-16,-101],['↓ South to the forest',16,104],['East to the river →',112,-24],['← West to the forest',-112,23]].forEach(([n,x,z])=>{o+=t(x,z,n,3,'#2c5a2c')});
+  LINES.forEach(l=>{o+=`<rect x="-84" y="${l-4}" width="168" height="8" fill="#6b7488"/><rect x="${l-4}" y="-84" width="8" height="168" fill="#6b7488"/>`});
+  LINES.forEach(l=>{o+=`<line x1="-80" y1="${l}" x2="80" y2="${l}" stroke="#ffd65a" stroke-width=".5" stroke-dasharray="2 2"/><line x1="${l}" y1="-80" x2="${l}" y2="80" stroke="#ffd65a" stroke-width=".5" stroke-dasharray="2 2"/>`});
+  LINES.forEach(X=>LINES.forEach(Z=>{o+=`<rect x="${X-4}" y="${Z-4}" width="8" height="8" fill="#6b7488"/>`}));
+  o+=`<rect x="-93" y="5" width="10" height="7" fill="#6b7488"/>`;
+  [-48,-16,16,48].forEach(v=>{[-64,64].forEach(m=>{o+=`<rect x="${m-6}" y="${v-1.6}" width="12" height="3.2" rx="1" fill="#6b7488"/>`+t(m,v+.9,STREETS.z[v],2.4,'#fffaf0',600)+`<g transform="rotate(-90 ${v} ${m})"><rect x="${v-6}" y="${m-1.6}" width="12" height="3.2" rx="1" fill="#6b7488"/>${t(v,m+.9,STREETS.x[v],2.4,'#fffaf0',600)}</g>`})});
+  const lot=(cx,cy,inner='#b9e6ac')=>`<rect x="${cx-12}" y="${cy-12}" width="24" height="24" rx="1.5" fill="#ece4d5"/><rect x="${cx-9.7}" y="${cy-9.7}" width="19.4" height="19.4" rx="1" fill="${inner}"/>`;
+  const bld=(cx,cy,b,label,key)=>place(key,`${lot(cx,cy)}${tree(cx-8.6,cy+.6,1.3)}${tree(cx+8.6,cy+.6,1.3)}${tree(cx-8.6,cy-6.6,1.3)}${tree(cx+8.6,cy-6.6,1.3)}
+    <rect class="foot" x="${cx-7}" y="${cy-8}" width="14" height="10" rx="1" fill="${b.body}" stroke="${b.roof}" stroke-width=".8"/>
+    <rect x="${cx-4}" y="${cy-6.7}" width="8" height="7.4" rx="3.7" fill="#fffaf0" stroke="#22263a" stroke-width=".3"/>${e(cx,cy-3,b.icon,5.2)}
+    <rect x="${cx-11}" y="${cy+3.6}" width="22" height="5.4" rx="2.7" fill="#fffaf0" stroke="#22263a" stroke-width=".3"/>${t(cx,cy+7.3,label,label.length>14?2.5:3)}
+    ${b.id&&S.badges.includes(b.id)?e(cx+6.4,cy-8,'⭐',3.6):''}`);
+  GRID.forEach((row,r)=>row.forEach((id,c)=>{const cx=BC[c],cy=BC[r];
+    if(id==='townhall')o+=bld(cx,cy,{icon:'🏛️',body:'#f4f1ea',roof:'#3a7bd5'},'Town Hall 🗽','townhall');
+    else if(id==='home')o+=bld(cx,cy,BUILD.find(x=>x.kind==='home'),'Home','home');
+    else if(id==='park'){o+=lot(cx,cy,'#a6e39a')+place('pond',`<circle cx="${cx-3.5}" cy="${cy-3}" r="4.7" fill="#7fcdf0" stroke="#c9d6e3" stroke-width=".8"/>${e(cx-3.5,cy-3,'🦆',3.6)}`)
+      +place('ranger',`<rect class="foot" x="${cx+1.7}" y="${cy-8.2}" width="7" height="5.5" rx="1" fill="#7a5a3a" stroke="#3e5a2b" stroke-width=".8"/>${e(cx+5.2,cy-5.4,'🌲',3.6)}`)
+      +tree(cx-9,cy+7)+tree(cx+9,cy+8.5)+tree(cx+1,cy-9.2)+`<rect x="${cx-11}" y="${cy+3.6}" width="22" height="5.4" rx="2.7" fill="#fffaf0" stroke="#22263a" stroke-width=".3"/>${t(cx,cy+7.4,'Park + Ranger',3)}`}
+    else if(id==='garden')o+=place('garden',lot(cx,cy,'#a6e39a')+[0,1,2,3,4,5].map(i=>`<rect x="${cx-8.1+(i%3)*6}" y="${cy-6.1+Math.floor(i/3)*6.5}" width="4.2" height="3.2" rx=".5" fill="#8a5a34"/><circle cx="${cx-6+(i%3)*6}" cy="${cy-4.5+Math.floor(i/3)*6.5}" r="1" fill="${['#e8553e','#f28c28','#ffd65a','#5cbf6a','#f2a12e','#ef4f6b'][i]}"/>`).join('')+`<rect x="${cx-11}" y="${cy+3.6}" width="22" height="5.4" rx="2.7" fill="#fffaf0" stroke="#22263a" stroke-width=".3"/>${t(cx,cy+7.4,'Garden',3)}`);
+    else if(id==='playground')o+=place('playground',lot(cx,cy,'#ead7a1')+e(cx,cy-3,'🛝',8)+`<rect x="${cx-11}" y="${cy+3.6}" width="22" height="5.4" rx="2.7" fill="#fffaf0" stroke="#22263a" stroke-width=".3"/>${t(cx,cy+7.4,'Playground',3)}`);
+    else if(id==='sports')o+=place('sports',lot(cx,cy,'#7cc476')+`<rect x="${cx-9.5}" y="${cy-8.5}" width="19" height="17" fill="none" stroke="#fffaf0" stroke-width=".5"/><line x1="${cx}" y1="${cy-8.5}" x2="${cx}" y2="${cy+8.5}" stroke="#fffaf0" stroke-width=".5"/><circle cx="${cx}" cy="${cy}" r="2.4" fill="none" stroke="#fffaf0" stroke-width=".5"/>${e(cx-4,cy-3,'⚽',4)}<rect x="${cx-11}" y="${cy+3.6}" width="22" height="5.4" rx="2.7" fill="#fffaf0" stroke="#22263a" stroke-width=".3"/>${t(cx,cy+7.4,'Sports field',3)}`);
+    else if(id==='construction')o+=place('construction',lot(cx,cy,'#c9a06a')+`<rect x="${cx-9}" y="${cy-9}" width="18" height="18" fill="none" stroke="#e8c46e" stroke-width=".7"/><rect x="${cx-6}" y="${cy-6}" width="12" height="8" fill="none" stroke="#f28c28" stroke-width=".7" stroke-dasharray="1.2 .8"/>${e(cx,cy-2.5,'🚧',5.5)}<rect x="${cx-11}" y="${cy+3.6}" width="22" height="5.4" rx="2.7" fill="#fffaf0" stroke="#22263a" stroke-width=".3"/>${t(cx,cy+7.4,'Construction',3)}`);
+    else if(id==='sale'){o+=lot(cx,cy)+place('sale',`<rect class="foot" x="${cx-10.5}" y="${cy-7}" width="11" height="9" rx="1" fill="#c9c3b5" stroke="#8d8578" stroke-width=".8"/>${e(cx-5,cy-2.5,'🏷️',4)}${t(cx-5,cy+6,'For sale',2.6)}`)
+      +place('lot',`<rect x="${cx+2.2}" y="${cy-8.5}" width="8.2" height="17" fill="#c9a06a"/>${e(cx+6.3,cy-1,'🌱',4)}${t(cx+6.3,cy+6,'Empty lot',2.6)}`)}
+    else{const b=BUILD.find(x=>x.id===id);o+=bld(cx,cy,b,b.name,id)}}));
+  {const b=BUILD.find(x=>x.id==='delivery');o+=bld(-104,0,b,b.name,'delivery')}
+  if(tg)o+=`<g>${e(tg[0],tg[1]-3,'⭐',7)}</g>`;
+  o+=`<g class="you"><circle cx="${me.x}" cy="${me.z}" r="2.4" fill="#ef4f6b" stroke="#fff" stroke-width=".8"/><rect x="${me.x-5}" y="${me.z-8.6}" width="10" height="4.6" rx="2.3" fill="#ef4f6b" stroke="#fff" stroke-width=".5"/>${t(me.x,me.z-5.2,'You',2.8,'#fff')}</g>`;
+  o+=`<g transform="translate(140,-98)"><circle r="6" fill="#fffaf0" stroke="#22263a" stroke-width=".4"/><path d="M0 -4.5L2 1H-2Z" fill="#e8553e"/>${t(0,4.4,'N',2.6)}</g>`;
+  return `<svg class="townmap" viewBox="-130 -108 280 216" role="img" aria-label="Map of Career Town">${o}</svg>`;
+}
 $('#mapBtn').onclick=()=>{
   openScene();$('#steps').innerHTML='';$('#jobTag').textContent='Town map';$('.card').style.setProperty('--jobc','#1f4fa3');
+  if(W3D.on){body.innerHTML=`<h2>Career Town map</h2><p class="lead">Tap any place to ride the town bus there. The pink dot is you.</p><div class="mapwrap">${townMapSVG()}</div>`;
+    body.querySelectorAll('.mp').forEach(t=>{t.onclick=()=>goTo(t.dataset.go);t.onkeydown=ev=>{if(ev.key==='Enter')goTo(t.dataset.go)}});return}
   body.innerHTML=`<h2>Where do you want to go?</h2><p class="lead">Tap a place to ride the town bus there.</p>
-    <div class="menu small">${JOBS.map(j=>`<button class="tile" data-go="${j.id}"><span class="e">${j.icon}</span><b>${j.place}</b><small>${j.name}${S.badges.includes(j.id)?' · <span class="done">★</span>':''}</small></button>`).join('')}</div>
-    ${W3D.on?`<h2 style="font-size:1.3rem">Town spots</h2><div class="menu small">${W3D.places().map(([k,e,n])=>`<button class="tile" data-go="${k}"><span class="e">${e}</span><b>${n}</b><small>Things to do</small></button>`).join('')}</div>`:''}`;
+    <div class="menu small">${JOBS.map(j=>`<button class="tile" data-go="${j.id}"><span class="e">${j.icon}</span><b>${j.place}</b><small>${j.name}${S.badges.includes(j.id)?' · <span class="done">★</span>':''}</small></button>`).join('')}</div>`;
   body.querySelectorAll('[data-go]').forEach(t=>t.onclick=()=>goTo(t.dataset.go));
 };
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scene').hidden)closeScene()});
