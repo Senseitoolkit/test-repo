@@ -1,0 +1,1919 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+<title>Circuit Workbench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Saira+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: one-screen workbench. Parts drawer on the left (bottom tray on phones),
+   a cutting-mat canvas filling the rest, and a floating inspector card for the selected part. */
+:root {
+  --mat: #dfe8e2;
+  --mat-grid: #cbd8cf;
+  --mat-major: #b7c8bd;
+  --panel: #f6f9f7;
+  --panel-2: #ebf1ed;
+  --ink: #18262e;
+  --muted: #5a6b70;
+  --line: #c3d0c8;
+  --copper: #bf6a2c;
+  --copper-dk: #7a3d14;
+  --accent: #0e6c70;
+  --accent-ink: #ffffff;
+  --flow: #f2b632;
+  --danger: #c2362b;
+  --ok: #2c8a4b;
+  --c-basic: #b0602a;
+  --c-spin: #2c69ad;
+  --c-temp: #cc4430;
+  --c-light: #b8850c;
+  --c-move: #15806f;
+  --c-signal: #6d4cb0;
+  --c-sound: #b8346f;
+  --f-display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --mat: #111a18; --mat-grid: #1a2623; --mat-major: #24332f; --panel: #17211e; --panel-2: #1e2a27;
+    --ink: #e2ebe6; --muted: #8ea19a; --line: #2a3a35; --copper: #db8a4c; --copper-dk: #8a4a1d;
+    --accent: #4cc2bb; --accent-ink: #0b1615; --flow: #ffd060; --danger: #ff6e5e; --ok: #5fcf85;
+    --c-basic: #e08a4e; --c-spin: #6aa6ec; --c-temp: #ff7a62; --c-light: #f0c040; --c-move: #46c7b0;
+    --c-signal: #a88af0; --c-sound: #f075ab; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --mat: #111a18; --mat-grid: #1a2623; --mat-major: #24332f; --panel: #17211e; --panel-2: #1e2a27;
+  --ink: #e2ebe6; --muted: #8ea19a; --line: #2a3a35; --copper: #db8a4c; --copper-dk: #8a4a1d;
+  --accent: #4cc2bb; --accent-ink: #0b1615; --flow: #ffd060; --danger: #ff6e5e; --ok: #5fcf85;
+  --c-basic: #e08a4e; --c-spin: #6aa6ec; --c-temp: #ff7a62; --c-light: #f0c040; --c-move: #46c7b0;
+  --c-signal: #a88af0; --c-sound: #f075ab; color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--panel-2); color: var(--ink); font-family: var(--f-body); overflow: hidden; }
+* { box-sizing: border-box; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- top bar ---------- */
+.bar { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 26px; letter-spacing: 0.01em; line-height: 1; }
+.brand h1 span { color: var(--copper); }
+.room { display: flex; gap: 6px; flex-wrap: wrap; }
+.gauge {
+  display: flex; align-items: baseline; gap: 6px; padding: 5px 10px; border-radius: 999px;
+  background: var(--panel); border: 1px solid var(--line); font-size: 12px; white-space: nowrap;
+}
+.gauge b { font-family: var(--f-mono); font-weight: 500; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.gauge i { font-style: normal; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10.5px; }
+.gauge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); align-self: center; }
+.gauge.on .dot { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; align-items: center; }
+.tog, .btn, .sel {
+  border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px;
+  font-size: 13px; line-height: 1.2; display: inline-flex; align-items: center; gap: 6px; min-height: 32px;
+}
+.tog[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:hover, .tog:hover, .sel:hover { border-color: var(--accent); }
+.btn.warn { color: var(--danger); }
+.btn.warn.armed { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+
+/* ---------- stage ---------- */
+.stage { display: grid; grid-template-columns: 268px 1fr; gap: 10px; min-height: 0; }
+.drawer {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  display: grid; grid-template-columns: 74px 1fr; min-height: 0; overflow: hidden;
+}
+.cats { display: flex; flex-direction: column; gap: 2px; padding: 8px 6px; background: var(--panel-2); border-right: 1px solid var(--line); overflow-y: auto; }
+.cat {
+  border: 0; background: transparent; border-radius: 8px; padding: 8px 4px 7px; display: flex; flex-direction: column;
+  align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em;
+}
+.cat .sw { width: 22px; height: 6px; border-radius: 3px; background: var(--cc); opacity: 0.55; }
+.cat[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.cat[aria-selected="true"] .sw { opacity: 1; }
+.tray { display: flex; flex-direction: column; min-height: 0; }
+.tray-head { padding: 12px 12px 6px; }
+.tray-head h2 { margin: 0; font-family: var(--f-display); font-size: 20px; font-weight: 700; color: var(--cc); line-height: 1.1; }
+.tray-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 6px 10px 10px; overflow-y: auto; align-content: start; }
+.tile {
+  border: 1px solid var(--line); background: var(--panel-2); border-radius: 9px; padding: 6px 4px 7px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; touch-action: none; user-select: none;
+  -webkit-user-select: none; cursor: grab; font-size: 12px; font-weight: 500; text-align: center; line-height: 1.15;
+}
+.tile:hover { border-color: var(--cc); }
+.tile canvas { width: 76px; height: 54px; pointer-events: none; }
+.hint { margin: auto 10px 10px; padding: 8px 10px; font-size: 11.5px; color: var(--muted); border-top: 1px dashed var(--line); line-height: 1.45; }
+
+.bench { position: relative; min-height: 0; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--line); background: var(--mat); }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; }
+.zoom { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 4px; }
+.zoom button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); font-size: 16px; display: grid; place-items: center; }
+.alert {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: var(--danger); color: var(--panel);
+  padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; pointer-events: none; max-width: calc(100% - 20px); text-align: center;
+}
+
+.insp {
+  position: absolute; right: 10px; top: 10px; width: 270px; max-height: calc(100% - 20px); overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(10, 25, 20, 0.16); font-size: 13px;
+}
+.insp-head { display: flex; align-items: flex-start; gap: 8px; padding: 12px 12px 8px; border-bottom: 1px solid var(--line); }
+.insp-head .tag { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--cc); font-weight: 600; }
+.insp-head h3 { margin: 1px 0 0; font-family: var(--f-display); font-size: 21px; line-height: 1.05; }
+.insp-head p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.insp-head .x { margin-left: auto; border: 0; background: transparent; font-size: 18px; color: var(--muted); padding: 0 4px; }
+.readings { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+.readings div { background: var(--panel); padding: 7px 8px; }
+.readings i { display: block; font-style: normal; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.readings b { font-family: var(--f-mono); font-weight: 500; font-variant-numeric: tabular-nums; font-size: 13px; }
+.output { padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: center; }
+.output .lamp { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; }
+.output.live .lamp { background: var(--cc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cc) 25%, transparent); }
+.output span { font-family: var(--f-mono); font-size: 12.5px; }
+.props { padding: 10px 12px; display: grid; gap: 10px; }
+.props label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.props label .row { display: flex; justify-content: space-between; }
+.props label .row b { color: var(--ink); font-family: var(--f-mono); font-weight: 500; }
+.props input[type="range"] { width: 100%; accent-color: var(--accent); }
+.props select, .props input[type="text"] { border: 1px solid var(--line); background: var(--panel-2); border-radius: 7px; padding: 6px 8px; color: var(--ink); }
+.insp-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 12px; }
+.insp-actions .btn { font-size: 12.5px; min-height: 30px; }
+
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary span { font-family: var(--f-mono); font-weight: 500; font-size: 12px; opacity: 0.9; }
+.alert { display: flex; align-items: center; gap: 10px; pointer-events: auto; z-index: 3; }
+.alert button { border: 1px solid currentColor; background: transparent; border-radius: 6px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+.health { padding: 8px 12px 8px 10px; border-bottom: 1px solid var(--line); border-left: 4px solid var(--hc, var(--line)); font-size: 12.5px; line-height: 1.4; display: grid; gap: 6px; }
+.health[data-s="weak"] { --hc: #d7930f; }
+.health[data-s="good"] { --hc: var(--ok); }
+.health[data-s="over"], .health[data-s="broken"] { --hc: var(--danger); }
+.stress { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
+.stress i { display: block; height: 100%; width: 0; background: var(--danger); }
+
+.goal {
+  position: absolute; left: 10px; top: 10px; width: 300px; max-height: calc(100% - 64px); overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(10, 25, 20, 0.16); font-size: 13px; z-index: 2;
+}
+.goal-head { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px 8px; border-bottom: 1px solid var(--line); }
+.goal-head .tag { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 600; }
+.goal-head h3 { margin: 1px 0 0; font-family: var(--f-display); font-size: 21px; line-height: 1.05; }
+.goal .x, .sheet .x { margin-left: auto; border: 0; background: transparent; font-size: 20px; line-height: 1; color: var(--muted); padding: 0 4px; }
+.goal-body { padding: 10px 12px 12px; display: grid; gap: 10px; }
+.goal-body > p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.goal ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.goal li { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; align-items: start; line-height: 1.35; }
+.goal li .ck { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line); margin-top: 1px; display: grid; place-items: center; }
+.goal li.done .ck { background: var(--ok); border-color: var(--ok); }
+.goal li.done .ck::after { content: ""; width: 4px; height: 7px; border: solid var(--panel); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+.goal li .d { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hintp { margin: 0; background: var(--panel-2); padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.45; }
+.goal-actions, .win-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.goal-actions .btn, .win-actions .btn { font-size: 12.5px; min-height: 30px; }
+.burns { color: var(--danger); font-size: 12px; }
+.win { background: color-mix(in srgb, var(--ok) 13%, var(--panel)); border: 1px solid var(--ok); border-radius: 8px; padding: 10px; display: grid; gap: 6px; }
+.win b { font-family: var(--f-display); font-size: 19px; }
+.win small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.stars { font-size: 20px; letter-spacing: 2px; color: var(--c-light); line-height: 1; }
+.stars .off { color: var(--line); }
+
+.modal {
+  position: fixed; inset: 0; z-index: 20; background: rgba(8, 16, 14, 0.5); display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+.sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; width: min(720px, 100%); max-height: 100%; overflow-y: auto; padding: 16px 18px 18px; display: grid; gap: 12px; }
+.sheet-head { display: flex; align-items: center; }
+.sheet-head h2 { margin: 0; font-family: var(--f-display); font-size: 28px; line-height: 1; }
+.sheet-intro { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 62ch; }
+.clist { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.ccard { border: 1px solid var(--line); background: var(--panel-2); border-radius: 10px; padding: 12px; display: grid; gap: 8px; align-content: start; }
+.ccard h3 { margin: 0; font-family: var(--f-display); font-size: 21px; line-height: 1.05; }
+.ccard p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.ccard .needs { display: flex; flex-wrap: wrap; gap: 4px; }
+.ccard .needs span { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--c) 20%, transparent); }
+.ccard .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+@media (max-width: 760px) {
+  .goal { left: 8px; right: 8px; top: 8px; width: auto; max-height: 55%; }
+  .app { gap: 8px; padding-block: 8px; }
+  .brand h1 { font-size: 22px; }
+  .stage { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .bench { order: 1; }
+  .drawer { order: 2; grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .cats { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; padding: 6px; }
+  .cat { flex: none; padding: 6px 10px; flex-direction: row; }
+  .cat .sw { width: 6px; height: 14px; }
+  .tray-head, .hint { display: none; }
+  .tiles { display: flex; overflow-x: auto; overflow-y: hidden; padding: 8px; }
+  .tile { flex: none; width: 86px; }
+  .tile canvas { width: 64px; height: 44px; }
+  .insp { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 58%; }
+  .actions { margin-left: 0; }
+  .room .gauge.hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect x="1" y="1" width="28" height="28" rx="7" fill="var(--copper)"/>
+        <path d="M7 15h4l2-5 4 10 2-5h4" fill="none" stroke="var(--panel)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h1>Circuit <span>Workbench</span></h1>
+    </div>
+    <div class="room" aria-label="Room conditions">
+      <div class="gauge" id="g-temp" title="Room temperature, changed by heaters, coolers and bulbs"><i>Room</i><b id="v-temp">20.0 °C</b></div>
+      <div class="gauge" id="g-light" title="Light level, from room lights plus anything glowing"><i>Light</i><b id="v-light">300 lx</b></div>
+      <div class="gauge hide-sm" id="g-sound" title="Loudest sound on the bench"><span class="dot"></span><i>Sound</i><b id="v-sound">quiet</b></div>
+      <div class="gauge hide-sm" id="g-motion" title="Whether anything on the bench is moving"><span class="dot"></span><i>Motion</i><b id="v-motion">still</b></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="b-chal">Challenges <span id="star-count">0 ★</span></button>
+      <select class="sel" id="examples" aria-label="Load an example circuit">
+        <option value="">Load example…</option>
+        <option value="workshop">Full workshop</option>
+        <option value="fan">Heat-controlled fan</option>
+        <option value="doorbell">Wireless doorbell</option>
+        <option value="factory">Factory line</option>
+        <option value="dark">Dark-room alarm</option>
+        <option value="power">Too little, too much</option>
+        <option value="empty">Empty bench</option>
+      </select>
+      <button class="tog" id="t-flow" aria-pressed="true">Current flow</button>
+      <button class="tog" id="t-values" aria-pressed="false">Values</button>
+      <button class="tog" id="t-lights" aria-pressed="true">Room lights</button>
+      <button class="tog" id="t-sound" aria-pressed="false">Sound</button>
+      <button class="btn warn" id="b-clear">Clear</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <aside class="drawer" aria-label="Parts">
+      <nav class="cats" id="cats" role="tablist" aria-label="Part types"></nav>
+      <div class="tray">
+        <div class="tray-head" id="tray-head"><h2></h2><p></p></div>
+        <div class="tiles" id="tiles"></div>
+        <p class="hint">Drag a part onto the bench, or tap it to drop it in the middle. Drop a loose end onto another end to connect them. Double-tap a junction to split it apart.</p>
+      </div>
+    </aside>
+    <section class="bench" id="bench">
+      <canvas id="cv" aria-label="Circuit bench"></canvas>
+      <div class="zoom">
+        <button id="z-in" aria-label="Zoom in">+</button>
+        <button id="z-out" aria-label="Zoom out">−</button>
+        <button id="z-fit" aria-label="Fit circuit to view">⤢</button>
+      </div>
+      <div class="alert" id="alert" hidden><span id="alert-t"></span><button id="alert-fix" hidden>Replace all</button></div>
+      <div class="goal" id="goal" hidden></div>
+      <div class="insp" id="insp" hidden></div>
+    </section>
+  </main>
+</div>
+<div class="modal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="modal-h">
+    <div class="sheet-head"><h2 id="modal-h">Challenges</h2><button class="x" id="modal-x" aria-label="Close">×</button></div>
+    <p class="sheet-intro">Build a machine that needs several functions working at once. Parts with too little power work badly, and parts with too much burn out. Finish without any burnouts or short circuits to earn 3 stars.</p>
+    <div class="clist" id="clist"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+// ======================================================================
+//  Catalogue
+// ======================================================================
+const CATS = [
+  { id: "basic",  name: "Basics", blurb: "Power, paths and control" },
+  { id: "spin",   name: "Spin",   blurb: "Motors that turn wheels, fans, pulleys and belts" },
+  { id: "temp",   name: "Temp",   blurb: "Heat up or cool down the room" },
+  { id: "light",  name: "Light",  blurb: "Things that glow and screens that show" },
+  { id: "move",   name: "Move",   blurb: "Hydraulics that push and lift" },
+  { id: "signal", name: "Signal", blurb: "Sensors that detect, radios that send" },
+  { id: "sound",  name: "Sound",  blurb: "Buzz, ring and play tunes" },
+];
+const LED_COLORS = { red: ["#ff3b2f", 1.8], amber: ["#ffaa1c", 2.0], green: ["#33e06a", 2.2], blue: ["#3a8bff", 2.8], white: ["#f4f6ff", 3.0] };
+const MELODIES = {
+  tune:  [523, 659, 784, 659, 698, 880, 784, 0],
+  scale: [262, 294, 330, 349, 392, 440, 494, 523],
+  siren: [660, 880, 660, 880, 660, 880, 660, 880],
+};
+const RATED = 9; // a part gives full output with 9 V across it
+
+// kind: "wire" | "inline" (drawn along its leads) | "machine" (upright card at the middle)
+const TYPES = {
+  wire:      { cat: "basic", name: "Wire", kind: "wire", len: 120, desc: "Copper wire. Nearly zero resistance." },
+  battery:   { cat: "basic", name: "Battery", kind: "inline", half: 38, len: 130, p: { volts: 9 }, desc: "Pushes current out of its + end. Internal resistance 0.05 Ω." },
+  resistor:  { cat: "basic", name: "Resistor", kind: "inline", half: 28, len: 120, p: { ohms: 20 }, desc: "Limits current. Turns energy into a little heat." },
+  switch:    { cat: "basic", name: "Switch", kind: "inline", half: 28, len: 120, p: { closed: true }, desc: "Tap it on the bench to open or close the path." },
+  bulb:      { cat: "light", also: ["basic"], name: "Light bulb", kind: "machine", w: 56, h: 74, R: 18, len: 140, desc: "Glows brighter with more power and warms the room a little." },
+
+  wheel:     { cat: "spin", name: "Motor & wheel", kind: "machine", w: 86, h: 80, R: 12, len: 150, desc: "A DC motor turning a wheel. Reverse the current to reverse the wheel." },
+  fan:       { cat: "spin", name: "Fan", kind: "machine", w: 80, h: 80, R: 12, len: 150, desc: "Spinning blades push air. Speed follows the voltage." },
+  pulley:    { cat: "spin", name: "Pulley hoist", kind: "machine", w: 80, h: 92, R: 12, len: 150, desc: "A motor winds rope over a pulley to lift a weight. Without power the weight drops." },
+  belt:      { cat: "spin", name: "Belt conveyor", kind: "machine", w: 100, h: 68, R: 12, len: 160, desc: "A motor drives a belt between two rollers, carrying boxes along." },
+
+  heater:    { cat: "temp", name: "Heater", kind: "machine", w: 84, h: 72, R: 8, len: 150, desc: "A resistive coil. Every watt it uses warms the room." },
+  cooler:    { cat: "temp", name: "Cooler", kind: "machine", w: 84, h: 72, R: 10, len: 150, desc: "A thermoelectric (Peltier) plate that pumps heat out of the room." },
+
+  led:       { cat: "light", name: "LED", kind: "inline", half: 16, len: 110, p: { color: "red" }, desc: "Only lets current through one way, once the voltage passes its turn-on point. Straight across a battery it takes too much current and burns out, so add a resistor." },
+  screen:    { cat: "light", name: "Screen", kind: "machine", w: 100, h: 74, R: 30, len: 160, p: { mode: "message", text: "HELLO" }, desc: "A small display. Too little voltage and it flickers." },
+
+  piston:    { cat: "move", name: "Hydraulic piston", kind: "machine", w: 70, h: 96, R: 15, len: 150, desc: "A pump pushes oil into a cylinder. Current one way extends the rod, the other way pulls it back." },
+  lift:      { cat: "move", name: "Hydraulic lift", kind: "machine", w: 92, h: 92, R: 15, len: 160, desc: "Raises a platform while powered. A bleed valve lets it sink slowly when off." },
+
+  ldr:       { cat: "signal", name: "Light sensor", kind: "inline", half: 16, len: 110, desc: "Detects light: more light, less resistance (about 3 kΩ in the dark down to 15 Ω in bright light)." },
+  thermistor:{ cat: "signal", name: "Temp sensor", kind: "inline", half: 22, len: 110, desc: "Detects heat: a warmer room means less resistance (60 Ω at 20 °C)." },
+  motion:    { cat: "signal", name: "Motion sensor", kind: "machine", w: 72, h: 72, len: 140, desc: "Closes its contacts while anything on the bench is spinning or moving." },
+  mic:       { cat: "signal", name: "Sound sensor", kind: "machine", w: 72, h: 72, len: 140, desc: "Closes its contacts while something on the bench is making sound." },
+  tx:        { cat: "signal", name: "Transmitter", kind: "machine", w: 72, h: 92, R: 40, len: 150, p: { ch: "A" }, desc: "Sends a radio signal on its channel while it has at least 3 V." },
+  rx:        { cat: "signal", name: "Receiver", kind: "machine", w: 72, h: 92, len: 150, p: { ch: "A" }, desc: "Closes its contacts while it hears a transmitter on the same channel." },
+
+  buzzer:    { cat: "sound", name: "Buzzer", kind: "machine", w: 70, h: 70, R: 40, len: 140, p: { pitch: 420 }, desc: "A vibrating disc. Louder and higher with more voltage." },
+  speaker:   { cat: "sound", name: "Speaker", kind: "machine", w: 76, h: 76, R: 16, len: 150, p: { melody: "tune" }, desc: "Plays a looping tune. Volume follows power." },
+  bell:      { cat: "sound", name: "Bell", kind: "machine", w: 72, h: 80, R: 20, len: 140, desc: "An electric bell. The clapper hammers faster with more voltage." },
+};
+const DIRECTIONAL = new Set(["battery", "led", "wheel", "fan", "pulley", "belt", "piston"]);
+const NOISY = new Set(["buzzer", "speaker", "bell"]);
+
+// ======================================================================
+//  State
+// ======================================================================
+let verts = {};   // id -> {x, y}
+let comps = [];   // {id, type, a, b, p, st, I, V}
+let nextId = 1;
+const room = { temp: 20, light: 0.6, sound: 0, motion: 0, lights: true, channels: {} };
+const ui = { flow: true, values: false, soundOn: false, sel: null, selV: null };
+const view = { x: 0, y: 0, s: 1 };
+let K = {}; // colors from CSS
+
+const uid = () => "n" + (nextId++);
+function addVert(x, y) { const id = uid(); verts[id] = { x, y }; return id; }
+function addComp(type, a, b, p) {
+  const T = TYPES[type];
+  const c = { id: uid(), type, a, b, p: Object.assign({}, T.p || {}, p || {}), st: { ang: 0, w: 0, h: 0, ext: 0, glow: 0, phase: 0, t: Math.random() * 10 }, I: 0, V: 0 };
+  comps.push(c); return c;
+}
+function degree(vid) { let n = 0; for (const c of comps) { if (c.a === vid) n++; if (c.b === vid) n++; } return n; }
+
+// ======================================================================
+//  Electrical model: nodal analysis, each part is I(a→b) = g·(Va−Vb) + s
+// ======================================================================
+function thermR() { return Math.min(3000, Math.max(3, 60 * Math.exp(-0.09 * (room.temp - 20)))); }
+function ldrR() { return 15 + 3000 * Math.exp(-room.light * 4); }
+function elec(c) {
+  const T = TYPES[c.type];
+  if (c.st.broken) return null; // burnt out: the path is broken
+  switch (c.type) {
+    case "wire": return { g: 100, s: 0 };
+    case "battery": { const g = 1 / 0.05; return { g, s: g * c.p.volts }; }
+    case "resistor": return { g: 1 / Math.max(0.5, c.p.ohms), s: 0 };
+    case "switch": return c.p.closed ? { g: 100, s: 0 } : null;
+    case "led": {
+      const vf = LED_COLORS[c.p.color][1];
+      return c.st.on ? { g: 1 / 25, s: -vf / 25 } : { g: 1e-7, s: 0 };
+    }
+    case "ldr": return { g: 1 / ldrR(), s: 0 };
+    case "thermistor": return { g: 1 / thermR(), s: 0 };
+    case "motion": case "mic": case "rx": return c.st.closed ? { g: 1, s: 0 } : null;
+    default: return { g: 1 / T.R, s: 0 };
+  }
+}
+function solveOnce() {
+  const ids = Object.keys(verts), n = ids.length, idx = {};
+  ids.forEach((id, i) => idx[id] = i);
+  const A = Array.from({ length: n }, () => new Float64Array(n)), B = new Float64Array(n);
+  const E = new Map();
+  for (const c of comps) {
+    const e = elec(c); E.set(c, e); if (!e) continue;
+    const i = idx[c.a], j = idx[c.b];
+    A[i][i] += e.g; A[j][j] += e.g; A[i][j] -= e.g; A[j][i] -= e.g;
+    B[i] -= e.s; B[j] += e.s;
+  }
+  for (let i = 0; i < n; i++) A[i][i] += 1e-6; // tie floating parts to ground
+  // Gaussian elimination with partial pivoting
+  for (let k = 0; k < n; k++) {
+    let p = k, m = Math.abs(A[k][k]);
+    for (let r = k + 1; r < n; r++) { const v = Math.abs(A[r][k]); if (v > m) { m = v; p = r; } }
+    if (p !== k) { const t = A[k]; A[k] = A[p]; A[p] = t; const tb = B[k]; B[k] = B[p]; B[p] = tb; }
+    const piv = A[k][k]; if (Math.abs(piv) < 1e-14) continue;
+    for (let r = k + 1; r < n; r++) {
+      const f = A[r][k] / piv; if (f === 0) continue;
+      const Ar = A[r], Ak = A[k];
+      for (let cc = k; cc < n; cc++) Ar[cc] -= f * Ak[cc];
+      B[r] -= f * B[k];
+    }
+  }
+  const X = new Float64Array(n);
+  for (let k = n - 1; k >= 0; k--) {
+    let s = B[k]; for (let cc = k + 1; cc < n; cc++) s -= A[k][cc] * X[cc];
+    X[k] = Math.abs(A[k][k]) < 1e-14 ? 0 : s / A[k][k];
+  }
+  for (const c of comps) {
+    const Va = X[idx[c.a]], Vb = X[idx[c.b]], e = E.get(c);
+    c.V = Va - Vb;
+    c.I = e ? e.g * (Va - Vb) + e.s : 0;
+    if (!e) c.I = 0;
+  }
+}
+function solve() {
+  const leds = comps.filter(c => c.type === "led");
+  for (let it = 0; it < 8; it++) {
+    solveOnce();
+    let changed = false;
+    for (const c of leds) {
+      const vf = LED_COLORS[c.p.color][1];
+      if (c.st.on && c.I < 0) { c.st.on = false; changed = true; }
+      else if (!c.st.on && c.V > vf + 0.001) { c.st.on = true; changed = true; }
+    }
+    if (!changed) break;
+  }
+}
+
+// ======================================================================
+//  Behaviour of each part, and the room
+// ======================================================================
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function level(c) { return clamp(c.V / RATED, -3, 3); } // signed
+function power(c) { return Math.abs(c.V * c.I); }
+function approach(cur, target, rate, dt) { return cur + (target - cur) * Math.min(1, rate * dt); }
+
+const LOW = 0.65, HIGH = 1.3, LED_MAX = 0.2;
+const RATEABLE = new Set(["bulb", "wheel", "fan", "pulley", "belt", "heater", "cooler", "led", "screen", "piston", "lift", "tx", "buzzer", "speaker", "bell"]);
+const stats = { burnouts: 0, shorts: 0 };
+function status(c) {
+  if (c.st.broken) return "broken";
+  if (!RATEABLE.has(c.type)) return null;
+  if (c.type === "led") { const i = Math.abs(c.I); if (!c.st.on || i < 0.003) return "off"; return i > LED_MAX ? "over" : i < 0.04 ? "weak" : "good"; }
+  const m = Math.abs(c.V) / RATED;
+  return m < 0.05 ? "off" : m < LOW ? "weak" : m > HIGH ? "over" : "good";
+}
+
+function step(dt) {
+  // contacts that depend on the room are set from last frame's room state
+  for (const c of comps) {
+    if (c.type === "motion") c.st.closed = room.motion > 0;
+    if (c.type === "mic") c.st.closed = room.sound > 0.08;
+    if (c.type === "rx") c.st.closed = !!room.channels[c.p.ch];
+  }
+  solve();
+
+  let heat = 0, light = room.lights ? 0.6 : 0.03, sound = 0, motion = 0;
+  const channels = {};
+  for (const c of comps) {
+    const st = c.st;
+    st.t += dt;
+    // power health: too much power builds up stress until the part burns out
+    st.status = status(c);
+    if (st.status === "over") {
+      const excess = c.type === "led" ? (Math.abs(c.I) - LED_MAX) / 0.1 : (Math.abs(c.V) / RATED - HIGH) / 0.3;
+      st.stress = (st.stress || 0) + (0.08 + Math.max(0, excess) * 0.2) * dt;
+      if (st.stress >= 1) { st.broken = true; st.stress = 1; st.status = "broken"; st.on = false; st.vol = 0; stats.burnouts++; }
+    } else if (!st.broken) st.stress = Math.max(0, (st.stress || 0) - 0.06 * dt);
+    const broken = !!st.broken, over = st.status === "over";
+    const l = broken ? 0 : level(c), m = Math.abs(l);
+    st.phase += clamp(c.I * 60, -420, 420) * dt;
+    switch (c.type) {
+      case "wheel": case "fan": case "belt": case "pulley": {
+        let target = clamp(l, -2, 2) * 600;                    // rpm
+        if (m < 0.3) target = 0;                                 // stalled: not enough push to turn
+        else if (m < LOW) target *= 0.7 + 0.3 * Math.sin(st.t * 8); // weak: slow and uneven
+        if (over) target *= 1 + 0.3 * Math.sin(st.t * 23) + 0.2 * Math.sin(st.t * 57); // racing erratically
+        st.stall = !broken && m >= 0.05 && m < 0.3;
+        st.w = approach(st.w, target, 2.5, dt);
+        if (c.type === "pulley") {
+          if (!broken && m >= 0.35) st.h = clamp(st.h + st.w * 0.0016 * dt, 0, 1);
+          else { const before = st.h; st.h = clamp(st.h - 0.5 * dt, 0, 1); st.w = (st.h - before) / dt / 0.0016 * 0.5; }
+        }
+        st.ang += st.w / 60 * Math.PI * 2 * dt * 0.35;
+        if (Math.abs(st.w) > 40) motion++;
+        heat += power(c) * 0.02;
+        break;
+      }
+      case "heater": st.glow = approach(st.glow, broken ? 0 : clamp(m * m, 0, 1.6), 1.2, dt); if (!broken) heat += power(c) * 0.25; light += st.glow * 0.08; break;
+      case "cooler": st.glow = approach(st.glow, broken ? 0 : clamp(m * m, 0, 1.6), 1.2, dt); if (!broken) heat -= power(c) * 0.8; break;
+      case "bulb": {
+        let tg = broken ? 0 : clamp(Math.pow(m, 1.5), 0, 1.6);
+        if (over) tg *= 0.75 + 0.6 * Math.random();             // flickering too bright
+        st.glow = approach(st.glow, tg, 12, dt); light += st.glow * 0.9; heat += power(c) * 0.03; break;
+      }
+      case "led": {
+        let tg = st.on && !broken ? clamp(Math.abs(c.I) / 0.12, 0, 1.4) : 0;
+        if (over) tg *= 0.7 + 0.6 * Math.random();
+        st.glow = approach(st.glow, tg, 15, dt); light += st.glow * 0.3; break;
+      }
+      case "screen": st.glow = approach(st.glow, clamp(m, 0, 1.3), 10, dt); light += (st.glow > 0.15 ? st.glow : 0) * 0.35; break;
+      case "piston": {
+        const before = st.ext;
+        if (!broken && m >= 0.35) st.ext = clamp(st.ext + clamp(l, -2, 2) * 0.45 * dt * (over ? (Math.random() < 0.5 ? 1.6 : 0) : 1), 0, 1);
+        st.weakPush = !broken && m >= 0.05 && m < 0.35;
+        if (Math.abs(st.ext - before) > 1e-4) { motion++; st.moving = true; } else st.moving = false;
+        break;
+      }
+      case "lift": {
+        const before = st.h, up = !broken && m >= 0.4;
+        st.h = clamp(st.h + (up ? m * 0.35 * (over ? 0.3 + Math.random() * 1.4 : 1) : -0.08) * dt, 0, 1);
+        st.weakPush = !broken && m >= 0.05 && m < 0.4;
+        if (Math.abs(st.h - before) > 1e-4 && up) { motion++; st.moving = true; } else st.moving = false;
+        break;
+      }
+      case "tx": st.glow = m; st.on = !broken && m * RATED >= 3 && (!over || Math.sin(st.t * 11) > -0.3); if (st.on) channels[c.p.ch] = true; break;
+      case "buzzer": case "speaker": case "bell":
+        st.vol = !broken && m > 0.08 ? clamp(m, 0, 1.6) : 0; sound = Math.max(sound, st.vol);
+        if (st.status === "good") st.wasOn = true; else if (st.vol === 0 && st.wasOn) st.cycled = true; // horn test for the car
+        break;
+      case "resistor": heat += power(c) * 0.01; break;
+      case "battery": st.fire = Math.abs(c.I) > 12; if (st.fire && !st.wasFire) stats.shorts++; st.wasFire = st.fire; break;
+    }
+  }
+  room.temp = clamp(room.temp + (heat * 0.25 - (room.temp - 20) * 0.08) * dt, -30, 150);
+  room.light = approach(room.light, light, 8, dt);
+  room.sound = sound; room.motion = motion; room.channels = channels;
+  updateAudio();
+}
+
+// ======================================================================
+//  Audio (Web Audio, started from the Sound button)
+// ======================================================================
+const audio = { ctx: null, master: null, voices: new Map() };
+function startAudio() {
+  if (audio.ctx) { audio.ctx.resume(); return; }
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audio.ctx = new AC(); audio.master = audio.ctx.createGain(); audio.master.gain.value = 0.5;
+    audio.master.connect(audio.ctx.destination);
+  } catch (e) { audio.ctx = null; }
+}
+function voiceFor(c) {
+  let v = audio.voices.get(c.id); if (v) return v;
+  const ac = audio.ctx, osc = ac.createOscillator(), g = ac.createGain();
+  osc.type = c.type === "buzzer" ? "square" : c.type === "speaker" ? "triangle" : "sine";
+  g.gain.value = 0; osc.connect(g); g.connect(audio.master); osc.start();
+  v = { osc, g }; audio.voices.set(c.id, v); return v;
+}
+function updateAudio() {
+  if (!audio.ctx) return;
+  const now = audio.ctx.currentTime, live = new Set();
+  for (const c of comps) {
+    if (!NOISY.has(c.type)) continue;
+    live.add(c.id);
+    const v = voiceFor(c), vol = ui.soundOn ? (c.st.vol || 0) : 0, t = c.st.t, s = c.st.status, mm = Math.abs(c.V) / RATED;
+    const weakF = s === "weak" ? clamp(mm / LOW, 0.3, 1) : 1;
+    let f = 440, amp = vol * 0.12;
+    if (c.type === "buzzer") { f = c.p.pitch * (0.7 + 0.3 * Math.min(1.4, vol)); amp = vol * 0.05; }
+    if (c.type === "speaker") { const mel = MELODIES[c.p.melody]; const note = mel[Math.floor(t * 4 * weakF) % mel.length]; f = (note || 440) * (0.8 + 0.2 * weakF); if (!note) amp = 0; amp *= 1.1; }
+    if (c.type === "bell") { f = 1320; const rate = 6 + 8 * Math.min(1.4, vol); const ph = (t * rate) % 1; amp = vol * 0.14 * Math.exp(-ph * 5); }
+    const want = s === "over" ? "sawtooth" : c.type === "buzzer" ? "square" : c.type === "speaker" ? "triangle" : "sine";
+    if (v.osc.type !== want) v.osc.type = want;
+    if (s === "over") { f *= 1 + 0.07 * Math.sin(t * 47) + (Math.random() - 0.5) * 0.1; amp *= 0.6 + 0.8 * Math.random(); }
+    v.osc.frequency.setTargetAtTime(f, now, 0.01);
+    v.g.gain.setTargetAtTime(Math.min(amp, 0.18), now, 0.015);
+  }
+  for (const [id, v] of audio.voices) if (!live.has(id)) { try { v.g.gain.setTargetAtTime(0, now, 0.02); v.osc.stop(now + 0.2); } catch (e) {} audio.voices.delete(id); }
+}
+function playNotes(notes, type = "square", len = 0.13, vol = 0.08) {
+  if (!audio.ctx || !ui.soundOn) return;
+  const t0 = audio.ctx.currentTime + 0.02;
+  notes.forEach((f, i) => {
+    if (!f) return;
+    const o = audio.ctx.createOscillator(), g = audio.ctx.createGain();
+    o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0, t0 + i * len);
+    g.gain.linearRampToValueAtTime(vol, t0 + i * len + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t0 + (i + 0.9) * len);
+    o.connect(g); g.connect(audio.master); o.start(t0 + i * len); o.stop(t0 + (i + 1) * len);
+  });
+}
+
+// ======================================================================
+//  Drawing
+// ======================================================================
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const bench = document.getElementById("bench");
+let W = 0, H = 0, DPR = 1;
+function readColors() {
+  const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+  K = {};
+  for (const n of ["mat", "mat-grid", "mat-major", "panel", "panel-2", "ink", "muted", "line", "copper", "copper-dk", "accent", "flow", "danger", "ok",
+    "c-basic", "c-spin", "c-temp", "c-light", "c-move", "c-signal", "c-sound"]) K[n] = g("--" + n);
+  K.dark = matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+}
+function resize() {
+  const r = bench.getBoundingClientRect(); DPR = Math.min(2.5, window.devicePixelRatio || 1);
+  W = r.width; H = r.height; cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+}
+new ResizeObserver(() => { resize(); }).observe(bench);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readColors(); drawTiles(); });
+new MutationObserver(() => { readColors(); drawTiles(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+function rr(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); }
+function catColor(type) { return K["c-" + TYPES[type].cat]; }
+function geo(c) {
+  const a = verts[c.a], b = verts[c.b], dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+  return { a, b, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, ang: Math.atan2(dy, dx), len, ux: dx / len, uy: dy / len };
+}
+function card(g, w, h, col) {
+  rr(g, -w / 2, -h / 2, w, h, 9); g.fillStyle = K.panel; g.fill();
+  g.lineWidth = 2; g.strokeStyle = col; g.stroke();
+}
+function label(g, text, y) {
+  g.font = "600 11px " + getComputedStyle(document.documentElement).getPropertyValue("--f-body");
+  g.textAlign = "center"; g.textBaseline = "top"; g.fillStyle = K.muted; g.fillText(text, 0, y);
+}
+let glows = [], GO = { x: 0, y: 0 };
+function glow(x, y, r, color, a) { if (a > 0.01) glows.push({ x: x + GO.x, y: y + GO.y, r, color, a }); }
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return `${n >> 16 & 255},${n >> 8 & 255},${n & 255}`; }
+
+function wireStroke(g, x1, y1, x2, y2, w) {
+  g.lineCap = "round";
+  g.strokeStyle = K["copper-dk"]; g.lineWidth = w + 2.5; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  g.strokeStyle = K.copper; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+}
+
+// --- inline bodies: drawn in a frame rotated along a→b, centred at the middle ---
+const INLINE = {
+  battery(g, c) {
+    const fire = c.st.fire;
+    rr(g, -38, -15, 66, 30, 5); g.fillStyle = "#23282e"; g.fill(); g.strokeStyle = K.dark ? "#6f7b86" : "#0f1418"; g.lineWidth = 1.2; g.stroke();
+    rr(g, 6, -15, 22, 30, 3); g.fillStyle = "#c9862f"; g.fill();
+    rr(g, 28, -7, 9, 14, 2); g.fillStyle = "#a8adb3"; g.fill();
+    g.fillStyle = "#fff"; g.font = "700 15px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText("+", 17, 1); g.fillText("−", -30, 0);
+    if (fire) { g.fillStyle = "rgba(255,90,30,0.35)"; rr(g, -38, -15, 66, 30, 5); g.fill(); }
+  },
+  resistor(g, c) {
+    rr(g, -26, -10, 52, 20, 9); g.fillStyle = "#e7cf9f"; g.fill(); g.strokeStyle = "#8a6c3c"; g.lineWidth = 1.2; g.stroke();
+    const bands = ohmBands(c.p.ohms);
+    bands.forEach((col, i) => { g.fillStyle = col; g.fillRect(-15 + i * 9, -10, 4.5, 20); });
+    g.fillStyle = "#c79a2a"; g.fillRect(16, -10, 3.5, 20);
+  },
+  switch(g, c) {
+    g.fillStyle = "#3a3f46"; rr(g, -28, 4, 56, 9, 3); g.fill();
+    g.fillStyle = "#c0c5cb"; g.beginPath(); g.arc(-22, 0, 5, 0, 7); g.arc(22, 0, 5, 0, 7); g.fill();
+    g.save(); g.translate(-22, 0); g.rotate(c.p.closed ? 0 : -0.55);
+    g.strokeStyle = "#5b636c"; g.lineWidth = 6; g.lineCap = "round"; g.beginPath(); g.moveTo(0, 0); g.lineTo(44, 0); g.stroke();
+    g.fillStyle = "#d1453b"; rr(g, 30, -5, 16, 10, 4); g.fill();
+    g.restore();
+  },
+  led(g, c) {
+    const col = LED_COLORS[c.p.color][0], gl = c.st.glow || 0;
+    g.fillStyle = "#9aa1a8"; g.fillRect(-16, -9, 6, 18);
+    g.beginPath(); g.moveTo(-10, -11); g.lineTo(4, -11); g.arc(4, 0, 11, -Math.PI / 2, Math.PI / 2); g.lineTo(-10, 11); g.closePath();
+    g.globalAlpha = c.st.broken ? 1 : 0.45 + 0.55 * Math.min(1, gl); g.fillStyle = c.st.broken ? "#2b2622" : col; g.fill(); g.globalAlpha = 1;
+    g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 1; g.stroke();
+    g.fillStyle = "rgba(255,255,255,0.85)"; g.beginPath(); g.moveTo(-6, -5); g.lineTo(2, 0); g.lineTo(-6, 5); g.closePath(); g.fill();
+    g.fillRect(2, -5, 1.6, 10);
+  },
+  ldr(g, c) {
+    g.fillStyle = "#e9e2d0"; g.beginPath(); g.arc(0, 0, 14, 0, 7); g.fill(); g.strokeStyle = "#9b8e6c"; g.lineWidth = 1.5; g.stroke();
+    g.strokeStyle = "#c2552f"; g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i <= 6; i++) { const x = -9 + i * 3; g.lineTo(x, i % 2 ? -6 : 6); } g.stroke();
+  },
+  thermistor(g, c) {
+    rr(g, -20, -9, 40, 18, 5); g.fillStyle = "#2d6b8a"; g.fill();
+    g.strokeStyle = "#fff"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-14, 11); g.lineTo(10, -11); g.lineTo(16, -11); g.stroke();
+  },
+};
+// overlays drawn unrotated on top of inline parts
+const INLINE_UP = {
+  battery(g, c) { tag(g, c.p.volts.toFixed(1) + " V", TAGV ? -22 : -26, K.ink); if (c.st.fire) flames(g, c.st.t); },
+  resistor(g, c) { tag(g, fmtOhm(c.p.ohms), -22, K.muted); },
+  ldr(g, c) {
+    g.strokeStyle = K["c-light"]; g.lineWidth = 1.6;
+    for (const dx of [-7, 5]) { g.beginPath(); g.moveTo(dx - 7, -30); g.lineTo(dx, -19); g.stroke(); g.beginPath(); g.moveTo(dx, -19); g.lineTo(dx - 5, -20); g.moveTo(dx, -19); g.lineTo(dx - 1, -24); g.stroke(); }
+    tag(g, fmtOhm(ldrR()), 22, K.muted, true);
+  },
+  thermistor(g) { tag(g, fmtOhm(thermR()), 15, K.muted, true); },
+  led(g, c) { glow(0, 0, 14 + 34 * Math.min(1.4, c.st.glow || 0), hexRgb(LED_COLORS[c.p.color][0]), 0.8 * Math.min(1, c.st.glow || 0)); },
+};
+let TAGV = false; // true while drawing a part that runs mostly vertically
+function tag(g, text, y, col, below) {
+  g.font = "500 11px " + getComputedStyle(document.documentElement).getPropertyValue("--f-mono");
+  g.fillStyle = col;
+  if (TAGV) { g.textAlign = below ? "left" : "right"; g.textBaseline = "middle"; g.fillText(text, below ? Math.abs(y) : -Math.abs(y), 0); }
+  else { g.textAlign = "center"; g.textBaseline = below ? "top" : "bottom"; g.fillText(text, 0, y); }
+}
+function flames(g, t) {
+  for (let i = 0; i < 5; i++) {
+    const x = -24 + i * 12, h = 22 + 10 * Math.sin(t * 13 + i * 2);
+    g.fillStyle = i % 2 ? "rgba(255,170,40,0.9)" : "rgba(255,80,30,0.85)";
+    g.beginPath(); g.moveTo(x - 7, -6); g.quadraticCurveTo(x, -6 - h * 1.2, x + 7, -6); g.fill();
+  }
+}
+
+// --- machine bodies: drawn upright, centred at the part's middle ---
+const MACHINE = {
+  bulb(g, c) {
+    const gl = Math.min(1.4, c.st.glow || 0);
+    // base and contacts
+    g.fillStyle = "#9da3a9"; rr(g, -12, 14, 24, 18, 3); g.fill();
+    g.strokeStyle = "#7c8288"; g.lineWidth = 1.5; for (let y = 18; y < 32; y += 4) { g.beginPath(); g.moveTo(-12, y); g.lineTo(12, y); g.stroke(); }
+    g.fillStyle = "#3d4247"; rr(g, -7, 31, 14, 5, 2); g.fill();
+    if (c.st.broken) { // blown: smoky glass, snapped filament
+      g.beginPath(); g.arc(0, -8, 22, Math.PI * 0.78, Math.PI * 2.22); g.lineTo(10, 14); g.lineTo(-10, 14); g.closePath();
+      g.fillStyle = "rgba(60,55,50,0.75)"; g.fill(); g.strokeStyle = "rgba(60,80,90,0.6)"; g.lineWidth = 1.5; g.stroke();
+      g.strokeStyle = "#6b5a3a"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(-5, 14); g.lineTo(-5, -4); g.lineTo(-2, -8); g.moveTo(5, 14); g.lineTo(5, -4); g.lineTo(3, -2); g.stroke();
+      g.strokeStyle = "rgba(255,255,255,0.5)"; g.lineWidth = 1; g.beginPath(); g.moveTo(-14, -20); g.lineTo(-6, -14); g.lineTo(-9, -6); g.stroke();
+      return;
+    }
+    // glass
+    g.beginPath(); g.arc(0, -8, 22, Math.PI * 0.78, Math.PI * 2.22); g.lineTo(10, 14); g.lineTo(-10, 14); g.closePath();
+    g.fillStyle = gl > 0.02 ? `rgba(255,${220 + 30 * Math.min(1, gl)},${150 + 80 * Math.min(1, gl)},${0.35 + 0.6 * Math.min(1, gl)})` : (K.dark ? "rgba(220,235,240,0.12)" : "rgba(255,255,255,0.55)");
+    g.fill(); g.strokeStyle = K.dark ? "rgba(220,235,240,0.5)" : "rgba(60,80,90,0.5)"; g.lineWidth = 1.5; g.stroke();
+    // filament
+    g.strokeStyle = gl > 0.05 ? "#fff3c0" : "#6b5a3a"; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(-5, 14); g.lineTo(-5, -4); for (let i = 0; i <= 5; i++) g.lineTo(-5 + i * 2, i % 2 ? -9 : -4); g.lineTo(5, 14); g.stroke();
+    glow(0, -8, 30 + 70 * gl, "255,226,140", 0.85 * Math.min(1, gl));
+  },
+  wheel(g, c) {
+    const col = catColor("wheel");
+    card(g, 86, 80, col);
+    g.fillStyle = "#4a5560"; rr(g, -36, -30, 22, 22, 4); g.fill(); // motor
+    g.fillStyle = "#cfd5da"; g.fillRect(-14, -21, 14, 4);
+    g.strokeStyle = K.muted; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-40, 32); g.lineTo(40, 32); g.stroke();
+    g.save(); g.translate(10, 3); g.rotate(c.st.ang);
+    g.fillStyle = "#2a2e33"; g.beginPath(); g.arc(0, 0, 27, 0, 7); g.fill();
+    g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, 18, 0, 7); g.fill();
+    g.strokeStyle = "#6c757d"; g.lineWidth = 3; for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * 17, Math.sin(a) * 17); g.stroke(); }
+    g.fillStyle = col; g.beginPath(); g.arc(0, 0, 4, 0, 7); g.fill();
+    g.restore();
+    speedMarks(g, c, 10, 3, 32);
+  },
+  fan(g, c) {
+    const col = catColor("fan");
+    card(g, 80, 80, col);
+    g.strokeStyle = K.line; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 32, 0, 7); g.stroke();
+    g.save(); g.rotate(c.st.ang);
+    for (let i = 0; i < 3; i++) { g.rotate(Math.PI * 2 / 3); g.fillStyle = col; g.globalAlpha = 0.85; g.beginPath(); g.ellipse(0, -15, 8, 15, 0.35, 0, 7); g.fill(); }
+    g.restore(); g.globalAlpha = 1;
+    g.fillStyle = "#44505b"; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill();
+    const s = Math.abs(c.st.w) / 600;
+    if (s > 0.1) { g.strokeStyle = K.muted; g.lineWidth = 1.4; g.globalAlpha = Math.min(1, s);
+      for (let i = 0; i < 3; i++) { const x = 46 + ((c.st.t * 60 * s + i * 14) % 30); g.beginPath(); g.moveTo(x, -16 + i * 16); g.lineTo(x + 10, -16 + i * 16); g.stroke(); }
+      g.globalAlpha = 1; }
+  },
+  pulley(g, c) {
+    const col = catColor("pulley");
+    card(g, 80, 92, col);
+    g.fillStyle = K.muted; g.fillRect(-34, -40, 68, 4);
+    g.fillRect(-2, -38, 4, 10);
+    const r = 13, py = -24;
+    const wy = 26 - c.st.h * 38; // weight top
+    g.strokeStyle = "#8b6b3d"; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(r, py); g.lineTo(r, wy); g.stroke();
+    g.beginPath(); g.moveTo(-r, py); g.lineTo(-r, 20); g.stroke();
+    g.fillStyle = "#4a5560"; rr(g, -26, 18, 22, 18, 3); g.fill(); // motor drum below left
+    g.save(); g.translate(0, py); g.rotate(c.st.ang);
+    g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill(); g.strokeStyle = "#6c757d"; g.lineWidth = 2; g.stroke();
+    g.beginPath(); g.moveTo(-r, 0); g.lineTo(r, 0); g.moveTo(0, -r); g.lineTo(0, r); g.stroke();
+    g.restore();
+    g.fillStyle = col; rr(g, r - 10, wy, 20, 16, 3); g.fill();
+    g.fillStyle = K.panel; g.font = "700 9px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("5kg", r, wy + 8.5);
+  },
+  belt(g, c) {
+    const col = catColor("belt");
+    card(g, 100, 68, col);
+    const x1 = -32, x2 = 32, y = 6, r = 9;
+    g.strokeStyle = "#2c3036"; g.lineWidth = 4;
+    g.setLineDash([6, 4]); g.lineDashOffset = -c.st.ang * r;
+    g.beginPath(); g.moveTo(x1, y - r); g.lineTo(x2, y - r); g.arc(x2, y, r, -Math.PI / 2, Math.PI / 2); g.lineTo(x1, y + r); g.arc(x1, y, r, Math.PI / 2, Math.PI * 1.5); g.stroke();
+    g.setLineDash([]);
+    for (const x of [x1, x2]) { g.save(); g.translate(x, y); g.rotate(c.st.ang); g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, r - 3, 0, 7); g.fill(); g.strokeStyle = "#6c757d"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-5, 0); g.lineTo(5, 0); g.stroke(); g.restore(); }
+    // boxes riding on top
+    const span = 80, off = (c.st.ang * r) % span;
+    g.save(); rr(g, -46, -30, 92, 30, 2); g.clip();
+    for (let i = 0; i < 2; i++) { let x = -40 + ((off + i * 40) % span + span) % span; g.fillStyle = i ? "#c8924a" : "#d9a85c"; g.fillRect(x - 8, y - r - 15, 16, 14); g.strokeStyle = "#8a6430"; g.lineWidth = 1; g.strokeRect(x - 8, y - r - 15, 16, 14); }
+    g.restore();
+    g.fillStyle = "#4a5560"; rr(g, -14, 18, 28, 10, 3); g.fill();
+  },
+  heater(g, c) {
+    const col = catColor("heater"), gl = Math.min(1, c.st.glow || 0);
+    card(g, 84, 72, col);
+    rr(g, -32, -20, 64, 30, 4); g.fillStyle = K.dark ? "#202826" : "#e4e7e5"; g.fill();
+    const r = Math.round(90 + 165 * gl), gg = Math.round(90 + 60 * gl * gl), b = Math.round(90 - 60 * gl);
+    g.strokeStyle = `rgb(${r},${gg},${b})`; g.lineWidth = 3; g.lineJoin = "round";
+    g.beginPath(); for (let i = 0; i <= 12; i++) g.lineTo(-27 + i * 4.5, i % 2 ? -14 : 4); g.stroke();
+    glow(0, -5, 20 + 40 * gl, "255,110,40", 0.55 * gl);
+    if (gl > 0.08) { g.strokeStyle = col; g.globalAlpha = gl; g.lineWidth = 1.6;
+      for (let i = 0; i < 3; i++) { const x = -16 + i * 16, ph = c.st.t * 3 + i; g.beginPath(); for (let k = 0; k < 8; k++) g.lineTo(x + Math.sin(ph + k * 0.8) * 3, 26 - k * 2.4 - 40); g.stroke(); }
+      g.globalAlpha = 1; }
+    g.fillStyle = K.muted; for (let i = 0; i < 4; i++) g.fillRect(-26 + i * 16, 18, 8, 3);
+  },
+  cooler(g, c) {
+    const col = "#3b8fd1", gl = Math.min(1, c.st.glow || 0);
+    card(g, 84, 72, col);
+    g.fillStyle = K.dark ? "#1c2a33" : "#dfeaf2"; rr(g, -32, -24, 64, 34, 4); g.fill();
+    g.strokeStyle = "#8aa4b8"; g.lineWidth = 2; for (let i = 0; i < 7; i++) { g.beginPath(); g.moveTo(-27 + i * 9, -20); g.lineTo(-27 + i * 9, 6); g.stroke(); }
+    if (gl > 0.02) { g.fillStyle = `rgba(220,240,255,${0.75 * gl})`; rr(g, -32, -24, 64, 34, 4); g.fill(); }
+    g.save(); g.translate(0, -7); g.strokeStyle = `rgba(40,120,200,${0.35 + 0.65 * gl})`; g.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { g.rotate(Math.PI / 3); g.beginPath(); g.moveTo(-11, 0); g.lineTo(11, 0); g.stroke(); }
+    g.restore();
+    if (gl > 0.1) { g.fillStyle = `rgba(150,200,240,${gl})`;
+      for (let i = 0; i < 5; i++) { const x = -30 + i * 15, y = 14 + ((c.st.t * 12 + i * 7) % 18); g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); } }
+    glow(0, -7, 20 + 30 * gl, "120,190,255", 0.4 * gl);
+  },
+  screen(g, c) {
+    const col = catColor("screen"), gl = Math.min(1.2, c.st.glow || 0);
+    card(g, 100, 74, col);
+    g.fillStyle = "#0b1114"; rr(g, -42, -30, 84, 50, 4); g.fill();
+    g.fillStyle = "#59626a"; g.fillRect(-10, 22, 20, 6);
+    const flick = gl < 0.4 ? (Math.sin(c.st.t * 37) > 0.2 ? 1 : 0.25) : 1;
+    if (gl > 0.1) {
+      g.save(); rr(g, -40, -28, 80, 46, 3); g.clip();
+      const a = Math.min(1, gl) * flick;
+      g.fillStyle = `rgba(30,70,80,${a})`; g.fillRect(-40, -28, 80, 46);
+      g.fillStyle = `rgba(150,255,220,${a})`; g.textBaseline = "middle"; g.textAlign = "left";
+      if (c.p.mode === "message") {
+        g.font = "700 18px " + getComputedStyle(document.documentElement).getPropertyValue("--f-mono");
+        const txt = (c.p.text || " ").toUpperCase() + "   ", tw = g.measureText(txt).width;
+        const off = (c.st.t * 30) % tw; g.fillText(txt + txt + txt, 40 - off - tw, -5);
+      } else if (c.p.mode === "meter") {
+        g.font = "500 12px " + getComputedStyle(document.documentElement).getPropertyValue("--f-mono");
+        g.textAlign = "center";
+        g.fillText(Math.abs(c.V).toFixed(2) + " V", 0, -15); g.fillText((Math.abs(c.I) * 1000).toFixed(0) + " mA", 0, 0);
+        g.fillText(room.temp.toFixed(1) + " °C", 0, 12);
+      } else {
+        g.strokeStyle = g.fillStyle; g.lineWidth = 2.5;
+        g.beginPath(); g.arc(0, -5, 16, 0, 7); g.stroke();
+        const blink = (c.st.t % 3) < 0.15;
+        g.fillRect(-8, blink ? -10 : -12, 4, blink ? 2 : 6); g.fillRect(4, blink ? -10 : -12, 4, blink ? 2 : 6);
+        g.beginPath(); g.arc(0, -3, 8, 0.3, Math.PI - 0.3); g.stroke();
+      }
+      if (c.st.status === "over") { // garbled picture
+        for (let i = 0; i < 7; i++) { g.fillStyle = `hsla(${Math.random() * 360},90%,60%,${0.5 + Math.random() * 0.5})`; g.fillRect(-40 + Math.random() * 70, -28 + Math.random() * 44, 6 + Math.random() * 34, 2 + Math.random() * 5); }
+      }
+      g.restore();
+      glow(0, -5, 40 + 30 * gl, "120,255,210", 0.35 * a);
+    }
+  },
+  piston(g, c) {
+    const col = catColor("piston"), e = c.st.ext;
+    card(g, 70, 96, col);
+    const rodTop = -10 - e * 30;
+    g.fillStyle = "#c9ced3"; g.fillRect(-3.5, rodTop, 7, 12 - rodTop - 10);
+    g.fillStyle = "#596570"; rr(g, -16, rodTop - 7, 32, 8, 2); g.fill();     // push plate
+    g.fillStyle = col; rr(g, -13, -2, 26, 34, 4); g.fill();                  // cylinder
+    g.fillStyle = "rgba(255,255,255,0.25)"; g.fillRect(-9, 2, 4, 26);
+    g.fillStyle = "#d8a63a"; g.fillRect(-10, 32 - 28 * e - 1, 20, 28 * e); // oil level hint
+    g.fillStyle = "#4a5560"; rr(g, -24, 34, 48, 9, 3); g.fill();          // pump
+    if (c.st.status === "over") { g.fillStyle = "#d8a63a"; for (let i = 0; i < 3; i++) { const y = 30 + ((c.st.t * 26 + i * 9) % 16); g.beginPath(); g.arc(14 - i * 3, y, 1.8, 0, 7); g.fill(); } }
+    if (c.st.moving) { g.fillStyle = col; g.beginPath(); const up = c.V > 0; g.moveTo(22, up ? -26 : -14); g.lineTo(28, up ? -16 : -24); g.lineTo(16, up ? -16 : -24); g.fill(); }
+  },
+  lift(g, c) {
+    const col = catColor("lift"), h = c.st.h;
+    card(g, 92, 92, col);
+    const base = 30, top = base - 10 - h * 44, half = 30;
+    g.fillStyle = "#4a5560"; rr(g, -38, base, 76, 8, 2); g.fill();
+    g.strokeStyle = "#7c8790"; g.lineWidth = 3.5;
+    const mid = (base + top + 6) / 2;
+    g.beginPath(); g.moveTo(-half, base); g.lineTo(half, top + 6); g.moveTo(half, base); g.lineTo(-half, top + 6); g.stroke();
+    g.fillStyle = "#59626a"; g.beginPath(); g.arc(0, mid, 3, 0, 7); g.fill();
+    g.fillStyle = col; rr(g, -36, top, 72, 6, 2); g.fill();
+    g.fillStyle = "#d9a85c"; g.fillRect(-12, top - 18, 24, 18); g.strokeStyle = "#8a6430"; g.lineWidth = 1; g.strokeRect(-12, top - 18, 24, 18);
+    g.beginPath(); g.moveTo(-12, top - 9); g.lineTo(12, top - 9); g.stroke();
+  },
+  motion(g, c) {
+    const col = catColor("motion"), on = c.st.closed;
+    card(g, 72, 72, col);
+    g.fillStyle = K.dark ? "#26303a" : "#e9edf1"; g.beginPath(); g.arc(0, -4, 22, Math.PI, 0); g.fill();
+    g.strokeStyle = col; g.lineWidth = 1.5; g.stroke();
+    g.save(); g.beginPath(); g.arc(0, -4, 22, Math.PI, 0); g.clip();
+    const sw = Math.PI + (Math.sin(c.st.t * 2) * 0.5 + 0.5) * Math.PI;
+    g.strokeStyle = on ? K.ok : col; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -4); g.lineTo(Math.cos(sw) * 22, -4 + Math.sin(sw) * 22); g.stroke();
+    g.restore();
+    contacts(g, on, 14);
+  },
+  mic(g, c) {
+    const col = catColor("mic"), on = c.st.closed;
+    card(g, 72, 72, col);
+    g.fillStyle = "#3d4650"; rr(g, -8, -26, 16, 26, 8); g.fill();
+    g.strokeStyle = "#3d4650"; g.lineWidth = 2; g.beginPath(); g.arc(0, -10, 12, 0.1, Math.PI - 0.1); g.stroke();
+    g.beginPath(); g.moveTo(0, 2); g.lineTo(0, 7); g.stroke();
+    if (room.sound > 0.08) { g.strokeStyle = col; g.lineWidth = 1.5; for (let i = 1; i <= 2; i++) { g.beginPath(); g.arc(0, -13, 12 + i * 6, -0.6, 0.6); g.stroke(); g.beginPath(); g.arc(0, -13, 12 + i * 6, Math.PI - 0.6, Math.PI + 0.6); g.stroke(); } }
+    contacts(g, on, 14);
+  },
+  tx(g, c) {
+    const col = catColor("tx"), on = c.st.on;
+    card(g, 72, 92, col);
+    g.strokeStyle = "#59626a"; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 30); g.lineTo(0, -22); g.stroke();
+    g.beginPath(); g.moveTo(-12, 30); g.lineTo(0, 4); g.lineTo(12, 30); g.stroke();
+    g.fillStyle = on ? col : "#59626a"; g.beginPath(); g.arc(0, -24, 4.5, 0, 7); g.fill();
+    if (on) { g.strokeStyle = col; g.lineWidth = 2;
+      for (let i = 0; i < 3; i++) { const r = 8 + ((c.st.t * 22 + i * 9) % 27); g.globalAlpha = 1 - r / 36;
+        g.beginPath(); g.arc(0, -24, r, -0.7, 0.7); g.stroke(); g.beginPath(); g.arc(0, -24, r, Math.PI - 0.7, Math.PI + 0.7); g.stroke(); }
+      g.globalAlpha = 1; glow(0, -24, 22, "190,160,255", 0.5); }
+    chBadge(g, c.p.ch, col);
+  },
+  rx(g, c) {
+    const col = catColor("rx"), on = c.st.closed;
+    card(g, 72, 92, col);
+    g.save(); g.translate(0, -14); g.rotate(-0.5);
+    g.fillStyle = K.dark ? "#3a4450" : "#cfd6dd"; g.beginPath(); g.ellipse(0, 0, 18, 7, 0, 0, Math.PI); g.fill(); g.strokeStyle = "#59626a"; g.lineWidth = 2; g.stroke();
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -12); g.stroke(); g.fillStyle = on ? col : "#59626a"; g.beginPath(); g.arc(0, -13, 3, 0, 7); g.fill();
+    g.restore();
+    g.strokeStyle = "#59626a"; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -8); g.lineTo(0, 6); g.stroke();
+    contacts(g, on, 18);
+    chBadge(g, c.p.ch, col);
+  },
+  buzzer(g, c) {
+    const col = catColor("buzzer"), v = c.st.vol || 0;
+    card(g, 70, 70, col);
+    const j = v > 0 ? Math.sin(c.st.t * 90) * 1.2 * Math.min(1, v) : 0;
+    g.save(); g.translate(j, 0);
+    g.fillStyle = "#1f2328"; g.beginPath(); g.arc(0, -2, 22, 0, 7); g.fill();
+    g.strokeStyle = "#3c434b"; g.lineWidth = 2; g.beginPath(); g.arc(0, -2, 15, 0, 7); g.stroke();
+    g.fillStyle = "#0a0c0e"; g.beginPath(); g.arc(0, -2, 4, 0, 7); g.fill();
+    g.restore();
+    soundArcs(g, c, 26, -2, col);
+  },
+  speaker(g, c) {
+    const col = catColor("speaker"), v = c.st.vol || 0;
+    card(g, 76, 76, col);
+    const beat = v > 0 ? Math.abs(Math.sin(c.st.t * Math.PI * 4)) * 2 * Math.min(1, v) : 0;
+    g.fillStyle = "#33393f"; rr(g, -26, -28, 40, 56, 5); g.fill();
+    g.fillStyle = "#5b636c"; g.beginPath(); g.arc(-6, -10, 9 + beat * 0.4, 0, 7); g.fill();
+    g.fillStyle = "#1c2024"; g.beginPath(); g.arc(-6, -10, 4, 0, 7); g.fill();
+    g.fillStyle = "#5b636c"; g.beginPath(); g.arc(-6, 13, 6 + beat * 0.3, 0, 7); g.fill();
+    soundArcs(g, c, 18, 0, col);
+    if (v > 0) { g.fillStyle = col; g.font = "16px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("♪", 26 + Math.sin(c.st.t * 3) * 2, -22 - (c.st.t * 10 % 8)); }
+  },
+  bell(g, c) {
+    const col = catColor("bell"), v = c.st.vol || 0;
+    card(g, 72, 80, col);
+    const sw = v > 0 ? Math.sin(c.st.t * (6 + 8 * Math.min(1.4, v)) * Math.PI) * 0.35 : 0;
+    g.fillStyle = "#59626a"; g.fillRect(-2, -34, 4, 6);
+    g.save(); g.translate(0, -28); g.rotate(sw * 0.4);
+    g.fillStyle = "#d9a62b"; g.beginPath(); g.moveTo(-6, 0); g.quadraticCurveTo(-8, 4, -12, 22); g.quadraticCurveTo(-24, 34, -26, 38); g.lineTo(26, 38); g.quadraticCurveTo(24, 34, 12, 22); g.quadraticCurveTo(8, 4, 6, 0); g.closePath(); g.fill();
+    g.strokeStyle = "#a57a14"; g.lineWidth = 1.5; g.stroke();
+    g.restore();
+    g.save(); g.translate(0, -24); g.rotate(-sw);
+    g.strokeStyle = "#59626a"; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 40); g.stroke();
+    g.fillStyle = "#3c434b"; g.beginPath(); g.arc(0, 42, 5, 0, 7); g.fill();
+    g.restore();
+    soundArcs(g, c, 30, 0, col);
+  },
+};
+function contacts(g, on, y) {
+  g.fillStyle = "#c0c5cb"; g.beginPath(); g.arc(-12, y + 8, 3, 0, 7); g.arc(12, y + 8, 3, 0, 7); g.fill();
+  g.strokeStyle = on ? K.ok : "#5b636c"; g.lineWidth = 3; g.lineCap = "round";
+  g.beginPath(); g.moveTo(-12, y + 8); on ? g.lineTo(12, y + 8) : g.lineTo(9, y - 3); g.stroke();
+}
+function chBadge(g, ch, col) {
+  g.fillStyle = col; rr(g, 16, -40, 16, 16, 4); g.fill();
+  g.fillStyle = K.panel; g.font = "700 11px sans-serif"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(ch, 24, -31.5);
+}
+function soundArcs(g, c, x, y, col) {
+  const v = c.st.vol || 0; if (v <= 0) return;
+  g.strokeStyle = col; g.lineWidth = 2;
+  for (let i = 0; i < 3; i++) { const r = 4 + ((c.st.t * 30 + i * 6) % 18); g.globalAlpha = Math.min(1, v) * (1 - r / 24);
+    g.beginPath(); g.arc(x, y, r, -0.7, 0.7); g.stroke(); g.beginPath(); g.arc(-x, y, r, Math.PI - 0.7, Math.PI + 0.7); g.stroke(); }
+  g.globalAlpha = 1;
+}
+function speedMarks(g, c, x, y, r) {
+  const s = Math.abs(c.st.w) / 600; if (s < 0.15) return;
+  g.strokeStyle = K.muted; g.globalAlpha = Math.min(1, s); g.lineWidth = 1.6;
+  const dir = Math.sign(c.st.w);
+  g.beginPath(); g.arc(x, y, r + 4, dir > 0 ? -1.2 : Math.PI + 0.2, dir > 0 ? -0.2 : Math.PI + 1.2); g.stroke(); g.globalAlpha = 1;
+}
+function ohmBands(o) {
+  const cols = ["#111", "#7a4a1d", "#d22", "#f80", "#ee0", "#2a2", "#22c", "#82c", "#888", "#fff"];
+  const v = Math.max(1, Math.round(o)); const s = String(v); const d1 = +s[0], d2 = s.length > 1 ? +s[1] : 0, mult = Math.max(0, s.length - 2);
+  return [cols[d1], cols[d2], cols[Math.min(9, mult)]];
+}
+function fmtOhm(r) { return r >= 1000 ? (r / 1000).toFixed(r >= 10000 ? 0 : 1) + " kΩ" : (r >= 100 ? r.toFixed(0) : r.toFixed(1)) + " Ω"; }
+
+const PIP = { weak: ["LOW POWER", "#d7930f"], over: ["TOO MUCH", null], broken: ["BURNT OUT", null] };
+function pip(g, s, x, y, t) {
+  const col = s === "good" ? K.ok : s === "weak" ? "#d7930f" : s === "off" ? K.muted : K.danger;
+  if (s === "over" && Math.sin(t * 16) < -0.2) return; // blink
+  g.fillStyle = K.panel; g.beginPath(); g.arc(x, y, 6.5, 0, 7); g.fill();
+  g.fillStyle = col; g.beginPath(); g.arc(x, y, s === "off" ? 3 : 4.5, 0, 7); g.fill();
+  const lab = PIP[s]; if (!lab) return;
+  g.font = "700 8.5px " + getComputedStyle(document.documentElement).getPropertyValue("--f-body");
+  const w = g.measureText(lab[0]).width + 8;
+  rr(g, x - 8 - w, y - 6.5, w, 13, 4); g.fillStyle = col; g.fill();
+  g.fillStyle = "#fff"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(lab[0], x - 8 - w / 2, y + 0.5);
+}
+function smoke(g, st, w, h, amt) {
+  for (let i = 0; i < 4; i++) {
+    const p = (st.t * 0.7 + i * 0.25) % 1, x = -w / 4 + i * w / 6 + Math.sin(st.t * 2 + i) * 4, y = -h / 2 - 4 - p * 42;
+    g.fillStyle = `rgba(128,128,128,${(1 - p) * 0.55 * Math.min(1, 0.25 + amt)})`;
+    g.beginPath(); g.arc(x, y, 4 + p * 9, 0, 7); g.fill();
+  }
+}
+function sparks(g, w, h) {
+  g.strokeStyle = "#ffd23a"; g.lineWidth = 1.6;
+  for (let i = 0; i < 3; i++) {
+    if (Math.random() < 0.45) continue;
+    const x = (Math.random() - 0.5) * w, y = -h / 2 + Math.random() * h * 0.5, a = Math.random() * 6.28;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 7, y + Math.sin(a) * 7); g.stroke();
+  }
+}
+function burnt(g, w, h) {
+  rr(g, -w / 2, -h / 2, w, h, 9); g.fillStyle = "rgba(22,14,8,0.6)"; g.fill();
+  g.strokeStyle = K.danger; g.lineWidth = 2.2; g.beginPath();
+  g.moveTo(-w / 2 + 8, -h / 2 + 10); g.lineTo(-6, -4); g.lineTo(2, 4); g.lineTo(w / 2 - 10, h / 2 - 12); g.stroke();
+}
+function drawPart(g, c) {
+  const T = TYPES[c.type], G = geo(c), st = c.st, s = st.status;
+  let jx = 0, jy = 0;
+  if (s === "over") { const k = 1.2 + 2.5 * (st.stress || 0); jx = (Math.random() - 0.5) * k; jy = (Math.random() - 0.5) * k; }
+  else if (st.stall || st.weakPush) jx = Math.sin(st.t * 70) * 0.7;          // humming but not turning
+  const bw = T.kind === "machine" ? T.w : (T.half || 16) * 2, bh = T.kind === "machine" ? T.h : 26;
+  if (T.kind === "inline") {
+    g.save(); g.translate(G.mx + jx, G.my + jy); g.rotate(G.ang); INLINE[c.type](g, c); g.restore();
+    if (INLINE_UP[c.type]) { TAGV = Math.abs(G.uy) > Math.abs(G.ux); GO = { x: G.mx, y: G.my }; g.save(); g.translate(G.mx, G.my); INLINE_UP[c.type](g, c); g.restore(); TAGV = false; }
+  } else if (T.kind === "machine") {
+    GO = { x: G.mx, y: G.my };
+    g.save(); g.translate(G.mx + jx, G.my + jy); MACHINE[c.type](g, c);
+    if (st.broken && c.type !== "bulb") burnt(g, T.w, T.h);
+    label(g, T.name, T.h / 2 + 5); g.restore();
+  }
+  GO = { x: 0, y: 0 };
+  if (s) {
+    g.save(); g.translate(G.mx, G.my);
+    if (st.broken || s === "over") smoke(g, st, bw, bh, st.broken ? 0.4 : st.stress || 0);
+    if (s === "over") sparks(g, bw, bh);
+    pip(g, s, bw / 2 - 3, -bh / 2 + 3, st.t);
+    g.restore();
+  }
+}
+
+function render() {
+  const g = ctx;
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  g.fillStyle = K.mat; g.fillRect(0, 0, W, H);
+  g.setTransform(DPR * view.s, 0, 0, DPR * view.s, DPR * view.x, DPR * view.y);
+  // cutting-mat grid (1 square = 20 world units)
+  const x0 = -view.x / view.s, y0 = -view.y / view.s, x1 = x0 + W / view.s, y1 = y0 + H / view.s;
+  g.lineWidth = 1 / view.s;
+  for (const [step, col] of [[20, K["mat-grid"]], [100, K["mat-major"]]]) {
+    if (step * view.s < 7) continue;
+    g.strokeStyle = col; g.beginPath();
+    for (let x = Math.floor(x0 / step) * step; x < x1; x += step) { g.moveTo(x, y0); g.lineTo(x, y1); }
+    for (let y = Math.floor(y0 / step) * step; y < y1; y += step) { g.moveTo(x0, y); g.lineTo(x1, y); }
+    g.stroke();
+  }
+  glows = [];
+  // 1. wires and leads
+  for (const c of comps) {
+    const T = TYPES[c.type], G = geo(c);
+    if (T.kind === "inline") {
+      const h = Math.min(T.half, G.len / 2);
+      wireStroke(g, G.a.x, G.a.y, G.mx - G.ux * h, G.my - G.uy * h, 4);
+      wireStroke(g, G.mx + G.ux * h, G.my + G.uy * h, G.b.x, G.b.y, 4);
+    } else wireStroke(g, G.a.x, G.a.y, G.b.x, G.b.y, c.type === "wire" ? 5 : 4);
+  }
+  // 2. selection halo
+  const sel = comps.find(c => c.id === ui.sel);
+  if (sel) {
+    const T = TYPES[sel.type], G = geo(sel);
+    g.strokeStyle = K.accent; g.globalAlpha = 0.35; g.lineCap = "round";
+    if (T.kind === "machine") { g.lineWidth = 6; rr(g, G.mx - T.w / 2 - 5, G.my - T.h / 2 - 5, T.w + 10, T.h + 10, 13); g.stroke(); }
+    g.lineWidth = 16; g.beginPath(); g.moveTo(G.a.x, G.a.y); g.lineTo(G.b.x, G.b.y); g.stroke();
+    g.globalAlpha = 1;
+  }
+  // 3. current flow
+  if (ui.flow) {
+    g.fillStyle = K.flow;
+    for (const c of comps) {
+      if (Math.abs(c.I) < 0.002) continue;
+      const G = geo(c), sp = 18, off = ((c.st.phase % sp) + sp) % sp;
+      for (let d = off; d < G.len; d += sp) { g.beginPath(); g.arc(G.a.x + G.ux * d, G.a.y + G.uy * d, 2.6, 0, 7); g.fill(); }
+    }
+  }
+  // 4. bodies
+  for (const c of comps) if (c.type !== "wire") drawPart(g, c);
+  // 5. vertices
+  for (const id in verts) {
+    const v = verts[id], d = degree(id);
+    if (drag && drag.snap === id) { g.fillStyle = K.accent; g.globalAlpha = 0.3; g.beginPath(); g.arc(v.x, v.y, 18, 0, 7); g.fill(); g.globalAlpha = 1; }
+    if (d <= 1) {
+      g.setLineDash([3, 3]); g.strokeStyle = K.muted; g.lineWidth = 1.5; g.beginPath(); g.arc(v.x, v.y, 9, 0, 7); g.stroke(); g.setLineDash([]);
+      g.fillStyle = K.copper; g.beginPath(); g.arc(v.x, v.y, 4, 0, 7); g.fill();
+    } else {
+      g.fillStyle = K["copper-dk"]; g.beginPath(); g.arc(v.x, v.y, 6, 0, 7); g.fill();
+      g.fillStyle = K.copper; g.beginPath(); g.arc(v.x, v.y, 4, 0, 7); g.fill();
+    }
+    if (ui.selV === id) { g.strokeStyle = K.accent; g.lineWidth = 2.5; g.beginPath(); g.arc(v.x, v.y, 12, 0, 7); g.stroke(); }
+  }
+  // 6. values
+  if (ui.values) {
+    g.font = "500 11px " + getComputedStyle(document.documentElement).getPropertyValue("--f-mono");
+    g.textAlign = "center"; g.textBaseline = "middle";
+    for (const c of comps) {
+      const T = TYPES[c.type], G = geo(c);
+      const txt = Math.abs(c.I) < 0.0005 ? "0 A" : (Math.abs(c.I) < 1 ? (Math.abs(c.I) * 1000).toFixed(0) + " mA" : Math.abs(c.I).toFixed(2) + " A");
+      const oy = T.kind === "machine" ? T.h / 2 + 26 : -38;
+      const ox = T.kind === "wire" ? -G.uy * 16 : 0, oyy = T.kind === "wire" ? G.ux * 16 : oy;
+      const w = g.measureText(txt).width + 10;
+      g.fillStyle = K.panel; g.globalAlpha = 0.9; rr(g, G.mx + ox - w / 2, G.my + oyy - 8, w, 16, 4); g.fill(); g.globalAlpha = 1;
+      g.fillStyle = K.ink; g.fillText(txt, G.mx + ox, G.my + oyy + 0.5);
+    }
+  }
+  // 7. darkness and glows
+  g.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const dim = room.lights ? 0 : 0.62;
+  if (dim) { g.fillStyle = `rgba(4,8,16,${dim})`; g.fillRect(0, 0, W, H); }
+  g.globalCompositeOperation = "lighter";
+  for (const L of glows) {
+    const x = L.x * view.s + view.x, y = L.y * view.s + view.y, r = L.r * view.s;
+    const grd = g.createRadialGradient(x, y, 0, x, y, r);
+    const a = L.a * (room.lights ? 0.45 : 1);
+    grd.addColorStop(0, `rgba(${L.color},${a})`); grd.addColorStop(1, `rgba(${L.color},0)`);
+    g.fillStyle = grd; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  g.globalCompositeOperation = "source-over";
+  drawCelebration(g);
+}
+
+// ======================================================================
+//  Interaction
+// ======================================================================
+let drag = null;
+const pointers = new Map();
+function toWorld(cx, cy) { const r = cv.getBoundingClientRect(); return { x: (cx - r.left - view.x) / view.s, y: (cy - r.top - view.y) / view.s }; }
+function distSeg(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1; let t = ((px - ax) * dx + (py - ay) * dy) / l2; t = clamp(t, 0, 1);
+  return Math.hypot(px - ax - t * dx, py - ay - t * dy);
+}
+function hitVertex(p, excludeSet) {
+  let best = null, bd = 13 / Math.min(1, view.s);
+  for (const id in verts) { if (excludeSet && excludeSet.has(id)) continue; const v = verts[id], d = Math.hypot(v.x - p.x, v.y - p.y); if (d < bd) { bd = d; best = id; } }
+  return best;
+}
+function hitComp(p) {
+  for (let i = comps.length - 1; i >= 0; i--) {
+    const c = comps[i], T = TYPES[c.type], G = geo(c);
+    if (T.kind === "machine" && Math.abs(p.x - G.mx) <= T.w / 2 && Math.abs(p.y - G.my) <= T.h / 2) return c;
+  }
+  for (let i = comps.length - 1; i >= 0; i--) {
+    const c = comps[i], G = geo(c);
+    if (distSeg(p.x, p.y, G.a.x, G.a.y, G.b.x, G.b.y) < 13 / Math.min(1, view.s)) return c;
+  }
+  return null;
+}
+function findSnap(vid, moving) {
+  const v = verts[vid]; const ex = new Set(moving);
+  // can't join the two ends of the same part
+  for (const c of comps) { if (c.a === vid) ex.add(c.b); if (c.b === vid) ex.add(c.a); }
+  let best = null, bd = 22 / Math.min(1, view.s);
+  for (const id in verts) { if (ex.has(id)) continue; const w = verts[id], d = Math.hypot(w.x - v.x, w.y - v.y); if (d < bd) { bd = d; best = id; } }
+  return best;
+}
+function merge(from, into) {
+  for (const c of comps) { if (c.a === from) c.a = into; if (c.b === from) c.b = into; }
+  comps = comps.filter(c => c.a !== c.b);
+  delete verts[from];
+}
+function trySnap(vids) {
+  let did = false;
+  for (const vid of vids) {
+    if (!verts[vid]) continue;
+    const s = findSnap(vid, vids);
+    if (s) { merge(vid, s); did = true; }
+  }
+  if (did) save();
+}
+function splitVertex(id) {
+  const attached = comps.filter(c => c.a === id || c.b === id);
+  if (attached.length < 2) return;
+  const base = verts[id];
+  attached.slice(1).forEach(c => {
+    const other = verts[c.a === id ? c.b : c.a];
+    const dx = other.x - base.x, dy = other.y - base.y, l = Math.hypot(dx, dy) || 1;
+    const nid = addVert(base.x + dx / l * 22, base.y + dy / l * 22);
+    if (c.a === id) c.a = nid; else c.b = nid;
+  });
+  const first = attached[0], other = verts[first.a === id ? first.b : first.a];
+  const dx = other.x - base.x, dy = other.y - base.y, l = Math.hypot(dx, dy) || 1;
+  base.x += dx / l * 10; base.y += dy / l * 10;
+  save();
+}
+function detachComp(c) {
+  for (const end of ["a", "b"]) {
+    const id = c[end]; if (degree(id) < 2) continue;
+    const v = verts[id], o = verts[end === "a" ? c.b : c.a], dx = o.x - v.x, dy = o.y - v.y, l = Math.hypot(dx, dy) || 1;
+    c[end] = addVert(v.x + dx / l * 20, v.y + dy / l * 20);
+  }
+  save();
+}
+function deleteComp(c) {
+  comps = comps.filter(k => k !== c);
+  for (const id of [c.a, c.b]) if (degree(id) === 0) delete verts[id];
+  if (ui.sel === c.id) select(null);
+  save();
+}
+
+let lastTap = { t: 0, id: null };
+cv.addEventListener("pointerdown", e => {
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) { // pinch
+    const [p1, p2] = [...pointers.values()];
+    drag = { mode: "pinch", d0: Math.hypot(p1.x - p2.x, p1.y - p2.y), s0: view.s, cx: (p1.x + p2.x) / 2, cy: (p1.y + p2.y) / 2, vx: view.x, vy: view.y };
+    return;
+  }
+  const p = toWorld(e.clientX, e.clientY);
+  const vid = hitVertex(p);
+  const start = { sx: e.clientX, sy: e.clientY, moved: false };
+  if (vid) { drag = Object.assign(start, { mode: "vertex", vid, ox: verts[vid].x - p.x, oy: verts[vid].y - p.y }); return; }
+  const c = hitComp(p);
+  if (c) {
+    const a = verts[c.a], b = verts[c.b];
+    drag = Object.assign(start, { mode: "comp", c, pa: { x: a.x - p.x, y: a.y - p.y }, pb: { x: b.x - p.x, y: b.y - p.y } });
+    return;
+  }
+  drag = Object.assign(start, { mode: "pan", vx: view.x, vy: view.y });
+});
+cv.addEventListener("pointermove", e => {
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (!drag) { const p = toWorld(e.clientX, e.clientY); cv.style.cursor = hitVertex(p) || hitComp(p) ? "grab" : "default"; return; }
+  if (drag.mode === "pinch") {
+    if (pointers.size < 2) return;
+    const [p1, p2] = [...pointers.values()], d = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    zoomAt(drag.cx, drag.cy, clamp(drag.s0 * d / drag.d0, 0.25, 2.5) / view.s);
+    return;
+  }
+  if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 5) drag.moved = true;
+  if (!drag.moved) return;
+  cv.style.cursor = "grabbing";
+  const p = toWorld(e.clientX, e.clientY);
+  if (drag.mode === "pan") { view.x = drag.vx + e.clientX - drag.sx; view.y = drag.vy + e.clientY - drag.sy; }
+  else if (drag.mode === "vertex") { const v = verts[drag.vid]; v.x = p.x + drag.ox; v.y = p.y + drag.oy; drag.snap = findSnap(drag.vid, [drag.vid]); }
+  else if (drag.mode === "comp" || drag.mode === "new") {
+    const c = drag.c; verts[c.a].x = p.x + drag.pa.x; verts[c.a].y = p.y + drag.pa.y; verts[c.b].x = p.x + drag.pb.x; verts[c.b].y = p.y + drag.pb.y;
+    drag.snap = findSnap(c.a, [c.a, c.b]) || findSnap(c.b, [c.a, c.b]);
+  }
+});
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (!drag) return;
+  if (drag.mode === "pinch") { if (pointers.size === 0) drag = null; return; }
+  const d = drag; drag = null; cv.style.cursor = "default";
+  if (!d.moved) {
+    if (d.mode === "vertex") {
+      const now = performance.now();
+      if (lastTap.id === d.vid && now - lastTap.t < 380) { splitVertex(d.vid); lastTap = { t: 0, id: null }; }
+      else lastTap = { t: now, id: d.vid };
+      selectVertex(d.vid);
+    } else if (d.mode === "comp") {
+      if (d.c.type === "switch" && ui.sel === d.c.id) { d.c.p.closed = !d.c.p.closed; save(); buildInspector(); }
+      else if (d.c.type === "switch" && ui.sel !== d.c.id) { d.c.p.closed = !d.c.p.closed; select(d.c.id); save(); }
+      else select(d.c.id);
+    } else select(null);
+    return;
+  }
+  if (d.mode === "vertex") trySnap([d.vid]);
+  if (d.mode === "comp") { trySnap([d.c.a, d.c.b]); save(); }
+}
+cv.addEventListener("pointerup", endPointer);
+cv.addEventListener("pointercancel", endPointer);
+cv.addEventListener("wheel", e => { e.preventDefault(); const r = cv.getBoundingClientRect(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+function zoomAt(cx, cy, f) {
+  const r = cv.getBoundingClientRect(), sx = cx - r.left, sy = cy - r.top;
+  const ns = clamp(view.s * f, 0.25, 2.5); f = ns / view.s;
+  view.x = sx - (sx - view.x) * f; view.y = sy - (sy - view.y) * f; view.s = ns;
+}
+function fit() {
+  const ids = Object.keys(verts); if (!ids.length) { view.s = 1; view.x = W / 2; view.y = H / 2; return; }
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const c of comps) {
+    const T = TYPES[c.type], G = geo(c), hw = T.kind === "machine" ? T.w / 2 : 20, hh = T.kind === "machine" ? T.h / 2 + 18 : 30;
+    x0 = Math.min(x0, G.a.x, G.b.x, G.mx - hw); x1 = Math.max(x1, G.a.x, G.b.x, G.mx + hw);
+    y0 = Math.min(y0, G.a.y, G.b.y, G.my - hh); y1 = Math.max(y1, G.a.y, G.b.y, G.my + hh);
+  }
+  const padL = typeof game !== "undefined" && game.active && !goalEl.hidden && W > 760 ? 320 : 0; // keep clear of the challenge card
+  const pad = 40, s = clamp(Math.min((W - padL - pad * 2) / (x1 - x0 || 1), (H - pad * 2) / (y1 - y0 || 1)), 0.25, 1.3);
+  view.s = s; view.x = padL + (W - padL) / 2 - (x0 + x1) / 2 * s; view.y = H / 2 - (y0 + y1) / 2 * s;
+}
+document.getElementById("z-in").onclick = () => zoomAt(cv.getBoundingClientRect().left + W / 2, cv.getBoundingClientRect().top + H / 2, 1.25);
+document.getElementById("z-out").onclick = () => zoomAt(cv.getBoundingClientRect().left + W / 2, cv.getBoundingClientRect().top + H / 2, 0.8);
+document.getElementById("z-fit").onclick = fit;
+window.addEventListener("keydown", e => {
+  if (e.target.matches("input, select, textarea")) return;
+  if ((e.key === "Delete" || e.key === "Backspace") && ui.sel) { const c = comps.find(k => k.id === ui.sel); if (c) deleteComp(c); e.preventDefault(); }
+  if (e.key === "Escape") { if (!modalEl.hidden) closeChallenges(); else select(null); }
+});
+
+// ======================================================================
+//  Parts drawer
+// ======================================================================
+let curCat = "basic";
+const catsEl = document.getElementById("cats"), tilesEl = document.getElementById("tiles"), headEl = document.getElementById("tray-head");
+CATS.forEach(cat => {
+  const b = document.createElement("button");
+  b.className = "cat"; b.role = "tab"; b.id = "cat-" + cat.id; b.style.setProperty("--cc", `var(--c-${cat.id})`);
+  b.innerHTML = `<span class="sw"></span>${cat.name}`;
+  b.onclick = () => { curCat = cat.id; buildTiles(); };
+  catsEl.appendChild(b);
+});
+function buildTiles() {
+  const cat = CATS.find(c => c.id === curCat);
+  catsEl.querySelectorAll(".cat").forEach(b => b.setAttribute("aria-selected", b.id === "cat-" + curCat));
+  document.querySelector(".tray").style.setProperty("--cc", `var(--c-${curCat})`);
+  headEl.querySelector("h2").textContent = cat.name; headEl.querySelector("p").textContent = cat.blurb;
+  tilesEl.innerHTML = "";
+  for (const [type, T] of Object.entries(TYPES)) {
+    if (T.cat !== curCat && !(T.also || []).includes(curCat)) continue;
+    const t = document.createElement("div");
+    t.className = "tile"; t.tabIndex = 0; t.dataset.type = type; t.title = T.desc; t.setAttribute("role", "button");
+    t.style.setProperty("--cc", `var(--c-${T.cat})`);
+    t.innerHTML = `<canvas width="152" height="108"></canvas><span>${T.name}</span>`;
+    tilesEl.appendChild(t);
+    tileDrag(t, type);
+  }
+  drawTiles();
+}
+function drawTiles() {
+  tilesEl.querySelectorAll(".tile").forEach(t => {
+    const type = t.dataset.type, T = TYPES[type], cvs = t.querySelector("canvas"), g = cvs.getContext("2d");
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cvs.width, cvs.height);
+    const fake = { type, p: Object.assign({}, T.p || {}), st: { ang: 0.3, w: 0, h: 0.3, ext: 0.4, glow: 0, t: 0, vol: 0 }, I: 0, V: 0 };
+    if (type === "wire") { g.translate(76, 54); g.scale(1.4, 1.4); wireStroke(g, -38, 10, 38, -10, 5); return; }
+    if (T.kind === "inline") {
+      const s = Math.min(1.5, 120 / (T.half * 2 + 30)); g.translate(76, 56); g.scale(s, s);
+      wireStroke(g, -T.half - 14, 0, -T.half, 0, 4); wireStroke(g, T.half, 0, T.half + 14, 0, 4);
+      INLINE[type](g, fake);
+    } else {
+      const s = Math.min(100 / T.h, 140 / T.w); g.translate(76, 54); g.scale(s, s); MACHINE[type](g, fake);
+    }
+  });
+}
+let placeCount = 0;
+function tileDrag(tile, type) {
+  let st = null;
+  const spawnAt = (wx, wy) => {
+    const T = TYPES[type], L = T.len;
+    const a = addVert(wx - L / 2, wy), b = addVert(wx + L / 2, wy);
+    return addComp(type, a, b);
+  };
+  tile.addEventListener("pointerdown", e => { tile.setPointerCapture(e.pointerId); st = { x: e.clientX, y: e.clientY, c: null }; });
+  tile.addEventListener("pointermove", e => {
+    if (!st) return;
+    if (!st.c && Math.hypot(e.clientX - st.x, e.clientY - st.y) > 8) {
+      const p = toWorld(e.clientX, e.clientY); st.c = spawnAt(p.x, p.y);
+      const T = TYPES[type]; drag = { mode: "new", c: st.c, pa: { x: -T.len / 2, y: 0 }, pb: { x: T.len / 2, y: 0 }, moved: true };
+      select(st.c.id);
+    }
+    if (st.c && drag) {
+      const p = toWorld(e.clientX, e.clientY), c = st.c;
+      verts[c.a].x = p.x + drag.pa.x; verts[c.a].y = p.y; verts[c.b].x = p.x + drag.pb.x; verts[c.b].y = p.y;
+      drag.snap = findSnap(c.a, [c.a, c.b]) || findSnap(c.b, [c.a, c.b]);
+    }
+  });
+  const up = e => {
+    if (!st) return;
+    if (st.c) {
+      const r = cv.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      drag = null;
+      if (!inside) deleteComp(st.c); else { trySnap([st.c.a, st.c.b]); save(); }
+    } else if (e.type === "pointerup") {
+      const k = (placeCount++ % 6) * 24, p = toWorld(cv.getBoundingClientRect().left + W / 2 + k, cv.getBoundingClientRect().top + H / 2 + k - 40);
+      const c = spawnAt(p.x, p.y); select(c.id); save();
+    }
+    st = null;
+  };
+  tile.addEventListener("pointerup", up);
+  tile.addEventListener("pointercancel", up);
+  tile.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); const p = toWorld(cv.getBoundingClientRect().left + W / 2, cv.getBoundingClientRect().top + H / 2); const c = spawnAt(p.x, p.y); select(c.id); save(); } });
+}
+
+// ======================================================================
+//  Inspector
+// ======================================================================
+const insp = document.getElementById("insp");
+function select(id) { ui.sel = id; ui.selV = null; buildInspector(); }
+function selectVertex(id) { ui.selV = id; ui.sel = null; buildInspector(); }
+function outText(c) {
+  const st = c.st, m = Math.abs(level(c));
+  switch (c.type) {
+    case "wire": return "Carrying current";
+    case "battery": return st.fire ? "Overheating! Too much current" : "Supplying " + power(c).toFixed(1) + " W";
+    case "resistor": return "Turning " + power(c).toFixed(2) + " W into heat";
+    case "switch": return c.p.closed ? "Closed: current can pass" : "Open: path broken";
+    case "bulb": return Math.round(st.glow * 800) + " lm of light";
+    case "led": return st.on ? "On, " + (Math.abs(c.I) * 1000).toFixed(0) + " mA" : (c.V < 0 ? "Off: current is the wrong way" : "Off: below " + LED_COLORS[c.p.color][1] + " V turn-on");
+    case "screen": return st.glow < 0.1 ? "Dark: needs more voltage" : st.glow < 0.4 ? "Flickering: low voltage" : "Showing " + c.p.mode;
+    case "wheel": case "fan": case "belt": return Math.abs(st.w).toFixed(0) + " rpm " + (st.w < -5 ? "(reverse)" : "");
+    case "pulley": return "Weight at " + (st.h * 100).toFixed(0) + " cm";
+    case "heater": return "+" + power(c).toFixed(1) + " W into the room";
+    case "cooler": return "−" + power(c).toFixed(1) + " W out of the room";
+    case "piston": return "Rod out " + (st.ext * 30).toFixed(0) + " cm" + (st.moving ? (c.V > 0 ? ", extending" : ", retracting") : "");
+    case "lift": return "Platform at " + (st.h * 120).toFixed(0) + " cm";
+    case "ldr": return fmtOhm(ldrR()) + " at " + Math.round(room.light * 500) + " lx";
+    case "thermistor": return fmtOhm(thermR()) + " at " + room.temp.toFixed(1) + " °C";
+    case "motion": return st.closed ? "Motion seen: contacts closed" : "Nothing moving: open";
+    case "mic": return st.closed ? "Hearing sound: contacts closed" : "Quiet: open";
+    case "tx": return st.on ? "Sending on channel " + c.p.ch : "Idle: needs 3 V to send";
+    case "rx": return st.closed ? "Hearing channel " + c.p.ch + ": closed" : "No signal on " + c.p.ch + ": open";
+    case "buzzer": case "speaker": case "bell": return st.vol > 0 ? Math.round(45 + 30 * Math.min(1.4, st.vol)) + " dB" + (ui.soundOn ? "" : " (turn on Sound to hear)") : "Silent";
+  }
+  return "";
+}
+function isLive(c) {
+  const st = c.st;
+  switch (c.type) {
+    case "switch": return c.p.closed;
+    case "motion": case "mic": case "rx": return st.closed;
+    case "tx": case "led": return !!st.on;
+    case "battery": return Math.abs(c.I) > 0.002;
+    default: return Math.abs(c.I) > 0.002;
+  }
+}
+function slider(id, labelText, min, max, stepv, val, fmt, on) {
+  return { html: `<label for="${id}"><span class="row">${labelText}<b id="${id}-v">${fmt(val)}</b></span><input type="range" id="${id}" min="${min}" max="${max}" step="${stepv}" value="${val}"></label>`,
+    bind: () => { const el = document.getElementById(id); el.oninput = () => { on(+el.value); document.getElementById(id + "-v").textContent = fmt(+el.value); save(); }; } };
+}
+function selectCtl(id, labelText, opts, val, on) {
+  return { html: `<label for="${id}">${labelText}<select id="${id}">${opts.map(([v, t]) => `<option value="${v}" ${v === val ? "selected" : ""}>${t}</option>`).join("")}</select></label>`,
+    bind: () => { const el = document.getElementById(id); el.onchange = () => { on(el.value); save(); }; } };
+}
+function buildInspector() {
+  if (ui.selV && verts[ui.selV]) {
+    const d = degree(ui.selV);
+    insp.hidden = false; insp.style.setProperty("--cc", "var(--accent)");
+    insp.innerHTML = `<div class="insp-head"><div><div class="tag">Junction</div><h3>${d} connection${d === 1 ? "" : "s"}</h3>
+      <p>${d > 1 ? "Split it to pull the parts apart." : "A loose end. Drag it onto another end to connect."}</p></div><button class="x" id="i-x" aria-label="Close">×</button></div>
+      ${d > 1 ? `<div class="insp-actions" style="padding-top:12px"><button class="btn" id="i-split">Split junction</button></div>` : ""}`;
+    document.getElementById("i-x").onclick = () => select(null);
+    const sp = document.getElementById("i-split"); if (sp) sp.onclick = () => { splitVertex(ui.selV); select(null); };
+    return;
+  }
+  const c = comps.find(k => k.id === ui.sel);
+  if (!c) { insp.hidden = true; insp.innerHTML = ""; return; }
+  const T = TYPES[c.type], cat = CATS.find(k => k.id === T.cat);
+  insp.hidden = false; insp.style.setProperty("--cc", `var(--c-${T.cat})`);
+  const ctls = [];
+  if (c.type === "battery") ctls.push(slider("p-volts", "Voltage", 0, 24, 0.5, c.p.volts, v => v.toFixed(1) + " V", v => c.p.volts = v));
+  if (c.type === "resistor") ctls.push(slider("p-ohms", "Resistance", 1, 500, 1, c.p.ohms, v => fmtOhm(v), v => c.p.ohms = v));
+  if (c.type === "led") ctls.push(selectCtl("p-color", "Colour", Object.keys(LED_COLORS).map(k => [k, k[0].toUpperCase() + k.slice(1) + " (turns on at " + LED_COLORS[k][1] + " V)"]), c.p.color, v => c.p.color = v));
+  if (c.type === "screen") {
+    ctls.push(selectCtl("p-mode", "Show", [["message", "Scrolling message"], ["meter", "Meter readings"], ["face", "Face"]], c.p.mode, v => { c.p.mode = v; buildInspector(); }));
+    if (c.p.mode === "message") ctls.push({ html: `<label for="p-text">Message<input type="text" id="p-text" maxlength="24" value="${(c.p.text || "").replace(/"/g, "&quot;")}"></label>`, bind: () => { const el = document.getElementById("p-text"); el.oninput = () => { c.p.text = el.value; save(); }; } });
+  }
+  if (c.type === "tx" || c.type === "rx") ctls.push(selectCtl("p-ch", "Channel", [["A", "A"], ["B", "B"], ["C", "C"]], c.p.ch, v => c.p.ch = v));
+  if (c.type === "buzzer") ctls.push(slider("p-pitch", "Pitch", 200, 900, 10, c.p.pitch, v => v + " Hz", v => c.p.pitch = v));
+  if (c.type === "speaker") ctls.push(selectCtl("p-mel", "Tune", [["tune", "Little tune"], ["scale", "C major scale"], ["siren", "Siren"]], c.p.melody, v => c.p.melody = v));
+  insp.innerHTML = `
+    <div class="insp-head"><div><div class="tag">${cat.name}</div><h3>${T.name}</h3><p>${T.desc}</p></div><button class="x" id="i-x" aria-label="Close">×</button></div>
+    <div class="readings"><div><i>Voltage</i><b id="r-v">–</b></div><div><i>Current</i><b id="r-i">–</b></div><div><i>Power</i><b id="r-p">–</b></div></div>
+    <div class="output" id="r-out"><span class="lamp"></span><span id="r-o"></span></div>
+    ${RATEABLE.has(c.type) ? `<div class="health" id="r-h"><span id="r-ht"></span><div class="stress" title="Overload damage"><i id="r-hs"></i></div></div>` : ""}
+    ${c.type === "switch" ? `<div class="props"><button class="tog" id="p-sw" aria-pressed="${c.p.closed}">${c.p.closed ? "Closed (tap to open)" : "Open (tap to close)"}</button></div>` : ""}
+    ${ctls.length ? `<div class="props">${ctls.map(k => k.html).join("")}</div>` : ""}
+    <div class="insp-actions">
+      ${c.st.broken ? `<button class="btn primary" id="i-fix">Replace part</button>` : ""}
+      ${DIRECTIONAL.has(c.type) ? `<button class="btn" id="i-flip">Flip direction</button>` : ""}
+      <button class="btn" id="i-detach">Disconnect</button>
+      <button class="btn warn" id="i-del">Delete</button>
+    </div>`;
+  ctls.forEach(k => k.bind());
+  document.getElementById("i-x").onclick = () => select(null);
+  document.getElementById("i-del").onclick = () => deleteComp(c);
+  document.getElementById("i-detach").onclick = () => detachComp(c);
+  const fl = document.getElementById("i-flip"); if (fl) fl.onclick = () => { const t = c.a; c.a = c.b; c.b = t; save(); };
+  const fx = document.getElementById("i-fix"); if (fx) fx.onclick = () => { c.st.broken = false; c.st.stress = 0; buildInspector(); };
+  insp.dataset.broken = c.st.broken ? "1" : "";
+  const sw = document.getElementById("p-sw"); if (sw) sw.onclick = () => { c.p.closed = !c.p.closed; save(); buildInspector(); };
+  refreshInspector();
+}
+function fmtA(i) { i = Math.abs(i); return i < 0.0005 ? "0 A" : i < 1 ? (i * 1000).toFixed(0) + " mA" : i.toFixed(2) + " A"; }
+function refreshInspector() {
+  const c = comps.find(k => k.id === ui.sel); if (!c || insp.hidden) return;
+  const set = (id, t) => { const el = document.getElementById(id); if (el && el.textContent !== t) el.textContent = t; };
+  set("r-v", Math.abs(c.V).toFixed(2) + " V"); set("r-i", fmtA(c.I)); set("r-p", power(c) < 10 ? power(c).toFixed(2) + " W" : power(c).toFixed(0) + " W");
+  set("r-o", outText(c));
+  document.getElementById("r-out").classList.toggle("live", isLive(c));
+  if ((c.st.broken ? "1" : "") !== insp.dataset.broken) { buildInspector(); return; }
+  const h = document.getElementById("r-h");
+  if (h) {
+    h.dataset.s = c.st.status || "off"; set("r-ht", healthText(c));
+    const sb = document.getElementById("r-hs"); sb.style.width = Math.round((c.st.stress || 0) * 100) + "%";
+    sb.parentNode.hidden = !(c.st.stress > 0.005) || c.st.broken;
+  }
+}
+function healthText(c) {
+  const s = c.st.status || "off", v = Math.abs(c.V).toFixed(1), lo = (LOW * RATED).toFixed(1), hi = (HIGH * RATED).toFixed(1), m = Math.abs(c.V) / RATED;
+  if (c.type === "led") {
+    const ma = (Math.abs(c.I) * 1000).toFixed(0);
+    return { off: "Off. LEDs work best with 40 to 200 mA flowing forward.", weak: `Underpowered: only ${ma} mA, so it glows faintly.`, good: `Working properly at ${ma} mA.`,
+      over: `Overloaded: ${ma} mA is more than 200 mA. It will burn out! Add a resistor in series.`, broken: "Burnt out. Replace it and add a resistor in series." }[s];
+  }
+  if (s === "off") return `Off. Works best between ${lo} and ${hi} V.`;
+  if (s === "good") return `Working properly at ${v} V.`;
+  if (s === "over") return `Overloaded: ${v} V is more than its ${hi} V limit. It will burn out!`;
+  if (s === "broken") return "Burnt out from too much power. Replace it, then give it less voltage.";
+  let eff = "";
+  if (c.type === "pulley" && m < 0.35) eff = " It can't hold the weight up.";
+  else if (["wheel", "fan", "belt", "pulley"].includes(c.type)) eff = m < 0.3 ? " The motor hums but can't turn." : " It turns slowly and unevenly.";
+  else if (c.type === "bulb") eff = " It only glows dimly.";
+  else if (c.type === "screen") eff = " The picture is dim and flickers.";
+  else if (c.type === "piston" || c.type === "lift") eff = c.st.weakPush ? " The pump is too weak to push." : " It moves slowly.";
+  else if (c.type === "tx") eff = m * RATED < 3 ? " Too weak to send." : " Its signal is weak.";
+  else if (NOISY.has(c.type)) eff = " It sounds quiet and low.";
+  else if (c.type === "heater" || c.type === "cooler") eff = " It barely changes the room.";
+  return `Underpowered: only ${v} V. It needs ${lo} to ${hi} V.` + eff;
+}
+function refreshRoom() {
+  const set = (id, t) => { const el = document.getElementById(id); if (el.textContent !== t) el.textContent = t; };
+  set("v-temp", room.temp.toFixed(1) + " °C");
+  set("v-light", Math.round(room.light * 500) + " lx");
+  set("v-sound", room.sound > 0.08 ? Math.round(45 + 30 * Math.min(1.4, room.sound)) + " dB" : "quiet");
+  set("v-motion", room.motion ? room.motion + " moving" : "still");
+  document.getElementById("g-sound").classList.toggle("on", room.sound > 0.08);
+  document.getElementById("g-motion").classList.toggle("on", room.motion > 0);
+  const fire = comps.some(c => c.st.fire), broken = comps.filter(c => c.st.broken).length;
+  document.getElementById("alert").hidden = !fire && !broken;
+  set("alert-t", fire ? "Short circuit: a battery is overheating" : `${broken} part${broken > 1 ? "s" : ""} burnt out from too much power`);
+  document.getElementById("alert-fix").hidden = fire || !broken;
+}
+
+// ======================================================================
+//  Top bar
+// ======================================================================
+function bindToggle(id, get, set) {
+  const b = document.getElementById(id);
+  const sync = () => b.setAttribute("aria-pressed", get());
+  b.onclick = () => { set(!get()); sync(); save(); }; sync(); return sync;
+}
+bindToggle("t-flow", () => ui.flow, v => ui.flow = v);
+bindToggle("t-values", () => ui.values, v => ui.values = v);
+const syncLights = bindToggle("t-lights", () => room.lights, v => room.lights = v);
+bindToggle("t-sound", () => ui.soundOn, v => { ui.soundOn = v; if (v) startAudio(); });
+const clearBtn = document.getElementById("b-clear"); let clearTimer = null;
+clearBtn.onclick = () => {
+  if (clearBtn.classList.contains("armed")) { clearTimeout(clearTimer); clearBtn.classList.remove("armed"); clearBtn.textContent = "Clear"; loadExample("empty"); return; }
+  clearBtn.classList.add("armed"); clearBtn.textContent = "Tap again to clear";
+  clearTimer = setTimeout(() => { clearBtn.classList.remove("armed"); clearBtn.textContent = "Clear"; }, 3000);
+};
+document.getElementById("alert-fix").onclick = () => { comps.forEach(c => { if (c.st.broken) { c.st.broken = false; c.st.stress = 0; } }); buildInspector(); };
+document.getElementById("examples").onchange = e => { if (e.target.value) loadExample(e.target.value); e.target.value = ""; };
+
+// ======================================================================
+//  Examples, save and load
+// ======================================================================
+// A six-sided loop: battery up the left side, two parts across the top, one down the right, two back along the bottom
+function loop(x, y, segs, w = 340, h = 190) {
+  const P = [[x, y + h], [x, y], [x + w / 2, y], [x + w, y], [x + w, y + h], [x + w / 2, y + h]].map(([px, py]) => addVert(px, py));
+  segs.forEach((s, i) => { const [type, p] = Array.isArray(s) ? s : [s]; addComp(type, P[i], P[(i + 1) % 6], p); });
+}
+function loadExample(name) {
+  verts = {}; comps = []; room.temp = 20; room.lights = true;
+  if (name === "workshop") {
+    loop(0, 0, ["battery", ["switch", { closed: true }], "heater", "wire", "wire", "wire"]);
+    loop(440, 0, ["battery", "thermistor", "fan", "wire", "wire", "wire"]);
+    loop(880, 0, ["battery", "bulb", "screen", "wire", "wire", "wire"]);
+    loop(0, 300, ["battery", ["switch", { closed: false }], "tx", "wire", "wire", "wire"]);
+    loop(440, 300, ["battery", "rx", "bell", "wire", "wire", "wire"]);
+    loop(880, 300, ["battery", ["switch", { closed: true }], "piston", "wire", "lift", "wire"]);
+  } else if (name === "fan") {
+    loop(0, 0, ["battery", ["switch", { closed: true }], "heater", "wire", "wire", "wire"]);
+    loop(440, 0, ["battery", "thermistor", "fan", "wire", ["screen", { mode: "meter" }], "wire"]);
+  } else if (name === "doorbell") {
+    loop(0, 0, ["battery", ["switch", { closed: false }], "tx", "wire", "wire", "wire"]);
+    loop(440, 0, ["battery", "rx", "bell", "wire", ["led", { color: "green" }], "wire"]);
+  } else if (name === "factory") {
+    loop(0, 0, ["battery", ["switch", { closed: true }], "belt", "pulley", "wire", "wire"], 360, 240);
+    loop(460, 0, [["battery", { volts: 12 }], "piston", "wheel", "wire", "lift", "wire"], 360, 240);
+    loop(230, 360, ["battery", "motion", "speaker", "wire", "wire", "wire"]);
+  } else if (name === "power") {
+    loop(0, 0, [["battery", { volts: 4.5 }], "wheel", "bulb", "wire", "wire", "wire"]);
+    loop(440, 0, ["battery", "fan", "wire", "wire", "wire", "wire"]);
+    loop(880, 0, [["battery", { volts: 14 }], "fan", "wire", "wire", "wire", "wire"]);
+    loop(0, 300, ["battery", "led", "wire", "wire", "wire", "wire"]);
+    loop(440, 300, ["battery", "resistor", "led", "wire", "wire", "wire"]);
+    loop(880, 300, [["battery", { volts: 16 }], "screen", "wire", "wire", "wire", "wire"]);
+  } else if (name === "dark") {
+    room.lights = false;
+    loop(0, 0, ["battery", ["switch", { closed: false }], "bulb", "wire", "wire", "wire"]);
+    loop(440, 0, ["battery", "ldr", "buzzer", "wire", ["led", { color: "red" }], "wire"]);
+  }
+  ui.sel = null; ui.selV = null; buildInspector(); syncLights(); fit(); save();
+}
+let saveTimer = null;
+function serialize() {
+  return { verts: JSON.parse(JSON.stringify(verts)), comps: comps.map(c => ({ id: c.id, type: c.type, a: c.a, b: c.b, p: Object.assign({}, c.p) })), nextId, lights: room.lights, temp: room.temp };
+}
+function restore(d) {
+  verts = d.verts; nextId = Math.max(nextId, d.nextId || 1000);
+  comps = d.comps.filter(c => TYPES[c.type] && verts[c.a] && verts[c.b]).map(c => ({ ...c, p: Object.assign({}, TYPES[c.type].p || {}, c.p), st: { ang: 0, w: 0, h: 0, ext: 0, glow: 0, phase: 0, t: 0 }, I: 0, V: 0 }));
+  room.lights = d.lights !== false; room.temp = typeof d.temp === "number" ? d.temp : 20;
+  syncLights(); ui.sel = null; ui.selV = null; buildInspector();
+}
+function save() {
+  if (game.active) return; // challenge benches don't overwrite your own bench
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem("circuit-workbench-v1", JSON.stringify(Object.assign(serialize(), { flow: ui.flow, values: ui.values }))); } catch (e) {}
+  }, 300);
+}
+function load() {
+  try {
+    const raw = localStorage.getItem("circuit-workbench-v1"); if (!raw) return false;
+    const d = JSON.parse(raw); if (!d || !d.verts || !Array.isArray(d.comps)) return false;
+    restore(d); ui.flow = d.flow !== false; ui.values = !!d.values;
+    document.getElementById("t-flow").setAttribute("aria-pressed", ui.flow); document.getElementById("t-values").setAttribute("aria-pressed", ui.values);
+    return comps.length > 0;
+  } catch (e) { return false; }
+}
+
+// ======================================================================
+//  Challenges
+// ======================================================================
+const goodN = types => comps.filter(c => types.includes(c.type) && c.st.status === "good").length;
+const countItem = (text, n, need) => ({ text, done: n >= need, detail: Math.min(n, need) + "/" + need });
+function batteryItem(max) { const n = comps.filter(c => c.type === "battery").length; return { text: `Use at most ${max} batter${max > 1 ? "ies" : "y"}`, done: n >= 1 && n <= max, detail: n + " used" }; }
+function safeItem() { const b = comps.filter(c => c.st.broken).length, f = comps.some(c => c.st.fire); return { text: "Nothing burnt out or short-circuited", done: !b && !f, detail: b ? b + " burnt" : f ? "short!" : "" }; }
+const CHALLENGES = [
+  { id: "car", name: "Build a car", needs: ["spin", "light", "sound", "basic"],
+    story: "A car needs to drive, light the road, honk, and show the driver its readings. Every part has to run at full power at the same time.",
+    hint: "Give each wheel its own path straight across a battery (in parallel) so each gets the full 9 V. Two wheels in one loop share the voltage and both run weak. Put a switch in the horn's loop and flick it on and off.",
+    check: () => [
+      countItem("Drive: two motor wheels at full power", goodN(["wheel"]), 2),
+      countItem("Headlights: two lights shining properly", goodN(["bulb", "led"]), 2),
+      { text: "Horn: a buzzer or bell you switch on, then off", done: comps.some(c => (c.type === "buzzer" || c.type === "bell") && c.st.cycled) },
+      { text: "Dashboard: a screen showing meter readings", done: comps.some(c => c.type === "screen" && c.p.mode === "meter" && c.st.status === "good") },
+      batteryItem(2), safeItem(),
+    ] },
+  { id: "parallel", name: "One battery, many jobs", needs: ["basic"],
+    story: "Run four different kinds of machine at full power from a single battery.",
+    hint: "Connect each machine's two ends straight to the battery's two ends. Each machine then gets the whole 9 V instead of a share of it.",
+    check: () => [
+      countItem("Four different machines working properly", new Set(comps.filter(c => c.st.status === "good").map(c => c.type)).size, 4),
+      batteryItem(1), safeItem(),
+    ] },
+  { id: "house", name: "Cozy house", needs: ["light", "temp", "signal", "sound"],
+    story: "It's a cold night. Light up the house, warm it, and fit a wireless doorbell.",
+    hint: "A bulb needs close to 9 V to light the room well. For the doorbell, put a switch and a transmitter on one battery, and a receiver and a bell on another, both on the same channel.",
+    check: () => [
+      { text: "Night time: switch off the room lights", done: !room.lights },
+      { text: "Indoor lights: at least 400 lx", done: room.light * 500 >= 400, detail: Math.round(room.light * 500) + " lx" },
+      { text: "Heating: room at 26 °C or warmer", done: room.temp >= 26, detail: room.temp.toFixed(1) + " °C" },
+      { text: "Doorbell: a bell rung by a radio receiver", done: comps.some(c => c.type === "rx" && c.st.closed) && goodN(["bell"]) > 0 },
+      batteryItem(4), safeItem(),
+    ] },
+  { id: "fridge", name: "Cool box", needs: ["temp", "spin", "light", "basic"],
+    story: "Keep the food cold: chill the room, keep the air moving, show the temperature, and light the inside.",
+    hint: "An LED straight across 9 V takes too much current and burns out. Put a resistor of about 20 Ω in series with it.",
+    check: () => [
+      { text: "Chill the room to 8 °C or colder", done: room.temp <= 8, detail: room.temp.toFixed(1) + " °C" },
+      countItem("A fan at full power", goodN(["fan"]), 1),
+      { text: "A screen showing meter readings", done: comps.some(c => c.type === "screen" && c.p.mode === "meter" && c.st.status === "good") },
+      countItem("An LED lit properly", goodN(["led"]), 1),
+      batteryItem(2), safeItem(),
+    ] },
+  { id: "factory", name: "Busy factory", needs: ["spin", "move", "signal", "sound"],
+    story: "Get the whole production line running at once, with an alarm that sounds while machines move.",
+    hint: "The hoist, conveyor, lift and piston each need their own full voltage. A motion sensor closes while anything is moving, so it can switch on a speaker or bell.",
+    check: () => {
+      const one = t => comps.find(c => c.type === t);
+      return [
+        { text: "Hoist the weight to the top", done: comps.some(c => c.type === "pulley" && c.st.h > 0.95 && c.st.status === "good") },
+        countItem("Conveyor belt at full power", goodN(["belt"]), 1),
+        { text: "Raise the hydraulic lift fully", done: comps.some(c => c.type === "lift" && c.st.h > 0.95) },
+        { text: "Extend the hydraulic piston fully", done: comps.some(c => c.type === "piston" && c.st.ext > 0.95) },
+        { text: "Alarm: a sound part switched by a motion sensor", done: comps.some(c => c.type === "motion" && c.st.closed) && goodN(["speaker", "bell", "buzzer"]) > 0 },
+        batteryItem(3), safeItem(),
+      ];
+    } },
+];
+// Example solutions. ladder(): battery on the left, + rail on top, − rail below, and each "rung" is one
+// part (or a {chain} of parts in series) wired straight across the rails, so every rung gets the full voltage.
+function ladder(x, y, h, bat, rungs, gap = 130) {
+  const [bt, bp] = Array.isArray(bat) ? bat : [bat];
+  let top = addVert(x, y), bot = addVert(x, y + h);
+  addComp(bt, bot, top, bp);
+  rungs.forEach((r, i) => {
+    const rx = x + gap * (i + 1), t = addVert(rx, y), b = addVert(rx, y + h);
+    addComp("wire", top, t); addComp("wire", bot, b);
+    const chain = r.chain || [r];
+    let prev = t;
+    chain.forEach((part, k) => {
+      const [ty, pp] = Array.isArray(part) ? part : [part];
+      const next = k === chain.length - 1 ? b : addVert(rx, y + h * (k + 1) / chain.length);
+      addComp(ty, prev, next, pp); prev = next;
+    });
+    top = t; bot = b;
+  });
+}
+const SOLUTIONS = {
+  car: { note: "Left battery: two wheels and the dashboard, each on its own rung so each gets the full 9 V. Right battery: two headlights, plus the horn with a switch. The horn is sounding now: tap its switch to turn it off and finish.",
+    build() { ladder(0, 0, 320, "battery", ["wheel", "wheel", ["screen", { mode: "meter" }]]); ladder(560, 0, 320, "battery", ["bulb", "bulb", { chain: [["switch", { closed: true }], "buzzer"] }]); } },
+  parallel: { note: "Each machine sits on its own rung between the battery's + and − rails, so all four get the full 9 V at once.",
+    build() { ladder(0, 0, 220, "battery", ["wheel", "fan", "bulb", "heater"]); } },
+  house: { note: "The room lights are off. Two bulbs and a heater share one battery in parallel. The middle battery powers a transmitter on channel A, which closes the receiver that rings the bell. Give the heater a few seconds to reach 26 °C.",
+    build() { room.lights = false; ladder(0, 0, 320, "battery", ["bulb", "bulb", "heater"]); ladder(560, 0, 320, "battery", [{ chain: [["switch", { closed: true }], "tx"] }]); ladder(860, 0, 320, "battery", [{ chain: ["rx", "bell"] }]); } },
+  fridge: { note: "The cooler, fan and screen each get the full 9 V from the left battery. On the right, a 20 Ω resistor in series keeps the LED's current in its safe range. Give the cooler a few seconds to chill the room.",
+    build() { ladder(0, 0, 320, "battery", ["cooler", "fan", ["screen", { mode: "meter" }]]); ladder(560, 0, 320, "battery", [{ chain: [["resistor", { ohms: 20 }], ["led", { color: "white" }]] }]); } },
+  factory: { note: "The hoist and conveyor share one battery and the lift and piston share another, each on its own rung. The motion sensor closes while the conveyor moves, which switches on the speaker.",
+    build() { ladder(0, 0, 320, "battery", ["pulley", "belt"]); ladder(430, 0, 320, "battery", ["lift", "piston"]); ladder(860, 0, 320, "battery", [{ chain: ["motion", "speaker"] }]); } },
+};
+let solArmTimer = null;
+function loadSolution() {
+  const ch = game.active, sol = SOLUTIONS[ch.id];
+  verts = {}; comps = []; room.temp = 20; room.lights = true;
+  sol.build(); syncLights();
+  game.usedSolution = true; game.done = false; game.startBurn = stats.burnouts; game.startShort = stats.shorts; game.collapsed = false;
+  ui.sel = null; ui.selV = null; buildInspector(); renderGoal(); fit();
+}
+const game = { active: null, usedSolution: false, done: false, celebrate: null, freeSnap: null, hint: false, collapsed: false, startBurn: 0, startShort: 0, lastList: "", stars: {} };
+try { game.stars = JSON.parse(localStorage.getItem("circuit-workbench-stars") || "{}") || {}; } catch (e) { game.stars = {}; }
+const goalEl = document.getElementById("goal"), modalEl = document.getElementById("modal");
+function starStr(n) { return `<span class="stars" aria-label="${n} of 3 stars">${"★".repeat(n)}<span class="off">${"★".repeat(3 - n)}</span></span>`; }
+function totalStars() { return Object.values(game.stars).reduce((a, b) => a + b, 0); }
+function openChallenges() {
+  document.getElementById("clist").innerHTML = CHALLENGES.map(ch => `
+    <article class="ccard">
+      <h3>${ch.name}</h3>
+      <p>${ch.story}</p>
+      <div class="needs">${ch.needs.map(n => `<span style="--c: var(--c-${n})">${CATS.find(k => k.id === n).name}</span>`).join("")}</div>
+      <div class="row">${starStr(game.stars[ch.id] || 0)}<button class="btn primary" data-start="${ch.id}">${game.stars[ch.id] ? "Play again" : "Start"}</button></div>
+    </article>`).join("");
+  modalEl.hidden = false;
+  modalEl.querySelectorAll("[data-start]").forEach(b => b.onclick = () => startChallenge(b.dataset.start));
+  document.getElementById("modal-x").focus();
+}
+function closeChallenges() { modalEl.hidden = true; }
+document.getElementById("modal-x").onclick = closeChallenges;
+modalEl.addEventListener("pointerdown", e => { if (e.target === modalEl) closeChallenges(); });
+document.getElementById("b-chal").onclick = openChallenges;
+
+function startChallenge(id) {
+  if (!game.active) game.freeSnap = serialize();
+  game.active = CHALLENGES.find(c => c.id === id); game.done = false; game.usedSolution = false; game.hint = false; game.collapsed = false; game.celebrate = null;
+  game.startBurn = stats.burnouts; game.startShort = stats.shorts; game.lastList = "";
+  verts = {}; comps = []; room.temp = 20; room.lights = true; syncLights();
+  addComp("battery", addVert(-65, 0), addVert(65, 0));
+  ui.sel = null; ui.selV = null; buildInspector();
+  view.s = 1; view.x = W / 2; view.y = H / 2 + 40;
+  closeChallenges(); renderGoal();
+}
+function leaveChallenge() {
+  game.active = null; game.done = false; game.celebrate = null;
+  if (game.freeSnap) restore(game.freeSnap); game.freeSnap = null;
+  renderGoal(); fit(); save();
+}
+function renderGoal() {
+  const ch = game.active;
+  if (!ch) { goalEl.hidden = true; return; }
+  goalEl.hidden = false;
+  const burn = stats.burnouts - game.startBurn + stats.shorts - game.startShort;
+  const idx = CHALLENGES.indexOf(ch), next = CHALLENGES[idx + 1];
+  goalEl.innerHTML = `
+    <div class="goal-head"><div><div class="tag">Challenge ${idx + 1} of ${CHALLENGES.length}</div><h3>${ch.name}</h3></div>
+      <button class="x" id="goal-min" aria-label="${game.collapsed ? "Expand" : "Collapse"}" aria-expanded="${!game.collapsed}">${game.collapsed ? "+" : "−"}</button></div>
+    <div class="goal-body" ${game.collapsed ? "hidden" : ""}>
+      ${game.done ? `<div class="win"><b>Challenge complete!</b>${starStr(game.stars[ch.id] || 0)}
+        <small>${game.usedSolution ? "You used the example solution, so this run earns 1 star. Build it yourself for up to 3." : burn === 0 ? "No burnouts or short circuits. Perfect." : burn + " burnout" + (burn > 1 ? "s" : "") + " or short" + (burn > 1 ? "s" : "") + " along the way. Finish with none for 3 stars."}</small>
+        <div class="win-actions">
+          <button class="btn primary" id="goal-replay">${ch.id === "car" ? "Test drive" : "Celebrate again"}</button>
+          ${next ? `<button class="btn" id="goal-next">Next: ${next.name}</button>` : ""}
+        </div></div>` : `<p>${ch.story}</p>`}
+      <ul id="goal-list"></ul>
+      ${game.usedSolution ? `<p class="hintp"><b>Example solution loaded.</b> ${SOLUTIONS[ch.id].note}</p>` : game.hint ? `<p class="hintp">${ch.hint}</p>` : ""}
+      <div class="goal-actions">
+        ${game.hint || game.usedSolution ? "" : `<button class="btn" id="goal-hint">Show hint</button>`}
+        ${game.usedSolution ? "" : `<button class="btn" id="goal-sol">Show solution</button>`}
+        <button class="btn" id="goal-all">All challenges</button>
+        <button class="btn" id="goal-quit">Back to my bench</button>
+      </div>
+      ${!game.done && burn ? `<small class="burns">Burnouts so far: ${burn}. Each one costs a star.</small>` : ""}
+    </div>`;
+  game.lastList = "";
+  const on = (id, f) => { const el = document.getElementById(id); if (el) el.onclick = f; };
+  on("goal-min", () => { game.collapsed = !game.collapsed; renderGoal(); });
+  on("goal-hint", () => { game.hint = true; renderGoal(); });
+  on("goal-sol", () => {
+    const b = document.getElementById("goal-sol");
+    if (b.classList.contains("armed")) { clearTimeout(solArmTimer); loadSolution(); return; }
+    b.classList.add("armed", "warn"); b.textContent = "Replace my build? Tap again";
+    solArmTimer = setTimeout(() => { if (b.isConnected) { b.classList.remove("armed", "warn"); b.textContent = "Show solution"; } }, 3500);
+  });
+  on("goal-all", openChallenges);
+  on("goal-quit", leaveChallenge);
+  on("goal-replay", () => celebrate());
+  on("goal-next", () => startChallenge(next.id));
+  updateGoal();
+}
+let lastBurnShown = 0;
+function updateGoal() {
+  if (!game.active) return;
+  const items = game.active.check();
+  const html = items.map(it => `<li class="${it.done ? "done" : ""}"><span class="ck" aria-hidden="true"></span><span>${it.text}</span><span class="d">${it.detail || ""}</span></li>`).join("");
+  const list = document.getElementById("goal-list");
+  if (list && html !== game.lastList) { list.innerHTML = html; game.lastList = html; }
+  const burn = stats.burnouts - game.startBurn + stats.shorts - game.startShort;
+  if (!game.done && burn !== lastBurnShown) { lastBurnShown = burn; renderGoal(); return; }
+  if (!game.done && items.every(i => i.done)) {
+    game.done = true;
+    const stars = game.usedSolution ? 1 : burn === 0 ? 3 : burn <= 2 ? 2 : 1;
+    game.stars[game.active.id] = Math.max(game.stars[game.active.id] || 0, stars);
+    try { localStorage.setItem("circuit-workbench-stars", JSON.stringify(game.stars)); } catch (e) {}
+    document.getElementById("star-count").textContent = totalStars() + " ★";
+    renderGoal(); celebrate();
+  }
+}
+function celebrate() {
+  const cols = ["c-basic", "c-spin", "c-temp", "c-light", "c-move", "c-signal", "c-sound"].map(k => K[k]);
+  game.celebrate = { t0: performance.now(), drive: game.active && game.active.id === "car",
+    conf: Array.from({ length: 140 }, () => ({ x: Math.random(), y: -20 - Math.random() * 260, vy: 70 + Math.random() * 110, f: 1 + Math.random() * 3, ph: Math.random() * 6, s: 4 + Math.random() * 5, col: cols[Math.floor(Math.random() * cols.length)], r: Math.random() * 6 })) };
+  playNotes([523, 659, 784, 1047], "triangle", 0.14, 0.1);
+  if (game.celebrate.drive) setTimeout(() => playNotes([440, 0, 440], "square", 0.16, 0.06), 1500);
+}
+function drawCelebration(g) {
+  const C = game.celebrate; if (!C) return;
+  const t = (performance.now() - C.t0) / 1000;
+  if (t > 7) { game.celebrate = null; return; }
+  if (C.drive) drawCar(g, t);
+  for (const p of C.conf) {
+    const y = p.y + p.vy * t + 30 * t * t; if (y > H + 10) continue;
+    const x = p.x * W + Math.sin(t * p.f + p.ph) * 22;
+    g.save(); g.translate(x, y); g.rotate(p.r + t * p.f * 2); g.fillStyle = p.col; g.globalAlpha = Math.min(1, (7 - t) / 1.5);
+    g.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); g.restore();
+  }
+  g.globalAlpha = 1;
+}
+function drawCar(g, t) {
+  const roadY = H - 64, x = -200 + (t / 5.5) * (W + 400), y = roadY + 18;
+  g.fillStyle = "rgba(34,38,44,0.92)"; g.fillRect(0, roadY, W, 64);
+  g.strokeStyle = "#f2d16b"; g.lineWidth = 3; g.setLineDash([22, 18]); g.lineDashOffset = t * 120;
+  g.beginPath(); g.moveTo(0, roadY + 50); g.lineTo(W, roadY + 50); g.stroke(); g.setLineDash([]);
+  // headlight beam
+  const beam = g.createLinearGradient(x + 72, 0, x + 260, 0);
+  beam.addColorStop(0, "rgba(255,236,150,0.75)"); beam.addColorStop(1, "rgba(255,236,150,0)");
+  g.fillStyle = beam; g.beginPath(); g.moveTo(x + 70, y - 8); g.lineTo(x + 260, y - 34); g.lineTo(x + 260, y + 26); g.closePath(); g.fill();
+  // exhaust
+  for (let i = 0; i < 4; i++) { const p = (t * 1.5 + i * 0.25) % 1; g.fillStyle = `rgba(160,160,160,${0.5 * (1 - p)})`; g.beginPath(); g.arc(x - 80 - p * 50, y + 2 - p * 14, 4 + p * 8, 0, 7); g.fill(); }
+  // body
+  g.fillStyle = K.copper; rr(g, x - 76, y - 26, 152, 30, 12); g.fill();
+  g.beginPath(); g.moveTo(x - 40, y - 26); g.lineTo(x - 22, y - 50); g.lineTo(x + 26, y - 50); g.lineTo(x + 46, y - 26); g.closePath(); g.fill();
+  g.fillStyle = "#bfe3ef"; g.beginPath(); g.moveTo(x - 32, y - 28); g.lineTo(x - 19, y - 45); g.lineTo(x - 1, y - 45); g.lineTo(x - 1, y - 28); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo(x + 4, y - 28); g.lineTo(x + 4, y - 45); g.lineTo(x + 23, y - 45); g.lineTo(x + 38, y - 28); g.closePath(); g.fill();
+  g.fillStyle = "#ffe98a"; g.beginPath(); g.arc(x + 72, y - 14, 5, 0, 7); g.fill();
+  g.fillStyle = "#c33"; g.fillRect(x - 78, y - 18, 5, 8);
+  // dashboard glow through the window
+  g.fillStyle = "rgba(150,255,220,0.8)"; g.fillRect(x + 8, y - 33, 10, 4);
+  for (const wx of [x - 44, x + 46]) {
+    g.save(); g.translate(wx, y + 6); g.rotate(t * 14);
+    g.fillStyle = "#1d2125"; g.beginPath(); g.arc(0, 0, 16, 0, 7); g.fill();
+    g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill();
+    g.strokeStyle = "#5b636c"; g.lineWidth = 2.5; for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(0, 0); g.lineTo(9, 0); g.stroke(); }
+    g.restore();
+  }
+  if (t > 1.4 && t < 2.6) {
+    g.fillStyle = "#fff"; rr(g, x + 20, y - 92, 88, 30, 10); g.fill();
+    g.strokeStyle = "#222"; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = "#222"; g.font = "700 15px " + getComputedStyle(document.documentElement).getPropertyValue("--f-display");
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("BEEP BEEP!", x + 64, y - 76);
+  }
+}
+document.getElementById("star-count").textContent = totalStars() + " ★";
+
+// ======================================================================
+//  Boot
+// ======================================================================
+readColors(); resize(); buildTiles();
+if (!load()) loadExample("workshop"); else fit();
+let last = performance.now(), uiTick = 0, saveTick = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (cv.width !== Math.round(W * DPR)) resize();
+  if (dt > 0) step(dt); render();
+  uiTick += dt; if (uiTick > 0.12) { uiTick = 0; refreshInspector(); refreshRoom(); updateGoal(); }
+  saveTick += dt; if (saveTick > 3) { saveTick = 0; save(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+document.fonts && document.fonts.ready.then(() => drawTiles());
+window.__wb = { loadSolution, comps: () => comps, verts: () => verts, room, solve, loadExample, step, startChallenge, game, stats, addComp, addVert, ui };
+})();
+</script>
+</body>
+</html>
