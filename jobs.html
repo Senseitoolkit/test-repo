@@ -2370,6 +2370,7 @@ function start3D(){
     if(d<40&&d>20&&NS.y>-3&&T-NS.seen>90&&!builderOpen){NS.seen=T;S.nessie=(S.nessie||0)+1;save();
       info("Splash! Was that a lake monster in Mirror Lake? People tell a legend about a shy creature called Nessie. Scientists who study lakes are called limnologists, and they still haven't found her!",['legend','A story from long ago that may or may not be true.','🐉'])}}
   nessie.scale.setScalar(2.6);W3D.face=r=>{pl.rot=r};
+  W3D.cars=()=>CARS.map(c=>[+c.m.position.x.toFixed(1),+c.m.position.z.toFixed(1),c.axis,c.road,c.dir]);
   W3D.ness=()=>({y:NS.y,vis:nessie.visible,x:nessie.position.x,z:nessie.position.z});
   function updateYards(dt){SPIN.forEach(s=>s.rotation.y+=dt*4);WAVE.forEach(f=>{f.rotation.y=Math.sin(T*2.2)*.25});const on=Math.floor(T*2.5)%2;
     BLINK.forEach(set=>{if(set.length===2){set[0].visible=!!on;set[1].visible=!on}else set[0].visible=Math.floor(T*1.4)%2===0})}
@@ -2645,10 +2646,16 @@ function start3D(){
     const bl=Math.floor(T*3);BULBS.forEach((b,i)=>{b.material=(i+bl)%3?M('#ffe27a',{emissive:new THREE.Color('#ffd23d'),emissiveIntensity:.7}):M('#fff8d6')});
     DROPS.forEach(d=>{const u=((T*.7+d.userData.p)%1);const a=d.userData.a;d.position.set(PX+Math.cos(a)*(.4+u*2.2),3.1+Math.sin(u*Math.PI)*1.6-u*2,Math.sin(a)*(.4+u*2.2))});
     CLOUDS.forEach(c=>{c.position.x+=dt*1.2;if(c.position.x>220)c.position.x=-220});
-    CARS.forEach(c=>{let tv=c.base||6;if(c.wait>0){c.wait-=dt;tv=0}else if(c.stops){const st=c.stops.find(q=>Math.abs(q-c.pos)<.5);if(st!==undefined&&c.lastStop!==st){c.lastStop=st;c.wait=3.5;tv=0}}const pa=c.axis==='x'?pl.x:pl.z,po=c.axis==='x'?pl.z:pl.x,ahead=(pa-c.pos)*c.dir;if(Math.abs(po-c.lane)<2.2&&ahead>0&&ahead<8)tv=0;
+    CARS.forEach(c=>{let tv=c.base||6;if(c.wait>0){c.wait-=dt;tv=0}else if(c.stops&&c.axis==='x'&&c.road===48){const st=c.stops.find(q=>Math.abs(q-c.pos)<.5);if(st!==undefined&&c.lastStop!==st){c.lastStop=st;c.wait=3.5;tv=0}}const pa=c.axis==='x'?pl.x:pl.z,po=c.axis==='x'?pl.z:pl.x,ahead=(pa-c.pos)*c.dir;if(Math.abs(po-c.lane)<2.2&&ahead>0&&ahead<8)tv=0;
       CARS.forEach(o=>{if(o!==c&&o.axis===c.axis&&o.lane===c.lane){const g=(o.pos-c.pos)*c.dir;if(g>0&&g<7)tv=Math.min(tv,o.v>.5?6:0)}});
-      c.v+=(tv-c.v)*Math.min(1,dt*4);c.pos+=c.dir*c.v*dt;if(c.pos>88)c.pos=-88;if(c.pos<-88)c.pos=88;
-      if(c.axis==='x'){c.m.position.set(c.pos,0,c.lane);c.m.rotation.y=c.dir>0?0:Math.PI}else{c.m.position.set(c.lane,0,c.pos);c.m.rotation.y=c.dir>0?-Math.PI/2:Math.PI/2}});
+      c.v+=(tv-c.v)*Math.min(1,dt*4);c.pos+=c.dir*c.v*dt;
+      // at the outer ring road, turn onto it instead of driving off into the forest
+      if(c.off===undefined)c.off=Math.abs(c.lane-c.road);
+      if(c.pos*c.dir>=80){const ring=c.dir*80,was=c.road,onRing=Math.abs(was)===80;c.axis=c.axis==='x'?'z':'x';c.road=ring;c.pos=was;
+        c.dir=onRing?-Math.sign(was):(Math.random()<.5?1:-1);c.lane=c.road+(c.axis==='x'?c.dir*c.off:-c.dir*c.off);c.lastStop=undefined}
+      const tx=c.axis==='x'?c.pos:c.lane,tz=c.axis==='x'?c.lane:c.pos,ry=c.axis==='x'?(c.dir>0?0:Math.PI):(c.dir>0?-Math.PI/2:Math.PI/2);
+      if(!c.init){c.init=1;c.m.position.set(tx,0,tz);c.m.rotation.y=ry}else{const k=Math.min(1,dt*7);c.m.position.x+=(tx-c.m.position.x)*k;c.m.position.z+=(tz-c.m.position.z)*k;
+        let d=ry-c.m.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));c.m.rotation.y+=d*Math.min(1,dt*5)}});
     CRANES.forEach(j=>{j.rotation.y=Math.sin(T*.15)*.9});WORKERS.forEach((k,i)=>{animKid(k,T,false);k.userData.arms[1].rotation.x=-1.3+Math.sin(T*7+i*2)*.6});
     FOLK.forEach(f=>{f.t+=dt;if(f.talk>0){f.talk-=dt;f.k.rotation.y=Math.atan2(pl.x-f.x,pl.z-f.z);animKid(f.k,f.t,false,{wave:f.talk>3.5});return}
       f.x+=f.dir*f.v*dt;if(f.x>76||f.x<-76){f.dir*=-1;f.x=Math.max(-76,Math.min(76,f.x))}f.k.position.set(f.x,0,f.z);f.k.rotation.y=f.dir>0?Math.PI/2:-Math.PI/2;animKid(f.k,f.t,true)});
