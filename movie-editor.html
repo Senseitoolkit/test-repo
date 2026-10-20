@@ -109,6 +109,19 @@ textarea.txt{background:var(--panel2);border:1px solid var(--line);border-radius
 .playbtn{width:42px;height:42px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center}
 .playbtn svg.i{width:18px;height:18px}
 
+#trimbar{display:flex;flex-direction:column;gap:5px;padding-top:4px}
+.tb-track{position:relative;height:46px;border-radius:6px;background:#1b1e26 center/100% 100% no-repeat;touch-action:none;cursor:pointer;margin:0 11px}
+.tb-shade{position:absolute;top:0;bottom:0;background:rgba(0,0,0,.66);pointer-events:none}
+.tb-shade.l{left:0;border-radius:6px 0 0 6px}.tb-shade.r{right:0;border-radius:0 6px 6px 0}
+.tb-sel{position:absolute;top:0;bottom:0;border-top:3px solid var(--accent);border-bottom:3px solid var(--accent);pointer-events:none}
+.tb-cut{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(214,52,42,.6) 0 6px,rgba(214,52,42,.28) 6px 12px);border-top:3px solid var(--danger);border-bottom:3px solid var(--danger);pointer-events:none}
+.tb-h{position:absolute;top:-5px;bottom:-5px;width:24px;margin-left:-12px;border:0;border-radius:5px;background:var(--accent);color:var(--accent-ink);touch-action:none;cursor:ew-resize;display:flex;align-items:center;justify-content:center;padding:0;z-index:2}
+.tb-h::after{content:"";width:6px;height:16px;border-left:2px solid currentColor;border-right:2px solid currentColor}
+#trimbar.cut .tb-h{background:var(--danger);color:var(--panel2)}
+.tb-pos{position:absolute;top:-7px;bottom:-7px;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.55);pointer-events:none;z-index:3}
+.tb-labels{display:flex;justify-content:space-between;gap:8px;font-family:var(--f-mono);font-size:11.5px;color:var(--muted);padding:0 2px;font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.tb-labels b{color:var(--fg);font-weight:500}
+.seg button.wide{padding:3px 12px;font-size:12.5px;white-space:nowrap}
 .board-pane{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0;min-height:0;display:flex;flex-direction:column}
 .board{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;touch-action:pan-y;min-height:0}
 #rows{position:relative;margin:14px 12px 24px;user-select:none;-webkit-user-select:none}
@@ -185,6 +198,7 @@ textarea.txt{background:var(--panel2);border:1px solid var(--line);border-radius
     <section class="monitor-pane">
       <div class="monitor" id="monitor"><canvas id="screen" width="1280" height="720" aria-label="Preview monitor"></canvas></div>
       <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Seek">
+      <div id="trimbar" hidden><div class="tb-track" id="tbTrack"><i class="tb-shade l"></i><i class="tb-shade r"></i><i class="tb-sel"></i><i class="tb-cut"></i><button class="tb-h a" aria-label="Start point"></button><button class="tb-h b" aria-label="End point"></button><i class="tb-pos"></i></div><div class="tb-labels" id="tbLabels"></div></div>
       <div class="transport">
         <button class="iconbtn" data-act="prev" title="Previous frame (←)" aria-label="Previous frame" id="bPrev"></button>
         <button class="playbtn" data-act="play" title="Play / pause (Space)" aria-label="Play" id="bPlay"></button>
@@ -248,6 +262,9 @@ const P={
  all:'<rect x="3" y="3" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1"/>',
  alignl:'<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>', alignc:'<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>', alignr:'<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>',
  vol:'<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
+ check:'<path d="M4.5 12.5l5 5 10-11"/>',
+ x:'<path d="M6 6l12 12M18 6L6 18"/>',
+ trim:'<circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8.2 8.3L20 18M8.2 15.7L20 6"/>',
  thumbsm:'<rect x="3" y="8" width="5" height="8" rx="1"/><rect x="9.5" y="8" width="5" height="8" rx="1"/><rect x="16" y="8" width="5" height="8" rx="1"/>',
  thumblg:'<rect x="2.5" y="5.5" width="8.5" height="13" rx="1"/><rect x="13" y="5.5" width="8.5" height="13" rx="1"/>'
 };
@@ -456,7 +473,7 @@ function startMusic(t0){stopMusic();if(!ac)return;const now=ac.currentTime+.03;
 /* ---------- playback ---------- */
 let renderQueued=false;
 function requestRender(){if(playing||renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;render()})}
-function render(){syncVideos(t);drawFrame(t);updateTransport();placePlayhead()}
+function render(){if(trim){renderTrim();return}syncVideos(t);drawFrame(t);updateTransport();placePlayhead()}
 function clock(){return ac?playStartT+(ac.currentTime-playStartAc):playStartT+(performance.now()-playStartPerf)/1000}
 function play(){if(!TL.items.length){toast('Add videos or photos first.');return}
   ensureAudio();ac.resume&&ac.resume();if(t>=TL.total-.02)t=0;playing=true;
@@ -467,7 +484,7 @@ function loop(){if(!playing)return;t=clock();
   if(t>=TL.total){t=TL.total;render();pause();if(onPlaybackEnd)onPlaybackEnd();return}
   render();if(exporting)updateExport();requestAnimationFrame(loop)}
 function seek(v){t=clamp(v,0,TL.total);if(playing){playStartT=t;playStartAc=ac.currentTime;playStartPerf=performance.now();startMusic(t)}render()}
-function updatePlayBtn(){const b=$('#bPlay');b.innerHTML=ic(playing?'pause':'play');b.setAttribute('aria-label',playing?'Pause':'Play')}
+function updatePlayBtn(){const on=playing||!!(trim&&trim.playing),b=$('#bPlay');b.innerHTML=ic(on?'pause':'play');b.setAttribute('aria-label',on?'Pause':'Play')}
 function updateTransport(){$('#tc').innerHTML=`<b>${fmt(t)}</b> / ${fmt(TL.total)}`;const s=$('#scrub');if(document.activeElement!==s||playing)s.value=TL.total?Math.round(t/TL.total*1000):0}
 
 /* ---------- hist ---------- */
@@ -560,8 +577,8 @@ function pointerToTime(cx,cy){const rc=rowsEl.getBoundingClientRect(),{rowSec,px
 function placePlayhead(){const ph=document.getElementById('playhead');if(!ph||!BL)return;const p=timeToPos(t);ph.style.top=(p.top-4)+'px';ph.style.left=p.left+'px';ph.style.height=(BL.rowH+6)+'px';
   if(playing){const br=boardEl.getBoundingClientRect(),pr=ph.getBoundingClientRect();if(pr.bottom>br.bottom||pr.top<br.top)boardEl.scrollTop+=pr.top-br.top-40}}
 
-let dragS=null;
-rowsEl.addEventListener('pointerdown',e=>{if(e.button>0||e.target.closest('.empty'))return;const el=e.target.closest('[data-type]');
+let dragS=null,lastTap={};
+rowsEl.addEventListener('pointerdown',e=>{if(e.button>0||e.target.closest('.empty'))return;if(trim)closeTrim();const el=e.target.closest('[data-type]');
   dragS={x:e.clientX,y:e.clientY,el,t0:pointerToTime(e.clientX,e.clientY),id:el?.dataset.id,type:el?.dataset.type,active:false,touch:e.pointerType==='touch',timer:null};
   if(dragS.touch&&el)dragS.timer=setTimeout(()=>{if(dragS&&!dragS.active)beginDrag()},380)});
 window.addEventListener('pointermove',e=>{if(!dragS)return;
@@ -569,6 +586,7 @@ window.addEventListener('pointermove',e=>{if(!dragS)return;
   updateDrag(pointerToTime(e.clientX,e.clientY),e.clientY)});
 window.addEventListener('pointerup',e=>{if(!dragS)return;clearTimeout(dragS.timer);const d=dragS;dragS=null;
   if(d.active){endDrag(d);return}
+  if(d.el&&d.type==='clip'){const now=performance.now();if(lastTap.id===d.id&&now-lastTap.t<400){lastTap={};const c=project.clips.find(x=>x.id===d.id);if(isVid(c)){openTrim(d.id);return}}else lastTap={id:d.id,t:now}}
   if(d.el)select({type:d.type,id:d.id});else if(sel)select(null);seek(clamp(d.t0,0,TL.total))});
 window.addEventListener('pointercancel',()=>{if(dragS){clearTimeout(dragS.timer);if(dragS.active)endDrag(dragS);dragS=null}});
 boardEl.addEventListener('touchmove',e=>{if(dragS&&dragS.active)e.preventDefault()},{passive:false});
@@ -603,15 +621,20 @@ function sel_(scope,key,val,opts){return `<select id="f_${scope}_${key}" data-sc
 function rng_(scope,key,val,min,max,scale,unit=''){return `<input type="range" id="f_${scope}_${key}" data-scope="${scope}" data-key="${key}" data-num ${scale?`data-scale="${scale}"`:''} min="${min}" max="${max}" value="${Math.round(val/(scale||1))}"><span class="val" data-show="${key}">${Math.round(val/(scale||1))}${unit}</span>`}
 function col(scope,key,val){return `<input type="color" id="f_${scope}_${key}" data-scope="${scope}" data-key="${key}" value="${val}">`}
 
-function renderTabs(){const base=[['home','Home'],['anim','Animations'],['fx','Visual effects'],['project','Project'],['view','View']];
+function renderTabs(){if(trim){$('#tabs').innerHTML=`<button class="tab ctx" role="tab" data-ctx="Video tools" aria-selected="true">Trim tool</button>`;return}const base=[['home','Home'],['anim','Animations'],['fx','Visual effects'],['project','Project'],['view','View']];
   const ct=ctxTabs();if(!base.concat(ct).some(x=>x[0]===tab))tab='home';
   $('#tabs').innerHTML=base.map(([k,l])=>`<button class="tab" role="tab" aria-selected="${tab===k}" data-act="tab" data-v="${k}">${l}</button>`).join('')+
     ct.map(([k,l,c])=>`<button class="tab ctx" role="tab" data-ctx="${c}" aria-selected="${tab===k}" data-act="tab" data-v="${k}">${l}</button>`).join('')}
 function renderRibbon(){const act=document.activeElement?.id;renderTabs();const R=$('#ribbon');const o=selObj(),sc=selClip();let h='';
-  if(tab==='home'){
+  if(trim){const c=clipById(trim.id),k=trim.mode==='keep';
+    h+=grp('Mode',stk(`<div class="seg"><button class="wide ${k?'on':''}" data-act="trimMode" data-v="keep">Keep selection</button><button class="wide ${k?'':'on'}" data-act="trimMode" data-v="cut">Remove selection</button></div>`,`<p class="hint" style="padding:6px 2px 0">${k?'Drag the handles around the part you want to keep.':'Drag the red section over the part you want to cut out.'}</p>`));
+    h+=grp('Points',stk(fld('Start',num('trim','a',trim.a,0,trim.dur,.1)),fld('End',num('trim','b',trim.b,0,trim.dur,.1)))+stk(sm('trimSetA','setstart','Start at playhead (I)'),sm('trimSetB','setend','End at playhead (O)')));
+    h+=grp('Preview',big('trimPlay',trim.playing?'pause':'play',k?'Play<br>selection':'Preview<br>the cut'));
+    h+=grp('Finish',big('trimSave','check',k?'Save<br>trim':'Remove<br>section')+big('trimCancel','x','Cancel'));
+  }else if(tab==='home'){
     h+=grp('Add',big('addMedia','addmedia','Add videos<br>and photos')+stk(sm('addMusic','music','Add music'),sm('addMusicHere','musichere','Music at playhead'),sm('snapshot','camera','Snapshot'))+stk(sm('addTitle','title','Title'),sm('addCaption','caption','Caption'),sm('addCredits','credits','Credits')));
     h+=grp('AutoMovie themes',`<div class="gallery">${THEMES.map(th=>`<button class="tile" data-act="theme" data-v="${th.id}" title="Apply ${th.n} to the whole movie"><i class="sw" style="background:${th.sw}"></i><span>${th.n}</span></button>`).join('')}</div>`);
-    h+=grp('Editing',stk(sm('rotl','rotl','Rotate left',sc&&sc.kind!=='title'?'':'disabled'),sm('rotr','rotr','Rotate right',sc&&sc.kind!=='title'?'':'disabled'),sm('remove','remove','Remove',o?'':'disabled')));
+    h+=grp('Editing',stk(sm('trimOpen','trim','Trim tool',isVid(sc)?'title="Double-tap a video clip to trim it"':'disabled'),sm('rotl','rotl','Rotate left',sc&&sc.kind!=='title'?'':'disabled'),sm('rotr','rotr','Rotate right',sc&&sc.kind!=='title'?'':'disabled'),sm('remove','remove','Remove',o?'':'disabled')));
     h+=grp('Share',big('export','export','Save<br>movie')+stk(fld('Quality',sel_('ui','quality',ui.quality,[[1080,'1080p HD'],[720,'720p HD'],[480,'480p']]))));
   }else if(tab==='anim'){const tt=sc?.trans?.type||'none',pz=sc?.pan||'none';
     h+=grp('Transitions',`<div class="gallery">${TRANS.map(([k,n])=>`<button class="tile ${sc&&tt===k?'on':''}" data-act="trans" data-v="${k}" title="${n}"><canvas data-tt="${k}" width="144" height="80"></canvas><span>${n}</span></button>`).join('')}</div>`);
@@ -636,7 +659,7 @@ function renderRibbon(){const act=document.activeElement?.id;renderTabs();const 
     if(isVid(sc)){const md=media.get(sc.mediaId);
       h+=grp('Audio',stk(fld('Video volume',rng_('obj','volume',sc.volume,0,100,.01,'%'))));
       h+=grp('Adjust',stk(fld('Speed',sel_('obj','speed',sc.speed,SPEEDS.map(s=>[s,s+'×']))),fld('Duration',`<span class="val">${fmt(clipDur(sc))}</span>`)));
-      h+=grp('Editing',big('split','split','Split')+stk(sm('setStart','setstart','Set start point'),sm('setEnd','setend','Set end point'))+stk(fld('Start point',num('obj','trimIn',sc.trimIn,0,md.duration,.1)),fld('End point',num('obj','trimOut',sc.trimOut,0,md.duration,.1))));
+      h+=grp('Editing',big('trimOpen','trim','Trim<br>tool','title="Shortcut: double-tap the clip or press T"')+big('split','split','Split')+stk(sm('setStart','setstart','Set start point'),sm('setEnd','setend','Set end point'))+stk(fld('Start point',num('obj','trimIn',sc.trimIn,0,md.duration,.1)),fld('End point',num('obj','trimOut',sc.trimOut,0,md.duration,.1))));
     }else{
       h+=grp('Adjust',stk(fld('Duration (s)',num('obj','dur',sc.dur,.5,120,.25)),sc.kind==='title'?fld('Background',col('obj','bg',sc.bg)):''));
       h+=grp('Editing',big('split','split','Split'));}
@@ -672,9 +695,10 @@ const R=$('#ribbon');
 R.addEventListener('focusin',e=>{if(e.target.dataset.key)pendingEdit=true});
 R.addEventListener('pointerdown',e=>{if(e.target.dataset&&e.target.dataset.key)pendingEdit=true});
 R.addEventListener('focusout',()=>{pendingEdit=false});
-function fieldTarget(s){if(s==='obj')return selObj();if(s==='text')return textObj();if(s==='project')return project;if(s==='ui')return ui;if(s==='trans')return selClip()?.trans}
+function fieldTarget(s){if(s==='obj')return selObj();if(s==='text')return textObj();if(s==='project')return project;if(s==='ui')return ui;if(s==='trans')return selClip()?.trans;if(s==='trim')return trim}
 function onField(e){const el=e.target,key=el.dataset.key;if(!key)return;const tg=fieldTarget(el.dataset.scope);if(!tg)return;
   let v=el.dataset.num!==undefined?parseFloat(el.value):el.value;if(el.dataset.num!==undefined&&isNaN(v))return;if(el.dataset.scale)v*=+el.dataset.scale;
+  if(el.dataset.scope==='trim'){if(key==='a')trim.a=clamp(v,0,trim.b-.1);else trim.b=clamp(v,trim.a+.1,trim.dur);trim.pos=trim[key];renderTrim();return}
   if(el.dataset.scope!=='ui'&&pendingEdit){pushHistory();pendingEdit=false}
   const o=selObj(),md=o&&media.get(o.mediaId);
   if(el.dataset.scope==='obj'&&o){
@@ -693,9 +717,15 @@ function needClip(){const c=selClip();if(!c)toast('Select a clip in the storyboa
 function doAct(a,v){const o=selObj(),sc=selClip();
   switch(a){
   case 'tab':tab=v;renderRibbon();break;
-  case 'play':playing?pause():play();break;
-  case 'prev':pause();seek(t-1/30);break;case 'next':pause();seek(t+1/30);break;
-  case 'undo':pause();undo();break;case 'redo':pause();redo();break;
+  case 'play':if(trim){trimPlayToggle();break}playing?pause():play();break;
+  case 'prev':case 'next':if(trim){stopTrimPlay();trim.pos=clamp(trim.pos+(a==='prev'?-1:1)/30,0,trim.dur);renderTrim();break}pause();seek(t+(a==='prev'?-1:1)/30);break;
+  case 'undo':closeTrim();pause();undo();break;case 'redo':closeTrim();pause();redo();break;
+  case 'trimOpen':if(sc)openTrim(sc.id);break;
+  case 'trimMode':setTrimMode(v);break;
+  case 'trimSetA':case 'trimSetB':trimSetPoint(a==='trimSetA'?'a':'b');break;
+  case 'trimPlay':trimPlayToggle();break;
+  case 'trimSave':saveTrim();break;
+  case 'trimCancel':closeTrim();break;
   case 'fullscreen':{const m=$('#monitor');(m.requestFullscreen?m.requestFullscreen():Promise.reject()).catch(()=>toast('Full screen isn’t available here.'));break}
   case 'addMedia':$('#fileMedia').click();break;
   case 'addMusic':addMusicAt='start';ensureAudio();$('#fileMusic').click();break;
@@ -710,7 +740,7 @@ function doAct(a,v){const o=selObj(),sc=selClip();
   case 'theme':applyTheme(v);break;
   case 'rotl':case 'rotr':if(!needClip()||sc.kind==='title')return;pushHistory();sc.rotate=((sc.rotate||0)+(a==='rotl'?270:90))%360;invalidate();break;
   case 'remove':removeSel();break;
-  case 'export':exportMovie();break;
+  case 'export':closeTrim();exportMovie();break;
   case 'trans':{if(!needClip())return;const i=project.clips.indexOf(sc);if(i===0&&v!=='none'){toast('Transitions play from one clip into the next. Select the second clip or later.');return}
     pushHistory();sc.trans.type=v;invalidate(true);if(v!=='none'){const it=itemOf(sc.id);seek(Math.max(0,it.start-.4));playUntil=it.start+it.td+.6;play()}break}
   case 'transAll':{if(!needClip())return;pushHistory();project.clips.forEach((c,i)=>{if(i>0)c.trans={type:sc.trans.type==='none'&&i?'none':sc.trans.type,dur:sc.trans.dur}});invalidate(true);toast('Transition applied to all clips');break}
@@ -790,12 +820,78 @@ async function exportMovie(){
   $('#resClose').onclick=closeModal;$('#resSave').onclick=()=>saveBlob(blob,fname)}
 function updateExport(){const b=$('#expBar'),x=$('#expTxt');if(b)b.style.width=(t/TL.total*100)+'%';if(x)x.textContent=`${fmt(t)} / ${fmt(TL.total)}`}
 
+/* ---------- trim tool ---------- */
+let trim=null;
+const clipById=id=>project.clips.find(x=>x.id===id);
+function openTrim(id){const c=clipById(id);if(!isVid(c)){toast('The trim tool works on video clips.');return}
+  pause();const m=media.get(c.mediaId);trim={id,a:c.trimIn,b:c.trimOut,pos:c.trimIn,mode:'keep',dur:m.duration,playing:false};
+  sel={type:'clip',id};$('#scrub').hidden=true;$('#trimbar').hidden=false;ensureStrip(m);renderRibbon();renderBoard();renderStatus();renderTrim()}
+function closeTrim(){if(!trim)return;stopTrimPlay();trim=null;$('#scrub').hidden=false;$('#trimbar').hidden=true;renderRibbon();updatePlayBtn();requestRender()}
+function setTrimMode(m){if(!trim||trim.mode===m)return;stopTrimPlay();const c=clipById(trim.id);trim.mode=m;
+  if(m==='cut'){const len=c.trimOut-c.trimIn;let a=(trim.pos>c.trimIn+.2&&trim.pos<c.trimOut-.5)?trim.pos:c.trimIn+len*.4;trim.a=a;trim.b=Math.min(c.trimOut,a+Math.max(.5,Math.min(2,len*.2)))}
+  else{trim.a=c.trimIn;trim.b=c.trimOut}trim.pos=trim.a;renderRibbon();renderTrim()}
+function trimSetPoint(k){if(!trim)return;if(k==='a'){if(trim.pos>=trim.b-.1){toast('Start must come before the end point.');return}trim.a=trim.pos}
+  else{if(trim.pos<=trim.a+.1){toast('End must come after the start point.');return}trim.b=trim.pos}renderTrim();syncTrimFields()}
+function syncTrimFields(){for(const k of['a','b']){const el=document.getElementById('f_trim_'+k);if(el&&document.activeElement!==el)el.value=+trim[k].toFixed(2)}}
+function ensureStrip(m){if(m.strip||m.stripBusy)return;m.stripBusy=true;
+  const v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';$('#vidhold').appendChild(v);
+  const n=12,cw=96,ch=54,cv=document.createElement('canvas');cv.width=cw*n;cv.height=ch;const g=cv.getContext('2d');let i=0;
+  const next=()=>{if(i>=n){try{m.strip=cv.toDataURL('image/jpeg',.6)}catch(e){}v.remove();if(trim)renderTrim();return}v.currentTime=Math.min(m.duration-.05,(i+.5)/n*m.duration)};
+  v.onseeked=()=>{try{const s=Math.max(cw/(v.videoWidth||16),ch/(v.videoHeight||9)),w=(v.videoWidth||16)*s,h=(v.videoHeight||9)*s;g.save();g.beginPath();g.rect(i*cw,0,cw,ch);g.clip();g.drawImage(v,i*cw+(cw-w)/2,(ch-h)/2,w,h);g.restore()}catch(e){}i++;next()};
+  v.onloadeddata=next;v.onerror=()=>{m.stripBusy=false;v.remove()};v.src=m.url}
+function renderTrim(){if(!trim)return;const c=clipById(trim.id);if(!c){closeTrim();return}const m=media.get(c.mediaId),D=trim.dur,pc=x=>(clamp(x,0,D)/D*100)+'%',k=trim.mode==='keep';
+  const tb=$('#trimbar'),tr=$('#tbTrack');tb.classList.toggle('cut',!k);
+  tr.style.backgroundImage=`url(${m.strip||m.thumb})`;tr.style.backgroundSize=m.strip?'100% 100%':'auto 100%';tr.style.backgroundRepeat=m.strip?'no-repeat':'repeat-x';
+  const lo=k?trim.a:c.trimIn,hi=k?trim.b:c.trimOut;
+  tr.querySelector('.tb-shade.l').style.width=pc(lo);tr.querySelector('.tb-shade.r').style.width=(100-clamp(hi,0,D)/D*100)+'%';
+  const s1=tr.querySelector('.tb-sel'),s2=tr.querySelector('.tb-cut');s1.hidden=!k;s2.hidden=k;
+  for(const el of[s1,s2]){el.style.left=pc(trim.a);el.style.width=((trim.b-trim.a)/D*100)+'%'}
+  tr.querySelector('.tb-h.a').style.left=pc(trim.a);tr.querySelector('.tb-h.b').style.left=pc(trim.b);tr.querySelector('.tb-pos').style.left=pc(trim.pos);
+  const after=k?(trim.b-trim.a):Math.max(.1,(c.trimOut-c.trimIn)-Math.max(0,Math.min(trim.b,c.trimOut)-Math.max(trim.a,c.trimIn)));
+  $('#tbLabels').innerHTML=`<span>Start <b>${fmt(trim.a)}</b></span><span>${k?'Keeping':'Removing'} <b>${fmt(trim.b-trim.a)}</b> · clip becomes <b>${fmt(after/c.speed)}</b></span><span>End <b>${fmt(trim.b)}</b></span>`;
+  $('#tc').innerHTML=`<b>${fmt(trim.pos)}</b> / ${fmt(D)}`;
+  const el=videoFor(c);if(!trim.playing&&Math.abs(el.currentTime-trim.pos)>.02)seekEl(el,trim.pos);
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.filter='none';ctx.fillStyle='#000';ctx.fillRect(0,0,W,H);
+  if(el.readyState>=2&&el.videoWidth)drawSource(ctx,el,el.videoWidth,el.videoHeight,c.rotate||0,'none',0,c.id)}
+function trimPlayToggle(){if(!trim)return;if(trim.playing){stopTrimPlay();return}ensureAudio();ac.resume&&ac.resume();
+  const c=clipById(trim.id),el=videoFor(c),k=trim.mode==='keep';
+  const from=k?((trim.pos>=trim.a&&trim.pos<trim.b-.15)?trim.pos:trim.a):Math.max(0,trim.a-2),stop=k?trim.b:Math.min(trim.dur,trim.b+2);
+  if(el._gain)el._gain.gain.value=c.volume;el.playbackRate=1;seekEl(el,from);trim.pos=from;trim.playing=true;trim.stopAt=stop;
+  el.play().catch(()=>{});updatePlayBtn();renderRibbon();requestAnimationFrame(trimLoop)}
+function trimLoop(){if(!trim||!trim.playing)return;const el=videoFor(clipById(trim.id));let p=el.currentTime;
+  if(trim.mode==='cut'&&p>=trim.a&&p<trim.b){seekEl(el,trim.b);p=trim.b}trim.pos=p;
+  if(p>=trim.stopAt-.03||el.ended){stopTrimPlay();renderRibbon();return}renderTrim();requestAnimationFrame(trimLoop)}
+function stopTrimPlay(){if(!trim||!trim.playing)return;trim.playing=false;const el=clipVideos.get(trim.id);if(el&&!el.paused)el.pause();updatePlayBtn();renderTrim()}
+function saveTrim(){if(!trim)return;const c=clipById(trim.id),{a,b,mode}=trim;
+  if(mode==='keep'){pushHistory();c.trimIn=a;c.trimOut=b}
+  else{const A=Math.max(a,c.trimIn),B=Math.min(b,c.trimOut);
+    if(B-A<.05){toast('The red section isn’t over this clip. Drag it onto the part you want to remove.');return}
+    if(A<=c.trimIn+.05&&B>=c.trimOut-.05){toast('That would remove the whole clip. Use Remove instead.');return}
+    pushHistory();
+    if(A<=c.trimIn+.05)c.trimIn=B;else if(B>=c.trimOut-.05)c.trimOut=A;
+    else{const n=JSON.parse(JSON.stringify(c));n.id=nid('c');n.trans={type:'none',dur:1};n.trimIn=B;c.trimOut=A;project.clips.splice(project.clips.indexOf(c)+1,0,n)}}
+  const id=c.id;stopTrimPlay();trim=null;$('#scrub').hidden=false;$('#trimbar').hidden=true;
+  invalidate(true);updatePlayBtn();seek(itemOf(id).start);toast(mode==='keep'?'Trim saved':'Section removed')}
+(function(){const tr=$('#tbTrack');let drag=null;
+  const move=e=>{const r=tr.getBoundingClientRect(),v=clamp((e.clientX-r.left)/r.width,0,1)*trim.dur;
+    if(drag==='a'){trim.a=clamp(v,0,trim.b-.1);trim.pos=trim.a}else if(drag==='b'){trim.b=clamp(v,trim.a+.1,trim.dur);trim.pos=trim.b}else trim.pos=v;
+    renderTrim();if(drag!=='pos')syncTrimFields()};
+  tr.addEventListener('pointerdown',e=>{if(!trim)return;e.preventDefault();const h=e.target.closest('.tb-h');drag=h?(h.classList.contains('a')?'a':'b'):'pos';
+    try{tr.setPointerCapture(e.pointerId)}catch(x){}if(trim.playing){stopTrimPlay();renderRibbon()}move(e)});
+  tr.addEventListener('pointermove',e=>{if(drag&&trim)move(e)});
+  const end=()=>{drag=null};tr.addEventListener('pointerup',end);tr.addEventListener('pointercancel',end)})();
+
 /* ---------- status, toast, keyboard ---------- */
 function renderStatus(){const sc=selClip(),i=sc?project.clips.indexOf(sc)+1:0;
   $('#status').innerHTML=`<span>${sc?`Item <b>${i}</b> of <b>${project.clips.length}</b>`:`<b>${project.clips.length}</b> item${project.clips.length===1?'':'s'}`}</span><span>Length <b>${fmt(TL.total)}</b></span>${isSample?`<span class="chip">Sample project<button data-act="newProject">Start new</button></span>`:''}<span class="zoom">Zoom<input type="range" id="zoomR" min="-14" max="18" value="${Math.round(Math.log(ui.zoom)/Math.log(1.1))}" aria-label="Storyboard zoom"></span>`}
 $('#status').addEventListener('input',e=>{if(e.target.id==='zoomR'){ui.zoom=Math.pow(1.1,+e.target.value);renderBoard()}});
 let toastT;function toast(m){const el=$('#toast');el.textContent=m;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2600)}
 document.addEventListener('keydown',e=>{if(exporting)return;const tg=e.target.tagName;if(['INPUT','TEXTAREA','SELECT'].includes(tg)&&e.target.type!=='range')return;
+  if(trim&&!(e.ctrlKey||e.metaKey)){const k=e.key.toLowerCase();
+    if(k==='i'){trimSetPoint('a');return}if(k==='o'){trimSetPoint('b');return}
+    if(k===' '){e.preventDefault();trimPlayToggle();return}if(k==='enter'){e.preventDefault();saveTrim();return}if(k==='escape'){closeTrim();return}
+    if(k==='arrowleft'||k==='arrowright'){e.preventDefault();doAct(k==='arrowleft'?'prev':'next');return}return}
+  if(e.key.toLowerCase()==='t'&&!(e.ctrlKey||e.metaKey)){const sc=selClip();if(isVid(sc)){openTrim(sc.id);return}}
   const mod=e.ctrlKey||e.metaKey;
   if(mod&&e.key.toLowerCase()==='z'){e.preventDefault();pause();e.shiftKey?redo():undo();return}
   if(mod&&e.key.toLowerCase()==='y'){e.preventDefault();pause();redo();return}
