@@ -283,7 +283,8 @@ canvas.w3d{position:absolute;inset:0;width:100%;height:100%;display:block;touch-
 // ---------- state ----------
 const STORE='job-explorer-v1';
 const S={voice:true,badges:[],words:[],reactions:{},interests:{},best:{}};
-try{Object.assign(S,JSON.parse(localStorage.getItem(STORE)||'{}'))}catch(e){}
+// every launch starts a fresh game: no scores, badges or words. Only device settings (voice, speed, camera view) are remembered.
+try{const saved=JSON.parse(localStorage.getItem(STORE)||'{}');['voice','rate','voiceURI','cam'].forEach(k=>{if(k in saved)S[k]=saved[k]})}catch(e){}
 function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
 
 const WORDS={
@@ -1645,9 +1646,10 @@ function start3D(){
       XZONES.push(vert?{x1:x-4,x2:x+4,z1:z-1.6,z2:z+1.6}:{x1:x-1.6,x2:x+1.6,z1:z-4,z2:z+4})})}));
 
   const lot=(cx,cz,inner)=>{box(24,.12,24,walkM,cx,.06,cz,scene,{edge:false,shadow:false});box(19.4,.16,19.4,M(inner||'#9fdc8f'),cx,.08,cz,scene,{edge:false,shadow:false})};
-  function tree3D(x,z,s=1){const g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(s);scene.add(g);
-    mesh(new THREE.CylinderGeometry(.3,.45,3,8),M('#8a5a34'),0,1.5,0,g,{hull:.06});
-    [[0,4.3,0,1.9],[-1.2,3.4,.3,1.3],[1.2,3.5,-.2,1.35],[.2,5.3,.2,1.2]].forEach(([a,b,c,r],i)=>mesh(new THREE.IcosahedronGeometry(r,1),M(i===3?'#5cbf6a':'#4caf5f'),a,b,c,g,{hull:.05}));
+  function tree3D(x,z,s=1,tall=1){const g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(s);scene.add(g);const up=3*(tall-1);
+    mesh(new THREE.CylinderGeometry(.3,.45,3+up,8),M('#8a5a34'),0,(3+up)/2,0,g,{hull:.06});
+    const blobs=tall>1?[[0,4.4,0,1.9],[-1.2,3.6,.4,1.35],[1.25,3.7,-.3,1.4],[.3,3.5,-1.1,1.3],[-.4,3.8,1.2,1.2],[.2,5.5,.2,1.3],[-.6,5,-.5,1.1]]:[[0,4.3,0,1.9],[-1.2,3.4,.3,1.3],[1.2,3.5,-.2,1.35],[.2,5.3,.2,1.2]];
+    blobs.forEach(([a,b,c,r],i)=>mesh(new THREE.IcosahedronGeometry(r,1),M(i>=blobs.length-2&&tall>1||i===3&&tall<=1?'#5cbf6a':'#4caf5f'),a,b+up,c,g,{hull:.05}));
     COLLIDE.push({circle:true,x,z,r:.8*s})}
   function lamp3D(x,z){const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);mesh(new THREE.CylinderGeometry(.12,.16,4.6,8),M('#3a4566'),0,2.3,0,g,{hull:.08});
     mesh(new THREE.CylinderGeometry(.42,.28,.6,8),M('#fff3b8',{emissive:new THREE.Color('#ffe27a'),emissiveIntensity:.5}),0,4.85,0,g,{hull:.06});mesh(new THREE.ConeGeometry(.55,.35,8),M('#3a4566'),0,5.3,0,g,{hull:.06})}
@@ -1924,7 +1926,7 @@ function start3D(){
     const tail=box(.35,.08,.08,m,-.6,.75,0,g,{edge:false});tail.rotation.z=.6;g.userData={legs,tail};return g}
   const PH=10.2,perim=(cx,cz,s)=>{const L=8*PH;s=((s%L)+L)%L;
     if(s<2*PH)return[cx-PH+s,cz+PH,Math.PI/2];s-=2*PH;if(s<2*PH)return[cx+PH,cz+PH-s,Math.PI];s-=2*PH;if(s<2*PH)return[cx+PH-s,cz-PH,-Math.PI/2];s-=2*PH;return[cx-PH,cz-PH+s,0]};
-  BC.forEach(cx=>BC.forEach(cz=>{[-1,1].forEach(sd=>[-4,3.5].forEach(o=>tree3D(cx+sd*11.4,cz+o,.5)))}));
+  GRID.forEach((row,r)=>row.forEach((id,c)=>{if(['construction','sports','playground','garden','sale','park'].includes(id))return;const cx=BC[c],cz=BC[r];[-1,1].forEach(sd=>[.6,-6.6].forEach(o=>tree3D(cx+sd*8.6,cz+o,.72,1.7)))}));
   for(let i=0;i<26;i++){const k=makeKid(randLook(i+3));k.scale.setScalar(i%4===0?1.15:1);scene.add(k);const bc=[BC[(i*3)%5],BC[(i*2+1)%5]];
     WALKERS.push({k,cx:bc[0],cz:bc[1],s:rnd(i+11)*80,dir:i%2?1:-1,v:1.6+rnd(i+4)*.8,ph:rnd(i)*9,dog:i%5===0?makeDog(['#c77d43','#f4f1ea','#3b2418','#e8c46e'][i%4]):null})}
   // kids on the swings, runners on the field, people resting on benches
@@ -2078,7 +2080,7 @@ function start3D(){
     info('Your route has 5 deliveries. Follow the glowing beam to each pickup and drop-off. Watch for cars and use the crosswalks!',['route','The path you follow to get somewhere.','🗺️'])};
   W3D.routeOn=()=>!!route;W3D.rdbg=()=>route?{i:route.i,n:route.list.length,ph:qPhase,w:qWait,q:route.list.map(q=>q.from+'>'+q.to)}:null;
   W3D.routeTarget=()=>{if(!route)return null;const q=route.list[route.i],t=findT(qPhase==='pickup'?q.from:q.to);return [t.x,t.z]};
-  function updateQuest(dt){const stats=`<div class="stats">⭐ ${S.tokens.length}/12 words · ♻️ ${S.sorted||0} sorted · 📦 ${S.questsDone||0} deliveries · 🤖 Zero found ${S.zeroFound||0}</div>`;let txt;
+  function updateQuest(dt){const sp=[S.tokens.length&&`⭐ ${S.tokens.length}/12 words`,S.sorted&&`♻️ ${S.sorted} sorted`,S.questsDone&&`📦 ${S.questsDone} deliveries`,S.zeroFound&&`🤖 Zero found ${S.zeroFound}`].filter(Boolean),stats=sp.length?`<div class="stats">${sp.join(' · ')}</div>`:'';let txt;
     if(!route){qMark.visible=qBeam.visible=false;txt=`<b>Town explorer</b><div>Want to deliver packages? Visit the 📦 Delivery Depot on the west side of town.</div>${stats}`}
     else{const q=route.list[route.i];
       if(qWait>0){qWait-=dt;qMark.visible=qBeam.visible=false;txt=`<b>Delivery route ${route.i+1} of 5</b><div>Great job! Your next package is coming…</div>`}
@@ -2302,7 +2304,7 @@ $('#passBtn').onclick=()=>{
   if(fav){const next=JOBS.filter(j=>!S.badges.includes(j.id)&&jobTags(j).includes(fav[0])).slice(0,3);
     sug=`<div class="note">You seem to enjoy <b>${TAGS[fav[0]]}</b>.${next.length?` You might like: ${next.map(j=>`<b>${j.name}</b>`).join(', ')}.`:''}</div>`}
   body.innerHTML=`<h2>My Career Passport</h2><p class="lead">You have tried ${S.badges.length} of ${JOBS.length} jobs.</p>
-    <div class="note">⭐ Town words found: ${(S.tokens||[]).length} of 12 · ♻️ Litter sorted: ${S.sorted||0} · 📦 Town tasks done: ${S.questsDone||0} · ⚽ Goals: ${S.goals||0} · 🤖 Found Zero: ${S.zeroFound||0}</div>
+    ${(()=>{const sp=[(S.tokens||[]).length&&`⭐ Town words found: ${S.tokens.length} of 12`,S.sorted&&`♻️ Litter sorted: ${S.sorted}`,S.questsDone&&`📦 Deliveries: ${S.questsDone}`,S.goals&&`⚽ Goals: ${S.goals}`,S.zeroFound&&`🤖 Found Zero: ${S.zeroFound}`].filter(Boolean);return sp.length?`<div class="note">${sp.join(' · ')}</div>`:''})()}
     <div class="menu small">${JOBS.map(j=>`<button class="tile" data-go="${j.id}"><span class="e">${S.badges.includes(j.id)?j.icon:'❔'}</span><b>${j.name}</b><small>${S.badges.includes(j.id)?'<span class="done">★ Badge earned</span>':'Not tried yet'}</small></button>`).join('')}</div>
     ${sug}<h2 style="font-size:1.3rem">My skills and traits</h2>
     ${Object.keys(S.skills||{}).length?`<div class="earned"><div><b>🛠️ Skills</b><div class="chips">${Object.entries(S.skills).sort((a,b)=>b[1]-a[1]).map(([v,n])=>`<span class="chip got">${v}${n>1?` ×${n}`:''}</span>`).join('')}</div></div>
