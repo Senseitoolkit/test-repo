@@ -150,6 +150,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1.5px solid var(--line);background:var(--bg);border-radius:999px;padding:5px 15px;font-size:24px;font-weight:700}
 .bankHead{display:flex;gap:7px;align-items:center;color:color-mix(in srgb,var(--bc) 75%,var(--ink))}
+.bankHead b{font-weight:inherit}
 .bankHead span{background:var(--bc);color:var(--surface);width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font:800 13px var(--display);letter-spacing:0}
 .chip.bank{border-color:color-mix(in srgb,var(--bc) 55%,var(--line));background:color-mix(in srgb,var(--bc) 10%,var(--surface));color:color-mix(in srgb,var(--bc) 55%,var(--ink))}
 .chip.topic{border-color:color-mix(in srgb,var(--tc) 55%,var(--line));background:color-mix(in srgb,var(--tc) 8%,var(--surface))}
@@ -321,7 +322,7 @@ html:not(.fit) .wrap{gap:12px}
         <div class="chips" id="answerChips"></div>
         <div class="sub bankHead" id="bankCiteHead" style="--bc:var(--c)"><span>C</span>Cite words</div>
         <div class="chips" id="citeChips"></div>
-        <div class="sub bankHead" id="bankExplainHead" style="--bc:var(--e)"><span>E</span>Explain words</div>
+        <div class="sub bankHead" id="bankExplainHead" style="--bc:var(--e)"><span>E</span><b id="explainLabel">Explain words</b></div>
         <div class="chips" id="explainChips"></div>
         <div class="sub bankHead" id="bankConcludeHead" style="--bc:var(--k)"><span>C</span>Conclude words</div>
         <div class="chips" id="concludeChips"></div>
@@ -458,6 +459,18 @@ const stage = () => {
 };
 const COLOR = {R:"var(--r)",A:"var(--a)",C:"var(--c)",E:"var(--e)",K:"var(--k)"};
 const LETTER = {R:"R",A:"A",C:"C",E:"E",K:"C"};   // K = Conclude, shown as a rose "C"
+/* Grade 5: E is Explain + Elaborate */
+const ELABORATE = {
+  tip:{1:"Tell what your example shows, then add one more detail.",
+       2:"Explain how your evidence supports your answer, then add more detail or another example.",
+       3:"Analyse the evidence, then elaborate with more detail, another example or a link to the wider world."},
+  starters:{1:["This shows ___.","Also, ___."],
+            2:["This proves that ___ because ___.","In other words, ___.","Another example is ___.","This is important because ___."],
+            3:["This evidence suggests that ___, which means ___.","Consequently, ___.","Furthermore, ___.","To elaborate, ___.","Beyond our unit, this matters because ___."]},
+  words:{1:["this shows","this means","because","also","another example","in addition"],
+         2:["this proves","in other words","therefore","which means","furthermore","another example is","in addition"],
+         3:["this suggests","this demonstrates","consequently","which means","furthermore","to elaborate","for instance","moreover"]}
+};
 /* Grade 5 also concludes */
 const CONCLUDE = {
   tip:{1:"Finish by saying your answer again.",
@@ -494,8 +507,10 @@ function vtrIcons(keys){
 function cardsFor(q){
   const st = stage(), lc = q.restate ? q.restate.charAt(0).toLowerCase()+q.restate.slice(1) : "";
   const byK = k => STEPS.find(s=>s.k===k);
-  if(st==="four") return [...STEPS.map(s=>({keys:[s.k], name:s.name, tip:s.tip[level],
-    starters: (s.k==="R" && level===1 && q.restate) ? [q.restate+" ___."] : [...s.starters[level]]})),
+  if(st==="four") return [...STEPS.map(s=> s.k==="E"
+      ? {keys:["E"], name:"Explain + Elaborate", tip:ELABORATE.tip[level], starters:[...ELABORATE.starters[level]]}
+      : {keys:[s.k], name:s.name, tip:s.tip[level],
+         starters: (s.k==="R" && level===1 && q.restate) ? [q.restate+" ___."] : [...s.starters[level]]}),
     {keys:["K"], name:"Conclude", tip:CONCLUDE.tip[level],
      starters: (level===1 && q.restate) ? ["In conclusion, "+lc+" ___."] : [...CONCLUDE.starters[level]]}];
   // Sentence 1: restate and answer together
@@ -541,7 +556,9 @@ function renderBank(){
   $("topicChips").innerHTML = q.words.map(w=>`<span class="chip topic">${esc(w)}</span>`).join("");
   const st = stage(), simple = st==="one" || st==="two";
   const cite = simple ? BANK.k.cite : BANK[level].cite;
-  const explain = simple ? BANK.k.explain : BANK[level].explain;
+  const explain = simple ? BANK.k.explain
+    : st==="four" ? ELABORATE.words[level] : BANK[level].explain;
+  $("explainLabel").textContent = st==="four" ? "Explain + elaborate words" : "Explain words";
   // K1–K3 only write Restate + Answer, so they get answer words instead of cite / explain words
   $("bankCiteHead").hidden = $("citeChips").hidden = st==="one";
   // Grade 1 has no Explain words; Grade 2 gets them in the word bank only (C+)
