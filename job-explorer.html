@@ -1,0 +1,1423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Job Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one-screen game. HUD bar on top, side-scrolling street canvas in the middle, touch controls below; job shifts open as a full-screen card over the street. Single bright look by choice. */
+:root{
+  --ink:#22263a; --muted:#53627e; --paper:#fffaf0; --card:#ffffff;
+  --police:#1f4fa3; --police-soft:#dfe8f8; --sun:#ffc23d; --sun-soft:#fff1c9;
+  --go:#25915a; --stop:#d23f37; --line:#e6dccb;
+  --display:"Fredoka","Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Verdana",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%;margin:0}
+[hidden]{display:none!important}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0;box-sizing:border-box;overflow-x:hidden}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--sun);outline-offset:2px}
+.app{max-width:1040px;margin:0 auto;height:100%;display:flex;flex-direction:column;gap:12px;padding-block:12px}
+.hud{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-family:var(--display);font-weight:700;font-size:1.6rem;letter-spacing:.01em;margin:0;line-height:1}
+.logo span{color:var(--police)}
+.street-name{font-size:.8rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:700}
+.hud .spacer{flex:1}
+.pill{border:2px solid var(--ink);background:var(--card);border-radius:999px;padding:6px 14px;font-weight:700;font-size:.92rem;display:inline-flex;gap:6px;align-items:center}
+.pill[aria-pressed="false"]{opacity:.6}
+.stage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#street{width:100%;max-height:100%;aspect-ratio:2/1;border-radius:20px;border:3px solid var(--ink);background:#9bd8f5;box-shadow:0 6px 0 var(--ink);display:block;touch-action:none}
+.controls{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.ctrl{width:72px;height:60px;border-radius:16px;border:3px solid var(--ink);background:var(--card);font-family:var(--display);font-size:1.6rem;font-weight:700;box-shadow:0 4px 0 var(--ink);touch-action:none;user-select:none;-webkit-user-select:none}
+.ctrl:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.ctrl.enter{width:auto;padding:0 22px;font-size:1.15rem;background:var(--sun)}
+.hint{font-size:.9rem;color:var(--muted);text-align:center;flex:1}
+.toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:12px;font-weight:700;max-width:90%;text-align:center}
+
+/* Shift card */
+#scene{position:fixed;inset:0;background:rgba(20,34,61,.55);display:flex;align-items:center;justify-content:center;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));z-index:20}
+.card{background:var(--paper);border:3px solid var(--ink);border-radius:22px;width:min(860px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column}
+.card-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:2px dashed var(--line);flex-wrap:wrap;position:sticky;top:0;background:var(--paper);z-index:2}
+.job-tag{font-family:var(--display);font-weight:700;font-size:1.05rem;color:var(--police)}
+.steps{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.step{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:4px 9px;border-radius:999px;background:var(--card);border:2px solid var(--line);color:var(--muted)}
+.step.done{background:var(--police-soft);border-color:var(--police-soft);color:var(--police)}
+.step.now{background:var(--police);border-color:var(--police);color:#fff}
+.sel{font:inherit;font-weight:700;border:2px solid var(--ink);border-radius:12px;padding:8px 10px;background:var(--card);color:var(--ink);max-width:100%}
+.leave{border:2px solid var(--ink);background:transparent;border-radius:10px;padding:4px 10px;font-size:.85rem;font-weight:700}
+.body{padding:18px 20px 22px;display:flex;flex-direction:column;gap:16px}
+h2{font-family:var(--display);font-weight:700;font-size:1.7rem;line-height:1.15;margin:0;text-wrap:balance}
+.lead{margin:0;color:var(--muted);max-width:60ch}
+.mentor{display:flex;gap:14px;align-items:flex-end}
+.mentor svg{width:96px;height:96px;flex:none}
+.bubble{background:var(--card);border:3px solid var(--ink);border-radius:18px 18px 18px 4px;padding:12px 16px;font-size:1.1rem;min-width:0;flex:1}
+.bubble b{color:var(--police)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{border:3px solid var(--ink);background:var(--sun);border-radius:14px;padding:10px 20px;font-family:var(--display);font-weight:600;font-size:1.15rem;box-shadow:0 4px 0 var(--ink)}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.btn.ghost{background:var(--card)}
+.btn.blue{background:var(--police);color:#fff}
+.words{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.word{background:var(--card);border:2px solid var(--police);border-radius:14px;padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.word .w{font-family:var(--display);font-weight:700;font-size:1.25rem;color:var(--police);display:flex;justify-content:space-between;gap:8px}
+.word .m{font-size:.9rem;color:var(--muted)}
+.speak{font-size:.8rem;font-weight:700;color:var(--ink);opacity:.7}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.item{background:var(--card);border:3px solid var(--line);border-radius:16px;padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:700;font-size:.92rem}
+.item .e{font-size:2.3rem;line-height:1}
+.item.ok{border-color:var(--go);background:#e3f5ea}
+.item.no{border-color:var(--stop);animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.note{background:var(--sun-soft);border-radius:14px;padding:10px 14px;font-weight:700}
+.note.good{background:#e3f5ea;color:#145a36}
+.note.soft{background:#fde8e6;color:#8a241e}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.split>*{min-width:0}
+.dress{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.dress svg{width:150px;height:190px;background:var(--card);border:3px solid var(--line);border-radius:18px;flex:none}
+#xw{width:100%;aspect-ratio:2/1;border:3px solid var(--ink);border-radius:16px;display:block;background:#bfe3a5}
+.signal{min-width:180px}
+.signal.stop{background:var(--stop);color:#fff}
+.signal.go{background:var(--go);color:#fff}
+.meter{font-family:var(--display);font-weight:600;font-size:1.2rem}
+.person{background:var(--card);border:3px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;align-items:center;gap:2px;font-weight:700;min-width:120px}
+.person.heard{border-color:var(--police);background:var(--police-soft)}
+.notebook{background:#fffef6;border:2px solid var(--line);border-radius:12px;padding:12px 14px;background-image:repeating-linear-gradient(transparent 0 27px,#e9e2cf 27px 28px);min-height:120px}
+.notebook h3{margin:0 0 4px;font-family:var(--display);font-size:1.05rem}
+.notebook ul{margin:0;padding-left:20px}
+.q{display:flex;flex-direction:column;gap:6px}
+.q .lbl{font-weight:700}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:2px solid var(--ink);background:var(--card);border-radius:999px;padding:6px 14px;font-weight:700}
+.chip.on{background:var(--police);color:#fff;border-color:var(--police)}
+.chip.wrong{border-color:var(--stop);color:var(--stop)}
+.choice{width:100%;text-align:left;background:var(--card);border:3px solid var(--ink);border-radius:16px;padding:12px 16px;font-weight:700;font-size:1.02rem}
+.stamp{align-self:center;width:170px;height:170px;border-radius:50%;border:6px double var(--police);display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-8deg);color:var(--police);font-family:var(--display);font-weight:700;text-align:center;background:var(--police-soft);animation:pop .5s ease-out}
+.stamp .big{font-size:3rem;line-height:1}
+@keyframes pop{0%{transform:rotate(-8deg) scale(.4);opacity:0}70%{transform:rotate(-8deg) scale(1.1)}100%{transform:rotate(-8deg) scale(1)}}
+.passport .badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.badge{border:3px dashed var(--line);border-radius:16px;padding:12px;text-align:center;font-weight:700;color:var(--muted)}
+.badge.got{border-style:solid;border-color:var(--police);color:var(--police);background:var(--police-soft)}
+.badge .e{font-size:2rem;display:block}
+.menu{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.tile{background:var(--card);border:3px solid var(--ink);border-radius:18px;padding:14px 16px;text-align:left;display:flex;flex-direction:column;gap:4px;box-shadow:0 4px 0 var(--ink)}
+.tile:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
+.tile .e{font-size:2.4rem;line-height:1.1}
+.tile b{font-family:var(--display);font-size:1.3rem;font-weight:700}
+.tile small{color:var(--muted);font-size:.9rem}
+.tile.main{background:var(--police);color:#fff;grid-column:1/-1}
+.tile.main .e{color:var(--sun)}
+.tile.main small{color:var(--police-soft)}
+.mem{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-width:560px}
+.mc{aspect-ratio:1/1;border:3px solid var(--ink);border-radius:14px;background:var(--police);color:#fff;font-family:var(--display);font-weight:700;font-size:clamp(.8rem,2.6vw,1.15rem);display:flex;align-items:center;justify-content:center;padding:4px;overflow-wrap:anywhere;transition:transform .2s}
+.mc.back{font-size:1.8rem;color:var(--sun)}
+.mc.up{background:var(--card);color:var(--police);transform:rotateY(0)}
+.mc.up .e{font-size:clamp(1.8rem,6vw,2.6rem)}
+.mc.done{background:#e3f5ea;border-color:var(--go);color:#145a36}
+#drive{width:100%;aspect-ratio:2/1;border:3px solid var(--ink);border-radius:16px;display:block;background:#8fcf8a;touch-action:none}
+.find{position:relative;width:100%;aspect-ratio:16/10;border:3px solid var(--ink);border-radius:16px;overflow:hidden;background:linear-gradient(#9bd8f5 0 30%,#8fcf8a 30% 100%)}
+.find .path{position:absolute;left:0;right:0;top:62%;height:12%;background:#e4d3a8}
+.find .pond{position:absolute;left:62%;top:40%;width:26%;height:18%;border-radius:50%;background:#6cc1e8;border:3px solid #4a9fc8}
+.find button.h{position:absolute;border:0;background:none;font-size:clamp(20px,4.2vw,34px);transform:translate(-50%,-50%);padding:3px;line-height:1;border-radius:50%}
+.find button.h.found{background:#e3f5ea;outline:3px solid var(--go)}
+.find button.h.miss{animation:shake .35s}
+.chip.got{background:#e3f5ea;border-color:var(--go);color:#145a36}
+ol.seq{margin:0;padding-left:30px;display:flex;flex-direction:column;gap:6px;font-weight:700}
+ol.seq:empty{display:none}
+ol.seq li{background:#e3f5ea;border-radius:10px;padding:6px 10px;color:#145a36}
+.sortcard{align-self:center;background:var(--card);border:3px solid var(--ink);border-radius:20px;padding:14px 28px;display:flex;flex-direction:column;align-items:center;font-weight:700;font-size:1.2rem;text-align:center;max-width:100%}
+.sortcard .e{font-size:3.6rem;line-height:1.1}
+.bins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.bin.right,.choice.right{border-color:var(--go);background:#e3f5ea}
+.choice.wrongc{border-color:var(--stop);color:var(--stop)}
+.choice:disabled,.bin:disabled{cursor:default}
+.ticket{background:var(--sun-soft);border:3px dashed var(--ink);border-radius:16px;padding:10px 14px;display:flex;flex-direction:column;gap:2px;font-size:1.05rem}
+.tick-em{font-size:1.6rem;letter-spacing:.1em}
+.tray{min-height:64px;background:var(--card);border:3px dashed var(--line);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;letter-spacing:.12em;padding:6px}
+.tray .empty{font-size:1rem;color:var(--muted);letter-spacing:0}
+.whack{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:420px;width:100%;align-self:center}
+.hole{aspect-ratio:1.2/1;border-radius:50%/42%;border:3px solid var(--ink);background:#e9dfcc;font-size:clamp(2rem,9vw,3rem);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 6px 0 rgba(20,34,61,.12);padding:0}
+.hole.up{background:var(--sun-soft)}
+.hole.done{background:#e3f5ea}
+.pads{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;max-width:360px;width:100%;align-self:center}
+.pad{aspect-ratio:1.4/1;border-radius:20px;border:3px solid var(--ink);background:var(--c);opacity:.5;color:#fff;font-family:var(--display);font-weight:700;font-size:1.6rem;transition:opacity .1s,transform .1s}
+.pad.lit{opacity:1;transform:scale(1.05)}
+.beatlight{width:90px;height:90px;border-radius:50%;background:var(--line);align-self:center;border:3px solid var(--ink);transition:background .08s}
+.beatlight.on{background:var(--sun)}
+.drum{align-self:center;width:190px;height:120px;border-radius:50%/40%;border:3px solid var(--ink);background:var(--card);font-family:var(--display);font-weight:700;font-size:1.5rem;box-shadow:0 6px 0 var(--ink)}
+.drum.hit{transform:translateY(4px);box-shadow:0 2px 0 var(--ink)}
+.menu.small{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.tile .done{color:var(--go);font-weight:700;font-size:.85rem}
+body{background-image:radial-gradient(rgba(34,38,58,.07) 1.2px,transparent 1.7px);background-size:22px 22px}
+:is(.btn,.ctrl,.tile,.item,.chip,.pad,.drum,.pill,.choice,.person,.bin){background-image:linear-gradient(180deg,rgba(255,255,255,.42),rgba(255,255,255,0) 58%)!important}
+.item,.person,.choice{box-shadow:0 4px 0 var(--line);transition:transform .08s,box-shadow .08s}
+.item:active,.person:active,.choice:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.card{--jobc:#1f4fa3;box-shadow:0 8px 0 rgba(34,38,58,.35)}
+.card-head{border-bottom:5px solid var(--jobc)}
+.job-tag{color:var(--jobc)}
+.scene-art{width:100%;aspect-ratio:9/4;border-radius:18px;border:3px solid var(--ink);display:block;background:#cdeefb;box-shadow:0 4px 0 var(--line)}
+.mentor svg{filter:drop-shadow(0 3px 0 rgba(34,38,58,.25))}
+.bubble{box-shadow:0 4px 0 var(--line);position:relative}
+.word{box-shadow:0 3px 0 var(--police-soft)}
+.note{border:2px solid rgba(34,38,58,.08)}
+.find canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.find button.h{z-index:1}
+.hole{background:radial-gradient(ellipse at 50% 72%,#bfae8a 0 42%,#e9dfcc 44%)}
+.hole.up{background:radial-gradient(ellipse at 50% 72%,#f5d98a 0 42%,var(--sun-soft) 44%)}
+.hole.done{background:radial-gradient(ellipse at 50% 72%,#b6e3c4 0 42%,#e3f5ea 44%)}
+.stamp{background:repeating-conic-gradient(var(--police-soft) 0 12deg,#ffffff 12deg 24deg);box-shadow:0 0 0 8px var(--paper),0 0 0 11px var(--police),0 10px 0 11px rgba(34,38,58,.2)}
+.stamp .big{background:var(--paper);border:3px solid var(--police);border-radius:50%;width:72px;height:72px;display:flex;align-items:center;justify-content:center;font-size:2.6rem;margin-bottom:4px}
+#xw,#drive{box-shadow:0 4px 0 var(--line)}
+@media (max-width:620px){
+  .split{grid-template-columns:1fr}
+  h2{font-size:1.4rem}
+  .mentor svg{width:72px;height:72px}
+  .ctrl{width:62px;height:54px}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="hud">
+    <div>
+      <p class="logo">Job <span>Explorer</span></p>
+      <div class="street-name">Career Town</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="pill" id="voiceBtn" aria-pressed="true">Voice on</button>
+    <button class="pill" id="mapBtn">Town map</button>
+    <button class="pill" id="passBtn">Career Passport</button>
+  </div>
+  <div class="stage">
+    <canvas id="street" aria-label="A town street full of workplaces. Walk to a door and go inside."></canvas>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+  <div class="controls">
+    <button class="ctrl" id="leftBtn" aria-label="Walk left">&larr;</button>
+    <div class="hint">Walk with the arrow keys or buttons. Stand at a door and press Enter.</div>
+    <button class="ctrl enter" id="enterBtn">Enter</button>
+    <button class="ctrl" id="rightBtn" aria-label="Walk right">&rarr;</button>
+  </div>
+</div>
+
+<div id="scene" hidden>
+  <div class="card" role="dialog" aria-modal="true" aria-label="Police officer shift">
+    <div class="card-head">
+      <span class="job-tag" id="jobTag">Police Officer</span>
+      <div class="steps" id="steps"></div>
+      <button class="leave" id="muteBtn">Mute</button>
+      <button class="leave" id="leaveBtn">Back to town</button>
+    </div>
+    <div class="body" id="body"></div>
+  </div>
+</div>
+
+<script>
+// ---------- state ----------
+const STORE='job-explorer-v1';
+const S={voice:true,badges:[],words:[],reactions:{},interests:{},best:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem(STORE)||'{}'))}catch(e){}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
+
+const WORDS={
+  patrol:['patrol','Walking or driving around a neighborhood to keep it safe.'],
+  badge:['badge','Shows people you are a police officer they can trust.'],
+  radio:['radio','Lets officers talk with the station and each other.'],
+  crosswalk:['crosswalk','The striped path where people cross the street.'],
+  traffic:['traffic','The cars, bikes and buses moving on the road.'],
+  witness:['witness','A person who saw what happened.'],
+  clue:['clue','A piece of information that helps solve a problem.'],
+  description:['description','Words that tell what someone or something looks like.'],
+  report:['report','A written record of what happened.'],
+  dispatch:['dispatch','The team at the station that sends officers where help is needed.'],
+  'lost and found':['lost and found','A place that keeps lost things safe until the owner comes back.']
+};
+function addWords(list){list.forEach(([w,m,e])=>{if(!WORDS[w])WORDS[w]=[w,m,e]})}
+S.words=S.words.map(k=>k==='lostfound'?'lost and found':k);
+let curJob=null,curMentor=null;
+function learn(k){if(!S.words.includes(k)){S.words.push(k);save()}}
+
+const $=s=>document.querySelector(s);
+// ---------- voice ----------
+// Picks the most natural voice the device offers (neural / enhanced voices first, novelty voices never),
+// reads one sentence at a time for natural pauses, and strips emoji and symbols that sound odd aloud.
+const hasTTS='speechSynthesis' in window;
+let VOICES=[],voice=null;
+function voiceScore(v){
+  if(!/^en/i.test(v.lang))return -1;
+  const n=v.name.toLowerCase();let sc=0;
+  if(/natural|neural/.test(n))sc+=60;
+  if(/online/.test(n))sc+=20;
+  if(/premium|enhanced|siri/.test(n))sc+=45;
+  if(/google/.test(n))sc+=30;
+  if(/samantha|ava|allison|susan|zoe|evan|nathan|aria|jenny|michelle|emma|ana|libby|sonia|serena|karen|moira|tessa|daniel|kate|natasha/.test(n))sc+=15;
+  if(/en[-_]us/i.test(v.lang))sc+=6;else if(/en[-_](gb|au|ca|ie|nz)/i.test(v.lang))sc+=4;
+  if(/compact|espeak|zarvox|trinoids|albert|bad news|good news|bells|boing|bubbles|cellos|whisper|wobble|jester|organ|superstar|deranged|hysterical|pipe organ|junior|ralph|fred|kathy|bahh|grandma|grandpa|rocko|shelley|flo|eddy|reed|sandy/.test(n))sc-=100;
+  return sc;
+}
+function loadVoices(){
+  if(!hasTTS)return;
+  const all=speechSynthesis.getVoices();
+  let list=all.filter(v=>voiceScore(v)>=0);
+  if(!list.length)list=all.filter(v=>/^en/i.test(v.lang));
+  VOICES=list.sort((a,b)=>voiceScore(b)-voiceScore(a));
+  voice=VOICES.find(v=>v.voiceURI===S.voiceURI)||VOICES[0]||null;
+  if(!$('#scene').hidden&&$('#voiceSel'))voicePanel();
+}
+if(hasTTS){loadVoices();try{speechSynthesis.addEventListener('voiceschanged',loadVoices)}catch(e){speechSynthesis.onvoiceschanged=loadVoices}}
+function speakable(t){
+  return t.replace(/<[^>]+>/g,'')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}]/gu,'')
+    .replace(/[·•]/g,',').replace(/\s*…\s*/g,'. ').replace(/\s+/g,' ').trim();
+}
+function say(text){
+  if(!S.voice||!hasTTS)return;
+  try{
+    speechSynthesis.cancel();
+    const parts=speakable(text).match(/[^.!?]+[.!?]+["”']?|[^.!?]+$/g)||[];
+    parts.forEach((p,i)=>{p=p.trim();if(!p)return;
+      const u=new SpeechSynthesisUtterance(p);
+      if(voice){u.voice=voice;u.lang=voice.lang}else u.lang='en-US';
+      u.rate=S.rate||.95;u.pitch=1;u.volume=1;
+      speechSynthesis.speak(u)});
+    if(speechSynthesis.paused)speechSynthesis.resume();
+  }catch(e){}
+}
+const voiceBtn=$('#voiceBtn');
+function syncVoice(){voiceBtn.setAttribute('aria-pressed',S.voice);voiceBtn.textContent=S.voice?'Voice: on':'Voice: off';const m=$('#muteBtn');if(m)m.textContent=S.voice?'Mute':'Unmute'}
+function voicePanel(){
+  openScene();$('#steps').innerHTML='';$('#jobTag').textContent='Voice settings';$('.card').style.setProperty('--jobc','#1f4fa3');
+  const rates=[['Slow',.82],['Normal',.95],['Fast',1.08]],cur=S.rate||.95;
+  body.innerHTML=`<h2>Reading voice</h2><p class="lead">Job Explorer reads everything aloud. Pick the voice that sounds best to you.</p>
+    <div class="q"><span class="lbl">Voice</span><div class="chips"><button class="chip ${S.voice?'on':''}" data-on="1">On</button><button class="chip ${S.voice?'':'on'}" data-on="0">Off</button></div></div>
+    ${hasTTS&&VOICES.length?`<div class="q"><label class="lbl" for="voiceSel">Who reads</label>
+      <select id="voiceSel" class="sel">${VOICES.map((v,i)=>`<option value="${i}" ${v===voice?'selected':''}>${v.name.replace(/^Microsoft |^Google /,'')} (${v.lang})${i===0?' · best match':''}</option>`).join('')}</select></div>`
+      :`<div class="note soft">This device has no reading voices available.</div>`}
+    <div class="q"><span class="lbl">Speed</span><div class="chips" id="rateC">${rates.map(([n,r])=>`<button class="chip ${Math.abs(r-cur)<.01?'on':''}" data-r="${r}">${n}</button>`).join('')}</div></div>
+    <div class="row"><button class="btn" id="testV">Test the voice</button><button class="btn ghost" id="doneV">Done</button></div>
+    <p class="lead" style="font-size:.9rem">Voices come from your device. The most natural ones are the Google voices in Chrome, the "Natural" voices in Microsoft Edge, and "Enhanced" or "Premium" voices on iPhone, iPad and Mac (download them in Settings, Accessibility, Spoken Content, Voices).</p>`;
+  const test=()=>say("Hi! I'm Officer Rivera. Ready to explore Career Town? Let's find a job you'll love!");
+  body.querySelectorAll('[data-on]').forEach(b=>b.onclick=()=>{S.voice=b.dataset.on==='1';save();syncVoice();if(!S.voice)try{speechSynthesis.cancel()}catch(e){};voicePanel()});
+  const sel=$('#voiceSel');if(sel)sel.onchange=()=>{voice=VOICES[+sel.value];S.voiceURI=voice.voiceURI;save();test()};
+  body.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{S.rate=+b.dataset.r;save();body.querySelectorAll('[data-r]').forEach(x=>x.classList.toggle('on',x===b));test()});
+  $('#testV').onclick=test;$('#doneV').onclick=closeScene;
+}
+voiceBtn.onclick=voicePanel;
+syncVoice();
+
+let toastTimer;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.hidden=true,2600)}
+
+// ---------- art ----------
+let svgN=0;
+function mentorSVG(m){m=m||curMentor||POLICE.mentor;const k='#22263a',sw='stroke="#22263a" stroke-width="2.5" stroke-linejoin="round"',id='m'+(++svgN);
+  const hats={
+    police:`<path d="M29 37q21-22 42 0z" fill="#1c2c52" ${sw}/><rect x="27" y="34" width="46" height="7" rx="3" fill="#14223d" ${sw}/><circle cx="50" cy="28" r="3.6" fill="#ffc23d"/>`,
+    chef:`<path d="M35 38v-11a9 9 0 0 1 3-17 10 10 0 0 1 12-5 10 10 0 0 1 12 5 9 9 0 0 1 3 17v11z" fill="#fff" ${sw}/>`,
+    fire:`<path d="M29 39q0-22 21-22t21 22z" fill="#d23f37" ${sw}/><rect x="23" y="36" width="54" height="7" rx="3" fill="#b8312a" ${sw}/><rect x="46" y="20" width="8" height="12" rx="2" fill="#ffc23d" ${sw}/>`,
+    hard:`<path d="M30 39q0-21 20-21t20 21z" fill="#ffc23d" ${sw}/><rect x="25" y="36" width="50" height="7" rx="3" fill="#f2a900" ${sw}/>`,
+    beanie:`<path d="M31 40q0-23 19-23t19 23z" fill="#7a59c9" ${sw}/><rect x="30" y="36" width="40" height="8" rx="4" fill="#5f43a8" ${sw}/><circle cx="50" cy="16" r="4.5" fill="#ffc23d" ${sw}/>`,
+    straw:`<ellipse cx="50" cy="37" rx="32" ry="6.5" fill="#e8c46e" ${sw}/><path d="M36 37q0-17 14-17t14 17z" fill="#e8c46e" ${sw}/><rect x="36" y="31" width="28" height="4" fill="#d23f37"/>`};
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><clipPath id="${id}"><circle cx="50" cy="50" r="46.5"/></clipPath></defs>
+<circle cx="50" cy="50" r="48" fill="#ffe7a8" stroke="${k}" stroke-width="3"/>
+<g clip-path="url(#${id})"><circle cx="50" cy="44" r="36" fill="#fff3cf"/>
+${m.long?`<path d="M28 50c0-20 10-29 22-29s22 9 22 29v26H28z" fill="${m.hair}" ${sw}/>`:''}
+<path d="M14 104c2-24 17-33 36-33s34 9 36 33z" fill="${m.shirt}" ${sw}/>
+<path d="M14 104c2-24 17-33 36-33" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/>
+<path d="M42 72l8 10 8-10" fill="#fffaf0" ${sw}/>
+${m.hat==='police'?`<polygon points="68,82 72,86 70.5,92 65.5,92 64,86" fill="#ffc23d" ${sw}/>`:''}
+<rect x="44" y="62" width="12" height="12" rx="4" fill="${m.skin}" ${sw}/></g>
+<circle cx="31" cy="52" r="5" fill="${m.skin}" ${sw}/><circle cx="69" cy="52" r="5" fill="${m.skin}" ${sw}/>
+<ellipse cx="50" cy="50" rx="18" ry="20" fill="${m.skin}" ${sw}/>
+<path d="M31 48c-1-15 7-24 19-24s20 9 19 24c-3-6-7-8-10-9-5 4-14 5-22 2-2 2-4 4-6 7z" fill="${m.hair}" ${sw}/>
+<ellipse cx="43" cy="52" rx="4.4" ry="5.4" fill="#fff"/><ellipse cx="57" cy="52" rx="4.4" ry="5.4" fill="#fff"/>
+<circle cx="43.6" cy="52.6" r="2.7" fill="${k}"/><circle cx="57.6" cy="52.6" r="2.7" fill="${k}"/>
+<circle cx="44.6" cy="51.4" r="1" fill="#fff"/><circle cx="58.6" cy="51.4" r="1" fill="#fff"/>
+${m.glasses?`<circle cx="43" cy="52" r="6.6" fill="none" stroke="${k}" stroke-width="1.8"/><circle cx="57" cy="52" r="6.6" fill="none" stroke="${k}" stroke-width="1.8"/><line x1="49.6" y1="52" x2="50.4" y2="52" stroke="${k}" stroke-width="1.8"/>`:''}
+<ellipse cx="38" cy="60" rx="3.6" ry="2.4" fill="rgba(255,120,130,.45)"/><ellipse cx="62" cy="60" rx="3.6" ry="2.4" fill="rgba(255,120,130,.45)"/>
+<path d="M44 61q6 5.5 12 0" fill="none" stroke="${k}" stroke-width="2.2" stroke-linecap="round"/>
+${hats[m.hat]||''}</svg>`}
+function avatarSVG(o){const k='#22263a',sw='stroke="#22263a" stroke-width="3" stroke-linejoin="round"',shirt=o.shirt?'#1f4fa3':'#3fae6e';
+  return `<svg viewBox="0 0 150 190" aria-label="Your character">
+<ellipse cx="75" cy="182" rx="34" ry="5" fill="rgba(34,38,58,.15)"/>
+<rect x="56" y="138" width="15" height="40" rx="6" fill="#2f3a5c" ${sw}/><rect x="79" y="138" width="15" height="40" rx="6" fill="#38466e" ${sw}/>
+<ellipse cx="62" cy="179" rx="11" ry="5" fill="#3a3f55" ${sw}/><ellipse cx="88" cy="179" rx="11" ry="5" fill="#3a3f55" ${sw}/>
+<rect x="30" y="96" width="14" height="40" rx="7" fill="${shirt}" ${sw}/><rect x="106" y="96" width="14" height="40" rx="7" fill="${shirt}" ${sw}/>
+<circle cx="37" cy="140" r="7" fill="#f1c19b" ${sw}/><circle cx="113" cy="140" r="7" fill="#f1c19b" ${sw}/>
+<rect x="42" y="88" width="66" height="58" rx="20" fill="${shirt}" ${sw}/>
+<rect x="48" y="94" width="10" height="44" rx="5" fill="rgba(255,255,255,.18)"/>
+${o.shirt?`<path d="M66 88l9 12 9-12" fill="#dfe8f8" ${sw}/><line x1="75" y1="100" x2="75" y2="144" stroke="${k}" stroke-width="2"/><rect x="52" y="104" width="14" height="10" rx="2" fill="rgba(0,0,0,.15)"/><rect x="84" y="104" width="14" height="10" rx="2" fill="rgba(0,0,0,.15)"/>`:`<path d="M66 88l9 9 9-9" fill="#fffaf0" ${sw}/>`}
+${o.badge?`<polygon points="92,100 99,106 96.5,115 87.5,115 85,106" fill="#ffc23d" ${sw}/>`:''}
+${o.radio?`<rect x="50" y="100" width="13" height="21" rx="4" fill="#2b2f40" ${sw}/><line x1="59" y1="100" x2="59" y2="88" stroke="${k}" stroke-width="3" stroke-linecap="round"/><circle cx="56.5" cy="108" r="2" fill="#3ef08a"/>`:''}
+<circle cx="47" cy="62" r="7" fill="#f1c19b" ${sw}/><circle cx="103" cy="62" r="7" fill="#f1c19b" ${sw}/>
+<circle cx="75" cy="60" r="29" fill="#f1c19b" ${sw}/>
+<path d="M47 58c-2-20 10-31 28-31s30 11 28 31c-4-8-10-11-15-12-7 5-20 6-31 2-4 3-7 6-10 10z" fill="#6b3f22" ${sw}/>
+<ellipse cx="65" cy="62" rx="5.5" ry="6.8" fill="#fff"/><ellipse cx="85" cy="62" rx="5.5" ry="6.8" fill="#fff"/>
+<circle cx="66" cy="63" r="3.3" fill="${k}"/><circle cx="86" cy="63" r="3.3" fill="${k}"/><circle cx="67.2" cy="61.6" r="1.2" fill="#fff"/><circle cx="87.2" cy="61.6" r="1.2" fill="#fff"/>
+<ellipse cx="58" cy="73" rx="4.6" ry="3" fill="rgba(255,120,130,.45)"/><ellipse cx="92" cy="73" rx="4.6" ry="3" fill="rgba(255,120,130,.45)"/>
+<path d="M67 74q8 7 16 0" fill="none" stroke="${k}" stroke-width="2.6" stroke-linecap="round"/>
+${o.cap?`<path d="M45 46q30-34 60 0z" fill="#1c2c52" ${sw}/><rect x="42" y="42" width="66" height="9" rx="4" fill="#14223d" ${sw}/><circle cx="75" cy="33" r="5" fill="#ffc23d" ${sw}/>`:''}
+</svg>`}
+
+// ---------- jobs data ----------
+const POLICE={id:'police',name:'Police Officer',place:'Police Station',icon:'🚓',body:'#1f4fa3',roof:'#14223d',tags:['safety','people','solving'],
+  mentor:{name:'Officer Rivera',skin:'#c98b5e',hair:'#3b2418',hat:'police',shirt:'#1f4fa3'}};
+const JOBS=[
+ {id:'teacher',name:'Teacher',place:'School',icon:'🏫',body:'#f2a65a',roof:'#b35d22',
+  mentor:{name:'Mr. Okafor',skin:'#7a4a2a',hair:'#1b1210',hat:'none',shirt:'#e07a3a',glasses:true},
+  intro:["Good morning! I'm <b>Mr. Okafor</b>, and this is my <b>classroom</b>.","Teachers help kids learn new things. We plan <b>lessons</b>, explain ideas, and <b>encourage</b> every student.","Let's teach today's class together!"],
+  words:[['lesson','A plan for teaching something new.','📖'],['classroom','The room where a class learns together.','🏫'],['schedule','The plan for when things happen in the day.','🗓️'],['homework','Practice work students do at home.','✏️'],['encourage','To help someone believe they can do it.','💪'],['explain','To make an idea clear so others understand.','💬']],
+  tasks:[
+   {type:'order',label:'Plan',title:'Plan the lesson',lead:'Good lessons follow steps. Tap the steps in the right order.',tag:'creating',steps:[['🎯','Say what we will learn today'],['✏️','Show an example on the board'],['👥','Practice together'],['✅','Check what everyone learned']],win:'Lesson planned! A clear plan helps every student follow along.'},
+   {type:'tap',label:'Help',title:'Who needs help?',lead:'Tap each student who raises a hand. Let the busy workers keep working.',tag:'people',good:['🙋','a raised hand'],goodDone:'👍',bad:['🧑‍🎓','a student working quietly'],badMsg:'That student is busy working. Look for raised hands!',goal:10,win:'You helped every student who asked. Great teachers notice everyone.'},
+   {type:'quiz',label:'Teach',title:'Answer student questions',lead:'Students have questions. Pick the best answer, then read how to explain it.',tag:'solving',qs:[
+     ['Ava asks: What is 3 + 4?',['6','7','8'],1,'3 + 4 = 7. You can count up from 4: five, six, seven!'],
+     ['Leo asks: Which word rhymes with cat?',['hat','dog','sun'],0,'Cat and hat both end with the same -at sound.'],
+     ['Mia asks: How many legs does a spider have?',['6','8','10'],1,'Spiders have 8 legs. Insects have 6, so spiders are not insects!']],win:'Every question answered and explained.'}],
+  problem:{text:'Noah puts his head down and says, "I\'m bad at reading. I give up." <b>What should you do?</b>',opts:[['Encourage him and read one page together',1,'Yes! Small steps and kind words help him keep going.'],['Tell him to just try harder',0,'"Try harder" doesn\'t show him how. Teachers help in small steps.'],['Let him skip reading forever',0,'Reading matters. A teacher helps students get past the hard parts.']]},
+  summary:'You planned a lesson, helped every raised hand, explained answers, and encouraged Noah when reading got hard.',
+  duty:'Teachers plan lessons, explain ideas clearly, keep the classroom kind and safe, and encourage every student.'},
+
+ {id:'baker',name:'Baker',place:'Bakery',icon:'🥐',body:'#ef7aa7',roof:'#a63d6b',
+  mentor:{name:'Baker Sam',skin:'#f0c8a0',hair:'#8a5a2b',hat:'chef',shirt:'#ffffff'},
+  intro:["Hello! I'm <b>Baker Sam</b>. You might remember me from the puppy case!","Bakers get up very early to bake fresh bread for the whole town. We follow <b>recipes</b> and <b>measure</b> carefully.","Wash your hands, and let's bake!"],
+  words:[['recipe','Steps and ingredients for making food.','📜'],['measure','To find out exactly how much or how big something is.','⚖️'],['dough','A soft mix of flour and water that becomes bread.','🥖'],['knead','To press and fold dough with your hands.','👐'],['oven','A hot box that bakes food.','🔥'],['fresh','Just made, not old.','🍞']],
+  tasks:[
+   {type:'order',label:'Bake',title:'Bake a loaf of bread',lead:'Follow the recipe. Tap the steps in order.',tag:'creating',steps:[['🧼','Wash your hands'],['⚖️','Measure the flour and water'],['👐','Mix and knead the dough'],['⏰','Let the dough rise'],['🔥','Bake it in the oven'],['❄️','Let it cool']],win:'Fresh bread! Following the recipe in order makes it turn out right.'},
+   {type:'sort',label:'Store',title:'Put the ingredients away',lead:'Some ingredients must stay cold to stay safe. Where does each one go?',tag:'safety',bins:[['🧊','Fridge'],['🗄️','Shelf']],items:[['🥛','Milk',0,'Milk spoils if it gets warm.'],['🌾','Flour',1,'Flour stays dry and fresh on a shelf.'],['🥚','Eggs',0,'Eggs stay safe in the fridge.'],['🍬','Sugar',1,'Sugar keeps well on a shelf.'],['🧈','Butter',0,'Butter melts and spoils when warm.'],['🍫','Chocolate chips',1,'Chocolate chips keep fine on a cool shelf.']],win:'Everything is stored safely. Bakers keep food safe for every customer.'},
+   {type:'build',label:'Orders',title:'Fill the customer orders',lead:'Read each order and tap the treats to put in the box.',tag:'people',ingredients:[['🥐','croissant'],['🍩','donut'],['🧁','cupcake'],['🥖','baguette'],['🍪','cookie'],['🥧','pie']],rounds:[['croissant','donut'],['cookie','cookie','cupcake'],['baguette','pie','croissant']],who:['Mrs. Kim','Leo','Officer Rivera'],win:'Every order was right. Happy customers come back tomorrow!'}],
+  problem:{text:'A customer asks, "Does this cake have nuts? My son is allergic." You are not sure. <b>What do you do?</b>',opts:[['Check the recipe and label before answering',1,'Exactly. An allergy can make someone very sick, so bakers check, never guess.'],['Say "probably not"',0,'Guessing is risky with allergies. Always check the recipe.'],['Look at the cake and guess',0,'Nuts can be hidden inside. Check the recipe to be sure.']]},
+  summary:'You baked bread step by step, stored food safely, filled every order, and checked for nuts instead of guessing.',
+  duty:'Bakers follow recipes exactly, measure carefully, keep food safe and clean, and serve customers with care.'},
+
+ {id:'chef',name:'Chef',place:'Restaurant',icon:'🍳',body:'#2aa876',roof:'#16613f',
+  mentor:{name:'Chef Arjun',skin:'#a86a43',hair:'#1b1210',hat:'chef',shirt:'#ffffff'},
+  intro:["Welcome to my kitchen! I'm <b>Chef Arjun</b>.","Chefs cook meals for lots of hungry people. We read each <b>order</b>, <b>prep</b> the food, and keep everything clean.","The lunch rush is coming. Let's get cooking!"],
+  words:[['order','What a customer asks for.','🧾'],['ingredient','One food you use to make a dish.','🥕'],['prep','Getting food ready before you cook it.','🔪'],['allergy','When a food makes someone\'s body sick.','🥜'],['serve','To bring food to the people eating it.','🍽️'],['station','A chef\'s own work area in the kitchen.','🧑‍🍳']],
+  tasks:[
+   {type:'order',label:'Prep',title:'Get the kitchen ready',lead:'Chefs work in a safe order. Tap the steps in order.',tag:'safety',steps:[['🧼','Wash your hands'],['🥼','Put on your apron'],['🔪','Prep the vegetables'],['🍳','Cook the food'],['🍽️','Plate it nicely'],['🧽','Clean your station']],win:'Kitchen ready! Clean and organized chefs cook safely.'},
+   {type:'build',label:'Cook',title:'Make the dishes',lead:'Read each order ticket. Tap the ingredients to put on the plate.',tag:'creating',ingredients:[['🍞','bread'],['🧀','cheese'],['🥬','lettuce'],['🍅','tomato'],['🍝','pasta'],['🥚','egg'],['🍗','chicken'],['🍚','rice']],rounds:[['bread','cheese','tomato'],['pasta','tomato','cheese'],['rice','chicken','egg'],['bread','lettuce','chicken']],who:['Table 1','Table 2','Table 3','Table 4'],win:'Every dish matched the ticket. The customers are happy!'},
+   {type:'quiz',label:'Safety',title:'Kitchen smarts',lead:'Good chefs think about safety. Pick the best answer.',tag:'solving',qs:[['Table 3 is allergic to peanuts. Which dish is safe?',['Peanut noodles','Tomato soup','Peanut butter toast'],1,'Tomato soup has no peanuts. Chefs always check for allergies.'],['Which food must be cooked all the way through?',['Chicken','Lettuce','Apple'],0,'Chicken must be fully cooked to kill germs.'],['A pan is very hot. What do you hold it with?',['Bare hands','An oven mitt','A paper towel'],1,'An oven mitt protects your hand from burns.']],win:'Safe and smart. That\'s how a chef runs a kitchen.'}],
+  problem:{text:'Oops! A burger falls on the floor right before you serve it. <b>What do you do?</b>',opts:[['Throw it away and make a new one',1,'Yes. Food from the floor has germs. Chefs make it right, even when it takes longer.'],['Pick it up and serve it',0,'That could make someone sick. Make a new one.'],['Blow on it and serve it',0,'Blowing doesn\'t remove germs. Make a fresh one.']]},
+  summary:'You set up a clean kitchen, cooked every order, kept customers safe from allergies, and remade the dropped burger.',
+  duty:'Chefs follow orders exactly, keep food safe and clean, work fast as a team, and care about every customer.'},
+
+ POLICE,
+
+ {id:'fire',name:'Firefighter',place:'Fire Station',icon:'🚒',body:'#d23f37',roof:'#8f2420',
+  mentor:{name:'Captain Mei',skin:'#e8c09a',hair:'#14100c',hat:'fire',shirt:'#c9302c'},
+  intro:["Welcome to the firehouse! I'm <b>Captain Mei</b>.","Firefighters put out fires, <b>rescue</b> people, and teach everyone about fire safety. We work as a <b>crew</b>.","When the <b>alarm</b> rings, we get ready fast. Let's suit up!"],
+  words:[['alarm','A loud sound that warns people of danger.','🚨'],['rescue','To save someone from danger.','🛟'],['crew','A team that works together.','👥'],['hydrant','A pipe on the street that gives water for fire hoses.','💧'],['extinguisher','A tool that sprays to put out small fires.','🧯'],['evacuate','To leave a place quickly and safely.','🏃']],
+  tasks:[
+   {type:'pick',label:'Suit up',title:'Suit up fast',lead:'The alarm is ringing! Pick the 5 things a firefighter needs.',tag:'safety',items:[['🪖','Helmet',1,'It protects your head.'],['🩴','Flip-flops',0,'Too slippery. Boots protect your feet.'],['🧤','Gloves',1,'They protect your hands from heat.'],['🎩','Top hat',0,'Fancy, but a helmet keeps you safe.'],['🥾','Boots',1,'Strong boots protect your feet.'],['🍦','Ice cream',0,'It would melt! Save it for later.'],['🧯','Extinguisher',1,'It puts out small fires.'],['🪁','Kite',0,'Fun on a windy day, not on a call.'],['📻','Radio',1,'The crew stays in touch by radio.'],['🎮','Video game',0,'No games on a call.']],win:'Suited up! Firefighters can get ready in about one minute.'},
+   {type:'tap',label:'Fires',title:'Put out the fires',lead:'Tap each fire to spray it with water. Watch out for the cat!',tag:'safety',good:['🔥','a fire'],goodDone:'💨',bad:['🐈','a cat'],badMsg:'Don\'t spray the cat! We will rescue it after the fire is out.',goal:12,win:'All fires out! The crew kept everyone safe.'},
+   {type:'order',label:'Drill',title:'Teach a fire drill',lead:'You are visiting a school. Tap the fire drill steps in order.',tag:'people',steps:[['🚨','Hear the alarm'],['🎒','Leave your things behind'],['🚶','Walk calmly to the exit'],['🌳','Meet your class at the meeting spot'],['🙋','The teacher counts everyone']],win:'The class knows the drill. Practice keeps people safe in a real fire.'}],
+  problem:{text:'During the drill, a boy wants to run back inside for his teddy bear. <b>What do you say?</b>',opts:[['"Stay outside. Toys can be replaced, but you can\'t."',1,'Right. Firefighters teach that people matter more than things.'],['"Okay, but hurry!"',0,'Going back inside is dangerous. Everyone stays out until it\'s safe.'],['Say nothing',0,'Firefighters speak up to keep people safe.']]},
+  summary:'You suited up, put out the fires without spraying the cat, and taught a school how to do a fire drill.',
+  duty:'Firefighters stay ready, work as a crew, keep calm in danger, and teach people how to stay safe.'},
+
+ {id:'nurse',name:'Nurse',place:'Hospital',icon:'🏥',body:'#f3f6fb',roof:'#7f93b5',
+  mentor:{name:'Nurse Tomás',skin:'#c98b5e',hair:'#2a1a10',hat:'none',shirt:'#4fb3a8'},
+  intro:["Hello! I'm <b>Nurse Tomás</b>.","Nurses take care of <b>patients</b>. We check how they feel, help them heal, and <b>comfort</b> them when they are scared.","Let's get my cart ready."],
+  words:[['patient','A person getting care from a nurse or doctor.','🤒'],['temperature','How hot or cold your body is.','🌡️'],['bandage','A cover that keeps a cut clean.','🩹'],['checkup','A visit to make sure your body is healthy.','🩺'],['comfort','To help someone feel calm and cared for.','🤗'],['germs','Tiny living things that can make you sick.','🦠']],
+  tasks:[
+   {type:'pick',label:'Cart',title:'Stock the nurse cart',lead:'Pick the 5 things a nurse needs to care for patients.',tag:'people',items:[['🩺','Stethoscope',1,'To listen to hearts and lungs.'],['🎳','Bowling ball',0,'Too heavy, and not helpful!'],['🌡️','Thermometer',1,'To check temperature.'],['🪀','Yo-yo',0,'Fun, but not for work.'],['🩹','Bandages',1,'To cover cuts.'],['🎻','Violin',0,'Maybe for the musician!'],['🧤','Gloves',1,'They keep germs away.'],['🍔','Burger',0,'Lunch comes later.'],['📋','Clipboard',1,'To write down how patients are doing.'],['🛹','Skateboard',0,'No skating in the hallway!']],win:'Cart ready! Nurses are prepared for anything.'},
+   {type:'order',label:'Care',title:'Clean a small cut',lead:'A patient has a small cut. Tap the steps in order.',tag:'people',steps:[['🧼','Wash your hands'],['🧤','Put on gloves'],['💧','Clean the cut gently'],['🩹','Cover it with a bandage'],['📋','Write it in the chart']],win:'All clean. Careful steps stop germs from spreading.'},
+   {type:'sort',label:'Triage',title:'Who needs help first?',lead:'Nurses decide who needs care fastest. This is called triage.',tag:'solving',bins:[['🚨','Right away'],['⏳','Can wait a little']],items:[['😮‍💨','Can\'t breathe well',0,'Breathing trouble is serious. Help right away.'],['🩹','Tiny scratch',1,'A small scratch can wait a few minutes.'],['🤕','Hurt head after a fall',0,'Head injuries get checked right away.'],['🙂','Wants more water',1,'That can wait a moment.'],['🤧','Has the sniffles',1,'Sniffles can wait.'],['🥵','Very high fever',0,'A very high fever needs care quickly.']],win:'Smart triage. The sickest patients got help first.'}],
+  problem:{text:'A little girl is scared of her checkup and starts to cry. <b>What do you do?</b>',opts:[['Explain each step kindly and let her hold the stethoscope',1,'Yes. Explaining and letting her try helps her feel safe. That\'s comfort.'],['Tell her to stop crying',0,'That won\'t help her feel safe. Kindness comes first.'],['Do the checkup fast without talking',0,'Surprises can be scarier. Tell her what you are doing.']]},
+  summary:'You stocked the cart, cleaned a cut, decided who needed help first, and comforted a scared patient.',
+  duty:'Nurses care for patients, stop germs from spreading, notice when someone needs help fast, and comfort people who are scared.'},
+
+ {id:'vet',name:'Vet',place:'Animal Clinic',icon:'🐾',body:'#8bc34a',roof:'#4f7a22',
+  mentor:{name:'Dr. Lin',skin:'#efcfa8',hair:'#1b1210',hat:'none',shirt:'#6aa84f',long:true},
+  intro:["Welcome to the Animal Clinic! I'm <b>Dr. Lin</b>, a veterinarian. People call us vets.","Vets are doctors for animals. Animals can't tell us what's wrong, so we look for <b>symptoms</b>.","Let's meet today's patients!"],
+  words:[['veterinarian','A doctor for animals, also called a vet.','🐾'],['symptom','A sign that something is wrong with a body.','🤧'],['treatment','What you do to help someone get better.','💊'],['stethoscope','A tool to listen to hearts and lungs.','🩺'],['healthy','When a body is well and strong.','💪'],['owner','The person who takes care of a pet.','🧑']],
+  tasks:[
+   {type:'sort',label:'Checkup',title:'Healthy or needs care?',lead:'Look at each animal. Does it need care?',tag:'nature',bins:[['💚','Healthy'],['🩺','Needs care']],items:[['🐕','Dog wagging its tail and eating',0,'Wagging and eating are good signs.'],['🐈','Cat that won\'t eat for 2 days',1,'Not eating is a symptom. The vet should check.'],['🐇','Bunny munching hay',0,'Munching hay means a happy bunny.'],['🐦','Bird with a hurt wing',1,'A hurt wing needs treatment.'],['🐹','Hamster running on its wheel',0,'Active and healthy!'],['🐶','Puppy limping',1,'Limping is a symptom. Let\'s check that paw.']],win:'You spotted every symptom!'},
+   {type:'build',label:'Feed',title:'Fill the food bowls',lead:'Each animal needs the right food. Tap the foods for each bowl.',tag:'nature',ingredients:[['🥕','carrot'],['🌾','hay'],['🐟','fish'],['💧','water'],['🌻','seeds'],['🍖','meat'],['🍫','chocolate']],bad:{chocolate:'Chocolate is poisonous to dogs and cats. Never feed it to pets!'},rounds:[['hay','carrot'],['fish','water'],['seeds','water'],['meat','water']],who:['Bunny','Cat','Bird','Dog'],win:'Every pet got the right food.'},
+   {type:'tap',label:'Calm',title:'Calm the nervous pets',lead:'Some pets are scared at the clinic. Tap the scared cats to pet them gently.',tag:'nature',good:['🙀','a scared cat'],goodDone:'😺',bad:['🐕','a calm dog'],badMsg:'That dog is already calm. Find a scared cat!',goal:10,win:'Every pet feels calm. Gentle hands make a big difference.'}],
+  problem:{text:'An owner wants to give their dog chocolate cake for its birthday. <b>What do you say?</b>',opts:[['Kindly explain chocolate is unsafe, and suggest a dog treat',1,'Perfect. Vets help owners keep pets safe, kindly.'],['Say "Sounds fun!"',0,'Chocolate can make dogs very sick. Speak up kindly.'],['Say nothing',0,'Vets teach owners how to keep pets safe.']]},
+  summary:'You checked symptoms, fed every pet the right food, calmed scared cats, and helped an owner keep their dog safe.',
+  duty:'Vets care for animals, notice symptoms carefully, stay gentle and calm, and teach owners how to keep pets healthy.'},
+
+ {id:'scientist',name:'Scientist',place:'Science Lab',icon:'🔬',body:'#1fa3a3',roof:'#0f6666',
+  mentor:{name:'Dr. Ama',skin:'#5c3a22',hair:'#1b1210',hat:'none',shirt:'#ffffff',glasses:true,long:true},
+  intro:["Welcome to the lab! I'm <b>Dr. Ama</b>.","Scientists ask questions about the world, then do <b>experiments</b> to find answers.","Put on your goggles. Let's discover something!"],
+  words:[['hypothesis','A smart guess you can test.','💡'],['experiment','A test to find out if a guess is right.','🧪'],['observe','To watch carefully and notice details.','👀'],['data','Facts and numbers you collect.','📊'],['result','What happened at the end of an experiment.','📋'],['goggles','Glasses that protect your eyes in the lab.','🥽']],
+  tasks:[
+   {type:'order',label:'Method',title:'Plan an experiment',lead:'Scientists follow steps. Tap them in order.',tag:'solving',steps:[['❓','Ask a question'],['💡','Make a hypothesis'],['🧪','Test it with an experiment'],['📝','Observe and write down data'],['📢','Share your result']],win:'That\'s the scientific method!'},
+   {type:'sort',label:'Test',title:'Sink or float?',lead:'Make a hypothesis: will it sink or float? Then see the result.',tag:'solving',lenient:true,bins:[['⬇️','Sinks'],['⬆️','Floats']],items:[['🪨','Rock',0,'Rocks are heavy for their size, so they sink.'],['🍎','Apple',1,'Apples have air inside, so they float!'],['🪙','Coin',0,'Metal coins are dense and sink.'],['🦆','Rubber duck',1,'It is hollow and full of air, so it floats.'],['🔑','Key',0,'Metal keys sink.'],['🍃','Leaf',1,'Leaves are light and flat, so they float.']],win:'Experiment done. Surprises are how scientists learn!'},
+   {type:'quiz',label:'Data',title:'Read the data',lead:'Look at what happened and decide what it means.',tag:'solving',qs:[['Plant A had sun and grew 10 cm. Plant B was in the dark and grew 2 cm. What helps plants grow?',['Sunlight','Darkness','Nothing'],0,'The plant with sun grew much more, so sunlight helps.'],['You mix baking soda and vinegar and it fizzes. What next?',['Forget it','Write it down','Throw it away'],1,'Scientists write down every observation as data.'],['Your experiment did not work. What now?',['Give up','Change one thing and try again','Pretend it worked'],1,'Trying again is normal in science. Change one thing at a time.']],win:'You think like a scientist!'}],
+  problem:{text:'Your result is different from what you hoped. A friend says, "Just change the numbers." <b>What do you do?</b>',opts:[['Report the real result honestly',1,'Yes. Science only works when people tell the truth about data.'],['Change the numbers',0,'Changing data is not honest, and other scientists would be misled.'],['Hide the experiment',0,'Unexpected results are useful! Share them honestly.']]},
+  summary:'You planned an experiment, tested what sinks and floats, read the data, and stayed honest about your result.',
+  duty:'Scientists ask good questions, test ideas carefully, record data truthfully, and share what they learn.'},
+
+ {id:'electrician',name:'Electrician',place:'Power Shop',icon:'💡',body:'#f2c230',roof:'#9c7a0f',
+  mentor:{name:'Mr. Haru',skin:'#efcfa8',hair:'#2b2b2b',hat:'hard',shirt:'#2e5e9e',glasses:true},
+  intro:["Hello! I'm <b>Mr. Haru</b>, an electrician.","Electricians put in and fix the wires that bring <b>electricity</b> to lights, homes and schools.","Electricity is powerful, so we always follow <b>safety</b> rules. Let's go!"],
+  words:[['electricity','Energy that makes lights and machines work.','⚡'],['circuit','A loop that electricity travels around.','🔄'],['wire','A thin metal line that carries electricity.','〰️'],['switch','A button that turns electricity on or off.','🎚️'],['outlet','The place in the wall where you plug things in.','🔌'],['safety','Staying out of danger.','🦺']],
+  tasks:[
+   {type:'order',label:'Fix',title:'Fix a broken light',lead:'Tap the steps in the safe order.',tag:'building',steps:[['⚡','Turn off the power'],['🔍','Test that the power is off'],['🔧','Replace the broken part'],['🔌','Connect the wires'],['💡','Turn the power back on']],win:'The light works! Turning the power off first keeps electricians safe.'},
+   {type:'sort',label:'Safety',title:'Safe or unsafe?',lead:'Electricians teach people to stay safe. Sort each one.',tag:'safety',bins:[['✅','Safe'],['⚠️','Unsafe']],items:[['🙌','Using a light switch with dry hands',0,'Dry hands are safe.'],['🔌','Using a cord with a broken wire',1,'Broken cords can shock you. Tell an adult.'],['🪁','Flying a kite near power lines',1,'Stay far away from power lines!'],['🧑','Asking an adult to plug in a big machine',0,'Good choice.'],['💦','Using a hair dryer near the bath',1,'Water and electricity are a dangerous mix.'],['🔦','Using a flashlight when the power is out',0,'Flashlights use batteries and are safe.']],win:'Safety expert!'},
+   {type:'quiz',label:'Circuits',title:'How electricity works',lead:'Pick the best answer.',tag:'solving',qs:[['Which one carries electricity well?',['Metal wire','Rubber','Wood'],0,'Metal carries electricity. Rubber covers wires to keep us safe.'],['A circuit has a gap in it. Will the bulb light up?',['Yes','No'],1,'Electricity needs a full loop. A gap stops it.'],['What does a switch do?',['Opens or closes the circuit','Makes the wire longer','Changes the color'],0,'Flip it on and the loop closes, so the light turns on.']],win:'You understand circuits!'}],
+  problem:{text:'At a customer\'s house, you see a wire sparking behind the TV. <b>What do you do first?</b>',opts:[['Turn off the power and keep everyone away',1,'Yes. Safety first: power off, people back.'],['Touch the wire to check it',0,'Never touch a sparking wire! Turn off the power first.'],['Ignore it and do your other job',0,'A sparking wire could start a fire. Deal with it now.']]},
+  summary:'You fixed a light safely, taught electrical safety, and explained how circuits work.',
+  duty:'Electricians follow safety rules every time, work carefully with power, solve problems, and keep homes safe.'},
+
+ {id:'builder',name:'Builder',place:'Build Yard',icon:'🏗️',body:'#c98a4b',roof:'#7a4f22',
+  mentor:{name:'Builder Rosa',skin:'#d9a37a',hair:'#3b2418',hat:'hard',shirt:'#f28c28',long:true},
+  intro:["Hi! I'm <b>Rosa</b>, and I build houses.","Builders read <b>blueprints</b>, <b>measure</b> carefully, and work safely as a team.","Safety first! Let's put on our gear."],
+  words:[['blueprint','A drawing that shows how to build something.','📐'],['measure','To find out exactly how much or how big something is.','⚖️'],['level','When something is flat and even.','📏'],['foundation','The strong base under a building.','🧱'],['hard hat','A strong hat that protects your head.','⛑️'],['crane','A tall machine that lifts heavy things.','🏗️']],
+  tasks:[
+   {type:'pick',label:'Gear',title:'Put on safety gear',lead:'Pick the 5 things a builder wears to stay safe.',tag:'safety',items:[['⛑️','Hard hat',1,'It protects your head from falling things.'],['🩰','Ballet shoes',0,'Pretty, but they won\'t protect your feet.'],['🦺','Safety vest',1,'Bright colors help others see you.'],['👑','Crown',0,'No royalty at the build yard!'],['🥾','Work boots',1,'Strong boots protect your toes.'],['🎈','Balloon',0,'It would pop on a nail.'],['🧤','Gloves',1,'They protect your hands.'],['🩴','Flip-flops',0,'Not safe around tools.'],['🥽','Goggles',1,'They protect your eyes from dust.'],['🎀','Bow',0,'Cute, but not safety gear.']],win:'Geared up and safe!'},
+   {type:'order',label:'Build',title:'Build a house',lead:'Tap the building steps in order.',tag:'building',steps:[['📐','Read the blueprint'],['🧱','Pour the foundation'],['🪵','Build the walls'],['🏠','Put on the roof'],['🎨','Paint it']],win:'A house is built! A strong foundation comes first.'},
+   {type:'quiz',label:'Measure',title:'Measure it right',lead:'Builders measure carefully. Pick the best answer.',tag:'solving',qs:[['The door opening is 2 meters tall. Which door fits?',['1 meter','2 meters','5 meters'],1,'A 2 meter door fits a 2 meter opening.'],['Why do builders check that a shelf is level?',['So things don\'t slide off','To make it colorful','Just for fun'],0,'A level shelf is flat, so things stay put.'],['Builders say: "Measure twice, cut…"',['never','once','ten times'],1,'Measuring twice means you only need to cut once. It saves wood!']],win:'Measured perfectly!'}],
+  problem:{text:'A big storm is coming, and the roof isn\'t finished. <b>What should the crew do?</b>',opts:[['Cover the house with a tarp and stop until the storm passes',1,'Yes. It protects the house and keeps the crew safe.'],['Keep working on the roof in the storm',0,'Working up high in wind and rain is dangerous. Safety first.'],['Leave everything open and go home',0,'Rain could ruin the inside. Cover it first, then stay safe.']]},
+  summary:'You put on safety gear, built a house step by step, measured carefully, and kept the crew safe in a storm.',
+  duty:'Builders read plans, measure carefully, use safety gear every day, and work as a team to build strong places.'},
+
+ {id:'musician',name:'Musician',place:'Music Hall',icon:'🎸',body:'#7a59c9',roof:'#47307f',
+  mentor:{name:'Kai',skin:'#d79f73',hair:'#5b2d8a',hat:'beanie',shirt:'#7a59c9'},
+  intro:["Hey there! I'm <b>Kai</b>, and I play in a band.","Musicians <b>practice</b> a lot, learn songs, and play for an <b>audience</b>. Tonight we have a show!","First, let's warm up our ears and hands."],
+  words:[['melody','The tune of a song you can hum.','🎵'],['rhythm','The pattern of beats in music.','🥁'],['practice','Doing something again and again to get better.','🔁'],['rehearsal','A practice before a show.','🎭'],['audience','The people who watch and listen to a show.','👏'],['tempo','How fast or slow music goes.','⏱️']],
+  tasks:[
+   {type:'simon',label:'Melody',title:'Copy the melody',lead:'Listen and watch. Then tap the notes in the same order.',tag:'creating',rounds:4,win:'You copied every melody! Musicians train their ears every day.'},
+   {type:'beat',label:'Rhythm',title:'Keep the beat',lead:'Tap the drum each time the light flashes. Stay with the rhythm!',tag:'creating',beats:16,win:'Nice rhythm!'},
+   {type:'pick',label:'Pack',title:'Pack for the show',lead:'Pick the 5 things the band needs on stage.',tag:'people',items:[['🎸','Guitar',1,'The main instrument!'],['🍳','Frying pan',0,'That\'s for the chef!'],['🎤','Microphone',1,'So the audience can hear the singer.'],['🛏️','Pillow',0,'No naps on stage.'],['🎼','Sheet music',1,'It shows the notes to play.'],['🧹','Broom',0,'Someone else sweeps the stage.'],['🎧','Headphones',1,'To hear the band clearly.'],['🐟','Fish',0,'Definitely not!'],['🥁','Drumsticks',1,'The drummer keeps the beat.'],['⛱️','Beach umbrella',0,'We are playing inside tonight.']],win:'Packed and ready. Time for the show!'}],
+  problem:{text:'In the middle of the show, you play a wrong note. <b>What do you do?</b>',opts:[['Keep playing and smile',1,'Yes! Pros make mistakes too. Practice helps you keep going.'],['Stop and walk off the stage',0,'The audience came to hear you. Keep going!'],['Blame the drummer',0,'Bands are teams. Take a breath and keep playing.']]},
+  summary:'You copied melodies, kept the beat, packed for the show, and kept playing after a wrong note.',
+  duty:'Musicians practice often, work as a band, show up on time for rehearsals, and share music with an audience.'},
+
+ {id:'creator',name:'Video Creator',place:'Video Studio',icon:'🎬',body:'#34405e',roof:'#1a2238',
+  mentor:{name:'Jade',skin:'#f2cfae',hair:'#d94f8a',hat:'none',shirt:'#ef4f6b',long:true},
+  intro:["Hi, I'm <b>Jade</b>! I make videos for my YouTube channel.","Video creators come up with ideas, film them, <b>edit</b>, and share them with an audience. It takes lots of planning!","We also keep ourselves and others safe online. Let's make a video!"],
+  words:[['script','The written words you plan to say.','📝'],['edit','To cut and fix a video so it is clear.','🎞️'],['thumbnail','The small picture people see before they click a video.','🖼️'],['feedback','Comments about what worked and what to improve.','💬'],['private','Information you keep to yourself and trusted adults.','🔒'],['audience','The people who watch and listen to a show.','👏']],
+  tasks:[
+   {type:'order',label:'Make',title:'Make a video',lead:'Tap the steps in order, from idea to posting.',tag:'creating',steps:[['💡','Pick an idea'],['📝','Write a script'],['🎥','Film it'],['🎞️','Edit it'],['✅','Check that it is safe and kind'],['📤','Post it']],win:'Video made! Most of the work happens before you press record.'},
+   {type:'sort',label:'Privacy',title:'Safe to share online?',lead:'Some things are fine to share. Others should stay private.',tag:'safety',bins:[['✅','Okay to share'],['🔒','Keep private']],items:[['🎨','Your drawing',0,'Sharing your art is fine.'],['🏠','Your home address',1,'Never share where you live online.'],['🐶','Your pet\'s trick',0,'Pet tricks are fun to share.'],['📞','Your phone number',1,'Keep phone numbers private.'],['🏫','Your school\'s name',1,'It tells strangers where to find you. Keep it private.'],['🍪','A cookie recipe',0,'Recipes are great to share!']],win:'You know what to keep private. Real creators protect their safety.'},
+   {type:'quiz',label:'Comments',title:'Read the comments',lead:'Viewers left comments. How should a creator respond?',tag:'people',qs:[['A viewer writes, "I couldn\'t hear you." What do you do?',['Use a microphone next time','Delete your channel','Argue with them'],0,'That\'s helpful feedback. Good creators use it to improve.'],['Someone writes a mean comment. What do you do?',['Write a mean reply','Don\'t reply, and tell a trusted adult','Believe it'],1,'Mean comments are not your fault. Don\'t reply, and tell an adult.'],['Which thumbnail is honest?',['A picture from the video','A fake explosion','Something not in the video'],0,'Honest thumbnails show what the video is really about.']],win:'You handled the comments like a pro.'}],
+  problem:{text:'You filmed your friend tripping over a ball. It\'s really funny. <b>Should you post it?</b>',opts:[['Ask your friend first, and only post if they say yes',1,'Yes. Creators always ask before showing someone else.'],['Post it right away',0,'Your friend might feel embarrassed. Always ask first.'],['Post it but make it blurry',0,'It\'s still your friend. Ask first.']]},
+  summary:'You made a video from idea to post, kept private info safe, used feedback, and asked permission before sharing.',
+  duty:'Video creators plan and edit carefully, stay honest with viewers, protect privacy, and treat their audience with respect.'},
+
+ {id:'farmer',name:'Farmer',place:'Farm',icon:'🚜',body:'#b5452b',roof:'#6e2616',
+  mentor:{name:'Farmer Ines',skin:'#b5764a',hair:'#7a4a22',hat:'straw',shirt:'#3a7bd5',long:true},
+  intro:["Hello there! I'm <b>Farmer Ines</b>.","Farmers grow the food we eat. We plant <b>seeds</b>, care for <b>crops</b>, and watch the weather every day.","It's <b>harvest</b> time. Let's get to work!"],
+  words:[['seed','A tiny part of a plant that grows into a new plant.','🌱'],['soil','The dirt that plants grow in.','🟫'],['crop','A plant grown for food.','🌽'],['harvest','To pick crops when they are ready.','🧺'],['season','A time of year, like spring or fall.','🍂'],['tractor','A strong farm machine that pulls heavy things.','🚜']],
+  tasks:[
+   {type:'tap',label:'Harvest',title:'Harvest the tomatoes',lead:'Tap the ripe red tomatoes. Leave the little sprouts to grow.',tag:'nature',good:['🍅','a ripe tomato'],goodDone:'🧺',bad:['🌱','a sprout'],badMsg:'That sprout isn\'t ready yet. Let it grow!',goal:12,win:'Basket full! These tomatoes will go to the market.'},
+   {type:'order',label:'Grow',title:'Grow a vegetable',lead:'Tap the steps in order.',tag:'nature',steps:[['⛏️','Dig up the soil'],['🌱','Plant the seed'],['💧','Water it'],['☀️','Wait for sun and rain'],['🧺','Harvest the crop']],win:'From seed to harvest! Farming takes patience.'},
+   {type:'sort',label:'Seasons',title:'Which season?',lead:'Farm jobs change with the seasons. When does each happen?',tag:'nature',bins:[['🌸','Spring'],['🍂','Fall']],items:[['🌱','Plant seeds',0,'Seeds are planted in spring when it warms up.'],['🎃','Pick pumpkins',1,'Pumpkins are ready in fall.'],['🐣','Baby chicks hatch',0,'Many baby animals are born in spring.'],['🍎','Pick apples',1,'Apples ripen in fall.'],['🌷','Flowers bloom',0,'Spring is full of flowers.'],['🌽','Harvest corn',1,'Corn is harvested in late summer and fall.']],win:'You know the farm year!'}],
+  problem:{text:'Little bugs are eating your lettuce! <b>What do you do?</b>',opts:[['Bring in ladybugs. They eat the bad bugs.',1,'Smart! Many farmers use helpful insects to protect crops.'],['Give up on the lettuce',0,'Farmers solve problems. Try another way!'],['Pour on lots of strong spray',0,'Too much spray can hurt helpful bugs and the soil. Try ladybugs!']]},
+  summary:'You harvested tomatoes, grew a crop from seed, learned the seasons, and protected your lettuce with ladybugs.',
+  duty:'Farmers grow food for everyone, care for soil and animals, plan for the weather, and work with patience.'}
+];
+const JOB=Object.fromEntries(JOBS.map(j=>[j.id,j]));
+JOBS.forEach(j=>j.words&&addWords(j.words));
+const TAGS={people:'helping people',safety:'keeping people safe',creating:'creating things',solving:'solving problems',nature:'working with animals and nature',building:'building and fixing things'};
+const jobTags=j=>j.tags||[...new Set(j.tasks.map(t=>t.tag))];
+const art=n=>/^[aeiou]/i.test(n)?'an':'a';
+
+// ---------- street ----------
+const cv=$('#street');let ctx=cv.getContext('2d');
+function onCanvas(g,fn){const p=ctx;ctx=g;try{fn()}finally{ctx=p}}
+const VW=960,VH=480,GROUND=372;let WORLD=2700;
+const P={x:260,v:0,face:1,walk:0};let cam=0,keys={l:false,r:false},paused=false;
+const BUILD=[];
+{let bx=60;[{kind:'home',name:'Home',icon:'🏠',body:'#e7d3b0',roof:'#8a6a3a'},...JOBS.map(j=>({kind:'job',id:j.id,name:j.place,icon:j.icon,body:j.body,roof:j.roof,job:j.name})),{kind:'park',name:'Town Park'}]
+  .forEach((b,i)=>{b.w=b.kind==='park'?420:300;b.h=b.kind==='park'?0:198+(i%3)*24;b.x=bx;bx+=b.w+70;BUILD.push(b)});WORLD=bx+80}
+const doorX=b=>b.x+b.w/2;
+function resize(){const r=cv.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);cv.width=Math.round(r.width*d);cv.height=Math.round(r.width/2*d)}
+addEventListener('resize',resize);resize();
+function near(){return BUILD.find(b=>b.kind!=='park'&&Math.abs(P.x-doorX(b))<52)}
+
+// ---------- art ----------
+// Storybook town: soft sky, three parallax layers, ink-outlined buildings with a facade style per kind of workplace.
+const INK='#22263a';
+const STYLE={teacher:'civic',baker:'shop',chef:'shop',police:'civic',fire:'garage',nurse:'civic',vet:'shop',scientist:'modern',electrician:'modern',builder:'garage',musician:'marquee',creator:'marquee',farmer:'barn'};
+BUILD.forEach(b=>b.style=b.kind==='home'?'house':(STYLE[b.id]||'modern'));
+const ROOF_UP={house:66,civic:52,barn:16,shop:16,garage:16,modern:44,marquee:16};
+function shade(hex,amt){const n=parseInt(hex.slice(1),16),c=[n>>16,n>>8&255,n&255].map(v=>Math.round(amt<0?v*(1+amt):v+(255-v)*amt));return `rgb(${c})`}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
+function fs(fill,stroke=true){ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=INK;ctx.stroke()}}
+const rnd=i=>{const s=Math.sin(i*127.1+311.7)*43758.5453;return s-Math.floor(s)};
+
+function cloud(x,y,s){
+  ctx.fillStyle='#ffffff';ctx.beginPath();
+  ctx.arc(x,y,20*s,Math.PI*.5,Math.PI*1.5);ctx.arc(x+24*s,y-14*s,24*s,Math.PI,0);ctx.arc(x+56*s,y-6*s,20*s,Math.PI*1.2,0);ctx.arc(x+72*s,y,16*s,Math.PI*1.5,Math.PI*.5);ctx.closePath();ctx.fill();
+  ctx.fillStyle='rgba(150,190,225,.35)';ctx.beginPath();ctx.ellipse(x+36*s,y+1*s,34*s,3*s,0,0,7);ctx.fill();
+}
+function tree(x,s=1,y=GROUND){
+  ctx.lineWidth=2.5;ctx.strokeStyle=INK;
+  ctx.beginPath();ctx.moveTo(x-6*s,y);ctx.lineTo(x-4*s,y-56*s);ctx.lineTo(x+4*s,y-56*s);ctx.lineTo(x+6*s,y);ctx.closePath();fs('#8a5a34');
+  const blobs=[[0,-92,34],[-26,-70,24],[26,-70,24],[-14,-112,22],[16,-110,22]];
+  ctx.beginPath();blobs.forEach(([bx,by,r])=>{ctx.moveTo(x+(bx+r)*s,y+by*s);ctx.arc(x+bx*s,y+by*s,r*s,0,7)});ctx.stroke();ctx.fillStyle='#4caf5f';ctx.fill();
+  ctx.fillStyle='#3b9150';ctx.beginPath();ctx.ellipse(x,y-64*s,36*s,12*s,0,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.28)';ctx.beginPath();ctx.arc(x-12*s,y-104*s,9*s,0,7);ctx.arc(x+18*s,y-96*s,6*s,0,7);ctx.fill();
+}
+function lamp(x,G=GROUND){
+  ctx.save();ctx.translate(0,G-GROUND);ctx.lineWidth=2.5;ctx.strokeStyle=INK;
+  rr(x-3,GROUND-120,6,120,2);fs('#3a4566');rr(x-9,GROUND-8,18,8,3);fs('#3a4566');
+  ctx.beginPath();ctx.moveTo(x-12,GROUND-120);ctx.lineTo(x+12,GROUND-120);ctx.lineTo(x+8,GROUND-140);ctx.lineTo(x-8,GROUND-140);ctx.closePath();fs('#fff3b8');
+  rr(x-14,GROUND-146,28,7,3);fs('#3a4566');ctx.restore();
+}
+function bush(x,G=GROUND){
+  ctx.save();ctx.translate(0,G-GROUND);ctx.lineWidth=2.5;ctx.strokeStyle=INK;ctx.beginPath();
+  [[-16,-12,14],[0,-20,17],[16,-12,14]].forEach(([bx,by,r])=>{ctx.moveTo(x+bx+r,GROUND+by);ctx.arc(x+bx,GROUND+by,r,0,7)});ctx.stroke();ctx.fillStyle='#5cbf6a';ctx.fill();
+  [[-14,-16,'#ff8fb1'],[4,-26,'#ffd65a'],[14,-12,'#ff8fb1'],[-2,-10,'#ffffff']].forEach(([fx,fy,c])=>{ctx.fillStyle=c;ctx.beginPath();ctx.arc(x+fx,GROUND+fy,3.2,0,7);ctx.fill()});ctx.restore();
+}
+function windowPane(x,y,w,h,b,opts={}){
+  ctx.lineWidth=2.5;ctx.strokeStyle=INK;
+  rr(x-4,y-4,w+8,h+8,6);fs('#fffaf0');
+  const g=ctx.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,'#bfe8fb');g.addColorStop(1,'#8fd0ef');
+  rr(x,y,w,h,3);fs(g);
+  ctx.save();ctx.clip();ctx.fillStyle='rgba(255,255,255,.55)';ctx.beginPath();ctx.moveTo(x+w*.15,y+h);ctx.lineTo(x+w*.5,y);ctx.lineTo(x+w*.7,y);ctx.lineTo(x+w*.35,y+h);ctx.fill();
+  if(opts.curtain){ctx.fillStyle=shade(b.roof,.35);ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+w*.25,y+h*.35,x,y+h*.7);ctx.lineTo(x,y);ctx.moveTo(x+w,y);ctx.quadraticCurveTo(x+w*.75,y+h*.35,x+w,y+h*.7);ctx.fill()}
+  ctx.restore();
+  ctx.strokeStyle='#fffaf0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x+w/2,y);ctx.lineTo(x+w/2,y+h);if(h>40){ctx.moveTo(x,y+h/2);ctx.lineTo(x+w,y+h/2)}ctx.stroke();
+  ctx.lineWidth=2.5;ctx.strokeStyle=INK;rr(x,y,w,h,3);ctx.stroke();
+  if(opts.box){rr(x-6,y+h+4,w+12,10,3);fs(shade(b.roof,-.1));
+    for(let i=0;i<5;i++){ctx.fillStyle=['#ff8fb1','#ffd65a','#ffffff','#ff8fb1','#ffd65a'][i];ctx.beginPath();ctx.arc(x+4+i*(w-8)/4,y+h+2,3.4,0,7);ctx.fill()}}
+}
+function texture(b,top){
+  const x=b.x,w=b.w;ctx.save();rr(x,top,w,b.h,0);ctx.clip();
+  if(b.style==='house'||b.style==='barn'){ctx.strokeStyle='rgba(34,38,58,.08)';ctx.lineWidth=2;for(let y=top+14;y<GROUND;y+=14){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+w,y);ctx.stroke()}}
+  else if(b.style==='modern'||b.style==='marquee'){ctx.strokeStyle='rgba(34,38,58,.07)';ctx.lineWidth=2;for(let xx=x+50;xx<x+w;xx+=50){ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,GROUND);ctx.stroke()}}
+  else{ctx.fillStyle='rgba(34,38,58,.06)';for(let r=0,y=top+10;y<GROUND;y+=16,r++)for(let xx=x+(r%2?14:0)+4;xx<x+w;xx+=56)ctx.fillRect(xx,y,22,7)}
+  ctx.fillStyle='rgba(34,38,58,.08)';ctx.fillRect(x+w-16,top,16,b.h);
+  ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(x,top,10,b.h);
+  ctx.restore();
+}
+function signBoard(cx,y,b){
+  const txt=b.name;ctx.font='700 18px Fredoka, sans-serif';const tw=ctx.measureText(txt).width,w=tw+60;
+  ctx.lineWidth=2.5;rr(cx-w/2,y,w,34,9);fs(shade(b.roof,-.15));
+  ctx.fillStyle='rgba(255,255,255,.12)';rr(cx-w/2+3,y+3,w-6,12,6);ctx.fill();
+  ctx.fillStyle='#ffffff';ctx.font='19px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(b.icon,cx-w/2+20,y+18);
+  ctx.font='700 18px Fredoka, sans-serif';ctx.fillStyle='#ffffff';ctx.fillText(txt,cx+12,y+18);ctx.textBaseline='alphabetic';
+  if(b.id&&S.badges.includes(b.id)){ctx.lineWidth=2;ctx.fillStyle='#ffc23d';ctx.strokeStyle=INK;star(cx+w/2-2,y+2,12)}
+  return w;
+}
+function door(b){
+  const dx=doorX(b);ctx.lineWidth=2.5;
+  rr(dx-36,GROUND-8,72,8,3);fs('#d8cfbf');
+  ctx.beginPath();ctx.roundRect(dx-34,GROUND-108,68,100,[30,30,0,0]);fs(shade(b.roof,-.25));
+  const wood=b.style==='modern'||b.style==='marquee'?'#9fd9f2':'#c77d43';
+  ctx.beginPath();ctx.roundRect(dx-27,GROUND-101,54,93,[24,24,0,0]);fs(wood);
+  if(wood==='#9fd9f2'){ctx.strokeStyle='#fffaf0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(dx,GROUND-99);ctx.lineTo(dx,GROUND-10);ctx.stroke()}
+  else{ctx.lineWidth=2;ctx.strokeStyle='rgba(34,38,58,.35)';rr(dx-19,GROUND-62,38,46,4);ctx.stroke();
+    const g=ctx.createLinearGradient(0,GROUND-96,0,GROUND-70);g.addColorStop(0,'#cfeefc');g.addColorStop(1,'#9fd6ef');ctx.beginPath();ctx.roundRect(dx-18,GROUND-94,36,24,[16,16,2,2]);ctx.fillStyle=g;ctx.fill();ctx.strokeStyle=INK;ctx.stroke()}
+  ctx.fillStyle='#ffc23d';ctx.strokeStyle=INK;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(dx+17,GROUND-46,4,0,7);ctx.fill();ctx.stroke();
+}
+function awning(b,y){
+  const x0=b.x+10,x1=b.x+b.w-10,sw=24;ctx.lineWidth=2.5;
+  ctx.save();ctx.beginPath();ctx.moveTo(x0-4,y);ctx.lineTo(x1+4,y);ctx.lineTo(x1,y+22);ctx.lineTo(x0,y+22);ctx.closePath();ctx.clip();
+  for(let xx=x0-4,i=0;xx<x1+4;xx+=sw,i++){ctx.fillStyle=i%2?'#fffaf0':shade(b.roof,.05);ctx.fillRect(xx,y,sw,24)}ctx.restore();
+  ctx.beginPath();ctx.moveTo(x0-4,y);ctx.lineTo(x1+4,y);ctx.lineTo(x1,y+22);ctx.lineTo(x0,y+22);ctx.closePath();ctx.strokeStyle=INK;ctx.stroke();
+  for(let xx=x0,i=0;xx<x1;xx+=sw,i++){ctx.beginPath();ctx.arc(xx+sw/2,y+22,sw/2,0,Math.PI);ctx.fillStyle=i%2?'#fffaf0':shade(b.roof,.05);ctx.fill();ctx.stroke()}
+}
+function garageDoor(b){
+  const x=b.x+16,w=96,y=GROUND-118;ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.roundRect(x-5,y-5,w+10,123,[10,10,0,0]);fs(shade(b.roof,-.2));
+  rr(x,y,w,118,4);fs(b.id==='fire'?'#f4f1ea':'#9aa3b5');
+  ctx.strokeStyle='rgba(34,38,58,.3)';ctx.lineWidth=2;for(let yy=y+24;yy<GROUND;yy+=24){ctx.beginPath();ctx.moveTo(x,yy);ctx.lineTo(x+w,yy);ctx.stroke()}
+  ctx.fillStyle='#9fd6ef';for(let i=0;i<4;i++)ctx.fillRect(x+8+i*22,y+6,16,12);
+  if(b.id==='fire'){ctx.fillStyle='#d23f37';ctx.font='700 13px Fredoka, sans-serif';ctx.textAlign='center';ctx.fillText('No. 7',x+w/2,y+52)}
+}
+function building(b){
+  const top=GROUND-b.h,x=b.x,w=b.w,dx=doorX(b),st=b.style;
+  if(b.kind==='park')return park(b);
+  ctx.lineJoin='round';ctx.lineCap='round';
+  ctx.fillStyle='rgba(34,38,58,.12)';ctx.beginPath();ctx.ellipse(dx+10,GROUND+2,w*.55,6,0,0,7);ctx.fill();
+  // things behind the roof
+  if(st==='house'){ctx.lineWidth=2.5;rr(x+w-84,top-70,26,56,3);fs('#b85c3c');rr(x+w-88,top-76,34,10,3);fs('#9b4a30')}
+  if(st==='modern'){ctx.lineWidth=2.5;rr(x+w-90,top-40,50,26,4);fs(shade(b.body,-.2));ctx.beginPath();ctx.moveTo(x+w-65,top-40);ctx.lineTo(x+w-65,top-66);ctx.strokeStyle=INK;ctx.stroke();ctx.fillStyle=b.id==='electrician'?'#ffc23d':'#ff6b6b';ctx.beginPath();ctx.arc(x+w-65,top-68,4.5,0,7);ctx.fill();ctx.stroke()}
+  // body
+  ctx.lineWidth=3;
+  if(st==='barn'){
+    rr(x,top+40,w,b.h-40,0);fs(b.body,false);texture({...b,h:b.h-40},top+40);rr(x,top+40,w,b.h-40,0);ctx.strokeStyle=INK;ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x-12,top+46);ctx.lineTo(x+46,top+2);ctx.lineTo(dx,top-16);ctx.lineTo(x+w-46,top+2);ctx.lineTo(x+w+12,top+46);ctx.closePath();fs(b.roof);
+    ctx.strokeStyle='#fffaf0';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x+4,top+44);ctx.lineTo(x+48,top+8);ctx.lineTo(dx,top-8);ctx.lineTo(x+w-48,top+8);ctx.lineTo(x+w-4,top+44);ctx.stroke();
+  }else{
+    rr(x,top,w,b.h,0);fs(b.body,false);texture(b,top);rr(x,top,w,b.h,0);ctx.strokeStyle=INK;ctx.stroke();
+  }
+  // roof / cornice
+  ctx.lineWidth=3;
+  if(st==='house'){ctx.beginPath();ctx.moveTo(x-18,top+4);ctx.lineTo(dx,top-62);ctx.lineTo(x+w+18,top+4);ctx.closePath();fs(b.roof);
+    ctx.save();ctx.clip();ctx.strokeStyle='rgba(0,0,0,.14)';ctx.lineWidth=2;for(let y=top-50;y<top+4;y+=12){ctx.beginPath();ctx.moveTo(x-20,y);ctx.lineTo(x+w+20,y);ctx.stroke()}ctx.restore();
+    ctx.beginPath();ctx.arc(dx,top-22,13,0,7);fs('#fffaf0');ctx.fillStyle='#8fd0ef';ctx.beginPath();ctx.arc(dx,top-22,8,0,7);ctx.fill()}
+  else if(st==='civic'){rr(x-10,top-18,w+20,22,4);fs(b.roof);ctx.beginPath();ctx.moveTo(dx-80,top-18);ctx.lineTo(dx,top-50);ctx.lineTo(dx+80,top-18);ctx.closePath();fs(shade(b.roof,.12));
+    if(b.id==='nurse'){ctx.fillStyle='#e0453b';ctx.fillRect(dx-4,top-42,8,20);ctx.fillRect(dx-10,top-36,20,8)}
+    else if(b.id==='teacher'){ctx.lineWidth=2;ctx.beginPath();ctx.arc(dx,top-31,10,0,7);fs('#fffaf0');ctx.beginPath();ctx.moveTo(dx,top-31);ctx.lineTo(dx,top-38);ctx.moveTo(dx,top-31);ctx.lineTo(dx+5,top-29);ctx.stroke()}
+    else{ctx.lineWidth=2;ctx.fillStyle='#ffc23d';star(dx,top-31,10)}}
+  else if(st!=='barn'){rr(x-8,top-14,w+16,18,4);fs(st==='modern'?shade(b.body,-.25):b.roof);
+    if(st==='shop'){ctx.fillStyle='rgba(255,255,255,.5)';for(let xx=x+4;xx<x+w;xx+=16)ctx.fillRect(xx,top-2,8,4)}}
+  if(st==='marquee'){const t=performance.now()/300;for(let xx=x+14,i=0;xx<x+w-8;xx+=22,i++){ctx.fillStyle=(i+Math.floor(t))%3?'#ffe27a':'#fff8d6';ctx.beginPath();ctx.arc(xx,top+8,4,0,7);ctx.fill()}}
+  // sign
+  const sy=st==='barn'?top+56:top+(st==='marquee'?20:14);signBoard(dx,sy,b);
+  // windows
+  const shop=st==='shop',lowTop=shop?GROUND-112:GROUND-118,lowH=shop?72:66;
+  const upTop=sy+46,upBottom=(shop?GROUND-146:GROUND-132),upH=Math.min(46,upBottom-upTop);
+  if(upH>=30&&st!=='barn'){[x+34,x+w-34-44].forEach(wx=>windowPane(wx,upTop,44,upH,b,{curtain:st==='house'}))}
+  if(st==='garage'){garageDoor(b);windowPane(x+w-80,lowTop,52,lowH-10,b,{box:true})}
+  else if(st==='barn'){ctx.lineWidth=2.5;windowPane(x+34,GROUND-110,46,40,b);windowPane(x+w-80,GROUND-110,46,40,b);
+    ctx.strokeStyle='#fffaf0';ctx.lineWidth=4;[[x+20,x+100],[x+w-100,x+w-20]].forEach(()=>{});}
+  else{const ww=shop?64:56;windowPane(x+22,lowTop,ww,lowH,b,{box:!shop&&st!=='modern'&&st!=='marquee',curtain:st==='house'});windowPane(x+w-22-ww,lowTop,ww,lowH,b,{box:!shop&&st!=='modern'&&st!=='marquee',curtain:st==='house'})}
+  if(st==='civic'){ctx.lineWidth=2.5;[dx-56,dx+44].forEach(cx=>{rr(cx,upTop-6,12,GROUND-upTop-4,2);fs('#fffaf0');rr(cx-3,upTop-10,18,6,2);fs('#fffaf0')})}
+  if(shop)awning(b,GROUND-142);
+  door(b);
+  if(st==='barn'){ctx.strokeStyle='#fffaf0';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(dx-26,GROUND-96);ctx.lineTo(dx+26,GROUND-10);ctx.moveTo(dx+26,GROUND-96);ctx.lineTo(dx-26,GROUND-10);ctx.stroke()}
+}
+function park(b){
+  const x=b.x;
+  ctx.fillStyle='#9fe08f';ctx.beginPath();ctx.ellipse(x+b.w/2,GROUND,b.w*.55,26,0,Math.PI,0);ctx.fill();
+  tree(x+50,1.15);tree(x+360,1.05);
+  ctx.lineWidth=2.5;ctx.strokeStyle=INK;
+  ctx.beginPath();ctx.ellipse(x+210,GROUND-10,46,12,0,0,7);fs('#c9d6e3');ctx.beginPath();ctx.ellipse(x+210,GROUND-14,36,8,0,0,7);fs('#7fcdf0');
+  rr(x+204,GROUND-56,12,44,4);fs('#c9d6e3');ctx.fillStyle='#7fcdf0';ctx.beginPath();ctx.arc(x+210,GROUND-60,9,0,7);ctx.fill();
+  const t=performance.now()/200;ctx.fillStyle='rgba(127,205,240,.8)';for(let i=0;i<5;i++){const a=i/5*Math.PI+Math.sin(t+i)*.1;ctx.beginPath();ctx.arc(x+210+Math.cos(a)*22,GROUND-50+Math.abs(Math.sin(t*.5+i))*16,3,0,7);ctx.fill()}
+  rr(x+272,GROUND-34,70,8,3);fs('#c77d43');rr(x+272,GROUND-50,70,8,3);fs('#c77d43');rr(x+278,GROUND-26,6,26,2);fs('#5a4030');rr(x+330,GROUND-26,6,26,2);fs('#5a4030');
+  rr(x+120,GROUND-80,6,80,2);fs('#8a5a34');ctx.font='700 16px Fredoka, sans-serif';const w=ctx.measureText(b.name).width+24;rr(x+123-w/2,GROUND-110,w,30,7);fs('#c77d43');
+  ctx.fillStyle='#fffaf0';ctx.textAlign='center';ctx.fillText(b.name,x+123,GROUND-90);
+}
+function star(x,y,r){ctx.beginPath();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,q=i%2?r*.45:r;ctx.lineTo(x+Math.cos(a)*q,y+Math.sin(a)*q)}ctx.closePath();ctx.fill();ctx.stroke()}
+
+// ---------- player ----------
+function hatFor(kind){
+  ctx.lineWidth=2.5;ctx.strokeStyle=INK;
+  if(kind==='police'){ctx.beginPath();ctx.moveTo(-22,-104);ctx.quadraticCurveTo(0,-128,22,-104);ctx.closePath();fs('#1c2c52');rr(-23,-106,48,7,3);fs('#14223d');ctx.fillStyle='#ffc23d';ctx.beginPath();ctx.arc(2,-114,3.5,0,7);ctx.fill()}
+  else if(kind==='chef'){ctx.beginPath();ctx.moveTo(-15,-106);ctx.lineTo(-15,-120);ctx.arc(-9,-124,9,Math.PI*.9,Math.PI*1.8);ctx.arc(3,-130,10,Math.PI*1.1,Math.PI*1.95);ctx.arc(13,-122,8,Math.PI*1.3,Math.PI*.3);ctx.lineTo(15,-106);ctx.closePath();fs('#ffffff')}
+  else if(kind==='fire'){ctx.beginPath();ctx.arc(0,-104,21,Math.PI,0);ctx.closePath();fs('#d23f37');rr(-28,-107,58,7,3);fs('#b8312a');rr(-3,-124,8,13,2);fs('#ffc23d')}
+  else if(kind==='hard'){ctx.beginPath();ctx.arc(0,-104,20,Math.PI,0);ctx.closePath();fs('#ffc23d');rr(-25,-107,52,7,3);fs('#f2a900')}
+  else if(kind==='beanie'){ctx.beginPath();ctx.arc(0,-102,21,Math.PI,0);ctx.closePath();fs('#7a59c9');rr(-22,-106,44,8,4);fs('#5f43a8');ctx.beginPath();ctx.arc(0,-125,5,0,7);fs('#ffc23d')}
+  else if(kind==='straw'){ctx.beginPath();ctx.ellipse(0,-106,32,6,0,0,7);fs('#e8c46e');ctx.beginPath();ctx.arc(0,-106,15,Math.PI,0);ctx.closePath();fs('#e8c46e');ctx.fillStyle='#d23f37';ctx.fillRect(-15,-111,30,4)}
+}
+function drawKid(L,x,y,o={}){
+  const sc=o.scale||1,face=o.face||1,sw=o.swing||0,bob=o.bob||0,skin=L.skin||'#f1c19b',hair=L.hair||'#6b3f22',shirt=L.shirt||'#3fae6e',pants=L.pants||'#2f3a5c';
+  ctx.save();ctx.translate(x,y);ctx.scale(sc,sc);
+  ctx.fillStyle='rgba(34,38,58,.18)';ctx.beginPath();ctx.ellipse(0,1,o.chair?28:22,5,0,0,7);ctx.fill();
+  ctx.scale(face,1);ctx.translate(0,-bob);ctx.lineWidth=2.5;ctx.strokeStyle=INK;ctx.lineJoin=ctx.lineCap='round';
+  const leg=(a,c)=>{ctx.save();ctx.translate(0,-38);ctx.rotate(a);rr(-6,0,12,32,5);fs(c);ctx.beginPath();ctx.ellipse(3,33,9,5,0,0,7);fs('#3a3f55');ctx.restore()};
+  const arm=(a,front)=>{ctx.save();ctx.translate(0,-64);ctx.rotate(a);rr(-5,0,10,26,5);fs(shirt);ctx.beginPath();ctx.arc(0,28,5.5,0,7);fs(skin);ctx.restore()};
+  if(o.chair){ctx.beginPath();ctx.arc(-6,-17,17,0,7);fs('#3a3f55');ctx.fillStyle='#c9d6e3';ctx.beginPath();ctx.arc(-6,-17,6,0,7);ctx.fill();
+    rr(-18,-40,30,8,3);fs('#5a6378');rr(-20,-70,6,38,3);fs('#5a6378');rr(-2,-42,22,11,5);fs(pants);rr(14,-42,10,30,5);fs(pants);ctx.beginPath();ctx.ellipse(21,-10,8,5,0,0,7);fs('#3a3f55');ctx.beginPath();ctx.arc(14,-6,6,0,7);fs('#3a3f55')}
+  else{leg(-sw,pants);}
+  arm(sw*.9);
+  if(!o.chair)leg(sw,shade(pants,.12));
+  rr(-15,-70,30,36,11);fs(shirt);
+  ctx.fillStyle='rgba(255,255,255,.18)';rr(-12,-66,8,26,4);ctx.fill();
+  ctx.beginPath();ctx.moveTo(-6,-70);ctx.lineTo(0,-62);ctx.lineTo(6,-70);fs('#fffaf0');
+  if(L.hat==='police'){ctx.fillStyle='#ffc23d';ctx.lineWidth=1.5;star(8,-56,5);ctx.lineWidth=2.5}
+  arm(o.wave?-2.5+Math.sin(performance.now()/180)*.25:-sw*.9);
+  if(L.long){rr(-20,-104,26,40,10);fs(hair)}
+  ctx.beginPath();ctx.arc(0,-92,21,0,7);fs(skin);
+  ctx.beginPath();ctx.arc(-1,-96,21,Math.PI*.95,Math.PI*1.95);ctx.quadraticCurveTo(12,-104,4,-100);ctx.quadraticCurveTo(-8,-98,-14,-86);ctx.closePath();fs(hair);
+  ctx.beginPath();ctx.arc(-18,-90,5,0,7);fs(skin);
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(5,-92,4.5,5.5,0,0,7);ctx.ellipse(15,-92,3.8,5,0,0,7);ctx.fill();
+  ctx.fillStyle=INK;ctx.beginPath();ctx.arc(6.5,-91.5,2.6,0,7);ctx.arc(16,-91.5,2.3,0,7);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(7.4,-92.8,.9,0,7);ctx.arc(16.8,-92.8,.8,0,7);ctx.fill();
+  if(L.glasses){ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(5,-92,6.5,0,7);ctx.moveTo(21.5,-92);ctx.arc(15.5,-92,6,0,7);ctx.moveTo(11.5,-92);ctx.lineTo(9.5,-92);ctx.stroke();ctx.lineWidth=2.5}
+  ctx.fillStyle='rgba(255,120,130,.45)';ctx.beginPath();ctx.ellipse(13,-83,4.5,3,0,0,7);ctx.fill();
+  ctx.strokeStyle=INK;ctx.lineWidth=2;ctx.beginPath();ctx.arc(9,-84,4.5,.15*Math.PI,.85*Math.PI);ctx.stroke();
+  hatFor(L.hat);
+  ctx.restore();
+}
+function player(sx){
+  const job=JOB[S.outfit],moving=Math.abs(P.v)>1;
+  drawKid({shirt:job?job.mentor.shirt:'#3fae6e',hat:job?job.mentor.hat:'none'},sx,GROUND,{face:P.face,swing:moving?Math.sin(P.walk)*.55:0,bob:moving?Math.abs(Math.sin(P.walk))*3:Math.sin(performance.now()/500)});
+}
+
+const PEOPLE=[{skin:'#f1c19b',hair:'#3b2418',shirt:'#ef7aa7'},{skin:'#8a5a3b',hair:'#1b1210',shirt:'#3a7bd5',long:true},{skin:'#e8c09a',hair:'#d9d9d9',shirt:'#7a59c9',glasses:true,big:true},{skin:'#c98b5e',hair:'#2a1a10',shirt:'#f2b632',chair:true},{skin:'#5c3a22',hair:'#1b1210',shirt:'#2aa876'},{skin:'#efcfa8',hair:'#b5652b',shirt:'#e8553e',long:true}];
+const OFFICER={...POLICE.mentor};
+function cone(x,y,sc=1){ctx.save();ctx.translate(x,y);ctx.scale(sc,sc);ctx.lineWidth=2.5;ctx.strokeStyle=INK;
+  rr(-18,-6,36,8,3);fs('#f28c28');ctx.beginPath();ctx.moveTo(-12,-6);ctx.lineTo(-4,-40);ctx.lineTo(4,-40);ctx.lineTo(12,-6);ctx.closePath();fs('#f28c28');
+  ctx.fillStyle='#fffaf0';ctx.beginPath();ctx.moveTo(-9,-16);ctx.lineTo(9,-16);ctx.lineTo(7.4,-24);ctx.lineTo(-7.4,-24);ctx.fill();ctx.restore()}
+function skyFill(W,H,horizon){const g=ctx.createLinearGradient(0,0,0,horizon);g.addColorStop(0,'#78c5f0');g.addColorStop(1,'#e2f5fc');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
+function hills(W,base,amp,c,ph=0){ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(0,base+60);for(let x=0;x<=W;x+=16)ctx.lineTo(x,base-Math.sin((x+ph)/130)*amp-Math.sin((x+ph)/55)*amp*.35);ctx.lineTo(W,base+60);ctx.fill()}
+function sceneArt(id){return `<canvas class="scene-art" data-art="${id}" aria-hidden="true"></canvas>`}
+function paintArt(){document.querySelectorAll('canvas[data-art]').forEach(c=>{
+  const job=JOB[c.dataset.art],b=BUILD.find(x=>x.id===c.dataset.art);if(!b||!job)return;
+  const W=720,H=320,r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);if(!r.width)return;
+  c.width=Math.round(r.width*d);c.height=Math.round(r.width*H/W*d);const g=c.getContext('2d');g.setTransform(c.width/W,0,0,c.width/W,0,0);
+  onCanvas(g,()=>{const GY=282;skyFill(W,H,GY);
+    const glow=ctx.createRadialGradient(640,58,8,640,58,100);glow.addColorStop(0,'rgba(255,236,150,.9)');glow.addColorStop(1,'rgba(255,236,150,0)');ctx.fillStyle=glow;ctx.fillRect(540,0,200,170);
+    ctx.fillStyle='#ffd65a';ctx.beginPath();ctx.arc(640,58,26,0,7);ctx.fill();
+    cloud(40,46,.7);cloud(470,30,.55);
+    hills(W,GY-58,18,'#a7dc9c',40);hills(W,GY-30,14,'#86cc80',300);
+    ctx.save();ctx.translate(330,GY);ctx.scale(.8,.8);ctx.translate(-doorX(b),-GROUND);building(b);ctx.restore();
+    tree(70,.78,GY);bush(150,GY);lamp(680,GY);
+    ctx.fillStyle='#e9e1d2';ctx.fillRect(0,GY,W,H-GY);ctx.fillStyle='#c9bfae';ctx.fillRect(0,GY+26,W,H-GY-26);
+    ctx.strokeStyle='rgba(34,38,58,.12)';ctx.lineWidth=2;for(let x=20;x<W;x+=44){ctx.beginPath();ctx.moveTo(x,GY);ctx.lineTo(x-8,GY+26);ctx.stroke()}
+    drawKid(job.mentor,520,GY+6,{scale:1.25,face:-1,wave:true});
+  })})}
+// ---------- world ----------
+const CARS=[0,1,2,3].map(i=>({x:rnd(i)*3000,lane:i%2,v:(70+rnd(i+9)*50)*(i%2?-1:1),c:['#e8553e','#3a7bd5','#f2b632','#2aa876'][i]}));
+const BIRDS=[0,1,2].map(i=>({x:rnd(i+3)*VW,y:50+i*22}));
+function car(c){carAt(c.x,c.lane?GROUND+86:GROUND+52,c.c,c.v<0?-1:1)}
+function carAt(x,y,col,dir=1,sc=1,police=false){
+  ctx.save();ctx.translate(x,y);ctx.scale(dir*sc,sc);const c={c:col};
+  ctx.lineWidth=2.5;ctx.strokeStyle=INK;ctx.fillStyle='rgba(0,0,0,.18)';ctx.beginPath();ctx.ellipse(0,12,40,5,0,0,7);ctx.fill();
+  ctx.beginPath();ctx.roundRect(-38,-14,76,22,8);fs(c.c);ctx.beginPath();ctx.roundRect(-20,-30,40,18,[9,12,0,0]);fs(c.c);
+  ctx.fillStyle='#cfeefc';ctx.beginPath();ctx.roundRect(-15,-26,13,12,[5,0,0,0]);ctx.roundRect(1,-26,14,12,[0,7,0,0]);ctx.fill();
+  ctx.fillStyle='#fff3b8';ctx.fillRect(32,-8,6,5);
+  if(police){ctx.fillStyle='#1f4fa3';ctx.fillRect(-36,-6,72,7);ctx.fillStyle='#ffc23d';ctx.font='700 9px Fredoka, sans-serif';ctx.textAlign='center';ctx.fillText('POLICE',0,-1.5);
+    const bl=Math.floor(performance.now()/250)%2;ctx.lineWidth=2;rr(-12,-37,12,7,2);fs(bl?'#ff4d42':'#3a7bd5');rr(0,-37,12,7,2);fs(bl?'#3a7bd5':'#ff4d42')}
+  [-22,22].forEach(wx=>{ctx.beginPath();ctx.arc(wx,8,8,0,7);fs('#2b2f40');ctx.fillStyle='#c9d6e3';ctx.beginPath();ctx.arc(wx,8,3,0,7);ctx.fill()});
+  ctx.restore();
+}
+function backdrop(dt){
+  const sky=ctx.createLinearGradient(0,0,0,GROUND);sky.addColorStop(0,'#78c5f0');sky.addColorStop(.7,'#cdeefb');sky.addColorStop(1,'#eaf8fd');
+  ctx.fillStyle=sky;ctx.fillRect(0,0,VW,VH);
+  const sx=850-cam*.03,glow=ctx.createRadialGradient(sx,78,10,sx,78,110);glow.addColorStop(0,'rgba(255,236,150,.9)');glow.addColorStop(1,'rgba(255,236,150,0)');
+  ctx.fillStyle=glow;ctx.fillRect(sx-110,0,220,200);ctx.fillStyle='#ffd65a';ctx.beginPath();ctx.arc(sx,78,32,0,7);ctx.fill();
+  for(let i=0;i<7;i++){const span=VW+500;cloud(((i*380-cam*.12+performance.now()*.004)%span+span)%span-250,46+(i%3)*34,.75+(i%2)*.35)}
+  ctx.strokeStyle='rgba(34,38,58,.6)';ctx.lineWidth=2;BIRDS.forEach((bd,i)=>{bd.x+=dt*(26+i*6);if(bd.x>VW+40)bd.x=-40;const f=Math.sin(performance.now()/180+i)*4;ctx.beginPath();ctx.moveTo(bd.x-7,bd.y-f);ctx.quadraticCurveTo(bd.x-3,bd.y-3,bd.x,bd.y);ctx.quadraticCurveTo(bd.x+3,bd.y-3,bd.x+7,bd.y-f);ctx.stroke()});
+  // far skyline
+  const off=cam*.22;ctx.fillStyle='#b9dcef';
+  for(let i=Math.floor(off/70)-1;i<Math.floor((off+VW)/70)+2;i++){const h=60+rnd(i)*90,w=50+rnd(i+50)*20,x=i*70-off;ctx.fillRect(x,GROUND-60-h,w,h+60);if(rnd(i+7)>.6)ctx.fillRect(x+w/2-3,GROUND-60-h-18,6,18)}
+  ctx.fillStyle='rgba(255,255,255,.35)';for(let i=Math.floor(off/70)-1;i<Math.floor((off+VW)/70)+2;i++){const h=60+rnd(i)*90,x=i*70-off;for(let y=GROUND-50-h;y<GROUND-70;y+=18)ctx.fillRect(x+10,y,8,8),ctx.fillRect(x+28,y,8,8)}
+  // hills
+  [['#a7dc9c',.35,70,160,30],['#86cc80',.55,40,120,22]].forEach(([c,p,base,len,amp])=>{ctx.fillStyle=c;ctx.beginPath();ctx.moveTo(0,GROUND);for(let x=0;x<=VW;x+=16)ctx.lineTo(x,GROUND-base-Math.sin((x+cam*p)/len)*amp-Math.sin((x+cam*p)/(len*.43))*amp*.4);ctx.lineTo(VW,GROUND);ctx.fill()});
+}
+function street(dt){
+  ctx.fillStyle='#e9e1d2';ctx.fillRect(0,GROUND,VW,30);
+  ctx.strokeStyle='rgba(34,38,58,.12)';ctx.lineWidth=2;for(let x=-(cam%44);x<VW;x+=44){ctx.beginPath();ctx.moveTo(x,GROUND);ctx.lineTo(x-8,GROUND+30);ctx.stroke()}
+  ctx.fillStyle='#c9bfae';ctx.fillRect(0,GROUND+30,VW,7);
+  const road=ctx.createLinearGradient(0,GROUND+37,0,VH);road.addColorStop(0,'#4b5468');road.addColorStop(1,'#5a6378');ctx.fillStyle=road;ctx.fillRect(0,GROUND+37,VW,VH-GROUND-37);
+  ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(0,GROUND+37,VW,4);
+  ctx.fillStyle='#ffd65a';for(let x=-(cam%90);x<VW;x+=90)ctx.fillRect(x,GROUND+70,46,5);
+  CARS.forEach(c=>{c.x+=c.v*dt;if(c.x>WORLD+100)c.x=-100;if(c.x<-100)c.x=WORLD+100});
+  ctx.save();ctx.translate(-cam,0);CARS.filter(c=>c.lane===0&&c.x>cam-60&&c.x<cam+VW+60).forEach(car);CARS.filter(c=>c.lane===1&&c.x>cam-60&&c.x<cam+VW+60).forEach(car);ctx.restore();
+}
+function decor(){
+  BUILD.forEach((b,i)=>{if(i===BUILD.length-1)return;const gx=b.x+b.w+35;if(gx<cam-80||gx>cam+VW+80)return;
+    const k=i%3;if(k===0)tree(gx,.82);else if(k===1)lamp(gx);else bush(gx)});
+}
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  if(!paused){
+    const dir=(keys.r?1:0)-(keys.l?1:0);P.v=dir*240;if(dir)P.face=dir;
+    P.x=Math.max(40,Math.min(WORLD-40,P.x+P.v*dt));P.walk=dir?P.walk+dt*12:0;
+  }else P.v=0;
+  cam+=((Math.max(0,Math.min(WORLD-VW,P.x-VW/2)))-cam)*.12;
+  const s=cv.width/VW;ctx.setTransform(s,0,0,s,0,0);
+  backdrop(dt);
+  ctx.save();ctx.translate(-cam,0);
+  BUILD.forEach(b=>{if(b.x+b.w+80>cam&&b.x-80<cam+VW)building(b)});
+  decor();
+  ctx.restore();
+  street(dt);
+  player(P.x-cam);
+  const b=near();
+  if(b&&!paused){const sx=doorX(b)-cam,by=GROUND-b.h-(ROOF_UP[b.style]||20)-44;ctx.font='700 17px Fredoka, sans-serif';
+    const t=b.kind==='home'?'Home sweet home':`Press Enter: try being ${art(b.job)} ${b.job.toLowerCase()}`;
+    const w=ctx.measureText(t).width+28,bounce=Math.sin(now/300)*3;
+    ctx.lineWidth=2.5;ctx.strokeStyle=INK;ctx.fillStyle='#ffffff';
+    ctx.beginPath();ctx.roundRect(sx-w/2,by+bounce,w,36,12);ctx.moveTo(sx-8,by+36+bounce);ctx.lineTo(sx,by+46+bounce);ctx.lineTo(sx+8,by+36+bounce);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#ffffff';ctx.fillRect(sx-7,by+33+bounce,14,4);
+    ctx.fillStyle=INK;ctx.textAlign='center';ctx.fillText(t,sx,by+24+bounce)}
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+function tryEnter(){if(paused)return;const b=near();if(!b){toast('Walk to a door first, or open the Town map.');return}
+  if(b.kind==='home'){toast('This is your home. Walk to a workplace to try a job!');return}stationMenu(JOB[b.id])}
+addEventListener('keydown',e=>{if(paused&&!$('#scene').hidden)return;
+  if(['ArrowLeft','a','A'].includes(e.key)){keys.l=true;e.preventDefault()}
+  if(['ArrowRight','d','D'].includes(e.key)){keys.r=true;e.preventDefault()}
+  if(['ArrowUp','Enter','w','W'].includes(e.key)){e.preventDefault();tryEnter()}});
+addEventListener('keyup',e=>{if(['ArrowLeft','a','A'].includes(e.key))keys.l=false;if(['ArrowRight','d','D'].includes(e.key))keys.r=false});
+function hold(el,k){const on=e=>{e.preventDefault();keys[k]=true},off=()=>keys[k]=false;
+  el.addEventListener('pointerdown',on);['pointerup','pointerleave','pointercancel'].forEach(t=>el.addEventListener(t,off))}
+hold($('#leftBtn'),'l');hold($('#rightBtn'),'r');$('#enterBtn').onclick=tryEnter;
+
+// ---------- shift framework ----------
+const STEPS=['Briefing','Uniform','Gear check','Traffic','The case','Helping','Debrief'];
+const body=$('#body');
+let curSteps=STEPS;
+function setStep(i,list){if(list)curSteps=list;$('#steps').innerHTML=curSteps.map((s,j)=>`<span class="step ${j<i?'done':j===i?'now':''}">${s}</span>`).join('');$('.card').scrollTop=0}
+function openScene(){paused=true;keys.l=keys.r=false;$('#scene').hidden=false;const j=curJob||POLICE;$('.card').style.setProperty('--jobc',j.roof)}
+function closeScene(){$('#scene').hidden=true;paused=false;try{speechSynthesis.cancel()}catch(e){}}
+$('#leaveBtn').onclick=closeScene;
+$('#muteBtn').onclick=()=>{S.voice=!S.voice;save();syncVoice();if(!S.voice)try{speechSynthesis.cancel()}catch(e){}};syncVoice();
+function mentorLines(lines,done,{title='',btn='Next',scene=''}={}){
+  let i=0;
+  const draw=()=>{body.innerHTML=`${scene?sceneArt(scene):''}${title?`<h2>${title}</h2>`:''}<div class="mentor">${mentorSVG()}<div class="bubble" id="bub">${lines[i]}</div></div>
+    <div class="row"><button class="btn" id="nx">${i<lines.length-1?'Next':btn}</button><button class="btn ghost" id="rp">Hear again</button></div>`;
+    paintArt();say(lines[i]);$('#rp').onclick=()=>say(lines[i]);$('#nx').onclick=()=>{i++;i<lines.length?draw():done()};$('#nx').focus()};
+  draw();
+}
+function wordCards(keys){return `<div class="words">${keys.map(k=>`<button class="word" data-w="${k}"><span class="w">${WORDS[k][0]}<span class="speak">Hear it</span></span><span class="m">${WORDS[k][1]}</span></button>`).join('')}</div>`}
+body.addEventListener('click',e=>{const w=e.target.closest('.word');if(w){const k=w.dataset.w;say(`${WORDS[k][0]}. ${WORDS[k][1]}`)}});
+
+function startShift(){curJob=POLICE;curMentor=POLICE.mentor;openScene();$('.card').style.setProperty('--jobc',POLICE.roof);$('#jobTag').textContent='Police Officer';briefing()}
+
+// 1. Briefing
+function briefing(){
+  setStep(0,STEPS);
+  mentorLines([
+    "Hi! I'm <b>Officer Rivera</b>. Welcome to the Police Station!",
+    "Police officers help keep our town <b>safe</b>. We help people who are lost, keep streets safe, and solve problems.",
+    "Today you'll go on <b>patrol</b> with me. That means walking around the neighborhood to check that everyone is okay.",
+    "Here are three words officers use every day. Tap a card to hear it."
+  ],()=>{
+    ['patrol','badge','radio'].forEach(learn);
+    body.innerHTML=`<h2>Your first police words</h2><p class="lead">Tap each card to hear the word and what it means.</p>${wordCards(['patrol','badge','radio'])}
+      <div class="row"><button class="btn" id="nx">Get my uniform</button></div>`;
+    $('#nx').onclick=uniform;
+  },{title:'Shift briefing',scene:'police'});
+}
+
+// 2. Uniform
+function uniform(){
+  setStep(1);
+  const on={cap:false,shirt:false,badge:false,radio:false};
+  const parts=[['shirt','Uniform shirt','Helps people spot an officer in a crowd.'],['cap','Police cap','Part of the uniform, and it shades your eyes.'],['badge','Badge','Shows people you are an officer they can trust.'],['radio','Radio','So you can talk to the station anytime.']];
+  const draw=(msg)=>{body.innerHTML=`<h2>Suit up for patrol</h2><p class="lead">Tap each piece to put it on.</p>
+    <div class="dress">${avatarSVG(on)}<div class="grid" style="flex:1;min-width:220px">${parts.map(([k,n])=>`<button class="item ${on[k]?'ok':''}" data-k="${k}"><span class="e">${({shirt:'👕',cap:'🧢',badge:'⭐',radio:'📻'})[k]}</span>${n}</button>`).join('')}</div></div>
+    ${msg?`<div class="note">${msg}</div>`:''}
+    ${Object.values(on).every(Boolean)?'<div class="row"><button class="btn" id="nx">I\'m ready</button></div>':''}`;
+    body.querySelectorAll('.item').forEach(b=>b.onclick=()=>{const p=parts.find(x=>x[0]===b.dataset.k);on[p[0]]=true;say(`${p[1]}. ${p[2]}`);draw(`${p[1]}: ${p[2]}`)});
+    const nx=$('#nx');if(nx){nx.onclick=gear;nx.focus()}};
+  draw();
+}
+
+// 3. Gear check
+function gear(){
+  setStep(2);
+  const items=[['📻','Radio',1,'To call the station for help.'],['🍕','Pizza',0,'Yummy, but you eat lunch on your break.'],['🔦','Flashlight',1,'To see in dark places.'],['🎸','Guitar',0,'Fun! But it stays home during patrol.'],
+    ['📒','Notebook',1,'To write down what people tell you.'],['🎈','Balloon',0,'It would float away on patrol.'],['🩹','First aid kit',1,'To help someone with a small cut.'],['🧸','Teddy bear',0,'Cute, but not needed today.'],
+    ['🗺️','Town map',1,'To find any street fast.'],['⚽','Soccer ball',0,'Save it for the park after work.']];
+  let got=0;
+  body.innerHTML=`<h2>Pack your patrol bag</h2><p class="lead">Officers check their gear before every shift. Find the <b>5 things</b> an officer needs on patrol.</p>
+    <div class="meter" id="m">Packed: 0 of 5</div><div class="grid">${items.map((it,i)=>`<button class="item" data-i="${i}"><span class="e">${it[0]}</span>${it[1]}</button>`).join('')}</div><div class="note" id="fb">Tap an item.</div><div class="row" id="nxrow"></div>`;
+  say('Find the five things an officer needs on patrol.');
+  body.querySelectorAll('.item').forEach(b=>b.onclick=()=>{
+    const it=items[+b.dataset.i];if(b.classList.contains('ok'))return;
+    const fb=$('#fb');
+    if(it[2]){b.classList.add('ok');got++;fb.className='note good';fb.textContent=`Yes! ${it[1]}: ${it[3]}`;say(`Yes! ${it[1]}. ${it[3]}`)}
+    else{b.classList.remove('no');void b.offsetWidth;b.classList.add('no');fb.className='note soft';fb.textContent=`${it[1]}? ${it[3]}`;say(`${it[1]}? ${it[3]}`)}
+    $('#m').textContent=`Packed: ${got} of 5`;
+    if(got===5){$('#nxrow').innerHTML='<button class="btn" id="nx">Start patrol</button>';$('#nx').onclick=trafficIntro;fb.textContent='Bag packed! A good officer is always prepared.';say('Bag packed! A good officer is always prepared.')}
+  });
+}
+
+// 4. Traffic / crosswalk
+function trafficIntro(){
+  setStep(3);['crosswalk','traffic'].forEach(learn);
+  mentorLines([
+    "First stop: the school <b>crosswalk</b>. Kids and families need to cross the street safely.",
+    "You control the signal. Press <b>STOP</b> to stop the <b>traffic</b> so people can cross.",
+    "When nobody is waiting, press <b>GO</b> so cars can keep moving. Help 6 people cross!"
+  ],crosswalk,{title:'Traffic duty',btn:"Let's go"});
+}
+function crosswalk(){
+  body.innerHTML=`<h2>Help 6 people cross</h2><canvas id="xw"></canvas>
+    <div class="row"><button class="btn signal go" id="sig">Signal: GO</button><span class="meter" id="xm">Crossed safely: 0 of 6</span></div>
+    <div class="note" id="xfb">People will wait at the top of the crosswalk. Stop the cars when someone is waiting.</div><div class="row" id="xnext"></div>`;
+  const c=$('#xw'),g=c.getContext('2d');const W=720,H=360;
+  const fit=()=>{const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=r.width*d;c.height=r.width/2*d};fit();
+  let stop=false,cars=[],peds=[],done=0,spawnC=0,spawnP=1.5,idle=0,running=true,lt=performance.now(),msgT=0;
+  const L1=168,L2=228,XL=330,XR=400,STOP1=XL-14,STOP2=XR+14;
+  const sig=$('#sig'),fb=$('#xfb');
+  const setSig=v=>{stop=v;sig.className='btn signal '+(stop?'stop':'go');sig.textContent='Signal: '+(stop?'STOP':'GO')};
+  sig.onclick=()=>setSig(!stop);
+  const keyH=e=>{if(e.key===' '&&!$('#scene').hidden&&running){e.preventDefault();setSig(!stop)}};addEventListener('keydown',keyH);
+  const colors=['#e8553e','#3a7bd5','#f2b632','#7a59c9','#2aa876','#ef7aa7'];
+  const people=['🧒','👵','👨‍👧','🧑‍🦯','👩‍🦽','🧑'];
+  function note(t,cls){if(fb.textContent!==t){fb.textContent=t;fb.className='note '+(cls||'')}msgT=2.5}
+  function step(now){
+    if(!running||!document.body.contains(c)){removeEventListener('keydown',keyH);return}
+    const dt=Math.min(.05,(now-lt)/1000);lt=now;
+    spawnC-=dt;if(spawnC<=0){const lane=Math.random()<.5?1:2;const crowded=cars.some(k=>k.lane===lane&&(lane===1?k.x<80:k.x>W-80));if(!crowded)cars.push({lane,x:lane===1?-70:W+70,v:0,col:colors[Math.random()*6|0]});spawnC=1.3+Math.random()*1.4}
+    spawnP-=dt;if(spawnP<=0&&peds.filter(p=>p.s==='wait').length<3&&done+peds.length<6){peds.push({s:'wait',y:120,x:XL+8+peds.length%3*26,w:0,look:PEOPLE[(done+peds.length)%6]});spawnP=3.5+Math.random()*2}
+    const inXW=cars.some(k=>k.x+35>XL-4&&k.x-35<XR+4);
+    for(const k of cars){
+      const dir=k.lane===1?1:-1,front=k.x+dir*35;let target=150;
+      if(stop){const line=k.lane===1?STOP1:STOP2;const dist=(line-front)*dir;if(dist>=-2&&dist<90)target=Math.max(0,dist*2)}
+      for(const o of cars){if(o!==k&&o.lane===k.lane){const gap=(o.x-k.x)*dir;if(gap>0&&gap<95)target=Math.min(target,Math.max(0,(gap-80)*3))}}
+      k.v+=(target-k.v)*Math.min(1,dt*6);k.x+=dir*k.v*dt;
+    }
+    cars=cars.filter(k=>k.x>-120&&k.x<W+120);
+    const waiting=peds.some(p=>p.s==='wait'),crossing=peds.some(p=>p.s==='cross');
+    for(const p of peds){
+      if(p.s==='wait'){p.w+=dt;if(stop&&!inXW){p.s='cross'}else if(p.w>6&&!stop)note('Someone has been waiting a while. Press STOP so they can cross!')}
+      else if(p.s==='cross'){p.y+=70*dt;if(p.y>290){p.s='gone';done++;$('#xm').textContent=`Crossed safely: ${done} of 6`;say(['Thank you, officer!','Thanks for keeping us safe!','Thank you!'][done%3]);note('Safe crossing! Nice work.','good')}}
+    }
+    peds=peds.filter(p=>p.s!=='gone');
+    if(stop&&!waiting&&!crossing){idle+=dt;if(idle>3)note('Beep beep! Nobody is crossing. Press GO to let traffic move.','soft')}else idle=0;
+    if(stop&&waiting&&inXW)note('Wait for the cars to stop before people cross.');
+    msgT-=dt;
+    // draw
+    const s=c.width/W;g.setTransform(s,0,0,s,0,0);
+    onCanvas(g,()=>{
+      skyFill(W,96,96);cloud(60,30,.55);cloud(380,22,.45);hills(W,74,8,'#a7dc9c',0);hills(W,88,6,'#86cc80',200);
+      const sb=BUILD.find(b=>b.id==='teacher');ctx.save();ctx.translate(560,96);ctx.scale(.34,.34);ctx.translate(-doorX(sb),-GROUND);building(sb);ctx.restore();
+      tree(36,.5,96);tree(130,.42,96);bush(200,96);
+      ctx.fillStyle='#e9e1d2';ctx.fillRect(0,96,W,40);ctx.fillRect(0,260,W,40);
+      ctx.strokeStyle='rgba(34,38,58,.12)';ctx.lineWidth=2;for(let x=0;x<W+10;x+=44){ctx.beginPath();ctx.moveTo(x,96);ctx.lineTo(x-6,130);ctx.moveTo(x,266);ctx.lineTo(x-6,300);ctx.stroke()}
+      ctx.fillStyle='#c9bfae';ctx.fillRect(0,130,W,6);ctx.fillRect(0,260,W,6);
+      const road=ctx.createLinearGradient(0,136,0,260);road.addColorStop(0,'#4b5468');road.addColorStop(1,'#5a6378');ctx.fillStyle=road;ctx.fillRect(0,136,W,124);
+      ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(0,136,W,4);
+      ctx.fillStyle='#ffd65a';for(let x=0;x<W;x+=60)if(x<XL-40||x>XR+20)ctx.fillRect(x,196,34,5);
+      ctx.fillStyle='#fffaf0';for(let y=142;y<256;y+=18)ctx.fillRect(XL,y,XR-XL,10);ctx.fillRect(STOP1-4,140,4,52);ctx.fillRect(STOP2,204,4,52);
+      const gr=ctx.createLinearGradient(0,300,0,H);gr.addColorStop(0,'#9fdc8f');gr.addColorStop(1,'#86cc80');ctx.fillStyle=gr;ctx.fillRect(0,300,W,H-300);
+      bush(90,346);bush(600,350);tree(682,.42,356);
+      ctx.lineWidth=2.5;ctx.strokeStyle=INK;rr(287,40,6,94,2);fs('#3a4566');rr(272,6,36,58,9);fs('#2b2f40');
+      if(stop){ctx.fillStyle='rgba(255,77,66,.3)';ctx.beginPath();ctx.arc(290,21,15,0,7);ctx.fill()}else{ctx.fillStyle='rgba(62,240,138,.3)';ctx.beginPath();ctx.arc(290,47,15,0,7);ctx.fill()}
+      ctx.fillStyle=stop?'#ff4d42':'#5a2a28';ctx.beginPath();ctx.arc(290,21,9,0,7);ctx.fill();ctx.fillStyle=stop?'#1f4a33':'#3ef08a';ctx.beginPath();ctx.arc(290,47,9,0,7);ctx.fill();
+      for(const k of cars)carAt(k.x,(k.lane===1?L1:L2)+4,k.col,k.lane===1?1:-1,.9);
+      for(const p of peds){drawKid(p.look,p.x,p.y+20,{scale:p.look.big?.48:.4,swing:p.s==='cross'?Math.sin(now/110)*.5:0,chair:p.look.chair});
+        if(p.s==='wait'&&p.w>6){ctx.fillStyle='#d23f37';ctx.font='700 22px Fredoka, sans-serif';ctx.textAlign='center';ctx.fillText('!',p.x+14,p.y-34)}}
+      drawKid(OFFICER,XR+46,128,{scale:.46,face:-1,wave:stop});
+    });
+    if(done>=6){running=false;removeEventListener('keydown',keyH);note('Everyone crossed safely. Great traffic duty!','good');say('Everyone crossed safely. Great traffic duty!');
+      $('#xnext').innerHTML='<button class="btn" id="nx">Answer the radio</button>';$('#nx').onclick=caseIntro;return}
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// 5. Lost puppy case
+function caseIntro(){
+  setStep(4);['dispatch','witness','clue','description','report'].forEach(learn);
+  mentorLines([
+    "Your <b>radio</b> is buzzing! It's <b>dispatch</b>, the team at the station that sends officers where help is needed.",
+    "Dispatch says: Mrs. Kim's puppy, Biscuit, is missing! Let's help find him.",
+    "Let's drive the patrol car to Mrs. Kim's street. Change lanes to dodge the cones, and pick up anyone waving for help!",
+    "When we get there, we talk to each <b>witness</b>. A witness is someone who saw what happened. Listen for <b>clues</b>."
+  ],()=>driveGame({done:interviews}),{title:'A call from dispatch',btn:'Start driving'});
+}
+function interviews(){
+  const W=[['👨‍🍳','Sam the baker','I saw a small brown puppy with a white spot run past my bakery!','Small, brown, white spot'],
+    ['📮','Jo the mail carrier','The puppy had a red collar. It was running toward the park.','Red collar, going to the park'],
+    ['👧','Ava, age 8','I heard barking by the big oak tree, near the benches!','Barking by the big oak tree']];
+  const heard=new Set();
+  const draw=(said)=>{body.innerHTML=`<h2>Talk to the witnesses</h2><p class="lead">Tap each person to interview them. Your notebook saves every clue.</p>
+    <div class="split"><div class="q"><div class="row">${W.map((w,i)=>`<button class="person ${heard.has(i)?'heard':''}" data-i="${i}"><span style="font-size:2.2rem">${w[0]}</span>${w[1]}</button>`).join('')}</div>
+    ${said!==undefined?`<div class="bubble">"${W[said][2]}"</div>`:''}</div>
+    <div class="notebook"><h3>Officer's notebook</h3><ul>${[...heard].map(i=>`<li>${W[i][3]}</li>`).join('')||'<li style="list-style:none;margin-left:-20px;color:#53627e">No clues yet.</li>'}</ul></div></div>
+    ${heard.size===3?'<div class="row"><button class="btn" id="nx">Write the report</button></div>':''}`;
+    body.querySelectorAll('.person').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;heard.add(i);say(W[i][2]);draw(i)});
+    const nx=$('#nx');if(nx)nx.onclick=report};
+  draw();say('Tap each person to interview them.');
+}
+function report(){
+  const Q=[['Size','size',['Small','Big'],'Small'],['Color','color',['Black','Brown with a white spot','Grey'],'Brown with a white spot'],['Collar','collar',['Blue','Red','No collar'],'Red'],['Running toward','to',['School','Bakery','The park'],'The park']];
+  const ans={};
+  const draw=()=>{const all=Q.every(q=>ans[q[1]]===q[3]);
+    body.innerHTML=`<h2>Write the report</h2><p class="lead">A <b>report</b> is a written record of what happened. Use your clues to write a <b>description</b> of Biscuit.</p>
+    <div class="notebook"><h3>Clues</h3><ul><li>Small, brown, white spot</li><li>Red collar, going to the park</li><li>Barking by the big oak tree</li></ul></div>
+    ${Q.map(q=>`<div class="q"><span class="lbl">${q[0]}</span><div class="chips">${q[2].map(o=>`<button class="chip ${ans[q[1]]===o?(o===q[3]?'on':'wrong'):''}" data-q="${q[1]}" data-o="${o}">${o}</button>`).join('')}</div></div>`).join('')}
+    <div class="note ${all?'good':''}" id="rfb">${all?'Report complete! Every detail matches the clues.':'Pick the answer that matches your clues.'}</div>
+    ${all?'<div class="row"><button class="btn" id="nx">Search the park</button></div>':''}`;
+    body.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const q=Q.find(x=>x[1]===b.dataset.q);ans[q[1]]=b.dataset.o;draw();
+      if(b.dataset.o!==q[3]){$('#rfb').className='note soft';$('#rfb').textContent='Hmm, check your notebook. What did the witnesses say?';say('Check your notebook. What did the witnesses say?')}
+      else if(Q.every(x=>ans[x[1]]===x[3]))say('Report complete! Every detail matches the clues.')});
+    const nx=$('#nx');if(nx)nx.onclick=search};
+  draw();
+}
+function search(){
+  const spots=[['🦆','The pond','No puppy here, just ducks.'],['🌳','The big oak by the benches','You hear a little bark...'],['🛝','The playground','Kids are playing, but no puppy.']];
+  body.innerHTML=`<h2>Where should you look?</h2><p class="lead">Think about Ava's clue. Where did she hear barking?</p>
+    <div class="grid">${spots.map((s,i)=>`<button class="item" data-i="${i}"><span class="e">${s[0]}</span>${s[1]}</button>`).join('')}</div><div class="note" id="sfb">Pick a place to search.</div><div class="row" id="snx"></div>`;
+  body.querySelectorAll('.item').forEach(b=>b.onclick=()=>{const i=+b.dataset.i,fb=$('#sfb');
+    if(i===1){b.classList.add('ok');fb.className='note good';fb.textContent='Found him! Biscuit was hiding under the bench. Mrs. Kim is so happy!';say('Found him! Biscuit was hiding under the bench. Mrs. Kim is so happy!');
+      $('#snx').innerHTML='<button class="btn" id="nx">Keep patrolling</button>';$('#nx').onclick=helping}
+    else{b.classList.remove('no');void b.offsetWidth;b.classList.add('no');fb.className='note soft';fb.textContent=spots[i][2]+' Check Ava\'s clue.';say(spots[i][2])}});
+}
+
+// 6. Problem moment
+function helping(){
+  setStep(5);
+  body.innerHTML=`<h2>Someone needs help</h2><div class="mentor">${mentorSVG()}<div class="bubble">Look! A little boy is crying by the fountain. He can't find his dad. <b>What should we do?</b></div></div>
+    <div class="q" id="opts">
+      <button class="choice" data-c="0">Kneel down, stay calm, and ask his name</button>
+      <button class="choice" data-c="1">Tell him to go look for his dad by himself</button>
+      <button class="choice" data-c="2">Keep walking. We are busy</button>
+    </div><div id="pfb"></div>`;
+  say("Look! A little boy is crying by the fountain. He can't find his dad. What should we do?");
+  const fbk=["Great choice. Getting down to his level and staying calm helps him feel safe. His name is Leo.",
+    "Kids should never search alone. Officers stay with a lost child to keep them safe. Try again!",
+    "Helping people is the most important part of the job. Let's try again!"];
+  body.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{const c=+b.dataset.c,el=$('#pfb');
+    if(c===0){$('#opts').innerHTML='';el.innerHTML=`<div class="note good">${fbk[0]}</div><div class="bubble">Leo says his dad has a <b>green jacket</b> and a <b>yellow hat</b>. What next?</div>
+      <div class="q"><button class="choice" data-r="1">Use the radio to tell dispatch the dad's description</button><button class="choice" data-r="0">Shout for everyone to look</button></div><div id="rfb2"></div>`;say(fbk[0]+" Leo says his dad has a green jacket and a yellow hat. What next?");
+      el.querySelectorAll('[data-r]').forEach(r=>r.onclick=()=>{const f=$('#rfb2');
+        if(r.dataset.r==='1'){f.innerHTML=`<div class="note good">"Dispatch, we have a lost boy named Leo. Looking for his dad: green jacket, yellow hat." Another officer finds Leo's dad near the bakery. They hug!</div><div class="row"><button class="btn" id="nx">Head back to the station</button></div>`;
+          say('Dispatch, we have a lost boy named Leo. Looking for his dad, green jacket, yellow hat. Another officer finds his dad. They hug!');$('#nx').onclick=debrief}
+        else{f.innerHTML='<div class="note soft">Shouting might scare Leo more. A clear description over the radio reaches every officer at once.</div>';say('Shouting might scare Leo more. Try the radio.')}})}
+    else{el.innerHTML=`<div class="note soft">${fbk[c]}</div>`;say(fbk[c])}});
+}
+
+// 7. Debrief
+function debrief(){
+  setStep(6);
+  const learned=['patrol','badge','radio','crosswalk','traffic','dispatch','witness','clue','description','report'];
+  body.innerHTML=`<h2>Shift complete!</h2>
+    <div class="mentor">${mentorSVG()}<div class="bubble">You were a great officer today. You <b>packed your gear</b>, kept the <b>crosswalk</b> safe, solved the case of the missing puppy, and helped Leo find his dad.</div></div>
+    <div class="note">Police officers are trusted to keep people safe, stay calm, tell the truth in their reports, and help anyone who needs it.</div>
+    <h2 style="font-size:1.3rem">Words you used today</h2>${wordCards(learned)}
+    <div class="q"><span class="lbl">How did you like being a police officer?</span><div class="chips" id="react">
+      <button class="chip" data-v="loved">Loved it</button><button class="chip" data-v="ok">It was OK</button><button class="chip" data-v="no">Not for me</button></div></div>
+    <div class="q"><span class="lbl">Which part did you like most?</span><div class="chips" id="fav">
+      <button class="chip" data-v="people">Helping people</button><button class="chip" data-v="solving">Solving the case</button><button class="chip" data-v="safety">Keeping things safe</button><button class="chip" data-v="building">Using the gear</button></div></div>
+    <div class="row"><button class="btn blue" id="nx">Get my badge</button></div>`;
+  say('Shift complete! You were a great officer today.');
+  const pick=(id,cb)=>body.querySelectorAll(`#${id} .chip`).forEach(b=>b.onclick=()=>{body.querySelectorAll(`#${id} .chip`).forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(b.dataset.v)});
+  pick('react',v=>{S.reactions.police=v;save()});
+  pick('fav',v=>{S.interests[v]=(S.interests[v]||0)+1;save()});
+  $('#nx').onclick=()=>{
+    if(!S.badges.includes('police'))S.badges.push('police');S.outfit='police';save();
+    body.innerHTML=`<div class="stamp"><span class="big">★</span>Police<br>Officer</div><h2 style="text-align:center">You earned the Police Officer badge!</h2>
+      <p class="lead" style="text-align:center;margin:0 auto">It's in your Career Passport, with all ${learned.length} new words. Explore the rest of Career Town for more jobs.</p>
+      <div class="row" style="justify-content:center"><button class="btn" id="nx">Back to town</button><button class="btn ghost" id="again">Station games</button></div>`;
+    say('You earned the Police Officer badge!');$('#nx').onclick=closeScene;$('#again').onclick=()=>stationMenu(POLICE)};
+}
+
+
+// ---------- station menu + quick games ----------
+function stationMenu(job){
+  job=job||curJob||POLICE;curJob=job;curMentor=job.mentor;
+  openScene();$('.card').style.setProperty('--jobc',job.roof);try{speechSynthesis.cancel()}catch(e){}
+  $('#jobTag').textContent=job.place;$('#steps').innerHTML='';
+  const b=S.best||{},got=S.badges.includes(job.id);
+  const tile=(attr,e,title,sub)=>`<button class="tile" ${attr}><span class="e">${e}</span><b>${title}</b><small>${sub}</small></button>`;
+  let tiles;
+  if(job.id==='police')tiles=tile('data-g="memory"','🃏','Word match',`Match police words to pictures${b.memory?` · best: ${b.memory} tries`:''}`)
+    +tile('data-g="drive"','🚓','Patrol drive',`Dodge cones and help people${b.drive?` · best: ${b.drive} helped`:''}`)
+    +tile('data-g="find"','🔎','Lost and found',`Find 5 lost things in the park${b.find?` · best: ${b.find} seconds`:''}`);
+  else tiles=job.tasks.map((t,i)=>tile(`data-t="${i}"`,taskIcon(t),t.title,TYPE_INFO[t.type][0])).join('')
+    +tile('data-g="memory"','🃏','Word match',`Match ${job.name.toLowerCase()} words to pictures${b['memory-'+job.id]?` · best: ${b['memory-'+job.id]} tries`:''}`);
+  body.innerHTML=`${sceneArt(job.id)}<div class="mentor">${mentorSVG()}<div class="bubble">Hi, I'm <b>${job.mentor.name}</b>! Want to work a shift as ${art(job.name)} <b>${job.name.toLowerCase()}</b>, or try a quick game?</div></div>
+    <div class="menu"><button class="tile main" id="gShift"><span class="e">${job.icon}</span><b>${got?'Work another shift':'Work a shift'}</b><small>About ${job.id==='police'?10:6} minutes${got?' · badge earned':` · earn the ${job.name.toLowerCase()} badge`}</small></button>${tiles}</div>`;
+  paintArt();say(`Hi, I'm ${job.mentor.name}! Want to work a shift, or try a quick game?`);
+  $('#gShift').onclick=()=>job.id==='police'?startShift():jobShift(job);
+  body.querySelectorAll('[data-t]').forEach(t=>t.onclick=()=>{$('#jobTag').textContent=job.name;runTask(job.tasks[+t.dataset.t])});
+  body.querySelectorAll('[data-g]').forEach(t=>t.onclick=()=>{const g=t.dataset.g;
+    if(g==='memory')return job.id==='police'?memoryGame():memoryGame(job.words.map(w=>[w[0],w[2]]),'memory-'+job.id);
+    ({drive:()=>driveGame(),find:findGame})[g]()});
+}
+function endQuick(msg,key,val,lowerIsBetter){
+  if(!key)return `<div class="note good">${msg}</div><div class="row"><button class="btn" id="qAgain">Play again</button><button class="btn ghost" id="qMenu">More games</button></div>`;
+  const old=S.best[key];const better=old===undefined||(lowerIsBetter?val<old:val>old);
+  if(better){S.best[key]=val;save()}
+  return `<div class="note good">${msg}${better&&old!==undefined?' New best!':''}</div>
+    <div class="row"><button class="btn" id="qAgain">Play again</button><button class="btn ghost" id="qMenu">More games</button></div>`;
+}
+function wireEnd(replay){$('#qAgain').onclick=replay;$('#qMenu').onclick=stationMenu;$('#qAgain').focus()}
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]]}return a};
+
+// Word match (memory)
+function memoryGame(p,key='memory'){
+  const pairs=p||[['radio','📻'],['badge','⭐'],['crosswalk','🚸'],['report','📝'],['clue','🔍'],['witness','👀']];
+  const cards=shuffle(pairs.flatMap(([w,e])=>[{w,face:`<span class="e">${e}</span>`},{w,face:WORDS[w][0]}]));
+  let open=[],tries=0,matched=0,lock=false;
+  body.innerHTML=`<h2>Word match</h2><p class="lead">Flip two cards. Match each word with its picture.</p>
+    <div class="mem" style="grid-template-columns:repeat(${pairs.length*2%4?5:4},minmax(0,1fr))">${cards.map((c,i)=>`<button class="mc back" data-i="${i}" aria-label="Hidden card">★</button>`).join('')}</div>
+    <div class="row"><span class="meter" id="mm">Tries: 0 · Matches: 0 of ${pairs.length}</span></div><div class="note" id="mfb">Tap a card to flip it.</div><div id="mend"></div>`;
+  const els=[...body.querySelectorAll('.mc')];
+  const show=i=>{els[i].className='mc up';els[i].innerHTML=cards[i].face;els[i].setAttribute('aria-label',cards[i].w)};
+  const hide=i=>{els[i].className='mc back';els[i].innerHTML='★';els[i].setAttribute('aria-label','Hidden card')};
+  els.forEach((el,i)=>el.onclick=()=>{
+    if(lock||open.includes(i)||el.classList.contains('done'))return;
+    show(i);open.push(i);
+    if(open.length<2)return;
+    tries++;const [a,b]=open;
+    if(cards[a].w===cards[b].w){
+      els[a].className=els[b].className='mc up done';matched++;open=[];learn(cards[a].w);
+      const m=`${WORDS[cards[a].w][0]}: ${WORDS[cards[a].w][1]}`;$('#mfb').className='note good';$('#mfb').textContent=m;say(m);
+    }else{lock=true;$('#mfb').className='note';$('#mfb').textContent='Not a match. Try to remember where they are!';
+      setTimeout(()=>{hide(a);hide(b);open=[];lock=false},900)}
+    $('#mm').textContent=`Tries: ${tries} · Matches: ${matched} of ${pairs.length}`;
+    if(matched===pairs.length){$('#mend').innerHTML=endQuick(`You matched all ${pairs.length} words in ${tries} tries!`,key,tries,true);wireEnd(()=>memoryGame(p,key));say(`You matched all ${pairs.length} words in ${tries} tries!`)}
+  });
+}
+
+// Patrol drive (lane dodger). In a shift, pass {done} to continue the story.
+function driveGame(opt={}){
+  const shift=!!opt.done,DUR=shift?25:40;
+  body.innerHTML=`<h2>${shift?"Drive to Mrs. Kim's street":'Patrol drive'}</h2>
+    <p class="lead">Tap the top or bottom half of the road, or press ↑ and ↓, to change lanes. Pick up people waving 🙋 and dodge the cones 🚧.</p>
+    <canvas id="drive"></canvas>
+    <div class="row"><button class="btn ghost" id="dUp">↑ Up</button><button class="btn ghost" id="dDn">↓ Down</button><span class="meter" id="dm"></span></div>
+    <div class="note" id="dfb">Officers drive carefully. Watch the road ahead!</div><div id="dend"></div>`;
+  const c=$('#drive'),g=c.getContext('2d'),W=720,H=360,LANES=[150,210,270],CX=120;
+  const fit=()=>{const r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=r.width*d;c.height=r.width/2*d};fit();
+  let lane=1,cy=LANES[1],objs=[],spawn=.8,time=DUR,helped=0,bumps=0,wob=0,run=true,lt=performance.now(),scroll=0;
+  const move=d=>{if(run)lane=Math.max(0,Math.min(2,lane+d))};
+  $('#dUp').onclick=()=>move(-1);$('#dDn').onclick=()=>move(1);
+  c.addEventListener('pointerdown',e=>{const r=c.getBoundingClientRect();move(e.clientY-r.top<r.height*.58?-1:1)});
+  const key=e=>{if($('#scene').hidden||!run)return;if(e.key==='ArrowUp'){e.preventDefault();e.stopPropagation();move(-1)}if(e.key==='ArrowDown'){e.preventDefault();move(1)}};
+  addEventListener('keydown',key,true);
+  const fb=t=>{$('#dfb').textContent=t};
+  function step(now){
+    if(!document.body.contains(c)){removeEventListener('keydown',key,true);return}
+    const dt=Math.min(.05,(now-lt)/1000);lt=now;
+    if(run){
+      time-=dt;const speed=230+(DUR-time)*3;scroll+=speed*dt;
+      spawn-=dt;if(spawn<=0){const l=Math.random()*3|0;objs.push({x:W+40,lane:l,k:Math.random()<.55?'cone':'help',look:PEOPLE[Math.random()*6|0]});if(Math.random()<.25)objs.push({x:W+40,lane:(l+1+(Math.random()*2|0))%3,k:'cone'});spawn=.75+Math.random()*.5}
+      objs.forEach(o=>o.x-=speed*dt);
+      cy+=(LANES[lane]-cy)*Math.min(1,dt*12);wob=Math.max(0,wob-dt);
+      for(const o of objs){if(!o.hit&&o.lane===lane&&Math.abs(o.x-CX)<44&&Math.abs(cy-LANES[o.lane])<24){o.hit=true;
+        if(o.k==='help'){helped++;fb(['You stopped to help! Officers check that people are okay.','Helped! Being friendly builds trust.','Nice! Helping people is part of patrol.'][helped%3])}
+        else{bumps++;wob=.5;fb('Bump! Slow and careful. Look ahead and change lanes early.')}}}
+      objs=objs.filter(o=>o.x>-50&&!(o.hit&&o.k==='help'));
+      $('#dm').textContent=`Helped: ${helped} · Time: ${Math.ceil(Math.max(0,time))}s`;
+      if(time<=0){run=false;removeEventListener('keydown',key,true);
+        if(shift){const m=`You made it to Mrs. Kim's street and helped ${helped} people on the way!`;fb(m);say(m);$('#dend').innerHTML='<div class="row"><button class="btn" id="nx">Talk to the witnesses</button></div>';$('#nx').onclick=opt.done;$('#nx').focus()}
+        else{const m=`Patrol done! You helped ${helped} people${bumps?` and bumped ${bumps} cone${bumps>1?'s':''}`:' and never bumped a cone'}.`;learn('patrol');$('#dend').innerHTML=endQuick(m,'drive',helped,false);wireEnd(()=>driveGame());say(m)}}
+    }
+    const s=c.width/W;g.setTransform(s,0,0,s,0,0);
+    onCanvas(g,()=>{
+      skyFill(W,104,104);cloud(((80-scroll*.08)%900+900)%900-120,30,.55);cloud(((460-scroll*.08)%900+900)%900-120,22,.45);
+      hills(W,80,10,'#a7dc9c',scroll*.2);
+      const off=scroll*.5,first=Math.floor(off/120);
+      for(let i=first-1;i<first+8;i++){const b=BUILD[1+((i%JOBS.length)+JOBS.length)%JOBS.length];ctx.save();ctx.translate(i*120-off+60,104);ctx.scale(.3,.3);ctx.translate(-doorX(b),-GROUND);building(b);ctx.restore()}
+      ctx.fillStyle='#e9e1d2';ctx.fillRect(0,104,W,16);ctx.fillStyle='#c9bfae';ctx.fillRect(0,116,W,4);
+      const road=ctx.createLinearGradient(0,120,0,300);road.addColorStop(0,'#4b5468');road.addColorStop(1,'#5a6378');ctx.fillStyle=road;ctx.fillRect(0,120,W,180);
+      ctx.fillStyle='rgba(0,0,0,.18)';ctx.fillRect(0,120,W,4);
+      ctx.fillStyle='#fffaf0';for(const y of [180,240])for(let x=-(scroll%80);x<W;x+=80)ctx.fillRect(x,y-2,44,4);
+      ctx.fillStyle='#c9bfae';ctx.fillRect(0,300,W,5);ctx.fillStyle='#e9e1d2';ctx.fillRect(0,305,W,15);
+      const gr=ctx.createLinearGradient(0,320,0,H);gr.addColorStop(0,'#9fdc8f');gr.addColorStop(1,'#86cc80');ctx.fillStyle=gr;ctx.fillRect(0,320,W,H-320);
+      for(let i=0;i<6;i++){const bx=((i*170-scroll)%1020+1020)%1020-100;i%2?bush(bx,352):tree(bx,.32,356)}
+      for(const o of objs){if(o.k==='cone')cone(o.x,LANES[o.lane]+18);else drawKid(o.look,o.x,LANES[o.lane]+24,{scale:.4,face:-1,wave:true,chair:o.look.chair})}
+      carAt(CX,cy+4+Math.sin(now/40)*wob*8,'#ffffff',1,1,true);
+    });
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);say(shift?'Change lanes to dodge the cones and help people.':'Dodge the cones and help people waving.');
+}
+
+function paintPark(c){const W=800,H=500,r=c.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);c.width=Math.round(r.width*d);c.height=Math.round(r.width*H/W*d);
+  const g=c.getContext('2d');g.setTransform(c.width/W,0,0,c.width/W,0,0);
+  onCanvas(g,()=>{skyFill(W,H,150);
+    const glow=ctx.createRadialGradient(700,50,8,700,50,90);glow.addColorStop(0,'rgba(255,236,150,.9)');glow.addColorStop(1,'rgba(255,236,150,0)');ctx.fillStyle=glow;ctx.fillRect(610,0,180,150);ctx.fillStyle='#ffd65a';ctx.beginPath();ctx.arc(700,50,24,0,7);ctx.fill();
+    cloud(60,40,.6);cloud(380,30,.5);hills(W,120,12,'#a7dc9c',60);
+    const gr=ctx.createLinearGradient(0,150,0,H);gr.addColorStop(0,'#9fdc8f');gr.addColorStop(1,'#7cc476');ctx.fillStyle=gr;ctx.fillRect(0,150,W,H-150);
+    [70,190,330,450].forEach((x,i)=>tree(x,.62+(i%2)*.1,178));
+    ctx.lineWidth=3;ctx.strokeStyle=INK;ctx.beginPath();ctx.ellipse(600,245,108,46,0,0,7);fs('#c9d6e3');ctx.beginPath();ctx.ellipse(600,247,94,36,0,0,7);ctx.fillStyle='#7fcdf0';ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.ellipse(570,238,30,5,0,0,7);ctx.ellipse(632,256,18,4,0,0,7);ctx.fill();
+    ctx.fillStyle='#e8d6a8';ctx.beginPath();ctx.moveTo(0,330);ctx.bezierCurveTo(240,300,520,370,800,320);ctx.lineTo(800,380);ctx.bezierCurveTo(520,430,240,360,0,392);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(34,38,58,.12)';ctx.lineWidth=2;ctx.stroke();
+    ctx.strokeStyle='rgba(40,110,50,.35)';ctx.lineWidth=2;for(let i=0;i<70;i++){const x=rnd(i)*W,y=170+rnd(i+90)*320;if(y>300&&y<400)continue;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-3,y-8);ctx.moveTo(x+3,y);ctx.lineTo(x+5,y-7);ctx.stroke()}
+    bush(250,470);bush(700,480);
+  })}
+// Lost and found (hidden objects)
+function findGame(){
+  const pool=[['🔑','Keys'],['👓','Glasses'],['🧢','Cap'],['📱','Phone'],['🧸','Teddy bear'],['🎒','Backpack'],['☂️','Umbrella'],['🧤','Gloves']];
+  const targets=shuffle(pool.slice()).slice(0,5);
+  const decoy=[['🌼','a flower'],['🌷','a tulip'],['🍄','a mushroom'],['🪨','a rock'],['🐦','a bird'],['🦋','a butterfly'],['🍂','a leaf'],['🌳','a tree'],['🐿️','a squirrel'],['🐞','a ladybug'],['🌻','a sunflower'],['🐌','a snail']];
+  const things=shuffle([...targets.map(t=>({e:t[0],n:t[1],t:1})),...decoy.map(d=>({e:d[0],n:d[1]})),...shuffle(decoy.slice()).slice(0,6).map(d=>({e:d[0],n:d[1]}))]);
+  const cells=shuffle(Array.from({length:40},(_,i)=>i));
+  things.forEach((o,i)=>{const cI=cells[i],col=cI%8,row=cI/8|0;o.x=6+col*12.3+Math.random()*5;o.y=36+row*12.5+Math.random()*5});
+  let found=0,t0=performance.now();
+  body.innerHTML=`<h2>Lost and found</h2><p class="lead">People lost some things in the park. Find all 5 and bring them to the station's <b>lost and found</b>.</p>
+    <div class="chips" id="fl">${targets.map(t=>`<span class="chip" data-e="${t[0]}">${t[0]} ${t[1]}</span>`).join('')}</div>
+    <div class="find"><canvas aria-hidden="true"></canvas>${things.map((o,i)=>`<button class="h" data-i="${i}" style="left:${o.x}%;top:${o.y}%" aria-label="${o.n}">${o.e}</button>`).join('')}</div>
+    <div class="note" id="ffb">Tap the lost things you spot.</div><div id="fend"></div>`;
+  paintPark(body.querySelector('.find canvas'));say('Find all five lost things in the park.');
+  body.querySelectorAll('.find .h').forEach(b=>b.onclick=()=>{const o=things[+b.dataset.i];
+    if(b.classList.contains('found'))return;
+    if(o.t){b.classList.add('found');found++;body.querySelector(`#fl [data-e="${o.e}"]`).classList.add('got');$('#ffb').className='note good';$('#ffb').textContent=`Found the ${o.n.toLowerCase()}!`;say(`Found the ${o.n}!`);
+      if(found===5){const secs=Math.round((performance.now()-t0)/1000);learn('lost and found');
+        const m=`All 5 things are safe in the lost and found. You took ${secs} seconds!`;$('#fend').innerHTML=endQuick(m,'find',secs,true);wireEnd(findGame);say(m)}}
+    else{b.classList.remove('miss');void b.offsetWidth;b.classList.add('miss');$('#ffb').className='note';$('#ffb').textContent=`That's ${o.n}. Keep looking!`}});
+}
+
+
+// ---------- shared mini-game engine ----------
+let AC;
+function tone(f,d=.3,type='sine'){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+  const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.setValueAtTime(.18,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g).connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+const head=t=>`<h2>${t.title}</h2><p class="lead">${t.lead}</p>`;
+function fbk(text,cls='',speak=true){const el=$('#tfb');if(!el)return;el.className='note '+cls;el.textContent=text;if(speak)say(text)}
+function shake(el){el.classList.remove('no');void el.offsetWidth;el.classList.add('no')}
+const TYPE_INFO={order:['Put the steps in order'],pick:['Pick the right things'],sort:['Sort each one'],build:['Fill the orders'],tap:['Quick tapping game'],quiz:['Answer questions'],simon:['Copy the notes'],beat:['Tap to the rhythm']};
+function taskIcon(t){return t.type==='tap'?t.good[0]:t.type==='pick'?t.items[0][0]:t.type==='build'?t.ingredients[0][0]:t.type==='sort'?t.items[0][0]:t.type==='order'?t.steps[t.steps.length-1][0]:t.type==='quiz'?'❓':t.type==='simon'?'🎹':'🥁'}
+
+// done given = part of a shift; no done = quick game from the station menu
+function runTask(t,done){
+  const fin=msg=>{const end=document.createElement('div');
+    end.innerHTML=done?`<div class="note good">${msg}</div><div class="row"><button class="btn" id="tnx">Next</button></div>`:endQuick(msg);
+    body.appendChild(end);say(msg);
+    if(done){$('#tnx').onclick=done;$('#tnx').focus()}else wireEnd(()=>runTask(t));
+    end.scrollIntoView({block:'nearest'})};
+  T[t.type](t,fin);say(t.lead);
+}
+const T={};
+T.pick=(t,fin)=>{const need=t.items.filter(x=>x[2]).length;let got=0;
+  body.innerHTML=head(t)+`<div class="meter" id="tm">Picked: 0 of ${need}</div><div class="grid">${shuffle(t.items.map((it,i)=>i)).map(i=>`<button class="item" data-i="${i}"><span class="e">${t.items[i][0]}</span>${t.items[i][1]}</button>`).join('')}</div><div class="note" id="tfb">Tap an item.</div>`;
+  body.querySelectorAll('.item').forEach(b=>b.onclick=()=>{const it=t.items[+b.dataset.i];if(b.classList.contains('ok')||got>=need)return;
+    if(it[2]){b.classList.add('ok');got++;fbk(`Yes! ${it[1]}: ${it[3]}`,'good')}else{shake(b);fbk(`${it[1]}? ${it[3]}`,'soft')}
+    $('#tm').textContent=`Picked: ${got} of ${need}`;if(got===need)fin(t.win)})};
+T.order=(t,fin)=>{let next=0;
+  body.innerHTML=head(t)+`<ol class="seq" id="seq"></ol><div class="grid">${shuffle(t.steps.map((s,i)=>i)).map(i=>`<button class="item" data-i="${i}"><span class="e">${t.steps[i][0]}</span>${t.steps[i][1]}</button>`).join('')}</div><div class="note" id="tfb">What comes first?</div>`;
+  body.querySelectorAll('.item').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;
+    if(i===next){const s=t.steps[i];$('#seq').insertAdjacentHTML('beforeend',`<li>${s[0]} ${s[1]}</li>`);b.remove();next++;
+      if(next===t.steps.length){$('#tfb').remove();fin(t.win)}else fbk(`Step ${next}: ${s[1]}. What comes next?`,'good')}
+    else{shake(b);fbk('Not yet. What comes before that?','soft')}})};
+T.sort=(t,fin)=>{const items=shuffle(t.items.slice());let i=0,right=0;
+  const draw=()=>{const it=items[i];
+    body.innerHTML=head(t)+`<div class="meter">${i+1} of ${items.length}</div><div class="sortcard"><span class="e">${it[0]}</span>${it[1]}</div>
+      <div class="bins">${t.bins.map((b,j)=>`<button class="btn ghost bin" data-j="${j}">${b[0]} ${b[1]}</button>`).join('')}</div>
+      <div class="note" id="tfb">${t.lenient?'What is your hypothesis?':'Where does it go?'}</div><div id="tnext"></div>`;
+    say(it[1]);
+    body.querySelectorAll('.bin').forEach(bb=>bb.onclick=()=>{const j=+bb.dataset.j;
+      if(j===it[2]){right++;bb.classList.add('right');fbk((t.lenient?'Your hypothesis was right! ':'Yes! ')+it[3],'good');advance()}
+      else if(t.lenient){fbk(`Surprise! It ${t.bins[it[2]][1].toLowerCase()}. ${it[3]}`);advance()}
+      else{shake(bb);fbk('Not quite. Think again!','soft')}})};
+  const advance=()=>{body.querySelectorAll('.bin').forEach(b=>b.disabled=true);
+    $('#tnext').innerHTML=`<div class="row"><button class="btn" id="tgo">${i<items.length-1?'Next':'Finish'}</button></div>`;
+    $('#tgo').onclick=()=>{i++;if(i<items.length)draw();else{body.innerHTML=head(t);fin(t.lenient?`${t.win} Your guesses were right ${right} of ${items.length} times.`:t.win)}};$('#tgo').focus()};
+  draw()};
+T.build=(t,fin)=>{let r=0,tray=[];
+  const count=a=>a.reduce((m,x)=>(m[x]=(m[x]||0)+1,m),{});
+  const em=n=>t.ingredients.find(x=>x[1]===n)[0];
+  const ask=need=>Object.entries(count(need)).map(([n,c])=>c>1?`${c} ${n}s`:n).join(', ');
+  const draw=(msg,cls)=>{const need=t.rounds[r];
+    body.innerHTML=head(t)+`<div class="ticket"><span class="meter">Order ${r+1} of ${t.rounds.length}</span><div><b>${t.who?t.who[r]:'Customer'}</b> wants: ${ask(need)}</div><div class="tick-em">${need.map(em).join(' ')}</div></div>
+      <div class="tray" aria-label="What you have so far">${tray.length?tray.map(em).join(' '):'<span class="empty">Tap below to add</span>'}</div>
+      <div class="grid">${t.ingredients.map(([e,n])=>`<button class="item" data-n="${n}"><span class="e">${e}</span>${n}</button>`).join('')}</div>
+      <div class="row"><button class="btn ghost" id="clr">Start over</button></div><div class="note ${cls||''}" id="tfb">${msg||'Tap the things on the order.'}</div>`;
+    body.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{const n=b.dataset.n,nd=count(t.rounds[r]),have=count(tray);
+      if(t.bad&&t.bad[n]){say(t.bad[n]);return draw(t.bad[n],'soft')}
+      if(!nd[n]){const m=`${n[0].toUpperCase()+n.slice(1)} is not on this order. Read the ticket again.`;say(m);return draw(m,'soft')}
+      if((have[n]||0)>=nd[n])return draw(`You already have enough ${n}.`,'soft');
+      tray.push(n);
+      if(tray.length===t.rounds[r].length){r++;tray=[];if(r>=t.rounds.length){body.innerHTML=head(t);return fin(t.win)}say('Order done!');return draw('Order done! Here comes the next one.','good')}
+      draw()});
+    $('#clr').onclick=()=>{tray=[];draw()}};
+  draw()};
+T.tap=(t,fin)=>{let score=0,time=t.dur||30,done=false;const cells=Array(9).fill(null);
+  body.innerHTML=head(t)+`<div class="meter" id="tm"></div><div class="whack">${cells.map((_,i)=>`<button class="hole" data-i="${i}" aria-label="empty"></button>`).join('')}</div><div class="note" id="tfb">Get ready!</div>`;
+  const holes=[...body.querySelectorAll('.hole')];
+  const meter=()=>{$('#tm').textContent=`${score} of ${t.goal} · ${Math.ceil(Math.max(0,time))} seconds left`};
+  const set=(i,v)=>{cells[i]=v;holes[i].textContent=v?v.e:'';holes[i].className='hole'+(v?(v.done?' done':' up'):'');holes[i].setAttribute('aria-label',v?v.n:'empty')};
+  holes.forEach((h,i)=>h.onclick=()=>{const c=cells[i];if(!c||c.done||done)return;
+    if(c.good){score++;tone(520+score*20,.12,'triangle');set(i,{e:t.goodDone,done:true,n:'done'});setTimeout(()=>{if(cells[i]&&cells[i].done)set(i,null)},350);meter();if(score>=t.goal)end()}
+    else{shake(h);fbk(t.badMsg,'soft')}});
+  let last=performance.now(),spawnT=.6;
+  const tick=now=>{if(done||!document.body.contains(holes[0]))return;const dt=Math.min(.1,(now-last)/1000);last=now;time-=dt;spawnT-=dt;
+    cells.forEach((c,i)=>{if(c&&!c.done){c.life-=dt;if(c.life<=0)set(i,null)}});
+    if(spawnT<=0){const free=cells.map((c,i)=>c?-1:i).filter(i=>i>=0);if(free.length){const i=free[Math.random()*free.length|0],good=Math.random()<.72;set(i,{good,e:good?t.good[0]:t.bad[0],n:good?t.good[1]:t.bad[1],life:1.4+Math.random()*.7})}spawnT=.5+Math.random()*.4}
+    meter();if(time<=0)return end();requestAnimationFrame(tick)};
+  function end(){if(done)return;done=true;holes.forEach(h=>h.disabled=true);$('#tfb').remove();fin(score>=t.goal?t.win:`Time's up! You got ${score}. Great effort!`)}
+  meter();requestAnimationFrame(tick)};
+T.quiz=(t,fin)=>{let i=0;
+  const draw=()=>{const [q,opts,a,why]=t.qs[i];
+    body.innerHTML=head(t)+`<div class="meter">Question ${i+1} of ${t.qs.length}</div><div class="bubble">${q}</div><div class="q">${opts.map((o,j)=>`<button class="choice" data-j="${j}">${o}</button>`).join('')}</div><div id="qfb"></div>`;
+    if(i)say(q);
+    body.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{const j=+b.dataset.j;
+      if(j===a){body.querySelectorAll('.choice').forEach(x=>x.disabled=true);b.classList.add('right');
+        $('#qfb').innerHTML=`<div class="note good">${why}</div><div class="row"><button class="btn" id="tgo">${i<t.qs.length-1?'Next question':'Finish'}</button></div>`;say(why);
+        $('#tgo').onclick=()=>{i++;if(i<t.qs.length)draw();else{body.innerHTML=head(t);fin(t.win)}};$('#tgo').focus()}
+      else{shake(b);b.classList.add('wrongc');$('#qfb').innerHTML='<div class="note soft">Not quite. Try another answer!</div>';say('Not quite. Try another answer!')}})};
+  draw()};
+T.simon=(t,fin)=>{const pads=[['Do',262,'#d23f37'],['Re',294,'#e8901a'],['Mi',330,'#25915a'],['Sol',392,'#3a7bd5']];
+  let seq=[],pos=0,round=0,busy=true;
+  body.innerHTML=head(t)+`<div class="meter" id="tm">Get ready…</div><div class="pads">${pads.map((p,i)=>`<button class="pad" data-i="${i}" style="--c:${p[2]}">${p[0]}</button>`).join('')}</div><div class="row"><button class="btn ghost" id="replay">Hear it again</button></div><div class="note" id="tfb">Listen…</div>`;
+  const els=[...body.querySelectorAll('.pad')],alive=()=>document.body.contains(els[0]);
+  const flash=(i,ms=420)=>{if(!alive())return;els[i].classList.add('lit');tone(pads[i][1],ms/1000);setTimeout(()=>els[i].classList.remove('lit'),ms)};
+  const play=()=>{if(!alive())return;busy=true;fbk('Listen and watch…','',false);seq.forEach((n,k)=>setTimeout(()=>flash(n),500+k*620));setTimeout(()=>{if(!alive())return;busy=false;pos=0;fbk('Your turn! Tap the same notes.','',false)},500+seq.length*620)};
+  const next=()=>{if(!alive())return;round++;seq.push(Math.random()*4|0);if(seq.length<2)seq.push(Math.random()*4|0);$('#tm').textContent=`Melody ${round} of ${t.rounds}`;play()};
+  els.forEach((e,i)=>e.onclick=()=>{if(busy)return;flash(i,250);
+    if(i===seq[pos]){pos++;if(pos===seq.length){busy=true;if(round>=t.rounds)setTimeout(()=>{$('#tfb').remove();fin(t.win)},500);else{fbk('Perfect! The next melody is a little longer.','good',false);setTimeout(next,1200)}}}
+    else{busy=true;fbk('Oops! Listen again and try once more.','soft',false);setTimeout(play,900)}});
+  $('#replay').onclick=()=>{if(!busy)play()};
+  setTimeout(next,2200)};
+T.beat=(t,fin)=>{const iv=.75;let n=0,hits=0,start=0,run=false,lastHit=-1;
+  body.innerHTML=head(t)+`<div class="meter" id="tm">Beats: 0 of ${t.beats}</div><div class="beatlight" id="bl" aria-hidden="true"></div><button class="drum" id="drum">🥁 Tap</button><div class="note" id="tfb">Press Start. Then tap the drum when the light flashes.</div><div class="row" id="bst"><button class="btn" id="go">Start</button></div>`;
+  const bl=$('#bl'),meter=()=>{$('#tm').textContent=`Beats: ${n} of ${t.beats} · On the beat: ${hits}`};
+  const key=e=>{if(e.key===' '&&!$('#scene').hidden){e.preventDefault();tap()}};addEventListener('keydown',key);
+  $('#go').onclick=()=>{$('#bst').innerHTML='';run=true;start=performance.now()/1000+1;loop()};
+  function loop(){if(!run)return;if(!document.body.contains(bl)){removeEventListener('keydown',key);return}
+    const now=performance.now()/1000,k=Math.floor((now-start)/iv);
+    if(k>=0&&k>=n&&k<t.beats){n=k+1;bl.classList.add('on');setTimeout(()=>bl.classList.remove('on'),160);tone(880,.06,'square');meter()}
+    if(now>start+t.beats*iv+.3){run=false;removeEventListener('keydown',key);$('#tfb').remove();$('#drum').disabled=true;fin(`You hit ${hits} of ${t.beats} beats on time. ${t.win}`);return}
+    requestAnimationFrame(loop)}
+  function tap(){const d=$('#drum');if(!d||d.disabled)return;tone(140,.15,'triangle');d.classList.add('hit');setTimeout(()=>d.classList.remove('hit'),100);if(!run)return;
+    const ph=(performance.now()/1000-start)/iv,k=Math.round(ph);if(k<0||k>=t.beats||k===lastHit)return;
+    if(Math.abs(ph-k)*iv<.18){hits++;lastHit=k;fbk('On the beat!','good',false)}else fbk(ph<k?'A little early':'A little late','',false);meter()}
+  $('#drum').onclick=tap};
+
+// ---------- generic job shift ----------
+function jobShift(job){
+  curJob=job;curMentor=job.mentor;openScene();$('.card').style.setProperty('--jobc',job.roof);$('#jobTag').textContent=job.name;
+  setStep(0,['Briefing',...job.tasks.map(t=>t.label),'Helping','Debrief']);
+  mentorLines(job.intro,()=>{
+    const ks=job.words.map(w=>w[0]);ks.forEach(learn);
+    body.innerHTML=`<h2>Your ${job.name.toLowerCase()} words</h2><p class="lead">Tap each card to hear the word and what it means.</p>${wordCards(ks)}<div class="row"><button class="btn" id="nx">Start working</button></div>`;
+    say(`Here are some words ${job.name.toLowerCase()}s use. Tap a card to hear it.`);
+    $('#nx').onclick=()=>step(0);
+  },{title:`Welcome to the ${job.place}`,scene:job.id});
+  function step(i){
+    if(i<job.tasks.length){setStep(i+1);runTask(job.tasks[i],()=>step(i+1))}
+    else{setStep(i+1);jobProblem(job,()=>{setStep(i+2);jobDebrief(job)})}
+  }
+}
+function jobProblem(job,done){const p=job.problem;
+  body.innerHTML=`<h2>Something comes up</h2><div class="mentor">${mentorSVG()}<div class="bubble">${p.text}</div></div>
+    <div class="q" id="opts">${shuffle(p.opts.map((o,i)=>i)).map(i=>`<button class="choice" data-i="${i}">${p.opts[i][0]}</button>`).join('')}</div><div id="pfb"></div>`;
+  say(p.text);
+  body.querySelectorAll('#opts .choice').forEach(b=>b.onclick=()=>{const o=p.opts[+b.dataset.i];
+    if(o[1]){body.querySelectorAll('#opts .choice').forEach(x=>x.disabled=true);b.classList.add('right');
+      $('#pfb').innerHTML=`<div class="note good">${o[2]}</div><div class="row"><button class="btn" id="nx">Finish the shift</button></div>`;say(o[2]);$('#nx').onclick=done;$('#nx').focus()}
+    else{b.classList.add('wrongc');$('#pfb').innerHTML=`<div class="note soft">${o[2]}</div>`;say(o[2])}})}
+function jobDebrief(job){
+  const ks=job.words.map(w=>w[0]);let favTag=null;
+  body.innerHTML=`<h2>Shift complete!</h2><div class="mentor">${mentorSVG()}<div class="bubble">Great work today! ${job.summary}</div></div>
+    <div class="note">${job.duty}</div><h2 style="font-size:1.3rem">Words you used today</h2>${wordCards(ks)}
+    <div class="q"><span class="lbl">How did you like being ${art(job.name)} ${job.name.toLowerCase()}?</span><div class="chips" id="react">
+      <button class="chip" data-v="loved">Loved it</button><button class="chip" data-v="ok">It was OK</button><button class="chip" data-v="no">Not for me</button></div></div>
+    <div class="q"><span class="lbl">Which part did you like most?</span><div class="chips" id="fav">${job.tasks.map(t=>`<button class="chip" data-v="${t.tag}">${t.title}</button>`).join('')}<button class="chip" data-v="people">Helping someone</button></div></div>
+    <div class="row"><button class="btn blue" id="nx">Get my badge</button></div>`;
+  say('Shift complete! '+job.summary);
+  const pick=(id,cb)=>body.querySelectorAll(`#${id} .chip`).forEach(b=>b.onclick=()=>{body.querySelectorAll(`#${id} .chip`).forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(b.dataset.v)});
+  pick('react',v=>{S.reactions[job.id]=v;save()});pick('fav',v=>favTag=v);
+  $('#nx').onclick=()=>{
+    if(favTag)S.interests[favTag]=(S.interests[favTag]||0)+1;
+    if(!S.badges.includes(job.id))S.badges.push(job.id);S.outfit=job.id;save();
+    body.innerHTML=`<div class="stamp"><span class="big">${job.icon}</span>${job.name}</div><h2 style="text-align:center">You earned the ${job.name} badge!</h2>
+      <p class="lead" style="text-align:center;margin:0 auto">It's in your Career Passport, with all ${ks.length} new words. You've tried ${S.badges.length} of ${JOBS.length} jobs.</p>
+      <div class="row" style="justify-content:center"><button class="btn" id="nx">Back to town</button><button class="btn ghost" id="again">${job.place} games</button></div>`;
+    say(`You earned the ${job.name} badge!`);$('#nx').onclick=closeScene;$('#again').onclick=()=>stationMenu(job)};
+}
+
+// ---------- passport + map ----------
+$('#passBtn').onclick=()=>{
+  openScene();$('#steps').innerHTML='';$('#jobTag').textContent='Career Passport';$('.card').style.setProperty('--jobc','#1f4fa3');
+  const fav=Object.entries(S.interests).filter(([k])=>TAGS[k]).sort((a,b)=>b[1]-a[1])[0];
+  let sug='';
+  if(fav){const next=JOBS.filter(j=>!S.badges.includes(j.id)&&jobTags(j).includes(fav[0])).slice(0,3);
+    sug=`<div class="note">You seem to enjoy <b>${TAGS[fav[0]]}</b>.${next.length?` You might like: ${next.map(j=>`<b>${j.name}</b>`).join(', ')}.`:''}</div>`}
+  body.innerHTML=`<h2>My Career Passport</h2><p class="lead">You have tried ${S.badges.length} of ${JOBS.length} jobs.</p>
+    <div class="menu small">${JOBS.map(j=>`<button class="tile" data-go="${j.id}"><span class="e">${S.badges.includes(j.id)?j.icon:'❔'}</span><b>${j.name}</b><small>${S.badges.includes(j.id)?'<span class="done">★ Badge earned</span>':'Not tried yet'}</small></button>`).join('')}</div>
+    ${sug}<h2 style="font-size:1.3rem">My word book (${S.words.length})</h2>
+    ${S.words.length?wordCards(S.words.filter(w=>WORDS[w])):'<p class="lead">Words you learn on a shift show up here.</p>'}
+    <div class="row"><button class="btn" id="nx">Back to town</button></div>`;
+  body.querySelectorAll('[data-go]').forEach(t=>t.onclick=()=>goTo(t.dataset.go));
+  $('#nx').onclick=closeScene;
+};
+function goTo(id){const b=BUILD.find(x=>x.id===id);if(!b)return;P.x=doorX(b);cam=Math.max(0,Math.min(WORLD-VW,P.x-VW/2));closeScene();toast(`You're at the ${b.name}. Press Enter to go in!`)}
+$('#mapBtn').onclick=()=>{
+  openScene();$('#steps').innerHTML='';$('#jobTag').textContent='Town map';$('.card').style.setProperty('--jobc','#1f4fa3');
+  body.innerHTML=`<h2>Where do you want to go?</h2><p class="lead">Tap a place to ride the town bus there.</p>
+    <div class="menu small">${JOBS.map(j=>`<button class="tile" data-go="${j.id}"><span class="e">${j.icon}</span><b>${j.place}</b><small>${j.name}${S.badges.includes(j.id)?' · <span class="done">★</span>':''}</small></button>`).join('')}</div>`;
+  body.querySelectorAll('[data-go]').forEach(t=>t.onclick=()=>goTo(t.dataset.go));
+};
+addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scene').hidden)closeScene()});
+setTimeout(()=>toast('Walk to any door to try a job, or open the Town map!'),600);
+</script>
+</body>
+</html>
