@@ -1893,6 +1893,65 @@ const CHALLENGES = [
     ],
     offer: ["pulley", "belt", "lift", "piston", "speaker", "heater", "bulb", "cooler", "fan"] },
 ];
+const LEDC = c => ({ chain: [["resistor", { ohms: 20 }], ["led", { color: c }]] });
+const MORE_BUILDS = [
+  { id: "toaster", name: "Toaster", noun: "toaster", story: "A toaster browns the bread, pops it up and dings when it's ready.",
+    slots: [
+      { label: "Toast the bread", fn: "temp", count: 1, accept: { heater: "heater" } },
+      { label: "Pop the toast up", fn: "move", count: 1, accept: { piston: "piston" } },
+      { label: "Ding when ready", fn: "sound", count: 1, accept: { bell: "bell", buzzer: "buzzer" } },
+    ],
+    offer: ["heater", "piston", "bell", "fan", "cooler", "wheel", "bulb", "lift"] },
+  { id: "crossing", name: "Pedestrian crossing", noun: "crossing", story: "A crossing has red, amber and green lights and beeps when it's safe to cross.",
+    slots: [
+      { label: "Red light", fn: "light", count: 1, accept: { led: LEDC("red") }, note: "Traffic lights use LEDs, with a resistor to protect each one." },
+      { label: "Amber light", fn: "light", count: 1, accept: { led: LEDC("amber") }, note: "This one is amber." },
+      { label: "Green light", fn: "light", count: 1, accept: { led: LEDC("green") }, note: "This one is green." },
+      { label: "Crossing beeps", fn: "sound", count: 1, accept: { buzzer: "buzzer", speaker: "speaker" } },
+    ],
+    offer: ["led", "bulb", "buzzer", "fan", "heater", "screen", "piston", "cooler"] },
+  { id: "washer", name: "Washing machine", noun: "washing machine", story: "A washing machine spins the drum, heats the water, shows the time left and beeps when done.",
+    slots: [
+      { label: "Spin the drum", fn: "spin", count: 1, accept: { wheel: "wheel" } },
+      { label: "Heat the water", fn: "temp", count: 1, accept: { heater: "heater" } },
+      { label: "Show the time left", fn: "light", count: 1, accept: { screen: ["screen", { mode: "message", text: "0:45" }] } },
+      { label: "Beep when done", fn: "sound", count: 1, accept: { buzzer: "buzzer" } },
+    ],
+    offer: ["wheel", "heater", "screen", "buzzer", "fan", "cooler", "lift", "bulb"] },
+  { id: "garage", name: "Garage door", noun: "garage door", story: "Press the remote and a motor rolls the door up, with a light switching on inside.",
+    slots: [
+      { label: "Remote control", fn: "signal", count: 1, accept: { tx: { chain: [["switch", { closed: true }], "tx"] } }, note: "A button was added to press." },
+      { label: "Motor that rolls the door", fn: "spin", count: 1, accept: { wheel: { chain: ["rx", "wheel"] } }, note: "A receiver was added, so the motor runs when the remote sends its signal." },
+      { label: "Garage light", fn: "light", count: 1, accept: { bulb: "bulb" } },
+    ],
+    offer: ["tx", "wheel", "bulb", "fan", "heater", "piston", "buzzer", "cooler"] },
+  { id: "elevator", name: "Elevator", noun: "elevator", story: "An elevator lifts its car, lights it, shows the floor and dings when it arrives.",
+    slots: [
+      { label: "Lift the car", fn: "spin", count: 1, accept: { pulley: "pulley", lift: "lift" } },
+      { label: "Light inside", fn: "light", count: 1, accept: { bulb: "bulb", led: LED_SAFE } },
+      { label: "Floor display", fn: "light", count: 1, accept: { screen: ["screen", { mode: "message", text: "FLOOR 3" }] } },
+      { label: "Ding at each floor", fn: "sound", count: 1, accept: { bell: "bell" } },
+    ],
+    offer: ["pulley", "bulb", "screen", "bell", "wheel", "heater", "fan", "cooler"] },
+  { id: "drone", name: "Camera drone", noun: "drone", story: "A drone spins four rotors to fly, has lights so you can see it, and sends its video back by radio.",
+    slots: [
+      { label: "Four rotors", fn: "spin", count: 4, accept: { fan: "fan" } },
+      { label: "Lights", fn: "light", count: 2, accept: { led: LED_SAFE } },
+      { label: "Send the video", fn: "signal", count: 1, accept: { tx: "tx" } },
+    ],
+    offer: ["fan", "wheel", "led", "bulb", "tx", "heater", "piston", "speaker"] },
+  { id: "digger", name: "Digger", noun: "digger", story: "A digger pushes its arm and bucket, drives on tracks, lights the site and beeps when reversing.",
+    slots: [
+      { label: "Push the arm and bucket", fn: "move", count: 2, accept: { piston: "piston" } },
+      { label: "Drive the tracks", fn: "spin", count: 2, accept: { wheel: "wheel" } },
+      { label: "Work light", fn: "light", count: 1, accept: { bulb: "bulb" } },
+      { label: "Reversing beeper", fn: "sound", count: 1, accept: { buzzer: "buzzer" } },
+    ],
+    offer: ["piston", "wheel", "bulb", "buzzer", "lift", "fan", "heater", "cooler"] },
+];
+const BUILD_ORDER = ["dryer", "toaster", "car", "crossing", "house", "washer", "fridge", "garage", "elevator", "drone", "digger", "factory"]; // easiest first
+CHALLENGES.push(...MORE_BUILDS);
+CHALLENGES.sort((a, b) => BUILD_ORDER.indexOf(a.id) - BUILD_ORDER.indexOf(b.id));
 CHALLENGES.forEach(ch => ch.needs = [...new Set(ch.slots.map(s => s.fn))]);
 const rungsOf = a => a && a.rungs ? a.rungs : [a];
 
@@ -1953,7 +2012,7 @@ function pickDevice(type, tile) {
   }
   game.fill[slot.label] = (game.fill[slot.label] || 0) + 1;
   game.picks.push(...rungsOf(slot.accept[type]));
-  const extra = type === "led" ? " A resistor was added in front of it so it doesn't burn out." : slot.label === "Wireless doorbell" ? " A button and transmitter were added to ring it by radio." : slot.label === "Horn" ? " A switch was added so the driver can sound it." : slot.label === "Moving-machine alarm" ? " A motion sensor was added to switch it on." : "";
+  const extra = slot.note ? " " + slot.note : type === "led" ? " A resistor was added in front of it so it doesn't burn out." : slot.label === "Wireless doorbell" ? " A button and transmitter were added to ring it by radio." : slot.label === "Horn" ? " A switch was added so the driver can sound it." : slot.label === "Moving-machine alarm" ? " A motion sensor was added to switch it on." : "";
   game.msg = ["ok", `${T.name} added for "${slot.label}", on its own path to the battery.${extra}`];
   playNotes([659, 880], "triangle", 0.07, 0.06);
   rebuildJob(); renderGoal();
@@ -2017,7 +2076,9 @@ const CLIP_LEN = 6.5;
 function celebrate() {
   const id = game.active ? game.active.id : "car";
   game.celebrate = { t0: performance.now(), scene: id };
-  const cues = { car: [1.5, [440, 0, 440], "square"], house: [2.7, [659, 523], "sine"], factory: [0.6, [880, 0, 880, 0, 880], "square"], dryer: [0.3, [196, 220], "sawtooth"], fridge: [0.4, [1047], "triangle"] };
+  const cues = { car: [1.5, [440, 0, 440], "square"], house: [2.7, [659, 523], "sine"], factory: [0.6, [880, 0, 880, 0, 880], "square"], dryer: [0.3, [196, 220], "sawtooth"], fridge: [0.4, [1047], "triangle"],
+    toaster: [2.7, [1319], "sine"], crossing: [3.2, [880, 0, 880, 0, 880, 0, 880], "square"], washer: [5.1, [880, 0, 880], "square"],
+    garage: [1.6, [660, 0, 660], "sine"], elevator: [3.9, [1047, 784], "sine"], digger: [4.2, [700, 0, 700, 0, 700], "square"] };
   const q = cues[id]; if (q) setTimeout(() => playNotes(q[1], q[2], 0.16, 0.05), q[0] * 1000);
 }
 function drawCelebration(g) {
@@ -2210,6 +2271,199 @@ const SCENES = {
     g.fillStyle = "#d9a85c"; g.fillRect(452, top - 18, 30, 18);
   },
 };
+const ease = x => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+function spokeWheel(g, x, y, r, ang) {
+  g.save(); g.translate(x, y); g.rotate(ang);
+  g.fillStyle = "#1d2125"; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+  g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, r * 0.55, 0, 7); g.fill();
+  g.strokeStyle = "#5b636c"; g.lineWidth = 2; for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 2); g.beginPath(); g.moveTo(0, 0); g.lineTo(r * 0.55, 0); g.stroke(); }
+  g.restore();
+}
+function waves(g, x, y, t, col, dir = 1) {
+  g.strokeStyle = col; g.lineWidth = 2;
+  for (let i = 0; i < 3; i++) { const r = 5 + ((t * 40 + i * 10) % 30); g.save(); g.globalAlpha *= Math.max(0, 1 - r / 36); g.beginPath(); g.arc(x, y, r, dir > 0 ? -0.8 : Math.PI - 0.8, dir > 0 ? 0.8 : Math.PI + 0.8); g.stroke(); g.restore(); }
+}
+Object.assign(SCENES, {
+  toaster(g, t) {
+    chips(g, 12, 16, [["temp", "Temp: heater toasts the bread"], ["move", "Move: piston pops it up"], ["sound", "Sound: bell dings"]]);
+    g.fillStyle = "#c9a37a"; g.fillRect(0, 150, 520, 20);
+    const pop = t > 2.6 ? ease((t - 2.6) / 0.35) - 0.25 * Math.max(0, Math.sin((t - 2.95) * 9)) * Math.exp(-(t - 2.95) * 3) * (t > 2.95) : 0;
+    const brown = Math.min(1, t / 2.6);
+    // toast slices
+    for (const x of [222, 278]) {
+      const y = 70 - pop * 48;
+      g.fillStyle = `rgb(${232 - 80 * brown},${196 - 100 * brown},${130 - 80 * brown})`; rr(g, x, y, 40, 46, 10); g.fill();
+      g.strokeStyle = "#8a5a2a"; g.lineWidth = 2; g.stroke();
+    }
+    // toaster body
+    g.fillStyle = "#c7cdd3"; rr(g, 190, 88, 160, 64, 18); g.fill();
+    g.fillStyle = "#9aa2aa"; g.fillRect(190, 140, 160, 6);
+    g.fillStyle = "#3a3f46"; g.fillRect(218, 86, 48, 7); g.fillRect(274, 86, 48, 7);
+    if (t < 2.6) { radGlow(g, 270, 90, 70, "255,110,40", 0.55); g.fillStyle = "#ff7a2f"; g.fillRect(218, 86, 48, 3); g.fillRect(274, 86, 48, 3); }
+    g.fillStyle = "#4a5560"; g.fillRect(352, 100 + (t > 2.6 ? 0 : 26), 16, 8);             // the lever
+    g.fillStyle = "#4a5560"; g.fillRect(350, 96, 3, 40);
+    if (t < 2.6) for (let i = 0; i < 3; i++) { g.strokeStyle = `rgba(255,150,90,${0.5})`; g.lineWidth = 2; g.beginPath(); for (let k = 0; k < 7; k++) g.lineTo(232 + i * 34 + Math.sin(t * 6 + k + i) * 3, 66 - k * 5); g.stroke(); }
+    if (t > 2.7 && t < 4.8) bubble(g, 420, 70, "DING!");
+  },
+
+  crossing(g, t) {
+    chips(g, 12, 16, [["light", "Light: red, amber and green LEDs"], ["sound", "Sound: crossing beeps"]]);
+    g.fillStyle = "#3a3f46"; g.fillRect(0, 118, 520, 52);
+    g.fillStyle = "#f2f2f2"; for (let i = 0; i < 6; i++) g.fillRect(170 + i * 30, 118, 16, 52);
+    // light sequence: green, then amber, then red while people cross
+    const phase = t < 2 ? "green" : t < 3 ? "amber" : "red";
+    g.fillStyle = "#59626a"; g.fillRect(96, 46, 6, 72);
+    g.fillStyle = "#1f2328"; rr(g, 82, 30, 34, 82, 8); g.fill();
+    [["red", "#ff3b2f", 44], ["amber", "#ffaa1c", 70], ["green", "#33e06a", 96]].forEach(([n, col, y]) => {
+      const on = n === phase;
+      if (on) radGlow(g, 99, y, 26, n === "red" ? "255,59,47" : n === "amber" ? "255,170,28" : "51,224,106", 0.7);
+      g.fillStyle = on ? col : "#3a3f46"; g.beginPath(); g.arc(99, y, 9, 0, 7); g.fill();
+    });
+    // a car waits; a walker crosses on red
+    const carX = t < 2.6 ? 420 - t * 40 : 316;
+    g.fillStyle = K["c-spin"]; rr(g, carX, 100, 86, 24, 8); g.fill(); rr(g, carX + 16, 86, 50, 18, 6); g.fill();
+    spokeWheel(g, carX + 18, 126, 9, -t * 4 * (t < 2.6)); spokeWheel(g, carX + 68, 126, 9, -t * 4 * (t < 2.6));
+    const walk = ease((t - 3.2) / 2.6), wx = 160 + walk * 210, wy = 144;
+    if (t > 3.1) {
+      g.fillStyle = "#e3b48a"; g.beginPath(); g.arc(wx, wy - 30, 6, 0, 7); g.fill();
+      g.strokeStyle = K["c-sound"]; g.lineWidth = 5; g.lineCap = "round"; g.beginPath(); g.moveTo(wx, wy - 22); g.lineTo(wx, wy - 8); g.stroke();
+      const st = walk < 1 ? Math.sin(t * 12) * 5 : 0;
+      g.strokeStyle = "#222"; g.lineWidth = 3.5; g.beginPath(); g.moveTo(wx, wy - 8); g.lineTo(wx - 4 + st, wy + 4); g.moveTo(wx, wy - 8); g.lineTo(wx + 4 - st, wy + 4); g.stroke();
+      if (Math.floor(t * 3) % 2 === 0) bubble(g, 160, 70, "beep beep");
+    }
+  },
+
+  washer(g, t) {
+    chips(g, 12, 16, [["spin", "Spin: motor turns the drum"], ["temp", "Temp: heater warms the water"], ["light", "Light: time display"], ["sound", "Sound: done beep"]]);
+    const shake = t < 5 ? Math.sin(t * 50) * Math.min(1.6, t * 0.6) : 0;
+    g.save(); g.translate(shake, 0);
+    g.fillStyle = "#e9edf1"; rr(g, 190, 34, 140, 130, 10); g.fill(); g.strokeStyle = "#b8c4cf"; g.lineWidth = 2; g.stroke();
+    g.fillStyle = "#cfd6dd"; g.fillRect(190, 34, 140, 26);
+    // display counting down
+    const left = Math.max(0, 45 - Math.floor(t / 5 * 45));
+    g.fillStyle = "#0b1114"; g.fillRect(272, 40, 50, 14);
+    g.fillStyle = "#96ffd8"; g.font = "500 10px " + getComputedStyle(document.documentElement).getPropertyValue("--f-mono"); g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(`0:${String(left).padStart(2, "0")}`, 297, 47.5);
+    // drum window
+    g.fillStyle = "#59626a"; g.beginPath(); g.arc(260, 108, 42, 0, 7); g.fill();
+    g.save(); g.beginPath(); g.arc(260, 108, 36, 0, 7); g.clip();
+    g.fillStyle = `rgb(${150 + 60 * Math.min(1, t / 3)},${200 - 20 * Math.min(1, t / 3)},${235 - 60 * Math.min(1, t / 3)})`; g.fillRect(220, 70, 80, 80);
+    const spin = t < 5 ? t * t * 2.4 : 60 + (t - 5) * 2;
+    ["#d63b2f", "#3b6fb5", "#f0c93a", "#3b9a5a"].forEach((col, i) => { const a = spin + i * Math.PI / 2; g.fillStyle = col; g.beginPath(); g.ellipse(260 + Math.cos(a) * 18, 108 + Math.sin(a) * 18, 10, 6, a, 0, 7); g.fill(); });
+    g.fillStyle = "rgba(255,255,255,0.7)"; for (let i = 0; i < 8; i++) { const a = spin * 0.7 + i; g.beginPath(); g.arc(260 + Math.cos(a) * 26, 108 + Math.sin(a) * 26, 3, 0, 7); g.fill(); }
+    g.restore();
+    g.restore();
+    if (t > 5.1) bubble(g, 420, 70, "BEEP BEEP");
+  },
+
+  garage(g, t) {
+    chips(g, 12, 16, [["signal", "Signal: remote sends a radio signal"], ["spin", "Spin: motor rolls the door"], ["light", "Light: garage light"]]);
+    g.fillStyle = "#5a6068"; g.fillRect(0, 150, 520, 20);
+    // garage
+    g.fillStyle = "#b9a58a"; g.fillRect(300, 50, 190, 100);
+    g.fillStyle = "#7a3d14"; g.beginPath(); g.moveTo(290, 52); g.lineTo(395, 22); g.lineTo(500, 52); g.closePath(); g.fill();
+    const open = ease((t - 2.3) / 1.6), lit = t > 2.3;
+    g.fillStyle = lit ? "#4a4030" : "#222"; g.fillRect(318, 70, 154, 80);
+    if (lit) { radGlow(g, 395, 74, 90, "255,226,140", 0.6); g.fillStyle = "#fff3c0"; g.beginPath(); g.arc(395, 74, 5, 0, 7); g.fill(); }
+    // roller door sliding up
+    const dh = 80 * (1 - open);
+    g.fillStyle = "#d6d9dc"; g.fillRect(318, 70, 154, dh);
+    g.strokeStyle = "#b0b5ba"; g.lineWidth = 1.5; for (let y = 70 + 10; y < 70 + dh; y += 10) { g.beginPath(); g.moveTo(318, y); g.lineTo(472, y); g.stroke(); }
+    g.fillStyle = "#4a5560"; g.fillRect(318, 64, 154, 7);
+    if (t > 2.3 && t < 4) { g.save(); g.translate(395, 58); g.rotate(t * 10); g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, 4, 0, 7); g.fill(); g.restore(); }
+    // car drives up, presses the remote, then drives in
+    const cx = t < 1.6 ? -100 + ease(t / 1.6) * 230 : t < 4 ? 130 : 130 + ease((t - 4) / 2) * 230;
+    g.fillStyle = K.copper; rr(g, cx - 50, 116, 100, 26, 10); g.fill();
+    g.beginPath(); g.moveTo(cx - 26, 116); g.lineTo(cx - 14, 98); g.lineTo(cx + 18, 98); g.lineTo(cx + 32, 116); g.closePath(); g.fill();
+    g.fillStyle = "#bfe3ef"; g.fillRect(cx - 12, 102, 12, 12); g.fillRect(cx + 4, 102, 12, 12);
+    spokeWheel(g, cx - 28, 144, 10, t * 8); spokeWheel(g, cx + 30, 144, 10, t * 8);
+    if (t > 1.6 && t < 2.8) { waves(g, cx + 40, 104, t, K["c-signal"]); waves(g, cx + 70, 104, t + 0.3, K["c-signal"]); }
+  },
+
+  elevator(g, t) {
+    chips(g, 12, 16, [["spin", "Spin: motor and pulley lift the car"], ["light", "Light: lamp and floor display"], ["sound", "Sound: ding"]]);
+    g.save(); g.translate(0, 16); // leave room for the labels
+    // building with three floors
+    g.fillStyle = "#e4e8ec"; g.fillRect(150, 30, 220, 140);
+    g.strokeStyle = "#b8c4cf"; g.lineWidth = 2; for (const y of [76, 122]) { g.beginPath(); g.moveTo(150, y); g.lineTo(370, y); g.stroke(); }
+    g.fillStyle = "#59626a"; g.font = sceneFont(700, 11); g.textAlign = "left"; g.textBaseline = "middle";
+    ["3", "2", "1"].forEach((f, i) => g.fillText(f, 158, 53 + i * 46));
+    g.fillStyle = "#2c3036"; g.fillRect(230, 30, 64, 140);                       // shaft
+    const rise = ease((t - 0.5) / 3.4), cy = 126 - rise * 92;                     // car top
+    // pulley and cable
+    g.save(); g.translate(262, 26); g.rotate(-t * 6 * (t > 0.5 && t < 3.9)); g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, 9, 0, 7); g.fill(); g.strokeStyle = "#6c757d"; g.lineWidth = 2; g.beginPath(); g.moveTo(-9, 0); g.lineTo(9, 0); g.stroke(); g.restore();
+    g.strokeStyle = "#8b6b3d"; g.lineWidth = 2; g.beginPath(); g.moveTo(262, 30); g.lineTo(262, cy); g.stroke();
+    // car with a light inside and doors that open on arrival
+    radGlow(g, 262, cy + 10, 30, "255,236,170", 0.6);
+    g.fillStyle = "#f6e7b8"; g.fillRect(236, cy, 52, 40);
+    const doors = t > 4.3 ? ease((t - 4.3) / 0.8) : 0;
+    g.fillStyle = "#9aa2aa"; g.fillRect(236, cy, 26 - doors * 22, 40); g.fillRect(262 + doors * 22, cy, 26 - doors * 22, 40);
+    if (doors > 0.5) { g.fillStyle = "#3b6fb5"; g.beginPath(); g.arc(262, cy + 14, 5, 0, 7); g.fill(); g.fillRect(259, cy + 19, 6, 16); }
+    // floor display
+    const floor = rise < 0.33 ? 1 : rise < 0.8 ? 2 : 3;
+    g.fillStyle = "#0b1114"; g.fillRect(300, 36, 30, 18);
+    g.fillStyle = "#96ffd8"; g.font = "500 12px " + getComputedStyle(document.documentElement).getPropertyValue("--f-mono"); g.textAlign = "center"; g.fillText(floor + (rise < 1 && t > 0.5 ? "↑" : ""), 315, 45.5);
+    g.restore();
+    if (t > 3.9 && t < 5.8) bubble(g, 440, 80, "DING!");
+  },
+
+  drone(g, t) {
+    chips(g, 12, 16, [["spin", "Spin: four rotors"], ["light", "Light: LEDs"], ["signal", "Signal: sends the video"]]);
+    // hills scrolling below
+    g.fillStyle = "#cfe6d0"; g.fillRect(0, 120, 520, 50);
+    g.fillStyle = "#8cc08f"; for (let i = 0; i < 6; i++) { const x = ((i * 130 - t * 30) % 650 + 650) % 650 - 65; g.beginPath(); g.ellipse(x, 140, 70, 26, 0, Math.PI, 0); g.fill(); }
+    const lift = ease(t / 1.2), dx = 210 + Math.sin(t * 1.2) * 30, dy = 100 - lift * 40 + Math.sin(t * 3) * 3;
+    // body and arms
+    g.strokeStyle = "#3a3f46"; g.lineWidth = 5; g.beginPath(); g.moveTo(dx - 46, dy - 6); g.lineTo(dx + 46, dy - 6); g.stroke();
+    g.fillStyle = "#3a3f46"; rr(g, dx - 18, dy - 14, 36, 18, 6); g.fill();
+    g.fillStyle = "#1d2125"; g.beginPath(); g.arc(dx, dy + 8, 6, 0, 7); g.fill();                     // camera
+    // rotors: a blurred blade disc each
+    for (const rx of [-46, -24, 24, 46]) {
+      g.fillStyle = "#59626a"; g.fillRect(dx + rx - 2, dy - 12, 4, 6);
+      g.save(); g.translate(dx + rx, dy - 13); g.scale(1, 0.25); g.rotate(t * 40 + rx);
+      g.fillStyle = "rgba(90,110,130,0.35)"; g.beginPath(); g.arc(0, 0, 16, 0, 7); g.fill();
+      g.strokeStyle = K["c-spin"]; g.lineWidth = 3; g.beginPath(); g.moveTo(-16, 0); g.lineTo(16, 0); g.stroke(); g.restore();
+    }
+    const blink = Math.sin(t * 8) > 0;
+    g.fillStyle = blink ? "#ff3b2f" : "#5a1a16"; g.beginPath(); g.arc(dx - 14, dy - 4, 3, 0, 7); g.fill();
+    g.fillStyle = blink ? "#5a1a16" : "#33e06a"; g.beginPath(); g.arc(dx + 14, dy - 4, 3, 0, 7); g.fill();
+    if (blink) radGlow(g, dx - 14, dy - 4, 14, "255,59,47", 0.6); else radGlow(g, dx + 14, dy - 4, 14, "51,224,106", 0.6);
+    // video sent by radio to the controller's screen
+    waves(g, dx + 30, dy, t, K["c-signal"]);
+    g.fillStyle = "#2c3036"; rr(g, 390, 60, 100, 70, 8); g.fill();
+    g.fillStyle = "#cfe6d0"; g.fillRect(398, 68, 84, 46);
+    g.save(); g.beginPath(); g.rect(398, 68, 84, 46); g.clip();
+    g.fillStyle = "#8cc08f"; for (let i = 0; i < 3; i++) { const x = ((i * 50 - t * 30) % 150 + 150) % 150 + 380; g.beginPath(); g.ellipse(x, 114, 26, 12, 0, Math.PI, 0); g.fill(); }
+    g.restore();
+    g.fillStyle = "#ff3b2f"; g.beginPath(); g.arc(404, 74, 2.5, 0, 7); g.fill();
+    g.fillStyle = "#fff"; g.font = sceneFont(700, 8); g.textAlign = "left"; g.fillText("LIVE", 409, 75);
+  },
+
+  digger(g, t) {
+    chips(g, 12, 16, [["move", "Move: pistons push the arm and bucket"], ["spin", "Spin: tracks"], ["light", "Light: work light"], ["sound", "Sound: reversing beeper"]]);
+    g.fillStyle = "#b08a5a"; g.fillRect(0, 140, 520, 30);
+    const back = t > 4.2, bx = 200 + (back ? -(t - 4.2) * 30 : Math.min(t, 1) * 20);
+    // tracks
+    g.fillStyle = "#2c3036"; rr(g, bx - 60, 120, 120, 22, 11); g.fill();
+    for (const x of [-46, -16, 16, 46]) spokeWheel(g, bx + x, 131, 8, (back ? -1 : 1) * t * 6);
+    // cab
+    g.fillStyle = "#f0b72a"; rr(g, bx - 50, 82, 80, 40, 6); g.fill();
+    g.fillStyle = "#bfe3ef"; g.fillRect(bx - 40, 88, 26, 20);
+    // work light
+    radGlow(g, bx + 30, 84, 40, "255,236,150", 0.7); g.fillStyle = "#fff3c0"; g.beginPath(); g.arc(bx + 30, 84, 4, 0, 7); g.fill();
+    // arm (two segments) driven by pistons
+    const a1 = -0.9 + 0.35 * Math.sin(t * 1.6), a2 = 1.3 + 0.5 * Math.sin(t * 1.6 + 1);
+    const sx = bx + 30, sy = 92, ex = sx + Math.cos(a1) * 70, ey = sy + Math.sin(a1) * 70, kx = ex + Math.cos(a1 + a2) * 56, ky = ey + Math.sin(a1 + a2) * 56;
+    g.strokeStyle = "#e0a820"; g.lineWidth = 9; g.lineCap = "round"; g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(kx, ky); g.stroke();
+    g.strokeStyle = "#c9ced3"; g.lineWidth = 3; g.beginPath(); g.moveTo(sx - 4, sy + 8); g.lineTo((sx + ex) / 2, (sy + ey) / 2 + 6); g.moveTo((sx + ex) / 2 + 4, (sy + ey) / 2 - 6); g.lineTo((ex + kx) / 2, (ey + ky) / 2); g.stroke();
+    g.fillStyle = "#59626a"; g.beginPath(); g.moveTo(kx - 10, ky - 6); g.lineTo(kx + 14, ky - 2); g.lineTo(kx + 6, ky + 14); g.closePath(); g.fill();
+    // dirt in the bucket
+    if (Math.sin(t * 1.6 + 1) < 0) { g.fillStyle = "#7a5a32"; g.beginPath(); g.arc(kx + 4, ky - 2, 6, 0, 7); g.fill(); }
+    g.fillStyle = "#7a5a32"; g.beginPath(); g.ellipse(420, 142, 60, 20, 0, Math.PI, 0); g.fill();
+    if (back && Math.floor(t * 3) % 2 === 0) bubble(g, bx - 70, 64, "BEEP");
+  },
+});
+
 function drawCar(g, t) {
   const roadY = H - 64, x = -200 + (t / 5.5) * (W + 400), y = roadY + 18;
   g.fillStyle = "rgba(34,38,44,0.92)"; g.fillRect(0, roadY, W, 64);
