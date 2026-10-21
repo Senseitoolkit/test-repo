@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}img{max-width:100%}</style>
+<title>World Explorer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen app. Thin top bar with 4 tabs; each screen fills the rest. Photo Hunt is a full-bleed panorama with floating controls. */
+:root{
+  --bg:#F3F7F6; --surface:#FFFFFF; --surface-2:#E8F0EF; --ink:#1C2A31; --muted:#5A6C74; --line:#D6E2E1;
+  --sky:#2F7FB5; --sky-soft:#DCEBF5; --leaf:#2F8F63; --leaf-soft:#DDF1E6;
+  --ocean:#E2EEF4; --land:#CDE3D3;
+  --shadow:0 6px 24px rgba(20,45,60,.14);
+  --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Lexend", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F171B; --surface:#17232A; --surface-2:#1F2E36; --ink:#E6EFF1; --muted:#9AAEB6; --line:#2A3B44;
+  --sky:#6CB0E0; --sky-soft:#1D3546; --leaf:#5CC08E; --leaf-soft:#1C3A2C;
+  --ocean:#14242C; --land:#2A4436; --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F171B; --surface:#17232A; --surface-2:#1F2E36; --ink:#E6EFF1; --muted:#9AAEB6; --line:#2A3B44;
+  --sky:#6CB0E0; --sky-soft:#1D3546; --leaf:#5CC08E; --leaf-soft:#1C3A2C;
+  --ocean:#14242C; --land:#2A4436; --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark}
+
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+.app{height:100%;display:flex;flex-direction:column}
+.flag{width:36px;height:24px;border-radius:4px;flex:none;display:inline-block;vertical-align:middle;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+.flag.sm{width:27px;height:18px;border-radius:3px}
+
+.top{display:flex;align-items:center;gap:12px 20px;flex-wrap:wrap;background:var(--surface);border-bottom:1px solid var(--line);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:1.15rem;letter-spacing:-.01em}
+.brand svg{width:30px;height:30px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+.tab{border:0;background:transparent;padding:9px 16px;border-radius:999px;font-weight:500;color:var(--muted);display:flex;align-items:center;gap:8px}
+.tab svg{width:20px;height:20px}
+.tab[aria-current="page"]{background:var(--sky-soft);color:var(--ink)}
+.tab:disabled{opacity:.4;cursor:default}
+main{flex:1;min-height:0;position:relative}
+.screen{position:absolute;inset:0;overflow:auto}
+.wrap{max-width:1180px;margin:0 auto;padding-block:24px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+p{margin:0}
+
+/* Explore */
+.explore{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.explore{grid-template-columns:1fr}}
+.mapcard{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:14px;min-width:0}
+.mapcard svg{width:100%;height:auto;display:block}
+.pin{cursor:pointer}
+.pin .dot{fill:var(--sky);stroke:var(--surface);stroke-width:3}
+.pin .halo{fill:var(--sky);opacity:0}
+.pin.sel .halo{opacity:.2}
+.pin.sel .dot{fill:var(--leaf)}
+.pin text{font-family:var(--body);font-size:14px;font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--ocean);stroke-width:4px}
+@media (prefers-reduced-motion:no-preference){.pin.sel .halo{animation:pulse 2.4s ease-in-out infinite;transform-origin:center;transform-box:fill-box}}
+@keyframes pulse{0%,100%{transform:scale(.8);opacity:.25}50%{transform:scale(1.3);opacity:.08}}
+.destcard{background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+.destcard canvas{width:100%;aspect-ratio:16/9;display:block;max-width:100%;background:var(--surface-2)}
+.destbody{padding:18px 20px 22px;display:grid;gap:14px}
+.destname{display:flex;align-items:center;gap:12px}
+.destname h2{font-size:2rem;letter-spacing:-.02em}
+.findlist{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.findlist li{background:var(--surface-2);border-radius:999px;padding:5px 12px;font-size:.9rem}
+.findlist li.nat{background:var(--leaf-soft)}
+.big{border:0;background:var(--sky);color:#fff;font-weight:600;font-size:1.05rem;padding:13px 22px;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;gap:10px}
+.big svg{width:22px;height:22px}
+.ghost{border:1.5px solid var(--line);background:var(--surface);padding:11px 16px;border-radius:14px;font-weight:500;display:inline-flex;align-items:center;gap:8px}
+.ghost svg{width:20px;height:20px}
+.destgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:20px}
+.destbtn{border:1.5px solid var(--line);background:var(--surface);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px;text-align:left}
+.destbtn b{display:block;font-weight:600;line-height:1.2}
+.destbtn small{display:block;color:var(--muted);font-size:.8rem}
+.destbtn[aria-pressed="true"]{border-color:var(--sky);background:var(--sky-soft)}
+
+/* Hunt */
+.pano{position:absolute;inset:0;touch-action:none;cursor:grab;background:#BFDCEC;overflow:hidden}
+.pano.drag{cursor:grabbing}
+.pano canvas{width:100%;height:100%;display:block}
+.vf{position:absolute;left:20%;right:20%;top:15%;bottom:15%;pointer-events:none}
+.vf i{position:absolute;width:44px;height:44px;border:4px solid rgba(255,255,255,.95);filter:drop-shadow(0 1px 3px rgba(0,0,0,.45));transition:border-color .25s}
+.vf i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-radius:14px 0 0 0}
+.vf i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-radius:0 14px 0 0}
+.vf i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-radius:0 0 0 14px}
+.vf i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-radius:0 0 14px 0}
+.vf.hot i{border-color:#7DE2A9}
+.float{position:absolute;background:var(--surface);color:var(--ink);border-radius:18px;box-shadow:var(--shadow)}
+.place{left:calc(14px + env(safe-area-inset-left,0px));top:14px;display:flex;align-items:center;gap:10px;padding:8px}
+.place button{border:0;background:var(--surface-2);width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+.place button svg{width:22px;height:22px}
+.place b{font-family:var(--display);font-size:1.15rem;padding-right:4px}
+.list{right:calc(14px + env(safe-area-inset-right,0px));top:14px;width:min(310px,calc(100% - 28px));overflow:hidden}
+.list>button{width:100%;border:0;background:transparent;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;font-weight:600}
+.progress{display:flex;gap:5px;align-items:center}
+.progress span{width:12px;height:12px;border-radius:50%;background:var(--line)}
+.progress span.on{background:var(--leaf)}
+.progress em{font-style:normal;font-size:.85rem;color:var(--muted);margin-left:4px}
+.list ul{list-style:none;margin:0;padding:0 8px 10px;display:grid;gap:4px}
+.list li{display:grid;grid-template-columns:30px 1fr 36px;align-items:center;gap:8px;padding:8px;border-radius:12px}
+.list li.done{background:var(--leaf-soft)}
+.check{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center}
+.done .check{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.check svg{width:16px;height:16px}
+.list li b{display:block;font-size:.95rem}
+.list li small{display:block;color:var(--muted);font-size:.82rem;line-height:1.3}
+.say{border:0;background:transparent;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;color:var(--muted);flex:none}
+.say:hover{background:var(--surface-2)}
+.say svg{width:20px;height:20px}
+.controls{position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;align-items:center;gap:22px;pointer-events:none}
+.controls>*{pointer-events:auto}
+.round{width:58px;height:58px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center}
+.round svg{width:28px;height:28px}
+.shutter{width:92px;height:92px;border-radius:50%;border:6px solid var(--surface);background:var(--sky);color:#fff;box-shadow:var(--shadow),inset 0 0 0 3px rgba(255,255,255,.35);display:grid;place-items:center;transition:transform .1s}
+.shutter svg{width:40px;height:40px}
+.shutter:active,.shutter.click{transform:scale(.9)}
+.zoom{right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));display:grid;overflow:hidden}
+.zoom button{border:0;background:transparent;width:52px;height:52px;display:grid;place-items:center}
+.zoom button+button{border-top:1px solid var(--line)}
+.zoom svg{width:24px;height:24px}
+.hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(20,35,45,.72);color:#fff;padding:10px 18px;border-radius:999px;font-weight:500;pointer-events:none;transition:opacity .6s;display:flex;gap:8px;align-items:center;white-space:nowrap}
+.hint svg{width:22px;height:22px}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:5}
+.flash.go{animation:flash .55s ease-out}
+@keyframes flash{0%{opacity:1}100%{opacity:0}}
+@media (max-width:640px){.controls{gap:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px))}.round{width:50px;height:50px}.shutter{width:80px;height:80px}
+  .zoom{bottom:auto;top:84px}.place{top:auto;bottom:calc(120px + env(safe-area-inset-bottom,0px))}}
+
+/* Modal */
+.modal{position:fixed;inset:0;background:rgba(10,20,28,.55);display:grid;place-items:center;z-index:50;
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.sheet{background:var(--surface);border-radius:24px;max-width:600px;width:100%;max-height:100%;overflow:auto;box-shadow:var(--shadow)}
+.sheet>img{width:100%;display:block;border-radius:24px 24px 0 0}
+.sheet .in{padding:20px 22px 22px;display:grid;gap:16px}
+.sheet h2{font-size:1.7rem}
+.lead{font-size:1.08rem}
+.info{display:grid;gap:14px}
+.info section{display:grid;gap:4px}
+.info h3{font-family:var(--body);font-size:.78rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.info ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:.82rem;font-weight:600;padding:4px 11px;border-radius:999px;background:var(--surface-2)}
+.chip.nat{background:var(--leaf-soft);color:var(--leaf)}
+.chip.made{background:var(--sky-soft);color:var(--sky)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.note{background:var(--leaf-soft);border-radius:14px;padding:12px 14px;font-weight:500}
+
+/* Discoveries */
+.pagehead{display:flex;align-items:end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.pagehead h1{font-size:2.2rem;letter-spacing:-.02em}
+.group{margin-bottom:34px}
+.ghead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.ghead h2{font-size:1.35rem}
+.gabout{color:var(--muted);max-width:68ch;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.photo{border:0;padding:0;background:var(--surface);border-radius:16px;overflow:hidden;text-align:left;box-shadow:0 0 0 1px var(--line)}
+.photo img{width:100%;aspect-ratio:8/5;object-fit:cover;display:block}
+.photo div{padding:10px 12px 12px;display:grid;gap:6px}
+.photo b{font-weight:600;line-height:1.25}
+.photo .more{font-size:.82rem;color:var(--sky);font-weight:600}
+.empty{background:var(--surface);border:1.5px dashed var(--line);border-radius:22px;padding:40px 24px;text-align:center;display:grid;gap:14px;justify-items:center}
+.empty svg{width:56px;height:56px;color:var(--sky)}
+
+/* Compare */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:600px){.pair{grid-template-columns:1fr}}
+.slot{border:2px dashed var(--line);background:var(--surface);border-radius:20px;overflow:hidden;min-height:180px;display:grid;padding:0;text-align:left;align-content:start}
+.slot.active{border-color:var(--sky);border-style:solid}
+.slot img{width:100%;aspect-ratio:8/5;object-fit:cover;display:block}
+.slot .cap{padding:10px 14px 14px;display:grid;gap:2px}
+.slot .ph{display:grid;place-items:center;color:var(--muted);padding:60px 20px}
+.strip{display:flex;gap:10px;overflow-x:auto;padding-block:6px 10px}
+.strip button{flex:none;border:3px solid transparent;padding:0;border-radius:12px;overflow:hidden;background:var(--surface);width:130px;text-align:left}
+.strip button[aria-pressed="true"]{border-color:var(--sky)}
+.strip img{width:100%;aspect-ratio:8/5;object-fit:cover;display:block}
+.strip span{display:block;font-size:.78rem;padding:4px 8px;line-height:1.25}
+.notice{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px;display:grid;gap:14px;margin-top:18px}
+.notice h2{font-size:1.4rem}
+.choices{display:flex;flex-wrap:wrap;gap:10px}
+.choice{border:2px solid var(--line);background:var(--surface);border-radius:14px;padding:12px 18px;font-weight:600}
+.choice[aria-pressed="true"]{border-color:var(--leaf);background:var(--leaf-soft)}
+.prompts{display:grid;gap:8px;list-style:none;margin:0;padding:0}
+.prompts li{display:flex;align-items:center;gap:8px;background:var(--surface-2);border-radius:12px;padding:8px 8px 8px 14px;font-weight:500}
+.prompts li span{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:12px;z-index:60;font-weight:500}
+@media (prefers-reduced-motion:reduce){.flash.go{animation-duration:.2s}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--sky-soft)"/><path d="M5 13c4 1 6-2 9 0s1 6 5 6 6-3 8-2M8 24c3-2 5 0 8-1M14 4c-1 3 2 4 1 7" stroke="var(--leaf)" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="16" cy="16" r="14" fill="none" stroke="var(--sky)" stroke-width="2"/></svg>
+      World Explorer
+    </div>
+    <nav class="tabs" aria-label="Screens">
+      <button class="tab" data-go="explore"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>Explore</button>
+      <button class="tab" data-go="hunt" id="tabHunt" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Photo Hunt</button>
+      <button class="tab" data-go="disc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="15.5" cy="8.5" r="1.5"/></svg>My Discoveries</button>
+      <button class="tab" data-go="compare"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="7.5" height="14" rx="2"/><rect x="13.5" y="5" width="7.5" height="14" rx="2"/></svg>Compare</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="screen" id="s-explore">
+      <div class="wrap">
+        <div class="pagehead"><div><div class="eyebrow">Where we are in place and time</div><h1>Where will you explore?</h1></div></div>
+        <div class="explore">
+          <div class="mapcard">
+            <svg id="map" viewBox="0 0 1000 500" role="img" aria-label="World map with destinations"></svg>
+            <div class="destgrid" id="destGrid"></div>
+          </div>
+          <div class="destcard">
+            <canvas id="preview" width="640" height="360" aria-hidden="true"></canvas>
+            <div class="destbody" id="destBody"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="s-hunt" hidden>
+      <div class="pano" id="pano"><canvas id="cv"></canvas>
+        <div class="vf" id="vf"><i></i><i></i><i></i><i></i></div>
+        <div class="flash" id="flash"></div>
+        <div class="hint" id="hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12H3m0 0 3-3m-3 3 3 3M16 12h5m0 0-3-3m3 3-3 3"/></svg>Drag to look around</div>
+      </div>
+      <div class="float place"><button id="backBtn" aria-label="Back to the map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button><span id="placeFlag"></span><b id="placeName"></b><button id="soundBtn" aria-label="Sound on"></button></div>
+      <div class="float list" id="list">
+        <button id="listToggle" aria-expanded="true"><span>Photo Hunt</span><span class="progress" id="dots"></span></button>
+        <ul id="huntList"></ul>
+      </div>
+      <div class="float zoom">
+        <button id="zin" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="zout" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+      </div>
+      <div class="controls">
+        <button class="round" id="left" aria-label="Look left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button class="shutter" id="shutter" aria-label="Take a photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+        <button class="round" id="right" aria-label="Look right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+    </section>
+
+    <section class="screen" id="s-disc" hidden><div class="wrap" id="discWrap"></div></section>
+    <section class="screen" id="s-compare" hidden><div class="wrap" id="cmpWrap"></div></section>
+  </main>
+</div>
+<div class="modal" id="modal" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+
+<script>
+(function(){
+const W=4000,H=1000;
+const ICON={
+  speak:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>',
+  mute:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="m17 9 5 6m0-6-5 6"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>'
+};
+
+/* ---------- Flags (simplified) ---------- */
+function starPts(cx,cy,r){let p=[];for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rr=i%2?r*.42:r;p.push((cx+Math.cos(a)*rr).toFixed(2)+','+(cy+Math.sin(a)*rr).toFixed(2))}return p.join(' ')}
+const UJ='<rect width="30" height="20" fill="#012169"/><path d="M0 0 30 20M30 0 0 20" stroke="#fff" stroke-width="4"/><path d="M0 0 30 20M30 0 0 20" stroke="#C8102E" stroke-width="1.3"/><path d="M15 0v20M0 10h30" stroke="#fff" stroke-width="6"/><path d="M15 0v20M0 10h30" stroke="#C8102E" stroke-width="3.4"/>';
+const FLAGS={
+ fr:'<rect width="10" height="20" fill="#1F4FA0"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#D7353D"/>',
+ jp:'<rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="6" fill="#BC002D"/>',
+ eg:'<rect width="30" height="20" fill="#000"/><rect width="30" height="13.33" fill="#fff"/><rect width="30" height="6.67" fill="#CE1126"/><circle cx="15" cy="10" r="2" fill="#C09300"/>',
+ au:'<rect width="30" height="20" fill="#012169"/><g transform="scale(.5)">'+UJ+'</g><polygon points="'+starPts(7.5,15,2.4)+'" fill="#fff"/>'+[[22.5,16.5],[19.5,9],[22.5,4],[26,8],[24.2,11.5]].map(([x,y],i)=>'<polygon points="'+starPts(x,y,i==4?.8:1.3)+'" fill="#fff"/>').join(''),
+ br:'<rect width="30" height="20" fill="#009C3B"/><path d="M15 2.5 27 10 15 17.5 3 10z" fill="#FFDF00"/><circle cx="15" cy="10" r="4.6" fill="#002776"/>',
+ cn:'<rect width="30" height="20" fill="#DE2910"/><polygon points="'+starPts(5,5,3)+'" fill="#FFDE00"/>'+[[10,2],[12,4],[12,7],[10,9]].map(([x,y])=>'<polygon points="'+starPts(x,y,1)+'" fill="#FFDE00"/>').join(''),
+ us:Array.from({length:13},(_,i)=>'<rect y="'+(i*20/13).toFixed(2)+'" width="30" height="'+(20/13+.05).toFixed(2)+'" fill="'+(i%2?'#fff':'#B22234')+'"/>').join('')+'<rect width="12" height="10.77" fill="#3C3B6E"/>',
+ in:'<rect width="30" height="6.67" fill="#FF9933"/><rect y="6.67" width="30" height="6.67" fill="#fff"/><rect y="13.33" width="30" height="6.67" fill="#138808"/><circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".7"/><circle cx="15" cy="10" r=".6" fill="#000080"/>',
+ kr:'<rect width="30" height="20" fill="#fff"/><path d="M10 10a5 5 0 0 1 10 0z" fill="#CD2E3A"/><path d="M10 10a5 5 0 0 0 10 0z" fill="#0047A0"/><circle cx="12.5" cy="10" r="2.5" fill="#CD2E3A"/><circle cx="17.5" cy="10" r="2.5" fill="#0047A0"/>'+[[5.5,4,-33.7],[24.5,4,33.7],[5.5,16,33.7],[24.5,16,-33.7]].map(([x,y,a])=>'<g transform="translate('+x+' '+y+') rotate('+a+')" fill="#000"><rect x="-2.6" y="-1.9" width="5.2" height=".8"/><rect x="-2.6" y="-.4" width="5.2" height=".8"/><rect x="-2.6" y="1.1" width="5.2" height=".8"/></g>').join(''),
+ gb:UJ
+};
+const flag=(code,cls='')=>`<svg class="flag ${cls}" viewBox="0 0 30 20" preserveAspectRatio="none" aria-hidden="true">${FLAGS[code]}</svg>`;
+
+/* ---------- Painting toolkit ---------- */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function newPano(seed){const c=document.createElement('canvas');c.width=W;c.height=H;return{c,g:c.getContext('2d'),R:rng(seed)}}
+const pick=(R,a)=>a[Math.floor(R()*a.length)];
+function rect(g,x,y,w,h,c){g.fillStyle=c;g.fillRect(x,y,w,h)}
+function poly(g,pts,c){g.fillStyle=c;g.beginPath();pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.fill()}
+function circle(g,x,y,r,c){g.fillStyle=c;g.beginPath();g.arc(x,y,r,0,7);g.fill()}
+function ell(g,x,y,rx,ry,c,rot=0){g.fillStyle=c;g.beginPath();g.ellipse(x,y,rx,ry,rot,0,7);g.fill()}
+function line(g,x1,y1,x2,y2,c,w){g.strokeStyle=c;g.lineWidth=w;g.beginPath();g.moveTo(x1,y1);g.lineTo(x2,y2);g.stroke()}
+function sky(g,a,b,hz=680){const gr=g.createLinearGradient(0,0,0,hz);gr.addColorStop(0,a);gr.addColorStop(1,b);g.fillStyle=gr;g.fillRect(0,0,W,hz+60)}
+function cloud(g,x,y,s){g.fillStyle='rgba(255,255,255,.85)';[[0,0,1],[.8,.15,.7],[-.8,.2,.65],[.3,-.35,.6]].forEach(([dx,dy,r])=>{g.beginPath();g.ellipse(x+dx*s,y+dy*s,s*r,s*r*.6,0,0,7);g.fill()})}
+function clouds(g,R,n,y0=60,y1=250){for(let i=0;i<n;i++){const x=R()*W,y=y0+R()*(y1-y0),s=32+R()*50;[x,x-W,x+W].forEach(xx=>cloud(g,xx,y,s))}}
+function ridgeFn(R,base,amp,peaks=[]){const k=[1+Math.floor(R()*3),4+Math.floor(R()*3),9+Math.floor(R()*4)],p=[R()*6.28,R()*6.28,R()*6.28];
+  return x=>{let y=base-amp*(.55+.25*Math.sin(6.2832*k[0]*x/W+p[0])+.15*Math.sin(6.2832*k[1]*x/W+p[1])+.06*Math.sin(6.2832*k[2]*x/W+p[2]));
+    peaks.forEach(([cx,h,w])=>{let d=Math.abs(x-cx);d=Math.min(d,W-d);y-=h*Math.exp(-(d*d)/(2*w*w))});return y}}
+function fillRidge(g,f,col,bottom=H){g.fillStyle=col;g.beginPath();g.moveTo(0,bottom);for(let x=0;x<=W;x+=8)g.lineTo(x,f(x));g.lineTo(W,bottom);g.closePath();g.fill()}
+function band(g,y0,y1,a,b,x0=0,x1=W){const gr=g.createLinearGradient(0,y0,0,y1);gr.addColorStop(0,a);gr.addColorStop(1,b);g.fillStyle=gr;g.fillRect(x0,y0,x1-x0,y1-y0)}
+function ripples(g,R,y0,y1,n,x0=0,x1=W,col='rgba(255,255,255,.35)'){g.strokeStyle=col;g.lineWidth=2;for(let i=0;i<n;i++){const x=x0+R()*(x1-x0),y=y0+R()*(y1-y0),l=10+R()*30;g.beginPath();g.moveTo(x,y);g.lineTo(Math.min(x+l,x1),y);g.stroke()}}
+function paving(g,y0,y1,col,lc,step=24){rect(g,0,y0,W,y1-y0,col);g.strokeStyle=lc;g.lineWidth=1.5;for(let y=y0,r=0;y<y1;y+=step,r++){g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();for(let x=(r%2)*step*1.25;x<W;x+=step*2.5){g.beginPath();g.moveTo(x,y);g.lineTo(x,Math.min(y+step,y1));g.stroke()}}}
+function tree(g,x,y,r,c){rect(g,x-3,y-r*.3,6,r*.3+2,'#5C4A3A');g.fillStyle=c;g.beginPath();g.arc(x,y-r*.9,r,0,7);g.arc(x-r*.6,y-r*.55,r*.7,0,7);g.arc(x+r*.6,y-r*.55,r*.7,0,7);g.fill()}
+function pine(g,x,y,h,c){rect(g,x-3,y-h*.22,6,h*.22,'#5C4A3A');poly(g,[[x,y-h],[x+h*.24,y-h*.18],[x-h*.24,y-h*.18]],c)}
+function cypress(g,x,y,h,c){rect(g,x-2,y-8,4,8,'#5C4A3A');ell(g,x,y-h*.5,h*.11,h*.5,c)}
+function palm(g,x,y,h){g.strokeStyle='#7A5A3A';g.lineWidth=7;g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+14,y-h*.5,x+6,y-h);g.stroke();g.strokeStyle='#3F7D3F';g.lineWidth=6;
+  for(let a=0;a<7;a++){const an=-Math.PI+a*Math.PI/6,ex=x+6+Math.cos(an)*h*.42;g.beginPath();g.moveTo(x+6,y-h);g.quadraticCurveTo(x+6+Math.cos(an)*h*.25,y-h-26,ex,y-h+18+Math.abs(Math.cos(an))*16);g.stroke()}}
+function windows(g,x,y,w,h,col,sx=16,sy=22,ww=8,wh=12){g.fillStyle=col;for(let yy=y;yy+wh<=y+h;yy+=sy)for(let xx=x;xx+ww<=x+w;xx+=sx)g.fillRect(xx,yy,ww,wh)}
+function block(g,x,w,top,base,col,win){rect(g,x,top,w,base-top,col);windows(g,x+6,top+10,w-12,base-top-16,win,Math.max(10,w/6),16,5,9);rect(g,x+w-4,top,4,base-top,'rgba(0,0,0,.12)')}
+function asianRoof(g,cx,y,w,h,col){const L=cx-w/2,Rr=cx+w/2;g.fillStyle=col;g.beginPath();g.moveTo(L,y+h*.62);g.quadraticCurveTo(L+w*.08,y+h,L+w*.18,y+h);g.lineTo(Rr-w*.18,y+h);g.quadraticCurveTo(Rr-w*.08,y+h,Rr,y+h*.62);
+  g.quadraticCurveTo(Rr-w*.16,y+h*.55,cx+w*.28,y);g.lineTo(cx-w*.28,y);g.quadraticCurveTo(L+w*.16,y+h*.55,L,y+h*.62);g.closePath();g.fill();rect(g,cx-w*.3,y-4,w*.6,7,'rgba(0,0,0,.28)');rect(g,L+w*.18,y+h-5,w*.64,5,'rgba(0,0,0,.18)')}
+function hallBody(g,cx,top,w,h,body,pillar,bandCol){rect(g,cx-w/2,top,w,h,body);const n=Math.max(3,Math.round(w/50));for(let i=0;i<=n;i++)rect(g,cx-w/2+i*(w-10)/n,top,10,h,pillar);if(bandCol)rect(g,cx-w/2,top,w,12,bandCol)}
+function pagoda(g,cx,base,tiers,w0,sh,body,roof){let y=base;for(let i=0;i<tiers;i++){const w=w0*(1-i*.1),bh=sh*.5,rh=sh*.42;rect(g,cx-w*.3,y-bh,w*.6,bh,body);rect(g,cx-w*.3,y-bh*.6,w*.6,bh*.25,'rgba(255,255,255,.18)');asianRoof(g,cx,y-bh-rh*.75,w,rh,roof);y=y-bh-rh*.55}
+  rect(g,cx-3,y-sh*1.1,6,sh*1.1,'#7B6A4E');for(let k=1;k<6;k++)rect(g,cx-8,y-k*sh*.17,16,4,'#8E7B5A')}
+function lantern(g,x,y){rect(g,x-12,y-10,24,10,'#9B9488');rect(g,x-6,y-40,12,30,'#A9A296');rect(g,x-15,y-52,30,12,'#8E877B');poly(g,[[x-17,y-52],[x+17,y-52],[x,y-70]],'#8E877B');rect(g,x-5,y-36,10,8,'#5A544A')}
+function boat(g,x,y,s){poly(g,[[x-30*s,y],[x+30*s,y],[x+22*s,y+10*s],[x-22*s,y+10*s]],'#F4F4F0');line(g,x,y,x,y-60*s,'#6B6B6B',2);poly(g,[[x+2,y-58*s],[x+2,y-4],[x+28*s,y-6]],'#FFFFFF');poly(g,[[x-2,y-50*s],[x-2,y-6],[x-20*s,y-8]],'#EDEDE6')}
+function setY(d,id,y){d.targets.find(t=>t.id===id).y=Math.round(y)}
+
+/* ---------- Scenes ---------- */
+function paintParis(d){const{c,g,R}=newPano(11);
+  sky(g,'#78B3DC','#EAF3F6',670);clouds(g,R,16);
+  function bld(x,w,top){const fac=pick(R,['#EADFC8','#E3D5BA','#EFE6D3','#DCCDB1']);rect(g,x,top+26,w,650-top-26,fac);poly(g,[[x+2,top+26],[x+8,top],[x+w-8,top],[x+w-2,top+26]],'#6E7D8B');
+    for(let cx=x+10;cx<x+w-14;cx+=20)rect(g,cx,top+8,8,12,'#E7E1D4');rect(g,x,top+26,w,3,'rgba(0,0,0,.12)');windows(g,x+8,top+40,w-16,600-top,'#8FA1AE',18,24,8,13)}
+  let x=0;while(x<W){const w=70+R()*90;if(!((x+w>800&&x<1200)||(x+w>3080&&x<3500)))bld(x,w,515+R()*60);x+=w}
+  poly(g,[[3370,560],[3400,520],[3490,520],[3500,560]],'#6E7D8B');rect(g,3370,560,130,90,'#D3C5A6');poly(g,[[3428,290],[3438,525],[3418,525]],'#5E6A75');
+  const st='#DACDB1',sh='#C2B391';rect(g,3130,360,75,290,st);rect(g,3295,360,75,290,st);rect(g,3205,430,90,220,st);rect(g,3190,360,15,290,sh);rect(g,3355,360,15,290,sh);
+  [360,430,560].forEach(yy=>rect(g,3130,yy,240,6,'#BFAF8C'));for(let i=3134;i<3370;i+=8)rect(g,i,352,4,8,'#CDBF9F');
+  [[3150,380],[3175,380],[3315,380],[3340,380]].forEach(([wx,wy])=>{g.fillStyle='#5D5446';g.beginPath();g.moveTo(wx,wy+70);g.lineTo(wx,wy+10);g.arc(wx+7,wy+10,7,Math.PI,0);g.lineTo(wx+14,wy+70);g.fill()});
+  circle(g,3250,490,32,'#7C93A8');g.strokeStyle=st;g.lineWidth=3;for(let a=0;a<12;a++)line(g,3250,490,3250+Math.cos(a*Math.PI/6)*32,490+Math.sin(a*Math.PI/6)*32,st,3);
+  g.lineWidth=5;g.strokeStyle='#BFAF8C';g.beginPath();g.arc(3250,490,34,0,7);g.stroke();
+  [[3167,20],[3250,26],[3332,20]].forEach(([dx,hw])=>{g.fillStyle='#5D5446';g.beginPath();g.moveTo(dx-hw,650);g.lineTo(dx-hw,598);g.arc(dx,598,hw,Math.PI,0);g.lineTo(dx+hw,650);g.fill()});
+  for(let tx=740;tx<1270;tx+=26)tree(g,tx,650,18+R()*8,R()>.5?'#4E8A57':'#5E9A5F');
+  for(let i=0;i<40;i++){const tx=R()*W;if(Math.abs(tx-1000)<300||Math.abs(tx-3290)<230||Math.abs(tx-2000)<270)continue;tree(g,tx,652,12+R()*8,R()>.5?'#5A9460':'#6AA36A')}
+  const cx=1000;g.save();g.beginPath();g.moveTo(cx-6,110);g.lineTo(cx+6,110);g.lineTo(cx+18,200);g.lineTo(cx+45,400);g.lineTo(cx+85,520);g.lineTo(cx+100,560);
+  g.lineTo(cx+152,652);g.lineTo(cx+106,652);g.quadraticCurveTo(cx+92,584,cx,578);g.quadraticCurveTo(cx-92,584,cx-106,652);g.lineTo(cx-152,652);g.lineTo(cx-100,560);g.lineTo(cx-85,520);g.lineTo(cx-45,400);g.lineTo(cx-18,200);g.closePath();
+  g.fillStyle='#8A6650';g.fill();g.clip();g.strokeStyle='rgba(255,226,196,.28)';g.lineWidth=1.6;
+  for(let k=-700;k<700;k+=13){g.beginPath();g.moveTo(cx+k,100);g.lineTo(cx+k+560,660);g.stroke();g.beginPath();g.moveTo(cx+k,100);g.lineTo(cx+k-560,660);g.stroke()}
+  rect(g,cx,0,200,700,'rgba(255,255,255,.08)');g.restore();
+  rect(g,cx-98,518,196,14,'#6A4C3B');rect(g,cx-54,396,108,9,'#6A4C3B');rect(g,cx-25,196,50,7,'#6A4C3B');line(g,cx,110,cx,72,'#6A4C3B',3);
+  rect(g,0,648,W,22,'#CDBF9F');rect(g,0,668,W,3,'rgba(0,0,0,.1)');
+  band(g,670,835,'#7DB4D0','#4C8BAF');ripples(g,R,680,825,260);
+  poly(g,[[cx-120,672],[cx+120,672],[cx+10,800],[cx-10,800]],'rgba(110,80,60,.18)');
+  rect(g,1760,642,480,84,'#D4C6A8');[1840,2000,2160].forEach(ax=>{g.fillStyle='#3F7798';g.beginPath();g.moveTo(ax-58,726);g.lineTo(ax-58,700);g.ellipse(ax,700,58,30,0,Math.PI,0);g.lineTo(ax+58,726);g.fill();
+    g.strokeStyle='#BBAC8C';g.lineWidth=3;g.beginPath();g.ellipse(ax,700,61,33,0,Math.PI,0);g.stroke()});
+  rect(g,1755,636,490,8,'#C3B493');for(let bx=1762;bx<2240;bx+=10)rect(g,bx,624,4,12,'#C3B493');rect(g,1755,620,490,5,'#C3B493');
+  [1790,1900,2100,2210].forEach(lx=>{rect(g,lx-2,584,4,40,'#2F3A40');circle(g,lx,582,6,'#F2D27A')});
+  [1752,2248].forEach(px=>{rect(g,px-11,548,22,100,'#CBBC9C');circle(g,px,540,10,'#D2A43F');rect(g,px-3,520,6,20,'#D2A43F')});
+  for(let i=0;i<5;i++)rect(g,3810+i*28,800+i*3,22,2,'rgba(255,255,255,.4)');
+  poly(g,[[3590,786],[3812,786],[3795,810],[3606,810]],'#F4F5F2');rect(g,3598,798,206,5,'#2F6D9A');rect(g,3622,762,160,24,'#A8CCDD');
+  for(let fx=3622;fx<=3782;fx+=20)line(g,fx,762,fx,786,'#E9ECEA',3);rect(g,3618,758,168,5,'#E9ECEA');rect(g,3795,738,3,22,'#3A4A55');rect(g,3798,738,14,9,'#D7353D');
+  rect(g,0,832,W,22,'#BFB193');rect(g,0,852,W,4,'#A99B7C');paving(g,856,1000,'#D9D0BF','rgba(120,105,80,.18)',24);
+  [[330,'#C65A49'],[470,'#2F7FB5'],[610,'#C65A49']].forEach(([ux,col])=>{rect(g,ux-2,800,4,120,'#4A4440');poly(g,[[ux-70,812],[ux,770],[ux+70,812]],col);poly(g,[[ux-24,812],[ux,770],[ux+24,812]],'rgba(255,255,255,.7)');
+    rect(g,ux-28,900,56,6,'#5A524C');rect(g,ux-3,906,6,30,'#5A524C');[ux-50,ux+38].forEach(q=>{rect(g,q,905,12,4,'#3E3A37');rect(g,q,880,3,50,'#3E3A37');rect(g,q+9,905,3,25,'#3E3A37')})});
+  [180,1350,2350,3000,3950].forEach(lx=>{rect(g,lx-3,700,6,196,'#2E3A40');rect(g,lx-9,892,18,8,'#2E3A40');poly(g,[[lx-10,700],[lx+10,700],[lx+6,676],[lx-6,676]],'#2E3A40');rect(g,lx-5,682,10,14,'#F2D27A')});
+  const gold='#D2A43F',gd='#A87F25';rect(g,2648,880,104,22,'#B8AB94');rect(g,2662,768,76,114,'#C9BCA4');rect(g,2655,760,90,10,'#B3A68E');
+  ell(g,2700,728,44,18,gold);[2668,2682,2712,2728].forEach((lx,i)=>rect(g,lx,736,6,i%2?24:22,gd));poly(g,[[2726,720],[2748,684],[2760,690],[2744,730]],gold);ell(g,2760,690,13,7,gold,-.5);
+  g.strokeStyle=gold;g.lineWidth=6;g.beginPath();g.moveTo(2658,726);g.quadraticCurveTo(2645,740,2650,758);g.stroke();rect(g,2692,688,16,30,gold);circle(g,2700,680,8,gold);
+  line(g,2708,698,2722,620,gd,3);poly(g,[[2722,620],[2748,630],[2721,642]],gold);
+  [[90,860],[1180,862],[2450,860],[3560,862]].forEach(([tx,ty])=>tree(g,tx,ty,34,'#4F8A55'));
+  return c}
+
+function paintKyoto(d){const{c,g,R}=newPano(21);
+  sky(g,'#8CC2E4','#F2F1EA',680);clouds(g,R,12);
+  const far=ridgeFn(R,640,250,[[3200,190,300]]);fillRidge(g,far,'#87A493');
+  for(let i=0;i<500;i++){const x=R()*W,y=far(x)+10+R()*120;circle(g,x,y,7+R()*9,pick(R,['#7A9C84','#6E9378','#8FAE95','#A9786A']))}
+  const mid=ridgeFn(R,730,100);fillRidge(g,mid,'#5F8B5B');
+  const leaf=['#C8452E','#E07B2E','#D9A23A','#5E8A5A','#4C7A4C','#B83B2A'];
+  for(let i=0;i<900;i++){const x=R()*W,y=mid(x)+R()*120;circle(g,x,y,8+R()*12,pick(R,leaf))}
+  paving(g,850,1000,'#D9D3C6','rgba(110,100,85,.18)',26);
+  ell(g,2430,960,520,240,'#557F4E');
+  const red='#C8402F',dk='#5A4A42';
+  rect(g,450,795,300,55,'#BDB6A8');for(let y=805;y<850;y+=10)rect(g,450,y,300,2,'rgba(0,0,0,.12)');
+  rect(g,480,690,240,105,'#EFE6D6');for(const px of [480,530,590,650,700])rect(g,px,690,20,105,red);
+  rect(g,500,712,32,83,'#3E2E28');rect(g,668,712,32,83,'#3E2E28');rect(g,570,700,60,95,'#2E2420');
+  asianRoof(g,600,632,320,62,dk);rect(g,520,590,160,46,red);asianRoof(g,600,528,300,72,dk);
+  rect(g,1320,795,160,14,'#B1AA9C');pagoda(g,1400,798,3,190,140,red,dk);
+  asianRoof(g,2430,405,640,150,'#5C4D42');hallBody(g,2430,548,540,104,'#9A6A43','#7E5233','#EFE6D6');rect(g,2200,575,460,60,'rgba(40,25,15,.25)');
+  for(let x=2130;x<=2730;x+=36)rect(g,x,668,11,272,'#7A5234');for(const y of [720,790,860])rect(g,2125,y,615,7,'#6A4528');
+  rect(g,2118,652,624,18,'#A7774D');rect(g,2118,634,624,5,'#8A5D38');for(let x=2120;x<=2740;x+=30)rect(g,x,634,4,18,'#8A5D38');
+  for(let i=0;i<70;i++)circle(g,2000+R()*860,880+R()*90,18+R()*24,pick(R,leaf));
+  [900,1060,1780,1950,2990,3360].forEach(x=>lantern(g,x,866));
+  [[200,880,34,'#D2492F'],[1150,885,30,'#E39A35'],[1720,885,28,'#C73C2B']].forEach(([x,y,r,col])=>tree(g,x,y,r,col));
+  [[3640,920,58,'#D2492F'],[3760,905,74,'#E57A2C'],[3860,925,56,'#C73C2B'],[3700,950,44,'#E39A35']].forEach(([x,y,r,col])=>tree(g,x,y,r,col));
+  setY(d,'mountain',far(3200)+60);return c}
+
+function paintGiza(d){const{c,g,R}=newPano(31);
+  sky(g,'#8FC1E2','#F6E9D2',680);circle(g,2400,150,46,'rgba(255,248,220,.9)');clouds(g,R,5,60,200);
+  fillRidge(g,ridgeFn(R,668,22),'#D8C49E');band(g,662,1000,'#E9D2A1','#D4B074');
+  g.strokeStyle='rgba(160,120,60,.18)';g.lineWidth=3;for(let i=0;i<14;i++){const y0=705+i*21;g.beginPath();for(let x=0;x<=W;x+=20){const y=y0+12*Math.sin(6.2832*(x/W)*(3+i%4)+i);x?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}
+  function pyr(cx,base,hw,apex,cap){poly(g,[[cx-hw,base],[cx,apex],[cx+hw*.18,base]],'#DCBC80');poly(g,[[cx,apex],[cx+hw,base],[cx+hw*.18,base]],'#B8955C');
+    g.save();g.beginPath();g.moveTo(cx-hw,base);g.lineTo(cx,apex);g.lineTo(cx+hw,base);g.closePath();g.clip();g.strokeStyle='rgba(90,60,30,.2)';g.lineWidth=1.5;
+    for(let y=apex;y<base;y+=10){g.beginPath();g.moveTo(cx-hw,y);g.lineTo(cx+hw,y);g.stroke()}if(cap)rect(g,cx-hw,apex,2*hw,(base-apex)*cap,'rgba(246,234,208,.85)');g.restore()}
+  pyr(2120,672,130,530);pyr(1720,672,290,300,.14);pyr(1100,682,340,235);
+  palm(g,2330,700,90);palm(g,2400,705,110);palm(g,2470,698,80);
+  const s1='#C9A66B',s2='#A9874E';ell(g,2740,800,250,12,'rgba(120,90,40,.25)');
+  ell(g,2640,742,110,34,s1);rect(g,2540,745,330,48,s1);rect(g,2840,770,120,24,s1);rect(g,2840,770,120,5,'#D8B87E');
+  poly(g,[[2822,700],[2902,700],[2918,772],[2810,772]],s2);for(let k=0;k<6;k++)line(g,2814+k*3,712+k*10,2914-k*1,712+k*10,'#C3A26A',3);
+  poly(g,[[2830,706],[2838,636],[2892,636],[2900,706]],'#BF9A5E');rect(g,2845,650,44,62,s1);rect(g,2872,664,10,5,'#6E5530');rect(g,2886,676,8,12,'#B8955C');
+  g.strokeStyle=s1;g.lineWidth=10;g.beginPath();g.moveTo(2545,780);g.quadraticCurveTo(2510,790,2520,760);g.stroke();
+  function blk(x,y,w,h){rect(g,x,y,w,h,'#CFB27C');rect(g,x,y,w,6,'#E0C690');rect(g,x+w-7,y,7,h,'#B0925C');g.strokeStyle='rgba(90,60,30,.4)';g.lineWidth=2;g.strokeRect(x,y,w,h);
+    line(g,x+w*.3,y+10,x+w*.42,y+h*.6,'rgba(90,60,30,.25)',2)}
+  [130,250,370].forEach(x=>blk(x,830,116,80));[190,310].forEach(x=>blk(x,750,118,80));blk(250,680,116,70);ell(g,310,912,230,10,'rgba(120,90,40,.25)');
+  g.fillStyle='#E4C68C';g.beginPath();g.moveTo(3020,1000);g.quadraticCurveTo(3240,700,3480,860);g.quadraticCurveTo(3580,740,3700,900);g.lineTo(3700,1000);g.fill();
+  g.fillStyle='#C9A468';g.beginPath();g.moveTo(3240,782);g.quadraticCurveTo(3330,800,3480,860);g.quadraticCurveTo(3330,850,3240,782);g.fill();
+  [[3150,700,6],[3420,705,4],[3560,712,5]].forEach(([x,y,r])=>ell(g,x,y,r*3,r,'#B89A66'));
+  const cm='#B4834C';ell(g,3830,905,80,8,'rgba(120,90,40,.3)');[3780,3800,3858,3878].forEach(x=>rect(g,x,826,9,78,'#A47645'));
+  ell(g,3830,820,72,27,cm);ell(g,3822,792,33,25,cm);poly(g,[[3888,815],[3912,760],[3930,764],[3902,832]],cm);ell(g,3934,762,19,10,cm);rect(g,3940,756,4,4,'#3B2A1A');
+  rect(g,3795,800,56,16,'#B83A2C');for(let x=3797;x<3850;x+=6)rect(g,x,816,3,6,'#E9C23B');line(g,3760,815,3752,850,cm,5);
+  return c}
+
+function paintSydney(d){const{c,g,R}=newPano(41);
+  sky(g,'#6DB2E3','#E8F3F8',660);clouds(g,R,10);
+  const far=ridgeFn(R,652,45);fillRidge(g,far,'#6E9A6C');for(let i=0;i<300;i++){const x=R()*W;rect(g,x,far(x)+6+R()*20,6,4,pick(R,['#E9E2D3','#C96F4F','#F2F0EA']))}
+  band(g,656,890,'#3C8BBD','#1E5D8C');ripples(g,R,664,885,320);
+  rect(g,610,640,600,52,'#CDB892');rect(g,610,640,600,6,'#DCCAA4');for(let y=652;y<692;y+=8)rect(g,610,y,600,2,'rgba(0,0,0,.08)');
+  function sail(bx,w,h){const tx=bx+w*.78,ty=645-h;poly(g,[[bx-4,646],[bx+w*.14,646-h*.32],[bx+w*.24,646]],'#4F5E66');
+    g.beginPath();g.moveTo(bx,646);g.quadraticCurveTo(bx+w*.12,645-h*.85,tx,ty);g.quadraticCurveTo(bx+w*.98,645-h*.45,bx+w,646);g.closePath();g.fillStyle='#F6F5EF';g.fill();
+    g.strokeStyle='rgba(150,150,140,.45)';g.lineWidth=2;for(let k=1;k<5;k++)line(g,bx+w*k/5,646,tx,ty,'rgba(150,150,140,.45)',2)}
+  sail(1080,150,110);sail(1150,120,85);sail(650,210,190);sail(780,220,240);sail(900,210,205);sail(1010,170,150);
+  rect(g,1400,598,1000,14,'#4C565C');
+  g.save();g.beginPath();g.moveTo(1620,600);g.quadraticCurveTo(1900,250,2180,600);g.lineTo(2150,600);g.quadraticCurveTo(1900,370,1650,600);g.closePath();g.fillStyle='#717C82';g.fill();g.clip();
+  for(let k=1400;k<2400;k+=22){line(g,k,300,k+300,620,'#59646A',3);line(g,k,300,k-300,620,'#59646A',3)}g.restore();
+  for(let x=1680;x<=2120;x+=28){const t=(x-1650)/500,y=(1-t)*(1-t)*600+2*(1-t)*t*370+t*t*600;line(g,x,y,x,600,'#59646A',2)}
+  [1560,2175].forEach(x=>{rect(g,x,515,65,140,'#CDBD9C');rect(g,x,515,65,10,'#B8A784');rect(g,x+48,515,17,140,'rgba(0,0,0,.08)');for(let y=540;y<650;y+=22)rect(g,x,y,65,2,'rgba(0,0,0,.1)')});
+  let x=2440;while(x<2980){const w=50+R()*60;block(g,x,w,330+R()*260,655,pick(R,['#9DB4C4','#B9C6CF','#7E98AC','#C9C2B5','#8FA7B8']),'rgba(255,255,255,.55)');x+=w+4}
+  rect(g,2905,230,9,425,'#B8BEC2');ell(g,2909,250,26,22,'#C9A14A');rect(g,2883,246,52,6,'#8E7230');
+  for(let i=0;i<6;i++)rect(g,3420+i*26,768+i*3,20,2,'rgba(255,255,255,.5)');
+  poly(g,[[3190,760],[3410,760],[3395,792],[3205,792]],'#1E6B3E');rect(g,3215,730,170,30,'#E9C23B');windows(g,3222,738,160,16,'#F7F7F2',16,20,10,10);rect(g,3250,708,100,22,'#E9C23B');windows(g,3256,713,90,12,'#F7F7F2',14,20,9,9);rect(g,3290,694,20,14,'#1E6B3E');
+  boat(g,3560,725,1);boat(g,3700,705,.75);boat(g,3840,738,1.1);
+  rect(g,0,888,W,32,'#D7B988');for(let x2=0;x2<W;x2+=60)rect(g,x2,888,2,32,'rgba(0,0,0,.1)');band(g,920,1000,'#7FB069','#6A9C58');
+  tree(g,1300,935,58,'#3F6E3A');tree(g,150,935,48,'#4A7A42');tree(g,3040,935,40,'#3F6E3A');
+  return c}
+
+function paintRio(d){const{c,g,R}=newPano(51);
+  sky(g,'#5FA8E0','#F1F4EF',660);clouds(g,R,10);
+  const far=ridgeFn(R,660,170,[[1000,230,130],[3700,60,300]]);fillRidge(g,far,'#4F8A5E');
+  for(let i=0;i<700;i++){const x=R()*W,y=far(x)+6+R()*110;circle(g,x,y,6+R()*7,pick(R,['#457F52','#5B9664','#3E7449','#6BA36A']))}
+  const ty=far(1000)+2,st='#ECE8DF',s2='#CFC9BC';
+  rect(g,991,ty-20,18,20,s2);poly(g,[[985,ty-20],[1015,ty-20],[1009,ty-86],[991,ty-86]],st);rect(g,955,ty-86,90,10,st);rect(g,1000,ty-86,45,10,s2);circle(g,1000,ty-95,8,st);
+  band(g,670,830,'#4AA0CF','#2B79AC');ripples(g,R,675,800,260);
+  g.strokeStyle='rgba(255,255,255,.8)';g.lineWidth=3;for(let k=0;k<3;k++){g.beginPath();for(let x=0;x<=W;x+=20){const y=800+k*9+4*Math.sin(6.2832*x*40/W+k);x?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}
+  ell(g,2260,712,140,130,'#5E8F5E');
+  g.save();g.beginPath();g.moveTo(1840,705);g.bezierCurveTo(1850,480,1930,352,1995,350);g.bezierCurveTo(2070,348,2120,470,2140,705);g.closePath();g.fillStyle='#8C8579';g.fill();g.clip();rect(g,1840,340,140,370,'#A29B8E');g.restore();
+  for(let i=0;i<40;i++)circle(g,1850+R()*290,660+R()*45,10+R()*10,pick(R,['#4F8A5E','#5E9A66']));
+  line(g,2245,590,1995,358,'#3A3A3A',1.5);rect(g,2112,466,14,10,'#D94A3A');
+  band(g,818,892,'#EEDBA8','#E2C88E');
+  x0:{let x=3150;while(x<3650){const w=55+R()*45,top=560+R()*140;block(g,x,w,top,892,pick(R,['#F2EEE6','#EAD9C2','#DDE6EA','#F0E2D0']),'rgba(80,110,130,.55)');for(let y=top+24;y<880;y+=16)rect(g,x+2,y,w-6,2,'rgba(0,0,0,.08)');x+=w+3}}
+  ell(g,3820,880,190,250,'#3F7A45');for(let i=0;i<260;i++){const a=R()*Math.PI,r=R();circle(g,3820+Math.cos(a)*190*r*1.05,880-Math.sin(a)*250*r,12+R()*14,pick(R,['#2F6B3A','#3F7A45','#4F8A55','#5E9A5C']))}
+  rect(g,0,892,W,108,'#F2F0EA');g.strokeStyle='#2F2F2F';g.lineWidth=9;for(let k=0;k<5;k++){g.beginPath();for(let x=0;x<=W;x+=10){const y=905+k*22+7*Math.sin(6.2832*x*64/W);x?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}
+  [1500,2560,2960].forEach(x=>palm(g,x,895,150));
+  setY(d,'christ',ty-60);return c}
+
+function paintBeijing(d){const{c,g,R}=newPano(61);
+  sky(g,'#8EC0E3','#EEF1EC',640);clouds(g,R,9);
+  fillRidge(g,ridgeFn(R,560,190,[[3000,40,250]]),'#A7B6BE');
+  const mid=ridgeFn(R,700,230,[[3000,170,240],[600,60,300]]);fillRidge(g,mid,'#6E8F5E');
+  for(let i=0;i<1100;i++){const x=R()*W,y=mid(x)+14+R()*200;if(y<840)circle(g,x,y,7+R()*7,pick(R,['#6E8F4E','#5F8248','#C9782E','#B8462B','#D9A23A','#7D9A55']))}
+  g.strokeStyle='#B9A88A';g.lineWidth=16;g.beginPath();for(let x=0;x<=W;x+=6){const y=mid(x)+4;x?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+  for(let x=0;x<W;x+=12)rect(g,x-3,mid(x)-11,6,6,'#A8977A');
+  [450,1150,2650,3400].forEach(x=>{const y=mid(x)+6;rect(g,x-20,y-40,40,40,'#B3A285');for(let k=0;k<4;k++)rect(g,x-20+k*11,y-46,7,6,'#B3A285');rect(g,x-10,y-28,6,10,'#4A4036');rect(g,x+4,y-28,6,10,'#4A4036')});
+  for(let i=0;i<34;i++)tree(g,3450+R()*320,830,28+R()*26,pick(R,['#D07A2C','#B8462B','#6E8F4E','#D9A23A']));
+  const tw='#AA9F8B';rect(g,2090,520,220,350,tw);rect(g,2270,520,40,350,'rgba(0,0,0,.1)');for(let y=540;y<870;y+=14)rect(g,2090,y,220,1.5,'rgba(0,0,0,.12)');
+  for(let k=0;k<7;k++)rect(g,2092+k*32,500,22,20,tw);
+  function arch(x,y,w,h,col){g.fillStyle=col;g.beginPath();g.moveTo(x,y+h);g.lineTo(x,y+w/2);g.arc(x+w/2,y+w/2,w/2,Math.PI,0);g.lineTo(x+w,y+h);g.fill()}
+  [2120,2185,2250].forEach(x=>{arch(x,570,30,48,'#3D352C');arch(x,680,30,48,'#3D352C')});arch(2172,780,56,90,'#3D352C');
+  band(g,872,1000,'#9C9486','#8A8276');for(let y=884;y<1000;y+=16)rect(g,0,y,W,1.5,'rgba(0,0,0,.12)');
+  rect(g,0,826,W,48,'#A79F90');for(let x=0;x<W;x+=44){rect(g,x,806,28,20,'#A79F90');rect(g,x+11,812,6,8,'#4A4036')}rect(g,0,826,W,3,'rgba(0,0,0,.12)');
+  for(let i=0;i<15;i++){const y=1000-i*15,w=280-i*13;rect(g,1500-w/2,y-15,w,15,i%2?'#958D80':'#A39B8E');rect(g,1500-w/2,y-15,w,2,'rgba(255,255,255,.2)');
+    rect(g,1500-w/2-16,y-34,14,34,'#A79F90');rect(g,1500+w/2+2,y-34,14,34,'#A79F90')}
+  setY(d,'wall',mid(600)+4);setY(d,'mountains',mid(3000)+40);return c}
+
+function paintTokyo(d){const{c,g,R}=newPano(71);
+  sky(g,'#86BEE6','#EEF3F5',660);clouds(g,R,9);
+  let x=0;while(x<W){const w=40+R()*70;block(g,x,w,560+R()*90,668,pick(R,['#B9C3CA','#C9CED2','#A9B6BF','#D8D4CC']),'rgba(255,255,255,.4)');x+=w+2}
+  poly(g,[[3285,668],[3355,668],[3332,140],[3308,140]],'#E6EAED');g.save();g.beginPath();g.moveTo(3285,668);g.lineTo(3355,668);g.lineTo(3332,140);g.lineTo(3308,140);g.closePath();g.clip();
+  for(let k=100;k<700;k+=16){line(g,3250,k,3390,k+60,'#BAC5CD',1.5);line(g,3390,k,3250,k+60,'#BAC5CD',1.5)}g.restore();
+  rect(g,3284,318,72,34,'#CFD7DD');rect(g,3284,328,72,10,'#7E98AC');rect(g,3296,234,48,18,'#CFD7DD');rect(g,3296,239,48,6,'#7E98AC');rect(g,3317,50,6,92,'#CFD7DD');
+  paving(g,668,1000,'#D6D0C4','rgba(110,100,85,.16)',26);
+  band(g,690,700,'#9A9A96','#8A8A86',3440,3990);band(g,700,832,'#5E9BC0','#3F7DA6',3440,3990);ripples(g,R,710,825,90,3450,3985);rect(g,3440,832,550,14,'#9A9A96');
+  rect(g,3470,676,170,16,'#C73A2E');[3500,3560,3620].forEach(ax=>{g.strokeStyle='#C73A2E';g.lineWidth=6;g.beginPath();g.arc(ax,720,28,Math.PI,0);g.stroke()});
+  poly(g,[[3740,770],[3900,770],[3885,794],[3755,794]],'#D6DEE3');ell(g,3820,764,62,14,'#4C88B5');
+  const red='#B8352A',rf='#3E3B38';
+  rect(g,440,800,320,16,'#A8A399');rect(g,450,652,90,148,'#8E2A22');rect(g,660,652,90,148,'#8E2A22');for(let k=0;k<6;k++){rect(g,458+k*14,662,3,130,'#5A1A15');rect(g,668+k*14,662,3,130,'#5A1A15')}
+  rect(g,540,652,120,148,'#3B2C27');[450,535,655,740].forEach(px=>rect(g,px,640,12,160,red));rect(g,440,636,320,16,red);asianRoof(g,600,566,430,78,rf);
+  ell(g,600,712,54,72,'#C8332B');rect(g,552,636,96,14,'#1C1C1C');rect(g,562,770,76,12,'#1C1C1C');g.fillStyle='#1C1C1C';g.font='bold 42px serif';g.textAlign='center';g.fillText('雷',600,704);g.fillText('門',600,752);
+  pagoda(g,1050,790,5,120,82,red,'#4E4A46');
+  rect(g,1330,770,540,44,'#BDB6A8');for(let y=780;y<814;y+=9)rect(g,1330,y,540,2,'rgba(0,0,0,.1)');hallBody(g,1600,642,440,128,'#E7DCC8',red,red);rect(g,1520,684,160,86,'#3A2A22');ell(g,1600,704,24,32,'#C8332B');
+  asianRoof(g,1600,562,600,96,'#7F8B90');asianRoof(g,1600,452,390,118,'#7F8B90');
+  ell(g,1600,880,46,10,'#3E342B');rect(g,1572,836,56,44,'#5A4A3A');asianRoof(g,1600,806,100,32,'#4A3E33');g.strokeStyle='rgba(235,235,235,.75)';g.lineWidth=4;for(let k=0;k<3;k++){g.beginPath();g.moveTo(1590+k*10,804);g.bezierCurveTo(1570+k*12,770,1625+k*8,750,1600+k*10,710);g.stroke()}
+  for(let sx=2040;sx<2560;sx+=74){rect(g,sx,760,70,140,'#EADFCB');rect(g,sx-2,740,74,22,rf);rect(g,sx+7,800,56,92,'#F2C66B');
+    for(let k=0;k<6;k++)rect(g,sx+10+k*9,840+(k%2)*12,7,10,pick(R,['#C8332B','#2F7FB5','#2F8F63','#E9C23B','#7A4FA0']));
+    poly(g,[[sx,762],[sx+70,762],[sx+66,782],[sx+4,782]],pick(R,['#C8332B','#2F5E8A','#C8332B']));circle(g,sx+35,790,9,'#D9402F')}
+  return c}
+
+function paintNY(d){const{c,g,R}=newPano(81);
+  sky(g,'#7FB5E2','#EEF2F4',650);clouds(g,R,10);
+  rect(g,0,640,W,20,'#7F9C86');for(let i=0;i<200;i++)rect(g,R()*W,628+R()*12,8,12,pick(R,['#A9B3B8','#C2C7C4']));
+  band(g,656,920,'#4A86AE','#2C5E85');ripples(g,R,664,915,360);
+  let x=1450;while(x<2850){const w=40+R()*55;if(!(x+w>2030&&x<2170))block(g,x,w,420+R()*200,662,pick(R,['#9FAAB3','#B9BDB9','#8496A4','#C7BFAE','#A7B5BF']),'rgba(255,255,255,.45)');x+=w+3}
+  const es='#CFC6B2';block(g,2030,140,480,662,es,'rgba(90,100,110,.5)');block(g,2050,100,400,482,es,'rgba(90,100,110,.5)');block(g,2068,64,330,402,es,'rgba(90,100,110,.5)');block(g,2085,30,270,332,es,'rgba(90,100,110,.5)');poly(g,[[2092,272],[2108,272],[2101,170],[2099,170]],'#B8B0A0');
+  rect(g,2750,638,800,14,'#5B5248');
+  [2960,3240].forEach(tx=>{rect(g,tx-30,450,60,210,'#C2A989');rect(g,tx-34,450,68,12,'#A99173');[-13,13].forEach(dx=>poly(g,[[tx+dx-9,600],[tx+dx-9,520],[tx+dx,498],[tx+dx+9,520],[tx+dx+9,600]],'#AFCBE0'))});
+  g.strokeStyle='#4E5A63';g.lineWidth=3;g.beginPath();g.moveTo(2750,640);g.quadraticCurveTo(2860,600,2930,456);g.moveTo(2990,456);g.quadraticCurveTo(3100,690,3210,456);g.moveTo(3270,456);g.quadraticCurveTo(3340,600,3500,640);g.stroke();
+  for(let sx=3000;sx<3210;sx+=12){const t=(sx-2990)/220,y=(1-t)*(1-t)*456+2*(1-t)*t*690+t*t*456;line(g,sx,y,sx,638,'#4E5A63',1)}
+  for(let k=1;k<7;k++){line(g,2960,460,2960+k*34,638,'rgba(78,90,99,.6)',1);line(g,3240,460,3240-k*34,638,'rgba(78,90,99,.6)',1)}
+  ell(g,800,700,230,32,'#6E9D62');for(let i=0;i<14;i++)circle(g,620+R()*360,684+R()*8,8,'#4F7F49');
+  poly(g,[[690,690],[910,690],[890,650],[710,650]],'#B9B2A5');poly(g,[[765,650],[835,650],[828,562],[772,562]],'#C8C0B0');rect(g,766,554,68,12,'#B5AD9C');
+  const gr='#6DB09D';poly(g,[[778,556],[822,556],[812,468],[788,468]],gr);rect(g,800,470,12,86,'#5A9C89');circle(g,800,458,10,gr);for(let k=0;k<7;k++){const a=-Math.PI+k*Math.PI/6;line(g,800,456,800+Math.cos(a)*18,456+Math.sin(a)*18,gr,2.5)}
+  poly(g,[[806,482],[816,482],[832,388],[824,386]],gr);rect(g,822,374,13,16,'#5A9C89');ell(g,828,365,7,11,'#E9B949');rect(g,780,488,12,26,'#4F9583');
+  for(let i=0;i<6;i++)rect(g,3870+i*20,790+i*2,16,2,'rgba(255,255,255,.5)');
+  poly(g,[[3560,750],[3860,750],[3845,796],[3575,796]],'#EE7A22');rect(g,3590,722,240,28,'#F08A30');windows(g,3598,730,230,12,'#2E3A44',16,20,10,10);rect(g,3640,702,140,20,'#F08A30');windows(g,3648,707,130,10,'#2E3A44',16,20,10,8);rect(g,3560,748,300,4,'#F7F2EA');
+  [[180,560],[230,600],[300,540],[340,620],[150,640]].forEach(([gx,gy])=>{g.strokeStyle='#F4F4F2';g.lineWidth=3;g.beginPath();g.moveTo(gx-12,gy);g.quadraticCurveTo(gx-6,gy-8,gx,gy);g.quadraticCurveTo(gx+6,gy-8,gx+12,gy);g.stroke()});
+  ell(g,260,800,10,14,'#D94A3A');rect(g,258,780,4,10,'#D94A3A');
+  rect(g,0,918,W,12,'#2F4A3C');for(let rx=0;rx<W;rx+=30)rect(g,rx,930,4,40,'#2F4A3C');rect(g,0,960,W,40,'#C9C3B6');
+  return c}
+
+function paintAgra(d){const{c,g,R}=newPano(91);
+  sky(g,'#9CC8E6','#F7EEDF',660);clouds(g,R,6);
+  fillRidge(g,ridgeFn(R,668,25),'#9BAE8E');band(g,668,1000,'#86B562','#6E9E4F');rect(g,0,890,W,26,'#D9AE8E');
+  const m='#F3F0E9',ms='#DCD5C8';
+  rect(g,660,610,680,80,m);rect(g,660,610,680,6,ms);for(let ax=676;ax<1330;ax+=34){g.fillStyle=ms;g.beginPath();g.moveTo(ax,684);g.lineTo(ax,650);g.quadraticCurveTo(ax+11,632,ax+22,650);g.lineTo(ax+22,684);g.fill()}
+  function minaret(x){poly(g,[[x-15,612],[x+15,612],[x+10,330],[x-10,330]],m);[520,430,345].forEach(y=>rect(g,x-17,y,34,7,ms));rect(g,x-12,312,24,20,m);ell(g,x,308,14,15,m);line(g,x,293,x,280,'#C9A24A',2)}
+  minaret(700);minaret(1300);
+  poly(g,[[830,612],[1170,612],[1170,420],[1150,400],[850,400],[830,420]],m);rect(g,1130,400,40,212,'rgba(0,0,0,.05)');
+  rect(g,935,440,130,172,'#E9E3D8');g.fillStyle='#D3CABA';g.beginPath();g.moveTo(950,612);g.lineTo(950,500);g.quadraticCurveTo(950,462,1000,450);g.quadraticCurveTo(1050,462,1050,500);g.lineTo(1050,612);g.fill();
+  [-120,120].forEach(dx=>[445,530].forEach(y=>{g.fillStyle='#DED7CA';g.beginPath();g.moveTo(1000+dx-25,y+72);g.lineTo(1000+dx-25,y+25);g.quadraticCurveTo(1000+dx-25,y+4,1000+dx,y);g.quadraticCurveTo(1000+dx+25,y+4,1000+dx+25,y+25);g.lineTo(1000+dx+25,y+72);g.fill()}));
+  [860,1140].forEach(x=>{rect(g,x-24,372,48,30,m);ell(g,x,366,25,22,m);line(g,x,344,x,332,'#C9A24A',2)});
+  rect(g,920,374,160,30,m);g.beginPath();g.moveTo(912,380);g.bezierCurveTo(870,300,940,240,1000,172);g.bezierCurveTo(1060,240,1130,300,1088,380);g.closePath();g.fillStyle=m;g.fill();
+  g.save();g.clip();rect(g,1020,160,100,230,'rgba(0,0,0,.05)');g.restore();rect(g,998,138,4,38,'#C9A24A');circle(g,1000,150,5,'#C9A24A');
+  for(let x=1640;x<=2200;x+=40)cypress(g,x,810,120,'#2F5E3A');rect(g,1650,820,550,44,'#9CC77A');for(let i=0;i<160;i++)circle(g,1655+R()*540,824+R()*36,3.5,pick(R,['#E85A7A','#F2C14E','#E2483A','#FFFFFF']));
+  for(let x=2340;x<=2860;x+=52)cypress(g,x,742,92,'#2F5E3A');rect(g,2330,748,540,84,'#EDE6DA');band(g,762,820,'#8CC3DE','#4F94BA',2345,2855);
+  for(let x=2370;x<2850;x+=30){g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=2;g.beginPath();g.moveTo(x,792);g.quadraticCurveTo(x+4,762,x+9,792);g.stroke()}
+  rect(g,3030,668,580,20,'#B5B79A');band(g,686,792,'#8FAFB4','#6C8E96',3030,3610);ripples(g,R,694,786,80,3035,3605);
+  poly(g,[[3030,792],[3610,792],[3610,842],[3030,842]],'#D9C9A0');poly(g,[[3300,738],[3380,738],[3370,750],[3310,750]],'#7A5A3A');line(g,3340,738,3340,712,'#7A5A3A',2);
+  rect(g,3020,842,600,22,'#B5533C');
+  const sd='#B5533C',w2='#F0E9DD';rect(g,3730,440,240,282,sd);rect(g,3780,470,140,252,'#A84A35');g.strokeStyle=w2;g.lineWidth=3;g.strokeRect(3780,470,140,252);
+  g.fillStyle='#6E2F22';g.beginPath();g.moveTo(3805,722);g.lineTo(3805,560);g.quadraticCurveTo(3805,515,3850,500);g.quadraticCurveTo(3895,515,3895,560);g.lineTo(3895,722);g.fill();g.strokeStyle=w2;g.lineWidth=5;g.stroke();
+  [3734,3966].forEach(tx=>{rect(g,tx-12,400,24,322,'#A84A35');rect(g,tx-14,388,28,14,w2);ell(g,tx,384,15,14,w2)});rect(g,3746,436,208,8,w2);
+  for(let i=0;i<11;i++)ell(g,3756+i*19,430,8,9,w2);
+  return c}
+
+function paintSeoul(d){const{c,g,R}=newPano(101);
+  sky(g,'#8DC2E6','#EFF2F0',660);clouds(g,R,10);
+  const mt=ridgeFn(R,650,150,[[1550,230,180],[3700,50,200]]);fillRidge(g,mt,'#6E8A6A');
+  for(let i=0;i<500;i++){const x=R()*W,y=mt(x)+8+R()*100;circle(g,x,y,6+R()*7,pick(R,['#5E7D5C','#7A9672','#688A62']))}
+  for(let i=0;i<40;i++){const x=1430+R()*240;ell(g,x,mt(x)+10+R()*80,16+R()*14,8,'rgba(205,200,188,.8)')}
+  const ty0=mt(3700)+10;rect(g,3694,ty0-200,12,200,'#E9ECEE');rect(g,3682,ty0-232,36,32,'#D9DEE2');rect(g,3682,ty0-222,36,8,'#7E98AC');rect(g,3698,ty0-310,4,80,'#D9DEE2');
+  rect(g,0,742,W,50,'#C9B9A0');rect(g,0,730,W,14,'#4A4E52');
+  paving(g,792,1000,'#D9D4C8','rgba(110,100,85,.15)',30);
+  const red='#A9372C',tl='#3C8C86',rf='#4A4E52';
+  rect(g,640,800,520,40,'#C9C4B8');rect(g,680,770,440,32,'#D1CCC0');for(let px=640;px<=1160;px+=26)rect(g,px,792,5,10,'#B9B4A8');
+  hallBody(g,900,662,380,108,'#E9DDC8',red,tl);asianRoof(g,900,602,520,70,rf);rect(g,780,560,240,48,red);rect(g,780,560,240,10,tl);asianRoof(g,900,482,420,95,rf);
+  for(let k=0;k<5;k++){circle(g,700+k*9,654-k*4,3,'#2E3236');circle(g,1100-k*9,654-k*4,3,'#2E3236')}
+  [1350,1720].forEach(x=>pine(g,x,800,95,'#3F6B47'));
+  rect(g,2120,640,360,152,'#C8C2B4');for(let y=652;y<792;y+=18)rect(g,2120,y,360,2,'rgba(0,0,0,.1)');
+  [[2300,30],[2210,22],[2390,22]].forEach(([ax,hw])=>{g.fillStyle='#3B342E';g.beginPath();g.moveTo(ax-hw,792);g.lineTo(ax-hw,730);g.arc(ax,730,hw,Math.PI,0);g.lineTo(ax+hw,792);g.fill()});
+  rect(g,2160,590,280,50,red);rect(g,2160,590,280,10,tl);asianRoof(g,2300,546,390,60,rf);rect(g,2200,506,200,42,red);rect(g,2200,506,200,8,tl);asianRoof(g,2300,440,350,80,rf);
+  [2075,2525].forEach(hx=>{rect(g,hx-16,806,32,26,'#B9B4A8');ell(g,hx,794,18,14,'#A9A49A');circle(g,hx+10,782,9,'#A9A49A')});
+  rect(g,2760,792,480,70,'#B9B4A8');band(g,800,856,'#6FA3B8','#4F8397',2770,3230);ripples(g,R,806,852,60,2775,3225);
+  for(let r=0;r<2;r++)for(let px=2830;px<=3170;px+=34)rect(g,px+r*8,700,10,100,r?'#B1AA9E':'#C3BCB0');
+  rect(g,2810,690,380,12,'#8B6B4A');rect(g,2830,640,340,50,red);rect(g,2830,640,340,8,tl);for(let px=2840;px<3170;px+=34)rect(g,px,648,14,42,'#E9DDC8');asianRoof(g,3000,560,480,90,rf);
+  ell(g,3000,836,170,14,'rgba(74,78,82,.25)');
+  setY(d,'mountain',mt(1550)+50);setY(d,'tower',ty0-200);return c}
+
+function paintLondon(d){const{c,g,R}=newPano(111);
+  sky(g,'#9EBFD8','#EDEFEE',660);clouds(g,R,20,40,300);
+  let x=0;while(x<W){const w=50+R()*90,top=596+R()*50;rect(g,x,top,w,72,pick(R,['#CFC7B5','#BDB5A4','#D8D0BE','#C4BBA8']));windows(g,x+6,top+10,w-12,50,'rgba(90,100,110,.45)',14,18,6,9);x+=w+2}
+  band(g,668,860,'#6F8E9E','#4E6E80');ripples(g,R,676,855,320);
+  const st='#D9C38F',sd='#BFA874';
+  rect(g,1080,540,980,128,st);for(let px=1080;px<2060;px+=22)rect(g,px,540,4,128,sd);for(let px=1090;px<2050;px+=22){rect(g,px+6,566,8,26,'#8A7A55');rect(g,px+6,610,8,26,'#8A7A55')}
+  for(let px=1084;px<2060;px+=44)poly(g,[[px,540],[px+8,540],[px+4,518]],sd);
+  rect(g,1530,450,40,90,st);poly(g,[[1526,450],[1574,450],[1550,392]],sd);
+  rect(g,2000,300,80,368,st);for(let px=2006;px<2080;px+=16)rect(g,px,320,6,340,sd);[2000,2072].forEach(px=>poly(g,[[px,300],[px+8,300],[px+4,270]],sd));line(g,2040,300,2040,250,'#3E4E58',2);rect(g,2040,250,18,11,'#C8102E');
+  rect(g,950,380,100,288,st);for(let px=956;px<1050;px+=14)rect(g,px,390,4,270,sd);rect(g,940,280,120,100,st);circle(g,1000,330,40,'#F4EFE2');g.strokeStyle='#C9A24A';g.lineWidth=5;g.beginPath();g.arc(1000,330,40,0,7);g.stroke();
+  for(let k=0;k<12;k++){const a=k*Math.PI/6;line(g,1000+Math.cos(a)*32,330+Math.sin(a)*32,1000+Math.cos(a)*37,330+Math.sin(a)*37,'#2E3236',2)}line(g,1000,330,1000,304,'#2E3236',3);line(g,1000,330,1018,338,'#2E3236',3);
+  rect(g,950,235,100,45,st);for(let k=0;k<4;k++)rect(g,960+k*22,244,12,30,'#5A4E38');poly(g,[[945,235],[1055,235],[1020,150],[980,150]],'#3E4E58');poly(g,[[985,150],[1015,150],[1000,92]],'#3E4E58');[945,1051].forEach(px=>poly(g,[[px,235],[px+6,235],[px+3,205]],'#C9A24A'));
+  rect(g,2150,618,560,24,'#3E6B57');rect(g,2150,612,560,6,'#2F5444');[2220,2360,2500,2640].forEach(ax=>{g.fillStyle='#4A6E80';g.beginPath();g.moveTo(ax-55,700);g.lineTo(ax-55,670);g.ellipse(ax,670,55,28,0,Math.PI,0);g.lineTo(ax+55,700);g.fill()});
+  rect(g,2150,642,560,20,'#3E6B57');[2220,2360,2500,2640].forEach(ax=>{g.fillStyle='#4A6E80';g.beginPath();g.ellipse(ax,700,50,38,0,Math.PI,0);g.fill()});
+  [2180,2300,2560,2680].forEach(lx=>{rect(g,lx-2,580,4,34,'#24302A');circle(g,lx,578,6,'#F2D27A')});
+  rect(g,2330,548,140,68,'#D52B1E');rect(g,2330,548,140,6,'#E8453A');windows(g,2338,557,128,18,'#2E3A44',21,30,17,16);windows(g,2338,588,128,18,'#2E3A44',21,30,17,15);rect(g,2330,580,140,4,'#F2E9D8');circle(g,2355,618,9,'#1E1E1E');circle(g,2445,618,9,'#1E1E1E');
+  const cx=3200,cy=420;line(g,cx,cy,3110,692,'#D5DCE0',9);line(g,cx,cy,3150,692,'#D5DCE0',9);
+  for(let k=0;k<32;k++){const a=k*Math.PI/16;line(g,cx,cy,cx+Math.cos(a)*250,cy+Math.sin(a)*250,'rgba(220,226,230,.8)',1.2)}
+  g.strokeStyle='#E8ECEE';g.lineWidth=7;g.beginPath();g.arc(cx,cy,250,0,7);g.stroke();g.lineWidth=3;g.beginPath();g.arc(cx,cy,236,0,7);g.stroke();circle(g,cx,cy,14,'#D5DCE0');
+  for(let k=0;k<32;k++){const a=k*Math.PI/16;ell(g,cx+Math.cos(a)*262,cy+Math.sin(a)*262,11,8,'#CFE0EA');g.strokeStyle='#9FB3C0';g.lineWidth=1.5;g.beginPath();g.ellipse(cx+Math.cos(a)*262,cy+Math.sin(a)*262,11,8,0,0,7);g.stroke()}
+  rect(g,3080,680,240,20,'#B9B3A6');
+  poly(g,[[3720,770],[3890,770],[3875,796],[3735,796]],'#F2F2EE');rect(g,3745,750,120,20,'#3E5F7A');windows(g,3750,754,112,10,'#CFE0EA',14,20,10,10);
+  rect(g,0,858,W,22,'#B9B3A6');paving(g,880,1000,'#CFCAC0','rgba(100,95,85,.15)',26);
+  [300,1500,2800,3550].forEach(lx=>{rect(g,lx-4,760,8,124,'#1E2624');rect(g,lx-12,876,24,8,'#1E2624');rect(g,lx-10,740,20,22,'#1E2624');rect(g,lx-7,744,14,14,'#F2D27A');poly(g,[[lx-12,740],[lx+12,740],[lx,726]],'#1E2624')});
+  [600,1800,2950,3640].forEach(tx=>tree(g,tx,884,46,'#5E8A4E'));
+  return c}
+
+/* ---------- Destination data ---------- */
+const DESTS=[
+ {id:'paris',name:'Paris',country:'France',flag:'fr',region:'Europe',lon:2.35,lat:48.85,lab:[14,16,'start'],start:560,paint:paintParis,
+  about:'Paris is the capital city of France. The river Seine flows through the middle of it.',
+  targets:[
+   {id:'tower',label:'Tower',prompt:'Find a famous tower.',x:1000,y:380,cat:'Landmarks',card:{title:'Eiffel Tower',type:'Human-made',
+     famous:'It is the most famous symbol of Paris and of France.',built:'1889. It took about two years to build.',purpose:'It was built for a big world fair. Today people go up to see the view, and it sends out radio and TV signals.',
+     similar:'Other tall towers: Tokyo Skytree, N Seoul Tower and Sydney Tower.',made:'Iron, about 18,000 metal pieces joined together.',facts:['It gets a new coat of paint about every 7 years.','On hot summer days the iron grows, and the tower can get about 15 cm taller.']}},
+   {id:'bridge',label:'Bridge',prompt:'Find a bridge crossing water.',x:2000,y:685,cat:'Structures',card:{title:'A bridge over the Seine',type:'Human-made',
+     famous:'Paris has 37 bridges across the Seine. Many are old and beautiful.',built:'The oldest bridge, Pont Neuf, was finished in 1607.',purpose:'To help people, cars and bikes cross the river.',
+     similar:'Brooklyn Bridge (New York), Sydney Harbour Bridge, Westminster Bridge (London).',made:'Stone.',facts:['Pont Neuf means “New Bridge”, but it is the oldest bridge in Paris.','Round arches spread the weight and make a stone bridge strong.']}},
+   {id:'statue',label:'Statue',prompt:'Find a golden statue.',x:2700,y:720,cat:'Culture',card:{title:'A golden statue',type:'Human-made',
+     famous:'Paris has many statues in its parks, squares and on its bridges.',built:'Many statues in Paris are more than 100 years old.',purpose:'To help people remember important people and stories from the past.',
+     similar:'Statue of Liberty (New York), Christ the Redeemer (Rio), the guardian statues at temple gates in Kyoto.',made:'Bronze metal, sometimes covered with a very thin layer of real gold. The base is stone.',facts:['A statue covered in thin gold is called “gilded”.','Statues of riders on horses usually show leaders or heroes.']}},
+   {id:'river',label:'River',prompt:'Find the river. Can you see a boat?',x:3700,y:790,cat:'Nature',card:{title:'The Seine River',type:'Natural',
+     famous:'The Seine flows right through the middle of Paris.',built:'It formed naturally, a very long time ago.',purpose:'Boats carry visitors and goods. People walk and relax along its banks.',
+     similar:'River Thames (London), Sumida River (Tokyo), Yamuna River (Agra).',made:'Fresh water.',facts:['The Seine is about 777 km long and flows into the sea.','The riverbanks in Paris are a World Heritage Site.']}},
+   {id:'building',label:'Old church',prompt:'Find an old church with two tall towers.',x:3250,y:500,cat:'Landmarks',card:{title:'Notre-Dame Cathedral',type:'Human-made',
+     famous:'It is one of the most famous cathedrals in the world.',built:'Building started in 1163 and took almost 200 years.',purpose:'A cathedral is a big church, a place where Christians pray.',
+     similar:'Temples in Kyoto and Tokyo are also places where people pray.',made:'Limestone, wood, a lead roof and colourful stained glass.',facts:['The big round window is called a rose window.','After a fire in 2019, it was repaired and opened again in 2024.']}}
+  ]},
+ {id:'london',name:'London',country:'England, UK',flag:'gb',region:'Europe',lon:-0.13,lat:51.5,lab:[-14,-8,'end'],start:1000,paint:paintLondon,
+  about:'London is the capital city of England and the United Kingdom. The River Thames flows through it.',
+  targets:[
+   {id:'bigben',label:'Clock tower',prompt:'Find a tower with a big clock.',x:1000,y:330,cat:'Landmarks',card:{title:'Big Ben (Elizabeth Tower)',type:'Human-made',
+     famous:'Its huge clock is one of the most famous clocks in the world.',built:'Finished in 1859.',purpose:'To show the time to everyone. Its bells ring every 15 minutes.',
+     similar:'Other towers seen from far away: the Eiffel Tower and Tokyo Skytree.',made:'Brick inside, covered with stone, with an iron spire on top.',facts:['“Big Ben” is really the name of the giant bell inside the tower.','The tower was named Elizabeth Tower in 2012.']}},
+   {id:'parliament',label:'Palace',prompt:'Find a long building with lots of little towers.',x:1600,y:600,cat:'Landmarks',card:{title:'Palace of Westminster',type:'Human-made',
+     famous:'It is where the UK Parliament meets to make laws.',built:'Rebuilt between 1840 and 1870 after a big fire in 1834.',purpose:'Leaders meet here to talk and make laws for the country.',
+     similar:'Gyeongbokgung Palace (Seoul), where kings once ruled.',made:'Yellow-brown limestone.',facts:['It has more than 1,000 rooms.','It is a World Heritage Site.']}},
+   {id:'bus',label:'Red bus',prompt:'Find a red bus with two floors.',x:2400,y:580,cat:'Communities',card:{title:'Red double-decker bus',type:'Human-made',
+     famous:'London’s red buses are famous all over the world.',built:'Double-decker buses have carried people in London for more than 100 years.',purpose:'Public transport. Buses take people around the city.',
+     similar:'Sydney ferries and the Staten Island Ferry (New York) also carry people around their cities.',made:'Metal and glass.',facts:['“Double-decker” means it has two floors.','The best view is from the front seat upstairs!']}},
+   {id:'eye',label:'Big wheel',prompt:'Find a giant wheel.',x:3200,y:420,cat:'Structures',card:{title:'London Eye',type:'Human-made',
+     famous:'It is a giant wheel beside the River Thames.',built:'Opened in 2000.',purpose:'People ride in glass pods to see London from high up.',
+     similar:'Tokyo Skytree and the Empire State Building are also places to see a city from above.',made:'Steel and glass.',facts:['It has 32 glass pods called capsules.','One full turn takes about 30 minutes.']}},
+   {id:'river',label:'River',prompt:'Find the river and a boat.',x:3800,y:770,cat:'Nature',card:{title:'River Thames',type:'Natural',
+     famous:'The Thames flows through the middle of London.',built:'It formed naturally, a very long time ago.',purpose:'London grew up beside it. Boats carry people and goods.',
+     similar:'The Seine (Paris), Sumida River (Tokyo), Yamuna River (Agra).',made:'Fresh water mixed with sea water.',facts:['It is about 346 km long.','In London the water rises and falls twice a day with the tides.']}}
+  ]},
+ {id:'giza',name:'Giza',country:'Egypt',flag:'eg',region:'Africa',lon:31.13,lat:29.98,lab:[14,5,'start'],start:900,paint:paintGiza,
+  about:'Giza is next to Cairo, the capital of Egypt. The pyramids stand at the edge of the Sahara Desert.',
+  targets:[
+   {id:'pyramid',label:'Pyramid',prompt:'Find a pyramid.',x:1100,y:460,cat:'Landmarks',card:{title:'The Great Pyramid',type:'Human-made',
+     famous:'It is the oldest of the Seven Wonders of the Ancient World, and the only one still standing.',built:'About 4,500 years ago, for King Khufu.',purpose:'A tomb, a resting place for a king after he died.',
+     similar:'The Taj Mahal (Agra) is also a tomb.',made:'Limestone and granite blocks, about 2.3 million of them.',facts:['For about 3,800 years it was the tallest building made by people.','It used to be covered in smooth, shiny white stone.']}},
+   {id:'sphinx',label:'Sphinx',prompt:'Find a statue with a lion’s body.',x:2780,y:720,cat:'Culture',card:{title:'The Great Sphinx',type:'Human-made',
+     famous:'It has the body of a lion and the head of a person.',built:'About 4,500 years ago.',purpose:'People think it guarded the pyramids and honoured a king.',
+     similar:'Guardian statues at temple gates in Kyoto, and the stone haetae at Gwanghwamun in Seoul.',made:'Carved out of one huge piece of limestone rock in the ground.',facts:['It is about 73 m long, about as long as six buses in a row.','Wind and sand have worn it down over thousands of years.']}},
+   {id:'blocks',label:'Stone blocks',prompt:'Find giant stone blocks.',x:310,y:780,cat:'Unique details',card:{title:'Giant stone blocks',type:'Human-made',
+     famous:'These huge blocks were cut and moved without modern machines.',built:'About 4,500 years ago.',purpose:'Workers stacked them to build the pyramids.',
+     similar:'The bricks of the Great Wall and the stone towers of Brooklyn Bridge.',made:'Limestone. Some heavy granite blocks came from about 800 km away.',facts:['An average block weighs about 2.5 tonnes, as much as two cars.','Workers used ramps, sledges and ropes to move them.']}},
+   {id:'desert',label:'Desert',prompt:'Find the sandy desert.',x:3330,y:760,cat:'Nature',card:{title:'Sahara Desert',type:'Natural',
+     famous:'It is the largest hot desert in the world.',built:'It formed naturally and has been a desert for thousands of years.',purpose:'The dry air and sand helped keep the ancient buildings safe for a very long time.',
+     similar:'Other big natural places: the ocean at Rio and the mountains of the Great Wall.',made:'Sand and rock.',facts:['The Sahara is almost as big as the whole United States.','Very little rain falls here.']}},
+   {id:'camel',label:'Camel',prompt:'Find an animal that walks on sand.',x:3830,y:810,cat:'Communities',card:{title:'Camels',type:'Natural',bl:'History',pl:'How people use them',
+     famous:'Camels have helped people cross deserts for a very long time.',built:'People in Egypt have used camels to travel and carry things for hundreds of years.',purpose:'People ride camels and use them to carry heavy loads.',
+     similar:'Red buses (London) and ferries (Sydney, New York) are other ways people travel.',made:'A living animal.',ml:'What it is',facts:['A camel’s hump stores fat, not water.','Wide, soft feet help camels walk on sand without sinking.']}}
+  ]},
+ {id:'agra',name:'Agra',country:'India',flag:'in',region:'Asia',lon:78.04,lat:27.18,lab:[-14,5,'end'],start:1000,paint:paintAgra,
+  about:'Agra is a city in northern India, beside the Yamuna River. It is home to the Taj Mahal.',
+  targets:[
+   {id:'taj',label:'White dome',prompt:'Find a white building with a big dome.',x:1000,y:330,cat:'Landmarks',card:{title:'Taj Mahal',type:'Human-made',
+     famous:'It is one of the most beautiful buildings in the world and one of the New Seven Wonders.',built:'About 400 years ago, between 1632 and 1653.',purpose:'A tomb. Emperor Shah Jahan built it in memory of his wife, Mumtaz Mahal.',
+     similar:'The pyramids of Giza are also tombs.',made:'White marble, decorated with colourful stones set into it.',facts:['About 20,000 workers helped build it.','The marble can look pink in the morning and golden at sunset.','The four tall towers lean slightly outwards, so they would fall away from the tomb.']}},
+   {id:'garden',label:'Garden',prompt:'Find a garden with tall trees.',x:1920,y:780,cat:'Nature',card:{title:'The Mughal garden',type:'Human-made',
+     famous:'The garden is split into four parts by water channels.',built:'Built at the same time as the Taj Mahal.',purpose:'A peaceful place to walk. It was planned to look like a garden of paradise.',
+     similar:'The gardens and pond at Gyeongbokgung Palace (Seoul).',made:'Trees, grass, flowers, paths and water.',facts:['This kind of garden is called a “charbagh”, which means four gardens.','Tall, thin cypress trees line the paths.']}},
+   {id:'pool',label:'Pool',prompt:'Find a pool with fountains.',x:2600,y:790,cat:'Unique details',card:{title:'Reflecting pool',type:'Human-made',
+     famous:'On a calm day the Taj Mahal looks like it is upside-down in the water.',built:'Built at the same time as the Taj Mahal.',purpose:'To reflect the building and keep the garden cool.',
+     similar:'The pond around Gyeonghoeru Pavilion (Seoul).',made:'Marble edges and water.',facts:['A row of fountains runs along the middle of the pool.','Water was brought in from the Yamuna River.']}},
+   {id:'river',label:'River',prompt:'Find the river.',x:3320,y:735,cat:'Nature',card:{title:'Yamuna River',type:'Natural',
+     famous:'The Taj Mahal was built right beside this big river.',built:'It formed naturally. It flows down from the Himalaya mountains.',purpose:'People use its water for farming and drinking. It is a holy river for Hindus.',
+     similar:'The Seine (Paris), River Thames (London), Sumida River (Tokyo).',made:'Fresh water.',facts:['It is about 1,376 km long.','From across the river you get a beautiful view of the Taj Mahal.']}},
+   {id:'gate',label:'Red gate',prompt:'Find a big red gate.',x:3850,y:560,cat:'Structures',card:{title:'The Great Gate',type:'Human-made',
+     famous:'This huge gate is where visitors first see the Taj Mahal.',built:'Finished in 1648.',purpose:'The main entrance to the Taj Mahal gardens.',
+     similar:'Kaminarimon (Tokyo), Niōmon (Kyoto) and Gwanghwamun (Seoul) are also grand gates.',made:'Red sandstone with white marble decoration.',facts:['It has 22 little domes along the top.','Some people say the 22 domes stand for the 22 years it took to build the Taj Mahal.']}}
+  ]},
+ {id:'beijing',name:'Beijing',country:'China',flag:'cn',region:'Asia',lon:116.4,lat:40.2,lab:[-10,-12,'end'],start:600,paint:paintBeijing,
+  about:'Beijing is the capital of China. Parts of the Great Wall stretch across the mountains north of the city.',
+  targets:[
+   {id:'wall',label:'Great Wall',prompt:'Find the wall on top of the mountains.',x:600,y:500,cat:'Structures',card:{title:'The Great Wall',type:'Human-made',
+     famous:'It is the longest wall in the world, winding over mountains in northern China.',built:'Some parts are over 2,000 years old. Most of what you see here was built 400 to 600 years ago.',purpose:'To protect China from invaders.',
+     similar:'City walls, castles and forts around the world.',made:'Bricks and stone. Older parts used packed earth.',facts:['All its parts together are more than 20,000 km long.','You cannot see it from space with just your eyes. That is a myth!']}},
+   {id:'watchtower',label:'Watchtower',prompt:'Find a stone tower with windows.',x:2200,y:620,cat:'Structures',card:{title:'Watchtower',type:'Human-made',
+     famous:'Towers along the wall let soldiers watch for danger.',built:'About 400 to 600 years ago.',purpose:'Soldiers kept watch here and sent signals with smoke and fire.',
+     similar:'The minarets of the Taj Mahal and Big Ben are also towers that are seen from far away.',made:'Bricks and stone.',facts:['Smoke in the day and fire at night sent messages quickly from tower to tower.','Some towers stored food and weapons.']}},
+   {id:'mountains',label:'Mountains',prompt:'Find the tallest mountain.',x:3000,y:400,cat:'Nature',card:{title:'Yanshan Mountains',type:'Natural',
+     famous:'The Great Wall follows the tops of these steep mountains.',built:'They formed naturally over millions of years.',purpose:'Builders used the steep mountains to make the wall harder to attack.',
+     similar:'Higashiyama (Kyoto), Bugaksan (Seoul), Sugarloaf Mountain (Rio).',made:'Rock and soil, covered with forest.',facts:['Building a wall on mountaintops was very hard work.','In autumn the trees on the mountains turn orange and red.']}},
+   {id:'forest',label:'Autumn trees',prompt:'Find trees with autumn colours.',x:3600,y:740,cat:'Nature',card:{title:'Mountain forest',type:'Natural',
+     famous:'Forests cover the mountains around the wall.',built:'The trees grow naturally.',purpose:'Trees stop soil washing away and give homes to birds and animals.',
+     similar:'Tijuca Forest (Rio) and the maple trees of Kyoto.',made:'Trees and plants.',facts:['Chestnut trees grow near some parts of the wall.','The leaves change colour in autumn.']}},
+   {id:'steps',label:'Steps',prompt:'Find steep steps.',x:1500,y:880,cat:'Unique details',card:{title:'Steep steps',type:'Human-made',
+     famous:'The wall goes up and down the mountains, so it has many steep steps.',built:'Built together with the wall.',purpose:'Steps let soldiers climb the steep parts quickly.',
+     similar:'The stone steps up to Kiyomizu-dera (Kyoto).',made:'Stone and brick.',facts:['Some steps are very tall and some are tiny. They are all different sizes.','Climbing the wall is great exercise!']}}
+  ]},
+ {id:'seoul',name:'Seoul',country:'South Korea',flag:'kr',region:'Asia',lon:126.98,lat:37.57,lab:[-6,26,'end'],start:900,paint:paintSeoul,
+  about:'Seoul is the capital of South Korea. Old royal palaces stand between modern buildings and mountains.',
+  targets:[
+   {id:'hall',label:'Royal hall',prompt:'Find the king’s big hall.',x:900,y:620,cat:'Landmarks',card:{title:'Geunjeongjeon Throne Hall',type:'Human-made',
+     famous:'It is the biggest hall at Gyeongbokgung, the main royal palace of Seoul.',built:'The palace was first built in 1395. This hall was rebuilt in 1867.',purpose:'Kings held big ceremonies and met important visitors here.',
+     similar:'The Palace of Westminster (London) is also a place where leaders meet.',made:'Wood on a stone platform, with a clay tile roof.',facts:['Gyeongbokgung means “Palace Greatly Blessed by Heaven”.','Little animal figures sit on the roof edges to protect the building.']}},
+   {id:'mountain',label:'Mountain',prompt:'Find a rocky mountain.',x:1550,y:400,cat:'Nature',card:{title:'Bugaksan Mountain',type:'Natural',
+     famous:'This rocky mountain stands right behind the palace.',built:'It formed naturally from granite rock over millions of years.',purpose:'The palace was built here because people believed the mountain would protect it.',
+     similar:'Higashiyama (Kyoto) and Sugarloaf Mountain (Rio).',made:'Granite rock and forest.',facts:['It is about 342 m tall.','A hiking path follows the old city wall over the mountain.']}},
+   {id:'gate',label:'Gate',prompt:'Find a gate with three doors.',x:2300,y:620,cat:'Structures',card:{title:'Gwanghwamun Gate',type:'Human-made',
+     famous:'It is the main gate of Gyeongbokgung Palace.',built:'First built in 1395. It was restored in 2010.',purpose:'The grand entrance to the palace. Guards stand here.',
+     similar:'Niōmon (Kyoto), Kaminarimon (Tokyo) and the Great Gate (Agra).',made:'A stone base with a wooden building on top.',facts:['You can watch a colourful changing of the guard ceremony here.','Two stone “haetae”, lion-like creatures, guard the gate.']}},
+   {id:'pavilion',label:'Pavilion',prompt:'Find a building on a pond.',x:3000,y:680,cat:'Culture',card:{title:'Gyeonghoeru Pavilion',type:'Human-made',
+     famous:'This beautiful pavilion seems to float on a pond.',built:'First built in 1412. Rebuilt in 1867.',purpose:'Kings held big parties and welcomed visitors here.',
+     similar:'The reflecting pool at the Taj Mahal (Agra).',made:'Wood on 48 stone pillars.',facts:['It stands on 48 stone pillars.','The pond was dug by people, not made by nature.']}},
+   {id:'tower',label:'Tower',prompt:'Find a tower on a hill.',x:3700,y:300,cat:'Landmarks',card:{title:'N Seoul Tower',type:'Human-made',
+     famous:'It stands on top of Namsan mountain in the middle of Seoul.',built:'Built in 1971 and opened to visitors in 1980.',purpose:'It sends TV and radio signals, and people go up to see the city.',
+     similar:'Tokyo Skytree and the Eiffel Tower.',made:'Concrete and steel.',facts:['Visitors attach “love locks” to the fences near the tower.','At night the tower lights up in different colours.']}}
+  ]},
+ {id:'kyoto',name:'Kyoto',country:'Japan',flag:'jp',region:'Asia',lon:135.77,lat:35.01,lab:[8,26,'start'],start:600,paint:paintKyoto,
+  about:'Kyoto was the capital of Japan for more than 1,000 years. It has about 1,600 temples.',
+  targets:[
+   {id:'temple',label:'Temple',prompt:'Find a wooden temple on a big stage.',x:2430,y:560,cat:'Landmarks',card:{title:'Kiyomizu-dera main hall',type:'Human-made',
+     famous:'Its giant wooden stage sticks out over the hillside, high above the trees.',built:'The temple began in 778. This hall was rebuilt in 1633.',purpose:'A Buddhist temple, a place where people pray.',
+     similar:'Notre-Dame (Paris) and Senso-ji (Tokyo) are also places of prayer, like churches, mosques and chapels.',made:'Wood. The roof is made of cypress tree bark.',facts:['The stage stands on tall wooden pillars that fit together without nails.','Kiyomizu means “pure water”. It is named after a small waterfall at the temple.']}},
+   {id:'pagoda',label:'Pagoda',prompt:'Find a tall tower with three roofs.',x:1400,y:560,cat:'Culture',card:{title:'Three-storey pagoda',type:'Human-made',
+     famous:'At about 31 m, it is one of the tallest three-storey pagodas in Japan.',built:'Rebuilt in 1632.',purpose:'A pagoda is a Buddhist tower that keeps holy objects safe.',
+     similar:'The five-storey pagoda at Senso-ji (Tokyo) and stupas in India.',made:'Wood, painted bright orange-red.',facts:['Each storey has its own roof.','Wooden pagodas can sway a little in earthquakes instead of breaking.']}},
+   {id:'gate',label:'Red gate',prompt:'Find a big red gate.',x:600,y:650,cat:'Structures',card:{title:'Niōmon Gate',type:'Human-made',
+     famous:'This big red gate is the main entrance to Kiyomizu-dera.',built:'Rebuilt about 500 years ago.',purpose:'It shows you are entering a holy place. Two guardian statues stand inside to protect it.',
+     similar:'Kaminarimon (Tokyo), Gwanghwamun (Seoul) and the Great Gate (Agra).',made:'Wood, painted red.',facts:['People believed the red colour kept bad things away.','One guardian statue has an open mouth and the other has a closed mouth.']}},
+   {id:'mountain',label:'Mountain',prompt:'Find a mountain.',x:3200,y:420,cat:'Nature',card:{title:'Higashiyama mountains',type:'Natural',
+     famous:'These green hills on the east side of Kyoto are full of temples and forests.',built:'They formed naturally over millions of years.',purpose:'People hike and enjoy nature here. Many temples were built on the hillsides.',
+     similar:'Bugaksan (Seoul), Sugarloaf Mountain (Rio), the mountains of the Great Wall.',made:'Rock and soil, covered with forest.',facts:['Higashiyama means “Eastern Mountains”.','People often say there are 36 peaks.']}},
+   {id:'maple',label:'Maple trees',prompt:'Find trees with red and orange leaves.',x:3740,y:820,cat:'Nature',card:{title:'Maple trees',type:'Natural',
+     famous:'Kyoto is famous for its colourful maple leaves in autumn.',built:'They are natural trees. Many were planted around temples long ago.',purpose:'They give shade and beauty. Many people visit Kyoto just to see the autumn leaves.',
+     similar:'The autumn forests at the Great Wall and the Tijuca Forest (Rio).',made:'Wood and leaves.',facts:['The leaves turn red and orange in November.','Going to look at autumn leaves in Japan is called “momijigari”.']}}
+  ]},
+ {id:'tokyo',name:'Tokyo',country:'Japan',flag:'jp',region:'Asia',lon:139.7,lat:35.7,lab:[14,-6,'start'],start:600,paint:paintTokyo,
+  about:'Tokyo is the capital of Japan and one of the biggest cities in the world. Asakusa is one of its oldest neighbourhoods.',
+  targets:[
+   {id:'gate',label:'Lantern gate',prompt:'Find a gate with a giant red lantern.',x:600,y:690,cat:'Structures',card:{title:'Kaminarimon Gate',type:'Human-made',
+     famous:'It has a giant red paper lantern hanging in the middle.',built:'First built more than 1,000 years ago. Rebuilt in 1960.',purpose:'The main entrance to Senso-ji temple.',
+     similar:'Niōmon (Kyoto), Gwanghwamun (Seoul) and the Great Gate (Agra).',made:'The gate is painted red. The lantern is made of paper on a bamboo frame.',facts:['Kaminarimon means “Thunder Gate”. Statues of the wind god and thunder god guard it.','The lantern weighs about 700 kg, about as much as a small car.']}},
+   {id:'temple',label:'Temple',prompt:'Find the big temple.',x:1600,y:600,cat:'Landmarks',card:{title:'Senso-ji Temple',type:'Human-made',
+     famous:'It is Tokyo’s oldest temple.',built:'Founded about 1,400 years ago. The main hall was rebuilt in 1958.',purpose:'A Buddhist temple where people pray.',
+     similar:'Kiyomizu-dera (Kyoto) and Notre-Dame (Paris).',made:'Concrete built to look like a traditional wooden temple. The roof has titanium tiles.',facts:['A story says two fishermen found a small statue in the Sumida River, and the temple was built for it.','Visitors wave incense smoke over themselves for good health.']}},
+   {id:'market',label:'Shop street',prompt:'Find a street with small shops.',x:2300,y:800,cat:'Communities',card:{title:'Nakamise shopping street',type:'Human-made',
+     famous:'This busy street of small shops leads up to the temple.',built:'Shops have been here for about 300 years.',purpose:'People buy snacks, toys and souvenirs.',
+     similar:'Markets and shopping streets in Paris, London and Seoul.',made:'Small shop buildings with tiled roofs.',facts:['It is about 250 m long.','Many shops sell “ningyo-yaki”, little cakes filled with sweet bean paste.']}},
+   {id:'skytree',label:'Skytree',prompt:'Find a very tall, thin tower.',x:3320,y:260,cat:'Landmarks',card:{title:'Tokyo Skytree',type:'Human-made',
+     famous:'At 634 m, it is the tallest tower in the world.',built:'Opened in 2012.',purpose:'It sends TV and radio signals, and people go up to see the view.',
+     similar:'The Eiffel Tower (Paris) and N Seoul Tower.',made:'Steel.',facts:['On a clear day you can see Mount Fuji from the top.','A tall centre column helps it stay steady in earthquakes.']}},
+   {id:'river',label:'River',prompt:'Find the river and a boat.',x:3800,y:770,cat:'Nature',card:{title:'Sumida River',type:'Natural',
+     famous:'It flows through the east side of Tokyo, right next to Asakusa.',built:'It formed naturally, a very long time ago.',purpose:'Water buses carry people along it, and people walk beside it.',
+     similar:'The Seine (Paris), River Thames (London), Yamuna River (Agra).',made:'Fresh water.',facts:['A big fireworks festival is held over the river every summer.','Many bridges cross it, and they are painted different colours.']}}
+  ]},
+ {id:'sydney',name:'Sydney',country:'Australia',flag:'au',region:'Oceania',lon:151.2,lat:-33.87,lab:[-14,5,'end'],start:900,paint:paintSydney,
+  about:'Sydney is the biggest city in Australia. It is built around a beautiful harbour.',
+  targets:[
+   {id:'opera',label:'Opera House',prompt:'Find a building with a roof like sails.',x:900,y:560,cat:'Landmarks',card:{title:'Sydney Opera House',type:'Human-made',
+     famous:'Its roof looks like sails or shells. It is one of the most famous buildings in the world.',built:'Opened in 1973, after 14 years of building.',purpose:'A place for music, opera, dance and shows.',
+     similar:'Theatres and concert halls in London, New York and Tokyo.',made:'Concrete, covered with more than 1 million white tiles.',facts:['It was designed by Jørn Utzon, an architect from Denmark.','It is a World Heritage Site.']}},
+   {id:'bridge',label:'Bridge',prompt:'Find a big arch bridge.',x:1900,y:470,cat:'Structures',card:{title:'Sydney Harbour Bridge',type:'Human-made',
+     famous:'It is a giant steel arch bridge. People call it “the Coathanger”.',built:'Opened in 1932.',purpose:'Cars, trains, bikes and people cross the harbour on it.',
+     similar:'Brooklyn Bridge (New York) and the bridges over the Seine (Paris).',made:'Steel, held together with about 6 million rivets, with granite towers.',facts:['You can climb to the top of the arch with a guide.','The steel grows and shrinks a little when it is hot or cold.']}},
+   {id:'buildings',label:'Skyscrapers',prompt:'Find tall city buildings.',x:2700,y:470,cat:'Communities',card:{title:'City skyscrapers',type:'Human-made',
+     famous:'Tall office and apartment buildings make Sydney’s skyline.',built:'Most were built in the last 60 years.',purpose:'People work, live and shop here.',
+     similar:'The skyscrapers of New York.',made:'Steel, concrete and glass.',facts:['Tall buildings save space in busy cities.','The gold-topped tower is Sydney Tower, the tallest structure in the city.']}},
+   {id:'ferry',label:'Ferry',prompt:'Find a green and yellow boat.',x:3300,y:750,cat:'Communities',card:{title:'Sydney ferries',type:'Human-made',
+     famous:'Green and yellow ferries carry people across the harbour every day.',built:'Ferries have run on the harbour since the 1800s.',purpose:'Ferries are like buses on water.',
+     similar:'The Staten Island Ferry (New York) and London’s red buses.',made:'Metal.',facts:['Many ferries stop at Circular Quay, near the Opera House.','Riding a ferry is a popular way to see the city.']}},
+   {id:'harbour',label:'Harbour',prompt:'Find the harbour with sailboats.',x:3700,y:720,cat:'Nature',card:{title:'Sydney Harbour',type:'Natural',
+     famous:'It is one of the biggest and most beautiful natural harbours in the world.',built:'It formed long ago, when the sea rose and filled a river valley.',purpose:'Ships and boats shelter here. People swim, sail and fish.',
+     similar:'New York Harbor, the River Thames and the Seine.',made:'Salt water.',facts:['The harbour has hundreds of kilometres of shoreline.','The Gadigal people, the first people of this area, have lived here for thousands of years.']}}
+  ]},
+ {id:'rio',name:'Rio de Janeiro',country:'Brazil',flag:'br',region:'South America',lon:-43.2,lat:-22.9,lab:[14,5,'start'],start:1000,paint:paintRio,
+  about:'Rio de Janeiro is a big city in Brazil, squeezed between green mountains and the Atlantic Ocean.',
+  targets:[
+   {id:'christ',label:'Statue',prompt:'Find a statue with open arms on a mountain.',x:1000,y:300,cat:'Landmarks',card:{title:'Christ the Redeemer',type:'Human-made',
+     famous:'This giant statue with open arms stands on top of a mountain above Rio.',built:'Finished in 1931.',purpose:'A Christian symbol that welcomes people to the city.',
+     similar:'The Statue of Liberty (New York) and the golden statues of Paris.',made:'Concrete covered with thousands of small soapstone tiles.',facts:['The statue is 30 m tall, about as tall as a 10-storey building.','It was named one of the New Seven Wonders of the World in 2007.']}},
+   {id:'sugarloaf',label:'Round mountain',prompt:'Find a round mountain next to the water.',x:1995,y:470,cat:'Nature',card:{title:'Sugarloaf Mountain',type:'Natural',
+     famous:'This round mountain rises straight up out of the water.',built:'It formed naturally from granite rock over millions of years.',purpose:'People ride a cable car to the top to see the city and beaches.',
+     similar:'Higashiyama (Kyoto) and Bugaksan (Seoul).',made:'Granite rock.',facts:['It is about 396 m tall.','Its cable car first opened in 1912.']}},
+   {id:'ocean',label:'Ocean',prompt:'Find the ocean and the beach.',x:2750,y:760,cat:'Nature',card:{title:'Atlantic Ocean beach',type:'Natural',
+     famous:'Rio has famous beaches, like Copacabana, along the Atlantic Ocean.',built:'Waves made the sandy beaches over a very long time.',purpose:'People swim, surf and play football and volleyball on the sand.',
+     similar:'Sydney Harbour and New York Harbor.',made:'Salt water and sand.',facts:['The wavy black-and-white pavement by the beach is famous.','The Atlantic is the second biggest ocean on Earth.']}},
+   {id:'buildings',label:'Buildings',prompt:'Find buildings by the beach.',x:3400,y:700,cat:'Communities',card:{title:'Beachfront buildings',type:'Human-made',
+     famous:'Apartment buildings and hotels line the beaches of Rio.',built:'Many were built in the 1900s.',purpose:'Homes for people who live in Rio, and hotels for visitors.',
+     similar:'The skyscrapers of Sydney and New York.',made:'Concrete, glass and tiles.',facts:['Many apartments have balconies facing the sea.','Millions of people live in Rio.']}},
+   {id:'forest',label:'Forest',prompt:'Find a green forest.',x:3820,y:700,cat:'Nature',card:{title:'Tijuca Forest',type:'Natural',
+     famous:'It is one of the biggest forests inside a city anywhere in the world.',built:'Much of it was replanted by hand in the 1860s.',purpose:'It cleans the air, protects water and is home to monkeys and many birds.',
+     similar:'The maple trees of Kyoto and the mountain forests at the Great Wall.',made:'Trees and plants.',facts:['Workers planted about 100,000 trees to bring the forest back.','Christ the Redeemer stands on a mountain inside this forest park.']}}
+  ]},
+ {id:'newyork',name:'New York',country:'USA',flag:'us',region:'North America',lon:-74,lat:40.7,lab:[-14,5,'end'],start:800,paint:paintNY,
+  about:'New York City is the biggest city in the United States. Millions of people first arrived here by ship.',
+  targets:[
+   {id:'liberty',label:'Statue',prompt:'Find a green statue holding a torch.',x:800,y:470,cat:'Landmarks',card:{title:'Statue of Liberty',type:'Human-made',
+     famous:'It is a symbol of freedom that welcomed people arriving by ship.',built:'1886. It was a gift from the people of France.',purpose:'To celebrate freedom and the friendship between France and the USA.',
+     similar:'Christ the Redeemer (Rio) and the statues of Paris.',made:'A thin copper skin over an iron frame.',facts:['The iron frame inside was designed by Gustave Eiffel, who also built the Eiffel Tower!','It was brown copper at first and slowly turned green over about 30 years.']}},
+   {id:'empire',label:'Skyscraper',prompt:'Find a tall skyscraper with a pointy top.',x:2100,y:360,cat:'Landmarks',card:{title:'Empire State Building',type:'Human-made',
+     famous:'It is one of the most famous skyscrapers in the world.',built:'1931. It took only about 13 months to build.',purpose:'An office building, with viewing decks at the top.',
+     similar:'Tokyo Skytree and the Eiffel Tower are also tall places to see the view.',made:'A steel frame covered with limestone and granite.',facts:['It has 102 floors.','For about 40 years it was the tallest building in the world.']}},
+   {id:'bridge',label:'Bridge',prompt:'Find a bridge with stone towers.',x:3100,y:520,cat:'Structures',card:{title:'Brooklyn Bridge',type:'Human-made',
+     famous:'When it opened, it was the longest suspension bridge in the world.',built:'Opened in 1883.',purpose:'People, bikes and cars cross the East River between Brooklyn and Manhattan.',
+     similar:'Sydney Harbour Bridge and the bridges of Paris.',made:'Stone towers and steel cables.',facts:['Its towers have pointed arches, like a cathedral.','Soon after it opened, 21 elephants walked across to show it was safe.']}},
+   {id:'ferry',label:'Ferry',prompt:'Find an orange ferry.',x:3710,y:750,cat:'Communities',card:{title:'Staten Island Ferry',type:'Human-made',
+     famous:'The bright orange ferry carries thousands of people every day.',built:'Ferries have crossed here for more than 100 years.',purpose:'It takes people across the harbour to work, school and home.',
+     similar:'Sydney ferries and London’s red buses.',made:'Steel.',facts:['The ride is free!','It sails right past the Statue of Liberty.']}},
+   {id:'harbour',label:'Harbour',prompt:'Find the harbour water and the birds.',x:250,y:700,cat:'Nature',card:{title:'New York Harbor',type:'Natural',
+     famous:'It is one of the biggest natural harbours in the world.',built:'Glaciers, giant sheets of ice, helped shape it long ago.',purpose:'Ships bring people and goods. Millions of people arrived here by ship to start new lives.',
+     similar:'Sydney Harbour and the Seine (Paris).',made:'Sea water mixed with river water.',facts:['The Hudson River flows into the harbour.','Seagulls, fish and even seals live here.']}}
+  ]}
+];
+const DMAP=Object.fromEntries(DESTS.map(d=>[d.id,d]));
+const TARGET=(dId,tId)=>DMAP[dId]&&DMAP[dId].targets.find(t=>t.id===tId);
+
+/* ---------- Storage ---------- */
+const KEY='world-explorer-photos-v1';
+let photos=[];try{photos=JSON.parse(localStorage.getItem(KEY)||'[]')||[]}catch(e){photos=[]}
+photos=photos.filter(p=>DMAP[p.dest]);
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(photos));return true}catch(e){toast('This browser could not save the photo. Delete some old photos and try again.');return false}}
+let soundOn=true;try{soundOn=localStorage.getItem('we-sound')!=='off'}catch(e){}
+const foundIds=id=>new Set(photos.filter(p=>p.dest===id&&p.target).map(p=>p.target));
+
+/* ---------- Helpers ---------- */
+const $=s=>document.querySelector(s);
+const mod=(a,n)=>((a%n)+n)%n;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast('Read-aloud is not available on this device.')}}
+let toastT;function toast(m){let el=$('.toast');if(!el){el=document.createElement('div');el.className='toast';document.body.appendChild(el)}el.textContent=m;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2600)}
+let actx;
+function audio(){if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume();return actx}
+function shutterSound(){if(!soundOn)return;try{const a=audio(),t=a.currentTime;[[0,3400,.9],[.075,1700,.6]].forEach(([d,f,v])=>{const n=Math.floor(a.sampleRate*.05),buf=a.createBuffer(1,n,a.sampleRate),ch=buf.getChannelData(0);
+  for(let k=0;k<n;k++)ch[k]=(Math.random()*2-1)*Math.pow(1-k/n,3);const s=a.createBufferSource();s.buffer=buf;const bp=a.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f;bp.Q.value=.9;const gn=a.createGain();gn.gain.value=v;s.connect(bp).connect(gn).connect(a.destination);s.start(t+d)})}catch(e){}}
+function chime(){if(!soundOn)return;try{const a=audio(),t=a.currentTime+.18;[[659,0],[880,.12]].forEach(([f,d])=>{const o=a.createOscillator(),gn=a.createGain();o.type='sine';o.frequency.value=f;gn.gain.setValueAtTime(0,t+d);gn.gain.linearRampToValueAtTime(.18,t+d+.02);gn.gain.exponentialRampToValueAtTime(.001,t+d+.5);o.connect(gn).connect(a.destination);o.start(t+d);o.stop(t+d+.55)})}catch(e){}}
+
+/* ---------- Pano cache ---------- */
+const cache=new Map();
+function getPano(id){if(cache.has(id)){const c=cache.get(id);cache.delete(id);cache.set(id,c);return c}const d=DMAP[id];const c=d.paint(d);cache.set(id,c);while(cache.size>2)cache.delete(cache.keys().next().value);return c}
+
+/* ---------- Map + destination picker ---------- */
+const P=(lon,lat)=>[(lon+180)*2.7778,(90-lat)*2.7778];
+const LAND=[
+ [[-165,65],[-140,70],[-95,72],[-75,62],[-60,50],[-80,25],[-97,18],[-83,9],[-105,20],[-118,33],[-125,48],[-150,58]],
+ [[-45,82],[-20,78],[-40,62],[-55,72]],
+ [[-80,10],[-60,10],[-35,-6],[-40,-22],[-55,-35],[-70,-55],[-75,-40],[-71,-18],[-81,-5]],
+ [[-10,36],[-9,43],[-2,48],[5,52],[8,57],[5,62],[20,70],[40,68],[40,45],[28,41],[20,40],[12,44],[5,43]],
+ [[40,68],[80,75],[140,72],[180,68],[160,58],[140,45],[122,30],[108,15],[100,5],[95,20],[80,8],[72,22],[57,25],[50,12],[35,30],[40,45]],
+ [[-17,21],[-10,35],[10,37],[32,31],[43,12],[51,11],[40,-15],[32,-28],[20,-35],[12,-17],[9,4],[-8,5],[-17,14]],
+ [[114,-22],[130,-12],[142,-11],[153,-28],[145,-38],[130,-32],[115,-34]],
+ [[130,33],[136,36],[140,36],[142,43],[139,41]],
+ [[-5,50],[1,52],[-3,58],[-6,55]],
+ [[95,-5],[105,-6],[120,-9],[140,-4],[150,-8],[132,-2],[118,1],[108,2]]
+];
+let sel='paris';
+function drawMap(){
+  let s='<rect width="1000" height="500" rx="18" fill="var(--ocean)"/><g stroke="var(--line)" stroke-width="1" opacity=".7">';
+  for(let i=1;i<6;i++)s+=`<line x1="0" x2="1000" y1="${i*83.3}" y2="${i*83.3}"/>`;for(let i=1;i<12;i++)s+=`<line y1="0" y2="500" x1="${i*83.3}" x2="${i*83.3}"/>`;s+='</g>';
+  LAND.forEach(poly=>{s+=`<path d="M${poly.map(p=>P(...p).map(n=>n.toFixed(0)).join(' ')).join('L')}Z" fill="var(--land)" stroke="var(--land)" stroke-width="6" stroke-linejoin="round"/>`});
+  DESTS.forEach(d=>{const[x,y]=P(d.lon,d.lat);
+    s+=`<g class="pin ${d.id===sel?'sel':''}" data-id="${d.id}" tabindex="0" role="button" aria-label="${d.name}, ${d.country}"><circle class="halo" cx="${x}" cy="${y}" r="24"/><circle class="dot" cx="${x}" cy="${y}" r="${d.id===sel?10:7}"/><text x="${x+d.lab[0]}" y="${y+d.lab[1]}" text-anchor="${d.lab[2]}">${d.name}</text></g>`});
+  $('#map').innerHTML=s;
+  $('#map').querySelectorAll('.pin').forEach(p=>{p.addEventListener('click',()=>choose(p.dataset.id));p.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();choose(p.dataset.id)}})});
+}
+function drawGrid(){
+  $('#destGrid').innerHTML=DESTS.map(d=>{const f=foundIds(d.id).size;return `<button class="destbtn" data-d="${d.id}" aria-pressed="${d.id===sel}">${flag(d.flag,'sm')}<span><b>${d.name}</b><small>${f?f+' of 5 found':d.region}</small></span></button>`}).join('');
+  $('#destGrid').querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>choose(b.dataset.d));
+}
+function drawDestCard(){
+  const d=DMAP[sel];
+  $('#destBody').innerHTML=`<div class="destname">${flag(d.flag)}<div><h2>${d.name}</h2><div class="muted">${d.country} · ${d.region}</div></div></div>
+   <p>${d.about}</p><div class="eyebrow">Things to find</div>
+   <ul class="findlist">${d.targets.map(t=>`<li class="${t.card.type==='Natural'?'nat':''}">${t.label}</li>`).join('')}</ul>
+   <button class="big" id="startBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Explore ${d.name}</button>`;
+  $('#startBtn').onclick=()=>startHunt(sel);
+  const pano=getPano(sel),p=$('#preview').getContext('2d'),sx=Math.min(Math.max(d.start-650,0),W-1300);p.drawImage(pano,sx,170,1300,731,0,0,640,360);
+}
+function choose(id){sel=id;drawMap();drawGrid();drawDestCard()}
+
+/* ---------- Screens ---------- */
+let screen='explore';
+function go(name){
+  screen=name;['explore','hunt','disc','compare'].forEach(n=>{$('#s-'+n).hidden=n!==name});
+  document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.go===name)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current')});
+  if(name==='explore'){drawGrid()}
+  if(name==='hunt'){resize();renderList()}
+  if(name==='disc')renderDisc();
+  if(name==='compare')renderCompare();
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>go(t.dataset.go)));
+
+/* ---------- Hunt view ---------- */
+let cur=null,pano=null;
+const cv=$('#cv'),ctx=cv.getContext('2d');
+const view={yaw:0,y0:0,zoom:1};let dpr=1,started=false;
+function sc(){return cv.height/H*view.zoom}
+function minZoom(){return Math.max(1,cv.width/(W*cv.height/H)+.01)}
+function clampView(){view.zoom=Math.min(Math.max(view.zoom,minZoom()),3);const vh=cv.height/sc();view.y0=Math.min(Math.max(view.y0,0),H-vh)}
+let raf=0;function req(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw()})}
+function draw(){
+  if(!pano||!cv.width)return;clampView();const s=sc(),vw=cv.width/s,vh=cv.height/s,x=mod(view.yaw,W),first=Math.min(vw,W-x);
+  ctx.drawImage(pano,x,view.y0,first,vh,0,0,Math.ceil(first*s),cv.height);
+  if(first<vw)ctx.drawImage(pano,0,view.y0,vw-first,vh,Math.floor(first*s),0,Math.ceil((vw-first)*s)+1,cv.height);
+  const hit=inFrame();$('#vf').classList.toggle('hot',!!hit&&!foundIds(cur.id).has(hit.id));
+}
+function resize(){
+  const r=$('#pano').getBoundingClientRect();if(!r.width)return;dpr=Math.min(window.devicePixelRatio||1,2);
+  const cx=view.yaw+(cv.width?cv.width/sc()/2:0);cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);
+  if(!started){started=true;view.zoom=minZoom();view.yaw=cur.start-cv.width/sc()/2;view.y0=0}else view.yaw=cx-cv.width/sc()/2;req();
+}
+new ResizeObserver(()=>{if(screen==='hunt')resize()}).observe($('#pano'));
+function inFrame(){
+  const s=sc(),cw=cv.width,ch=cv.height;let best=null,bd=1e9;
+  cur.targets.forEach(t=>{const sx=mod(t.x-view.yaw,W)*s,sy=(t.y-view.y0)*s;if(sx>cw*.2&&sx<cw*.8&&sy>ch*.15&&sy<ch*.85){const dd=Math.hypot(sx-cw/2,sy-ch/2);if(dd<bd){bd=dd;best=t}}});
+  return best;
+}
+function hideHint(){$('#hint').style.opacity=0}
+const pe=$('#pano');let drag=null;
+pe.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};pe.setPointerCapture(e.pointerId);pe.classList.add('drag');hideHint()});
+pe.addEventListener('pointermove',e=>{if(!drag)return;const s=sc();view.yaw-=(e.clientX-drag.x)*dpr/s;view.y0-=(e.clientY-drag.y)*dpr/s;drag={x:e.clientX,y:e.clientY};req()});
+const endDrag=()=>{drag=null;pe.classList.remove('drag')};pe.addEventListener('pointerup',endDrag);pe.addEventListener('pointercancel',endDrag);
+function zoomBy(f){const s0=sc(),cx=view.yaw+cv.width/s0/2,cy=view.y0+cv.height/s0/2;view.zoom*=f;clampView();const s=sc();view.yaw=cx-cv.width/s/2;view.y0=cy-cv.height/s/2;req();hideHint()}
+pe.addEventListener('wheel',e=>{e.preventDefault();zoomBy(e.deltaY<0?1.12:1/1.12)},{passive:false});
+$('#zin').onclick=()=>zoomBy(1.3);$('#zout').onclick=()=>zoomBy(1/1.3);
+let turnAnim=0;function turn(dir){hideHint();cancelAnimationFrame(turnAnim);const total=cv.width/sc()*.35*dir;let done=0;const t0=performance.now();
+  const step=now=>{const p=Math.min(1,(now-t0)/350),e=1-Math.pow(1-p,3),want=total*e;view.yaw+=want-done;done=want;draw();if(p<1)turnAnim=requestAnimationFrame(step)};turnAnim=requestAnimationFrame(step)}
+$('#left').onclick=()=>turn(-1);$('#right').onclick=()=>turn(1);
+document.addEventListener('keydown',e=>{if(screen!=='hunt'||!$('#modal').hidden)return;
+  if(e.key==='ArrowLeft')turn(-1);else if(e.key==='ArrowRight')turn(1);else if(e.key==='+'||e.key==='=')zoomBy(1.3);else if(e.key==='-')zoomBy(1/1.3);else if(e.key===' '&&e.target===document.body){e.preventDefault();capture()}});
+$('#backBtn').onclick=()=>go('explore');
+function drawSound(){$('#soundBtn').innerHTML=soundOn?ICON.speak:ICON.mute;$('#soundBtn').setAttribute('aria-label',soundOn?'Sound on. Tap to turn off':'Sound off. Tap to turn on')}
+$('#soundBtn').onclick=()=>{soundOn=!soundOn;try{localStorage.setItem('we-sound',soundOn?'on':'off')}catch(e){}drawSound()};
+
+function startHunt(id){
+  if(!cur||cur.id!==id){cur=DMAP[id];pano=getPano(id);started=false;$('#hint').style.opacity=1}
+  $('#placeFlag').innerHTML=flag(cur.flag,'sm');$('#placeName').textContent=cur.name;drawSound();
+  $('#tabHunt').disabled=false;go('hunt');
+}
+
+let listOpen=window.innerWidth>640;
+function renderList(){
+  const f=foundIds(cur.id);
+  $('#dots').innerHTML=cur.targets.map(t=>`<span class="${f.has(t.id)?'on':''}"></span>`).join('')+`<em>${f.size} / ${cur.targets.length}</em>`;
+  $('#huntList').innerHTML=cur.targets.map(t=>`<li class="${f.has(t.id)?'done':''}"><span class="check">${f.has(t.id)?ICON.check:''}</span><span><b>${t.label}</b><small>${t.prompt}</small></span><button class="say" data-say="${esc(t.prompt)}" aria-label="Read aloud">${ICON.speak}</button></li>`).join('');
+  $('#huntList').hidden=!listOpen;$('#listToggle').setAttribute('aria-expanded',listOpen);
+}
+$('#listToggle').onclick=()=>{listOpen=!listOpen;renderList()};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-say]');if(b){e.stopPropagation();speak(b.dataset.say)}});
+
+/* ---------- Camera ---------- */
+function snap(){const sx=cv.width*.2,sy=cv.height*.15,sw=cv.width*.6,sh=cv.height*.7,out=document.createElement('canvas');
+  out.width=640;out.height=Math.round(640*sh/sw);out.getContext('2d').drawImage(cv,sx,sy,sw,sh,0,0,out.width,out.height);return out.toDataURL('image/jpeg',.8)}
+let busy=false;
+function capture(){
+  if(busy)return;busy=true;shutterSound();
+  const fl=$('#flash'),sb=$('#shutter');fl.classList.remove('go');void fl.offsetWidth;fl.classList.add('go');sb.classList.add('click');setTimeout(()=>sb.classList.remove('click'),150);hideHint();
+  const img=snap(),hit=inFrame();
+  setTimeout(()=>{busy=false;
+    if(hit){const again=foundIds(cur.id).has(hit.id);const p={id:Date.now()+'',dest:cur.id,target:hit.id,label:hit.card.title,cat:hit.cat,img,t:Date.now()};
+      photos.push(p);if(!persist()){photos.pop();return}renderList();draw();if(!again)chime();showFound(p,again)}
+    else showMiss(img)},420);
+}
+$('#shutter').onclick=capture;
+
+/* ---------- Info cards ---------- */
+function infoHTML(d,t){const c=t.card,nat=c.type==='Natural';
+  const sec=[[ 'Why it is famous',c.famous],[c.bl||(nat?'How it formed':'When it was built'),c.built],[c.pl||(nat?'Why it matters to people':'What it is for'),c.purpose],['Places with a similar purpose',c.similar],[c.ml||'What it is made of',c.made]];
+  return `<div class="chips"><span class="chip ${nat?'nat':'made'}">${c.type}</span><span class="chip">${t.cat}</span><span class="chip">${flag(d.flag,'sm')} ${d.name}, ${d.country}</span></div>
+   <div class="info">${sec.filter(s=>s[1]).map(([h,v])=>`<section><h3>${h}</h3><p>${v}</p></section>`).join('')}
+   <section><h3>Interesting facts</h3><ul>${c.facts.map(f=>`<li>${f}</li>`).join('')}</ul></section></div>`}
+const readText=(d,t)=>{const c=t.card;return `${c.title}, in ${d.name}. ${c.famous} ${c.built} ${c.purpose} It is made of: ${c.made} ${c.facts.join(' ')}`};
+function openModal(html){$('#sheet').innerHTML=html;$('#modal').hidden=false;$('#sheet').scrollTop=0;const b=$('#sheet').querySelector('.big');if(b)b.focus()}
+function closeModal(){$('#modal').hidden=true;try{speechSynthesis.cancel()}catch(e){}}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal'||e.target.closest('[data-close]'))closeModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').hidden)closeModal()});
+function showFound(p,again){
+  const t=TARGET(p.dest,p.target),f=foundIds(cur.id),all=f.size===cur.targets.length;
+  openModal(`<img src="${p.img}" alt="Your photo of ${esc(t.card.title)}"><div class="in">
+    <div><div class="eyebrow">${again?'Another photo of':'You found the '+t.label.toLowerCase()}</div><h2>${t.card.title}</h2></div>
+    <p class="lead">${t.card.famous}</p>
+    ${all&&!again?`<div class="note">You found all ${cur.targets.length} things in ${cur.name}! Read about them in My Discoveries, or compare two photos.</div>`:''}
+    <div class="row"><button class="big" data-close>${all?'Keep exploring':'Find the next one'}</button><button class="ghost" id="moreBtn">Read more</button><button class="ghost" id="readBtn">${ICON.speak}Read to me</button></div></div>`);
+  $('#moreBtn').onclick=()=>showPhoto(p.id);$('#readBtn').onclick=()=>speak(t.card.title+'. '+t.card.famous);
+}
+function showMiss(img){
+  openModal(`<img src="${img}" alt="Your photo"><div class="in"><h2>Nothing from your list is in the frame</h2>
+  <p class="muted">Point the camera so a hunt item sits inside the white corners. When the corners turn green, take the photo. You can also keep this one as your own discovery.</p>
+  <div class="row"><button class="big" data-close>Try again</button><button class="ghost" id="keepBtn">Keep as my own discovery</button></div></div>`);
+  $('#keepBtn').onclick=()=>{photos.push({id:Date.now()+'',dest:cur.id,target:null,label:'My own discovery',cat:'My pick',img,t:Date.now()});if(persist()){closeModal();toast('Saved to My Discoveries')}else photos.pop()};
+}
+
+/* ---------- Discoveries ---------- */
+function photoCard(p){const t=p.target&&TARGET(p.dest,p.target);return `<button class="photo" data-photo="${p.id}"><img src="${p.img}" alt="${esc(p.label)}"><div><b>${esc(p.label)}</b><span class="chip" style="justify-self:start">${esc(p.cat)}</span>${t?'<span class="more">Read about it</span>':''}</div></button>`}
+function renderDisc(){
+  const w=$('#discWrap');
+  if(!photos.length){w.innerHTML=`<div class="pagehead"><h1>My Discoveries</h1></div><div class="empty">${ICON.cam}<h2>No photos yet</h2><p class="muted">Your photos from the Photo Hunt will appear here, with facts to read about each place.</p><button class="big" id="goEx">Choose a place to explore</button></div>`;$('#goEx').onclick=()=>go('explore');return}
+  let h=`<div class="pagehead"><div><div class="eyebrow">${photos.length} photo${photos.length>1?'s':''}</div><h1>My Discoveries</h1></div><button class="ghost" id="goCmp">Compare two photos</button></div>`;
+  const order=[...new Set(photos.slice().sort((a,b)=>b.t-a.t).map(p=>p.dest))];
+  order.forEach(id=>{const d=DMAP[id];const list=photos.filter(p=>p.dest===id).sort((a,b)=>a.t-b.t);
+    h+=`<div class="group"><div class="ghead">${flag(d.flag)}<h2>${d.name}, ${d.country}</h2><span class="chip">${foundIds(id).size} of 5 found</span><button class="say" data-say="${esc(d.about)}" aria-label="Read aloud">${ICON.speak}</button></div><p class="gabout">${d.about}</p><div class="grid">${list.map(photoCard).join('')}</div></div>`});
+  w.innerHTML=h;$('#goCmp').onclick=()=>go('compare');
+  w.querySelectorAll('[data-photo]').forEach(b=>b.onclick=()=>showPhoto(b.dataset.photo));
+}
+function showPhoto(id){
+  const p=photos.find(x=>x.id===id);if(!p)return;const d=DMAP[p.dest],t=p.target&&TARGET(p.dest,p.target);let arm=false;
+  openModal(`<img src="${p.img}" alt="${esc(p.label)}"><div class="in"><h2>${esc(p.label)}</h2>
+   ${t?infoHTML(d,t):`<div class="chips"><span class="chip">${flag(d.flag,'sm')} ${d.name}, ${d.country}</span></div><p>${d.about}</p><p class="muted">You chose this photo yourself. What did you notice here?</p>`}
+   <div class="row"><button class="big" data-close>Close</button>${t?`<button class="ghost" id="readBtn">${ICON.speak}Read to me</button>`:''}<button class="ghost" id="delBtn">Delete photo</button></div></div>`);
+  if(t)$('#readBtn').onclick=()=>speak(readText(d,t));
+  $('#delBtn').onclick=()=>{if(!arm){arm=true;$('#delBtn').textContent='Tap again to delete';return}
+    photos=photos.filter(x=>x.id!==id);persist();if(cmp.a===id)cmp.a=null;if(cmp.b===id)cmp.b=null;closeModal();if(screen==='disc')renderDisc();if(screen==='hunt')renderList()};
+}
+
+/* ---------- Compare ---------- */
+const cmp={a:null,b:null,active:'a',notice:null};
+function slotHTML(k){const p=photos.find(x=>x.id===cmp[k]);const d=p&&DMAP[p.dest];
+  return `<button class="slot ${cmp.active===k?'active':''}" data-slot="${k}" aria-label="Photo ${k==='a'?'one':'two'}">${p?`<img src="${p.img}" alt="${esc(p.label)}"><div class="cap"><b>${esc(p.label)}</b><span class="muted">${flag(d.flag,'sm')} ${d.name}</span></div>`:`<div class="ph">Pick photo ${k==='a'?'one':'two'} below</div>`}</button>`}
+function renderCompare(){
+  const w=$('#cmpWrap');
+  if(photos.length<2){w.innerHTML=`<div class="pagehead"><h1>Compare</h1></div><div class="empty">${ICON.cam}<h2>Take two photos to compare</h2><p class="muted">Find things on the Photo Hunt, then look at them side by side here.</p><button class="big" id="goEx">Choose a place to explore</button></div>`;$('#goEx').onclick=()=>go('explore');return}
+  if(!photos.find(p=>p.id===cmp.a))cmp.a=null;if(!photos.find(p=>p.id===cmp.b))cmp.b=null;
+  if(!cmp.a&&!cmp.b){const a=photos[0];const b=photos.find(p=>p.dest!==a.dest)||photos[1];cmp.a=a.id;cmp.b=b.id}
+  const follow={same:'What is the same? Look at the shape, the size and what it is made of.',diff:'What is different? Look at the shape, the size and what it is made of.',both:'Tell a partner one thing that is the same and one thing that is different.'};
+  w.innerHTML=`<div class="pagehead"><div><div class="eyebrow">Look closely</div><h1>Compare</h1></div></div>
+   <div class="pair">${slotHTML('a')}${slotHTML('b')}</div>
+   <div style="margin-top:16px"><div class="eyebrow">Choose a photo for ${cmp.active==='a'?'the left':'the right'}</div>
+   <div class="strip">${photos.map(p=>`<button data-pick="${p.id}" aria-pressed="${p.id===cmp[cmp.active]}"><img src="${p.img}" alt=""><span>${esc(p.label)}<br><span class="muted" style="padding:0">${DMAP[p.dest].name}</span></span></button>`).join('')}</div></div>
+   ${cmp.a&&cmp.b?`<div class="notice"><h2>What do you notice?</h2>
+    <div class="choices">${[['same','Something similar'],['diff','Something different'],['both','Both']].map(([k,l])=>`<button class="choice" data-notice="${k}" aria-pressed="${cmp.notice===k}">${l}</button>`).join('')}</div>
+    ${cmp.notice?`<div class="note">${follow[cmp.notice]}</div>`:''}
+    <ul class="prompts">${['What is the same?','What is different?','Is each one natural or human-made?','What is each one for?','Why might these places be important to people?'].map(q=>`<li><span>${q}</span><button class="say" data-say="${q}" aria-label="Read aloud">${ICON.speak}</button></li>`).join('')}</ul></div>`:''}`;
+  w.querySelectorAll('[data-slot]').forEach(b=>b.onclick=()=>{cmp.active=b.dataset.slot;renderCompare()});
+  w.querySelectorAll('[data-pick]').forEach(b=>b.onclick=()=>{cmp[cmp.active]=b.dataset.pick;cmp.notice=null;cmp.active=cmp.active==='a'?'b':'a';renderCompare()});
+  w.querySelectorAll('[data-notice]').forEach(b=>b.onclick=()=>{cmp.notice=b.dataset.notice;renderCompare()});
+}
+
+/* ---------- Boot ---------- */
+window.__WE={DESTS,getPano};
+choose('paris');
+if(photos.length){const last=photos[photos.length-1].dest;cur=DMAP[last];pano=getPano(last);$('#placeFlag').innerHTML=flag(cur.flag,'sm');$('#placeName').textContent=cur.name;$('#tabHunt').disabled=false}
+go('explore');
+})();
+</script>
+</body>
+</html>
