@@ -211,7 +211,22 @@ body.fs .prob.bt{border-top:2px dashed var(--line)}
 body.fs .prob.bl{border-left:2px dashed var(--line)}
 body.fs .prob.wide{grid-column:1/-1}
 body.fs .fit{transform-origin:top left}
-body.fs .q{max-width:none}
+body.fs .probs.zoomed .prob:not(.zoom){display:none}
+body.fs .probs.zoomed .prob{grid-column:1/-1;grid-row:1/-1}
+body.fs .pnum{cursor:zoom-in}
+body.fs .prob.zoom .pnum{cursor:zoom-out;background:var(--accent);color:#fff}
+body.fs .q{max-width:none;font-size:calc(var(--slot-size)*.34);line-height:1.3}
+body.fs .mchip b{font-size:calc(var(--slot-size)*.22)}
+body.fs .word{font-size:calc(var(--slot-size)*.3)}
+body.fs .opt .oval{font-size:calc(var(--slot-size)*.5)}
+body.fs .ngrid button,body.fs .sl-labels,body.fs .nl-t em{font-size:calc(var(--slot-size)*.24)}
+body.fs .mchip span,body.fs .obj,body.fs .judge .hint,body.fs .pool-lbl,body.fs .tf-count{display:none}
+body.fs .pbody{gap:6px}
+body.fs .opts{grid-template-columns:repeat(4,minmax(0,1fr))}
+body.fs .opts.multi{grid-template-columns:1fr 1fr}
+body.fs .ngrid button{padding:4px 0}
+body.fs .jwrap{padding:6px 10px;gap:4px}
+body.fs .pvd{min-height:30px}
 body.fs .card-foot{padding-top:8px}
 body.fs .card-foot .btn{padding:7px 14px}
 body.fs .tray{border-radius:16px 16px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))}
@@ -219,6 +234,10 @@ body.fs .tiles{gap:clamp(6px,1vw,12px);flex-wrap:nowrap}
 @media (max-width:860px){body.fs .fs-btn span{display:none}body.fs .fs-btn{padding:6px 8px}body.fs .card-no{width:40px;height:40px}body.fs .card-no b{font-size:14px}body.fs .card-foot{gap:6px}body.fs .card-foot .btn{padding:5px 9px;font-size:12.5px}body.fs .probs{--cols:1!important}body.fs .prob.bl{border-left:0}body.fs .prob+.prob{border-top:2px dashed var(--line)}body.fs .tiles{flex-wrap:wrap}}
 
 /* ===== answer methods ===== */
+.prow>.widget{flex:0 1 auto;min-width:0}
+.mtiles{display:flex;flex-wrap:wrap;gap:6px;--slot-size:42px;max-width:520px}
+.mtiles .tile{width:42px;height:42px;font-size:26px}
+.cpile{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;border:2px dashed var(--line);border-radius:12px;background:var(--panel)}
 .mchip{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:12.5px;color:var(--muted);max-width:70ch}
 .mchip b{font-weight:600;color:var(--ink);background:color-mix(in srgb,var(--accent) 13%,var(--card));border:1.5px solid color-mix(in srgb,var(--accent) 45%,transparent);padding:2px 10px;border-radius:999px;font-size:12.5px;white-space:nowrap}
 .mchip i{font-style:normal;color:var(--todo)}
@@ -728,7 +747,7 @@ function fixSelection(){const ss=strandsFor();if(!ss.includes(state.strand))stat
 function newCard(keepSeed){
   fixSelection();
   if(!keepSeed)state.seed=1000+Math.floor(Math.random()*9000);
-  state.card=buildCard();state.fill={};state.selected=null;state.results=[];state.revealed=false;state.done=false;assignModes();
+  state.zoom=null;state.card=buildCard();state.fill={};state.selected=null;state.results=[];state.revealed=false;state.done=false;assignModes();
   try{history.replaceState(null,'',`#y${state.year}-${state.strand}-${state.seed}`)}catch(e){}
   renderAll();
 }
@@ -791,7 +810,7 @@ function renderCurr(){
   $('curr-list').innerHTML=objs.map(o=>`<li>${esc(o[0])}<span class="chip ${o[1].length?'on':'off'}">${o[1].length?'In the app':'Practical, done in class'}</span></li>`).join('');
 }
 function renderTray(){
-  const onCard=new Set(Object.entries(state.fill).filter(([k])=>state.tileSlots.has(k)).map(([,v])=>v));$('tray').hidden=!state.card.some(p=>p.mode==='tiles');let h='';
+  const onCard=new Set(Object.entries(state.fill).filter(([k])=>state.tileSlots.has(k)).map(([,v])=>v));$('tray').hidden=true;let h='';
   for(let v=0;v<=9;v++){const used=state.unique&&onCard.has(v);h+=`<button type="button" class="tile${v===10?' ten':''}${used?' used':''}${state.selected===v?' sel':''}" data-val="${v}" ${used?'disabled aria-label="Tile '+v+' is on the card"':'aria-label="Tile '+v+'"'} aria-pressed="${state.selected===v}">${v}</button>`}
   $('tiles').innerHTML=h;
   const slots=state.card.reduce((a,p)=>a+(p.mode==='tiles'?slotCells(p).length:0),0);
@@ -865,7 +884,7 @@ $('btn-show').onclick=showAnswers;
 /* ---------- full screen ---------- */
 let fsOn=false;
 function setFs(on){
-  fsOn=on;document.body.classList.toggle('fs',on);
+  fsOn=on;state.zoom=null;document.body.classList.toggle("fs",on);
   const b=$('btn-fs');b.setAttribute('aria-pressed',on);b.querySelector('span').textContent=on?'Exit full screen':'Full screen';
   try{
     if(on&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});
@@ -875,8 +894,10 @@ function setFs(on){
 }
 function layoutFs(){
   const lis=[...document.querySelectorAll('#probs .prob')];
-  lis.forEach(li=>{li.classList.remove('bt','bl','wide');const f=li.firstElementChild;if(f){f.style.width='';f.style.transform=''}});
+  lis.forEach(li=>{li.classList.remove('bt','bl','wide','zoom');const f=li.firstElementChild;if(f){f.style.width='';f.style.transform=''}});
+  const z=fsOn&&state.zoom!=null&&lis[state.zoom];$('probs').classList.toggle('zoomed',!!z);
   if(!fsOn)return;
+  if(z){lis[state.zoom].classList.add('zoom');$('probs').style.setProperty('--cols',1);requestAnimationFrame(fitProblems);return}
   const n=lis.length,wideScreen=innerWidth>860;
   const cols=!wideScreen?1:n<=2?n:2;
   $('probs').style.setProperty('--cols',cols);
@@ -885,12 +906,11 @@ function layoutFs(){
 }
 function fitProblems(){
   if(!fsOn)return;
-  const items=[...document.querySelectorAll('#probs .prob')].map(li=>{const cs=getComputedStyle(li);return{li,f:li.firstElementChild,W:li.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),H:li.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)}}).filter(o=>o.f&&o.W>0&&o.H>0);
+  const items=[...document.querySelectorAll('#probs .prob')].filter(li=>li.offsetParent).map(li=>{const cs=getComputedStyle(li);return{li,f:li.firstElementChild,W:li.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),H:li.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)}}).filter(o=>o.f&&o.W>0&&o.H>0);
   const fits=(o,k)=>{o.f.style.transform='';o.f.style.width=(o.W/k)+'px';return o.f.scrollHeight*k<=o.H&&o.f.scrollWidth*k<=o.W+1};
-  // one shared size so every problem on the card looks the same
-  let k=1.8;
-  items.forEach(o=>{if(fits(o,k))return;let lo=.3,hi=k;for(let i=0;i<9;i++){const m=(lo+hi)/2;if(fits(o,m))lo=m;else hi=m}k=lo});
-  items.forEach(o=>{o.f.style.width=(o.W/k)+'px';o.f.style.transform=`scale(${k})`});
+  // each problem is as big as its own space allows (answer tools differ a lot in size)
+  items.forEach(o=>{let k=2.4;if(!fits(o,k)){let lo=.3,hi=k;for(let i=0;i<10;i++){const m=(lo+hi)/2;if(fits(o,m))lo=m;else hi=m}k=lo}
+    o.f.style.width=(o.W/k)+'px';o.f.style.transform=`scale(${k})`});
 }
 $('btn-fs').onclick=()=>setFs(!fsOn);
 $('fs-strand').addEventListener('change',e=>{state.strand=e.target.value;newCard()});
@@ -977,7 +997,7 @@ function blankInfo(np){
   const odd=np.cells.some(c=>c.k==='sym'&&!['.','−','£',' '].includes(c.d));
   const i=s.indexOf('.');const dp=i<0?0:s.slice(i+1).replace(/\D/g,'').length;
   const digits=s.replace(/[^\d.]/g,'');
-  return{ok:!odd&&!/^0\d/.test(digits),dp,money:s.includes('£'),unit:rdp(10**-dp,dp)};
+  return{ok:!odd&&!/^0\d/.test(digits),dp,money:s.includes('£'),unit:rdp(10**-dp,dp),nd:np.cells.filter(c=>/\d/.test(c.d)).length};
 }
 function fmtB(info,v){if(v==null)return'?';let s=Math.abs(v).toFixed(info.dp);if(info.dp===0&&Math.abs(v)>=10000)s=s.replace(/\B(?=(\d{3})+(?!\d))/g,' ');return(v<0?'−':'')+(info.money?'£':'')+s}
 function plainB(info,v){return v==null?'':(v<0?'-':'')+Math.abs(v).toFixed(info.dp)}
@@ -995,6 +1015,7 @@ function isRight(p,bvals){
   try{return p.check?!!p.check(v):v.every((x,i)=>eq(x,p.expected[i]))}catch(e){return false}
 }
 /* plausible mistakes: off by one, a place-value slip, reversed digits, ×10 */
+const fitsBox=(x,info)=>fmtB(info,Math.abs(x)).replace(/\D/g,'').length<=info.nd;
 function nudges(v,info){
   if(info.dp===0&&Math.abs(v)<=10)return[1,-1,2,-2,3,-3];
   const u=info.unit,out=[u,-u,2*u,-2*u,10*u,-10*u];
@@ -1008,7 +1029,7 @@ function wrongTuple(p,avoid){
   for(let t=0;t<80;t++){
     const tup=p.bExp.slice(),j=Math.floor(R()*tup.length),info=p.bInfo[j],v=tup[j];
     const nv=rdp(v+pick(nudges(v,info)),info.dp);
-    if(eq(nv,v)||(v>=0&&nv<0)||(v!==0&&nv===0))continue;
+    if(eq(nv,v)||(v>=0&&nv<0)||(v!==0&&nv===0)||!fitsBox(nv,info))continue;
     tup[j]=nv;const key=tup.join('|');
     if(avoid.has(key)||isRight(p,tup))continue;
     avoid.add(key);return tup;
@@ -1017,7 +1038,7 @@ function wrongTuple(p,avoid){
 }
 function nearValues(v,info,n){
   const set=new Set([v]);
-  for(let t=0;t<60&&set.size<n;t++){const x=rdp(v+pick(nudges(v,info)),info.dp);if((v>=0&&x<0)||(v!==0&&x===0))continue;set.add(x)}
+  for(let t=0;t<60&&set.size<n;t++){const x=rdp(v+pick(nudges(v,info)),info.dp);if((v>=0&&x<0)||(v!==0&&x===0)||!fitsBox(x,info))continue;set.add(x)}
   return[...set].sort((a,b)=>a-b);
 }
 function placesFor(v,info){
@@ -1039,7 +1060,7 @@ function eligible(p){
     const a=p.bExp[0],info=p.bInfo[0];
     list.push('slider');
     if(p.wrongs.length)list.push('cards');
-    if(fmtB(info,a+11*info.unit).length<=6)list.push('dial');
+    if(fmtB(info,a+11*info.unit).length<=3)list.push('dial');
     if(info.dp===0&&a>=1&&a<100000)list.push('grid');
     if(info.dp===0&&a>=1&&a<=40)list.push('tenframe');
   }
@@ -1061,14 +1082,11 @@ function assignModes(){
   });
   lsSet('tilecards-uses',state.uses);
   // one shared answer pile for every "answer cards" problem: the right answers plus two tricks
-  const cp=state.card.map((p,i)=>[p,i]).filter(([p])=>p.mode==='cards');
-  if(cp.length){
-    const chips=cp.map(([p,i])=>({v:p.bExp[0],info:p.bInfo[0],owner:i}));
-    const tricks=shuffle(cp.flatMap(([p])=>p.wrongs.map(w=>({v:w[0],info:p.bInfo[0],owner:-1}))));
-    const seen=new Set(chips.map(c=>fmtB(c.info,c.v)));
-    for(const t of tricks){if(chips.length>=cp.length+2)break;const s=fmtB(t.info,t.v);if(!seen.has(s)){seen.add(s);chips.push(t)}}
-    state.pool=shuffle(chips).map((c,k)=>({...c,id:'c'+k,txt:fmtB(c.info,c.v)}));
-  }
+  state.card.forEach((p,i)=>{if(p.mode!=='cards')return;
+    const seen=new Set([fmtB(p.bInfo[0],p.bExp[0])]),chips=[{v:p.bExp[0],owner:i}];
+    for(const w of p.wrongs){const t=fmtB(p.bInfo[0],w[0]);if(!seen.has(t)){seen.add(t);chips.push({v:w[0],owner:-1})}}
+    shuffle(chips).forEach(c=>state.pool.push({...c,prob:i,info:p.bInfo[0],id:'c'+state.pool.length,txt:fmtB(p.bInfo[0],c.v)}));
+  });
   resetAnswers();
 }
 function setupMode(p){
@@ -1128,6 +1146,14 @@ function lineWith(p,i,vals){const ctx={k:0,vals};return p.parts.map(x=>partM(x,p
 
 function widgetHTML(p,i){
   const m=p.mode,a=state.ans[i];
+  if(m==='tiles'){
+    let h='';for(let v=0;v<=9;v++)h+=`<button type="button" class="tile${state.selected===v?' sel':''}" data-val="${v}" aria-label="Tile ${v}" aria-pressed="${state.selected===v}">${v}</button>`;
+    return`<div class="widget mtiles" role="group" aria-label="Digit tiles">${h}</div>`;
+  }
+  if(m==='cards'){
+    const placed=new Set(Object.values(state.place));
+    return`<div class="widget cpile" role="group" aria-label="Answer cards">${state.pool.filter(c=>c.prob===i).map(c=>`<button type="button" class="achip${placed.has(c.id)?' used':''}${state.chipSel===c.id?' sel':''}" data-chip="${c.id}" data-fk="ch${c.id}" ${placed.has(c.id)?'disabled':''} aria-pressed="${state.chipSel===c.id}">${esc(c.txt)}</button>`).join('')}</div>`;
+  }
   if(m==='choice'){
     const one=p.blanks.length===1;
     return`<div class="widget opts${one?'':' multi'}" role="group" aria-label="Options">${p.opts.map((o,k)=>`<button type="button" class="opt${p.pick===k?' sel':''}" data-opt="${i}-${k}" data-fk="o${i}-${k}" aria-pressed="${p.pick===k}"><span class="key">${'ABCD'[k]}</span>${one?`<span class="oval">${esc(fmtB(p.bInfo[0],o[0]))}</span>`:`<span class="line mini">${lineWith(p,i,o)}</span>`}</button>`).join('')}</div>`;
@@ -1172,14 +1198,9 @@ function probHTML(p,i,pill,r){
   const chip=`<p class="mchip">${stag}<b>${M.icon} ${M.name}</b><span>${M.how}${note}</span></p>`;
   let line=`<div class="line">${p.parts.map(x=>partM(x,p,i,ctx)).join('')}</div>`;
   if(p.mode==='judge')line=`<div class="jwrap${p.verdict?' v-'+p.verdict:''}" data-swipe="${i}"><span class="jtag">📝 ${p.verdict==='wrong'?'You said this was wrong. Type the correct answer.':p.verdict==='right'?'You said this answer is right.':'Here is someone\'s answer. Is it right?'}</span>${line}</div>`;
-  return`<li class="prob mode-${p.mode}" data-state="${r||''}"${state.strand==='mix'&&p.strand?` style="--accent:${STRAND[p.strand][1]}"`:''}><div class="fit"><span class="pnum">${i+1}</span><div class="pbody"><p class="obj" ${state.notes?'':'hidden'}>${esc(p.obj)}</p>${chip}<p class="q">${esc(p.q)}</p><div class="prow">${p.vis?`<div class="vis">${p.vis}</div>`:''}${line}</div>${widgetHTML(p,i)}</div><div class="pmark">${pill}</div></div></li>`;
+  return`<li class="prob mode-${p.mode}" data-state="${r||''}"${state.strand==='mix'&&p.strand?` style="--accent:${STRAND[p.strand][1]}"`:''}><div class="fit"><span class="pnum" data-zoom="${i}" title="Full screen: click to enlarge this question">${i+1}</span><div class="pbody"><p class="obj" ${state.notes?'':'hidden'}>${esc(p.obj)}</p>${chip}<p class="q">${esc(p.q)}</p><div class="prow">${p.vis?`<div class="vis">${p.vis}</div>`:''}${line}${widgetHTML(p,i)}</div></div><div class="pmark">${pill}</div></div></li>`;
 }
-function renderPool(){
-  const el=$('pool');if(!el)return;
-  if(!state.pool.length||!state.card.length){el.hidden=true;el.innerHTML='';return}
-  el.hidden=false;const placed=new Set(Object.values(state.place));
-  el.innerHTML=`<span class="pool-lbl">🃏 Answer pile · drag a card into its box (there are ${state.pool.length-state.card.filter(p=>p.mode==='cards').length} trick cards)</span>`+state.pool.map(c=>`<button type="button" class="achip${placed.has(c.id)?' used':''}${state.chipSel===c.id?' sel':''}" data-chip="${c.id}" data-fk="ch${c.id}" ${placed.has(c.id)?'disabled':''} aria-pressed="${state.chipSel===c.id}">${esc(c.txt)}</button>`).join('');
-}
+function renderPool(){const el=$('pool');if(el){el.hidden=true;el.innerHTML=''}}
 function renderStyles(){
   const done=PASSPORT.filter(m=>(state.skills[m]||0)>=BADGE).length;
   $('passport').innerHTML=PASSPORT.map(m=>{const n=Math.min(state.skills[m]||0,BADGE);return`<span class="stamp${n>=BADGE?' earned':''}" style="--p:${n/BADGE*100}" title="${MODES[m].name} (${MODES[m].tech}): ${n} of ${BADGE} correct${n>=BADGE?' · stamp earned!':''}" role="img" aria-label="${MODES[m].name}: ${n} of ${BADGE}"><span>${MODES[m].icon}</span></span>`}).join('');
@@ -1224,11 +1245,13 @@ function dialFrom(e,svgEl){
   const N=state.card[+svgEl.dataset.dial].dialVals.length,a=(Math.atan2(q.x-100,-(q.y-100))*180/Math.PI+360)%360;setDial(svgEl,Math.round(a/(360/N))%N);
 }
 function placeChip(id,i){
+  const chip=state.pool.find(c=>c.id===id);if(!chip||chip.prob!==i){state.chipSel=null;renderCard();return}
   for(const k in state.place)if(state.place[k]===id){delete state.place[k];state.ans[k]=[null];touchP(+k)}
   const c=state.pool.find(c=>c.id===id);state.place[i]=id;state.ans[i]=[c.v];state.chipSel=null;touchP(i);renderCard();
 }
 function removeChip(i){if(state.place[i]==null)return;delete state.place[i];state.ans[i]=[null];touchP(i);renderCard()}
 
+document.addEventListener('click',e=>{const z=e.target.closest('[data-zoom]');if(!z||!fsOn)return;const i=+z.dataset.zoom;state.zoom=state.zoom===i?null:i;layoutFs()});
 let cSuppress=false,cdrag=null,cghost=null,chover=null,dialDrag=null,swipe=null,wheelAcc=0;
 document.addEventListener('click',e=>{
   if(cSuppress){cSuppress=false;return}
