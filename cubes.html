@@ -149,6 +149,53 @@
   .chip:not(.done){opacity:.55}
   .go{background:var(--btn,var(--c-s));color:var(--btn-ink,#fff);box-shadow:0 5px 0 rgba(21,35,59,.35)}
   .go:active{box-shadow:0 2px 0 rgba(21,35,59,.35)}
+  /* Bar model */
+  .bm-toggle{display:flex;align-items:center;gap:9px;cursor:pointer;font-family:'Fredoka',sans-serif;
+    font-weight:600;font-size:.95rem;color:var(--ink);user-select:none}
+  .bm-toggle input{position:absolute;opacity:0;width:1px;height:1px}
+  .bm-toggle .sw{width:44px;height:26px;border-radius:999px;background:#c9d3e1;position:relative;transition:background .2s;flex:none}
+  .bm-toggle .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}
+  .bm-toggle input:checked + .sw{background:var(--c-s)}
+  .bm-toggle input:checked + .sw::after{transform:translateX(18px)}
+  .bm-toggle input:focus-visible + .sw{outline:3px solid var(--c-b);outline-offset:2px}
+  .p-bm{background:#f2f7fd;border:2px solid var(--c-s);color:var(--ink)}
+  .p-bm .ptitle{color:#2f6ea8}
+  .bm{display:flex;flex-direction:column;gap:4px;padding:2px 4px 0;font-family:'Fredoka',sans-serif;font-size:1rem}
+  .bm-row{display:flex;align-items:flex-start;gap:12px}
+  .bm-lab{flex:none;width:5.2em;height:var(--barh);display:flex;align-items:center;justify-content:flex-end;font-weight:600;color:#4a5a72;font-size:.9em}
+  .bm-trackwrap{flex:1;min-width:0;padding:0 2px}
+  .bm-track{position:relative}
+  .bm{--barh:44px}
+  .bm-bar{position:relative;height:var(--barh)}
+  .bm-seg{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;
+    background:#fff;box-shadow:inset 0 0 0 2px var(--ink);font-weight:600;font-size:.95em;white-space:nowrap;
+    color:var(--ink);transition:background .25s}
+  .bm-seg.s{background:#fde3c3}
+  .bm-seg.x{background:repeating-linear-gradient(135deg,#e7ebf2 0 6px,#fff 6px 12px);color:#4a5a72}
+  .bm-seg.d{background:transparent;box-shadow:none;border:2.5px dashed #7c8aa0;color:#4a5a72}
+  .bm-seg.q{background:#fff3c4}
+  .bm-seg.q.done{background:#d9f3e6}
+  .bm-br{position:absolute;height:36px;display:flex;flex-direction:column;align-items:center}
+  .bm-br .bk{width:100%;height:9px;border:2.5px solid var(--ink)}
+  .bm-br.t{justify-content:flex-end}
+  .bm-br.t .bk{border-bottom:none;border-radius:6px 6px 0 0;margin-bottom:4px;margin-top:4px}
+  .bm-br.b{justify-content:flex-start}
+  .bm-br.b .bk{border-top:none;border-radius:0 0 6px 6px;margin-top:4px;margin-bottom:4px}
+  .bm-br .lb{font-weight:600;font-size:1em;line-height:1.1;white-space:nowrap;padding:0 4px}
+  .bm .unk{display:inline-block;min-width:1.5em;padding:0 .35em;border-radius:7px;background:var(--c-b);color:var(--ink);font-weight:700}
+  .bm .unk.done{background:var(--c-e);color:#fff}
+  .bm-note{font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;color:#4a5a72;margin-top:6px}
+  .bm-none{font-family:'Nunito',sans-serif;font-weight:700;font-size:1rem;color:#4a5a72}
+  body.fs .bm{font-size:1.2rem}
+  body.fs .bm{--barh:52px}
+  @media(min-width:900px){
+    body.fs .reveal.bm-on{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.7fr);align-items:start}
+    body.fs .reveal.bm-on #hint{grid-column:1;grid-row:1}
+    body.fs .reveal.bm-on #answer{grid-column:1;grid-row:2}
+    body.fs .reveal.bm-on #bmPanel{grid-column:2;grid-row:1 / span 2}
+  }
+
   /* Full screen */
   .fs-btn{position:fixed;top:14px;right:14px;z-index:20;display:flex;align-items:center;gap:8px;
     font-family:'Fredoka',sans-serif;font-weight:600;font-size:.95rem;color:var(--ink);background:#fff;
@@ -213,6 +260,10 @@
         <div class="ptitle">E · Evaluate — number sentence</div>
         <div class="pbody" id="hintBody"></div>
       </div>
+      <div class="panel p-bm" id="bmPanel">
+        <div class="ptitle">Bar model</div>
+        <div class="bm" id="bmBody"></div>
+      </div>
       <div class="panel p-answer" id="answer">
         <div class="ptitle">S · Solve — answer</div>
         <div class="pbody" id="answerBody"></div>
@@ -223,6 +274,7 @@
       <button class="go" id="go">Circle the numbers</button>
       <span class="enter-hint">or press <kbd>Enter</kbd></span>
       <span class="count" id="count">0 solved</span>
+      <label class="bm-toggle" title="Show a bar model at the Evaluate step"><input type="checkbox" id="bmToggle"><span class="sw"></span>Bar model</label>
     </div>
   </div>
 
@@ -251,87 +303,90 @@ const STRANDS = {
   STA:{name:"Statistics", color:"#2bafc0"},
 };
 
-// q = problem text · s = number sentence (hint) · a = answer
+// Bar model helpers. A segment is [width, label, flags, answer]; flags: q = unknown, s = shaded, x = taken away, d = dashed.
+// A group is {g:[segments or groups], t:top brace label, tq:answer, b:bottom brace label, bq:answer, l:row label}.
+const N = (n, seg) => Array.from({length:n}, () => seg.slice());
+// q = problem text · s = number sentence (hint) · a = answer · k = extra keywords · bm = bar model
 const BANK = {
 1:[
- {st:"AS", q:"Maya has 7 stickers. Her friend gives her 5 more. How many stickers does Maya have altogether?", s:"7 + 5 = ?", a:"12 stickers"},
- {st:"AS", q:"There are 15 ducks on the pond. 6 ducks fly away. How many ducks are left?", s:"15 − 6 = ?", a:"9 ducks"},
- {st:"AS", q:"Ben had 6 balloons. He gets 7 more for his party. How many balloons does he have now?", s:"6 + 7 = ?", a:"13 balloons"},
- {st:"NPV", q:"Tom counts his toy cars. He has one more than 9 cars. How many cars does Tom have?", s:"9 + 1 = ?", a:"10 cars"},
- {st:"MD", q:"There are 4 baskets. Each basket has 2 apples. How many apples are there in total?", s:"4 × 2 = ?", a:"8 apples"},
- {st:"FDRP", q:"Sam has 8 sweets. He gives half of them to his sister. How many sweets does his sister get?", s:"½ of 8 = 8 ÷ 2 = ?", a:"4 sweets", k:["of"]},
- {st:"MEA", q:"A pencil costs 5p and a rubber costs 3p. How much do they cost altogether?", s:"5p + 3p = ?", a:"8p"},
- {st:"MEA", q:"A red ribbon is 12 cm long. A blue ribbon is 4 cm shorter. How long is the blue ribbon?", s:"12 − 4 = ?", a:"8 cm"},
+ {st:"AS", q:"Maya has 7 stickers. Her friend gives her 5 more. How many stickers does Maya have altogether?", s:"7 + 5 = ?", a:"12 stickers", bm:{r:[{g:[[7,'7'],[5,'5']],b:'?',bq:'12'}]}},
+ {st:"AS", q:"There are 15 ducks on the pond. 6 ducks fly away. How many ducks are left?", s:"15 − 6 = ?", a:"9 ducks", bm:{r:[{g:[[6,'6 fly away','x'],[9,'?','q','9']],t:'15'}]}},
+ {st:"AS", q:"Ben had 6 balloons. He gets 7 more for his party. How many balloons does he have now?", s:"6 + 7 = ?", a:"13 balloons", bm:{r:[{g:[[6,'6'],[7,'7']],b:'?',bq:'13'}]}},
+ {st:"NPV", q:"Tom counts his toy cars. He has one more than 9 cars. How many cars does Tom have?", s:"9 + 1 = ?", a:"10 cars", bm:{r:[{g:[[9,'9'],[2,'1']],b:'?',bq:'10'}]}},
+ {st:"MD", q:"There are 4 baskets. Each basket has 2 apples. How many apples are there in total?", s:"4 × 2 = ?", a:"8 apples", bm:{r:[{g:N(4,[1,'2']),b:'?',bq:'8'}], n:'4 baskets with 2 in each'}},
+ {st:"FDRP", q:"Sam has 8 sweets. He gives half of them to his sister. How many sweets does his sister get?", s:"½ of 8 = 8 ÷ 2 = ?", a:"4 sweets", k:["of"], bm:{r:[{g:[[1,'?','sq','4'],[1,'']],t:'8'}], n:'Split into 2 equal parts (halves)'}},
+ {st:"MEA", q:"A pencil costs 5p and a rubber costs 3p. How much do they cost altogether?", s:"5p + 3p = ?", a:"8p", bm:{r:[{g:[[5,'5p'],[3,'3p']],b:'?',bq:'8p'}]}},
+ {st:"MEA", q:"A red ribbon is 12 cm long. A blue ribbon is 4 cm shorter. How long is the blue ribbon?", s:"12 − 4 = ?", a:"8 cm", bm:{r:[{l:'Red',g:[[12,'12 cm']]},{l:'Blue',g:[[8,'?','q','8 cm'],[4,'4 cm','d']]}], n:'The blue ribbon is 4 cm shorter'}},
  {st:"GEO", q:"Lily draws a shape with 3 straight sides and 3 corners. What shape did she draw?", s:"3 sides + 3 corners → ?", a:"A triangle", k:["sides", "corners"]},
- {st:"STA", q:"In a fruit bowl there are 3 apples, 2 bananas and 4 oranges. How many pieces of fruit are there in total?", s:"3 + 2 + 4 = ?", a:"9 pieces of fruit"},
+ {st:"STA", q:"In a fruit bowl there are 3 apples, 2 bananas and 4 oranges. How many pieces of fruit are there in total?", s:"3 + 2 + 4 = ?", a:"9 pieces of fruit", bm:{r:[{g:[[3,'3'],[2,'2'],[4,'4']],b:'?',bq:'9'}]}},
 ],
 2:[
- {st:"AS", q:"There are 34 children in the hall. 28 more children come in. How many children are in the hall now?", s:"34 + 28 = ?", a:"62 children"},
- {st:"AS", q:"A shop has 50 loaves of bread. It sells 23 of them. How many loaves are left?", s:"50 − 23 = ?", a:"27 loaves"},
- {st:"MD", q:"Each table has 5 chairs. There are 6 tables. How many chairs are there altogether?", s:"6 × 5 = ?", a:"30 chairs"},
- {st:"MD", q:"Each packet has 10 stickers. Mia buys 4 packets. How many stickers does she have altogether?", s:"4 × 10 = ?", a:"40 stickers"},
- {st:"FDRP", q:"There are 20 cupcakes. Jack eats one quarter of them. How many cupcakes did Jack eat?", s:"¼ of 20 = 20 ÷ 4 = ?", a:"5 cupcakes", k:["of"]},
- {st:"FDRP", q:"A ribbon is 12 m long. Nina cuts off one third of it. How long is the piece she cut off?", s:"⅓ of 12 = 12 ÷ 3 = ?", a:"4 m"},
- {st:"MEA", q:"Ali has 45p. He spends 30p on a sticker. How much money does he have left?", s:"45p − 30p = ?", a:"15p"},
- {st:"MEA", q:"A worm is 9 cm long. Another worm is 15 cm long. How much longer is the second worm?", s:"15 − 9 = ?", a:"6 cm"},
+ {st:"AS", q:"There are 34 children in the hall. 28 more children come in. How many children are in the hall now?", s:"34 + 28 = ?", a:"62 children", bm:{r:[{g:[[34,'34'],[28,'28']],b:'?',bq:'62'}]}},
+ {st:"AS", q:"A shop has 50 loaves of bread. It sells 23 of them. How many loaves are left?", s:"50 − 23 = ?", a:"27 loaves", bm:{r:[{g:[[23,'23 sold','x'],[27,'?','q','27']],t:'50'}]}},
+ {st:"MD", q:"Each table has 5 chairs. There are 6 tables. How many chairs are there altogether?", s:"6 × 5 = ?", a:"30 chairs", bm:{r:[{g:N(6,[1,'5']),b:'?',bq:'30'}], n:'6 tables with 5 chairs each'}},
+ {st:"MD", q:"Each packet has 10 stickers. Mia buys 4 packets. How many stickers does she have altogether?", s:"4 × 10 = ?", a:"40 stickers", bm:{r:[{g:N(4,[1,'10']),b:'?',bq:'40'}], n:'4 packets of 10'}},
+ {st:"FDRP", q:"There are 20 cupcakes. Jack eats one quarter of them. How many cupcakes did Jack eat?", s:"¼ of 20 = 20 ÷ 4 = ?", a:"5 cupcakes", k:["of"], bm:{r:[{g:[[1,'?','sq','5'],...N(3,[1,''])],t:'20'}], n:'Split into 4 equal parts (quarters)'}},
+ {st:"FDRP", q:"A ribbon is 12 m long. Nina cuts off one third of it. How long is the piece she cut off?", s:"⅓ of 12 = 12 ÷ 3 = ?", a:"4 m", bm:{r:[{g:[[1,'?','sq','4 m'],...N(2,[1,''])],t:'12 m'}], n:'Split into 3 equal parts (thirds)'}},
+ {st:"MEA", q:"Ali has 45p. He spends 30p on a sticker. How much money does he have left?", s:"45p − 30p = ?", a:"15p", bm:{r:[{g:[[30,'30p spent','x'],[15,'?','q','15p']],t:'45p'}]}},
+ {st:"MEA", q:"A worm is 9 cm long. Another worm is 15 cm long. How much longer is the second worm?", s:"15 − 9 = ?", a:"6 cm", bm:{r:[{l:'Worm 2',g:[[15,'15 cm']]},{l:'Worm 1',g:[[9,'9 cm'],[6,'?','dq','6 cm']]}], n:'Find the difference'}},
  {st:"GEO", q:"Sara is sorting shapes. She picks up a cube. How many faces does a cube have?", s:"faces of a cube = ?", a:"6 faces", k:["faces"]},
- {st:"STA", q:"In a pictogram, each picture stands for 2 books. Sara's row has 6 pictures. How many books did Sara read?", s:"6 × 2 = ?", a:"12 books"},
+ {st:"STA", q:"In a pictogram, each picture stands for 2 books. Sara's row has 6 pictures. How many books did Sara read?", s:"6 × 2 = ?", a:"12 books", bm:{r:[{g:N(6,[1,'2']),b:'?',bq:'12'}], n:'6 pictures, each worth 2 books'}},
 ],
 3:[
- {st:"AS", q:"A library has 356 books. It buys 247 more. How many books does the library have now?", s:"356 + 247 = ?", a:"603 books"},
- {st:"AS", q:"There are 420 seats in a cinema. 175 are taken. How many seats are empty?", s:"420 − 175 = ?", a:"245 seats"},
- {st:"MD", q:"A spider has 8 legs. How many legs do 7 spiders have altogether?", s:"7 × 8 = ?", a:"56 legs"},
- {st:"MD", q:"48 sweets are shared equally between 6 children. How many sweets does each child get?", s:"48 ÷ 6 = ?", a:"8 sweets"},
- {st:"FDRP", q:"A bar of chocolate has 10 equal squares. Tom eats 3 of them. What fraction of the bar did he eat?", s:"3 out of 10 → ?", a:"3⁄10", k:["fraction"]},
- {st:"FDRP", q:"There are 36 pencils. A teacher gives out one quarter of them. How many pencils were given out?", s:"¼ of 36 = 36 ÷ 4 = ?", a:"9 pencils", k:["of"]},
- {st:"MEA", q:"A book costs £4 and a pen costs £2. Ed pays with a £10 note. How much change does he get?", s:"£10 − (£4 + £2) = ?", a:"£4"},
- {st:"MEA", q:"A piece of string is 1 m long. Jess cuts off 35 cm. How many cm of string are left? (1 m = 100 cm)", s:"100 − 35 = ?", a:"65 cm"},
+ {st:"AS", q:"A library has 356 books. It buys 247 more. How many books does the library have now?", s:"356 + 247 = ?", a:"603 books", bm:{r:[{g:[[356,'356'],[247,'247']],b:'?',bq:'603'}]}},
+ {st:"AS", q:"There are 420 seats in a cinema. 175 are taken. How many seats are empty?", s:"420 − 175 = ?", a:"245 seats", bm:{r:[{g:[[175,'175 taken','x'],[245,'?','q','245']],t:'420'}]}},
+ {st:"MD", q:"A spider has 8 legs. How many legs do 7 spiders have altogether?", s:"7 × 8 = ?", a:"56 legs", bm:{r:[{g:N(7,[1,'8']),b:'?',bq:'56'}], n:'7 spiders with 8 legs each'}},
+ {st:"MD", q:"48 sweets are shared equally between 6 children. How many sweets does each child get?", s:"48 ÷ 6 = ?", a:"8 sweets", bm:{r:[{g:N(6,[1,'?','q','8']),t:'48'}], n:'48 shared into 6 equal parts'}},
+ {st:"FDRP", q:"A bar of chocolate has 10 equal squares. Tom eats 3 of them. What fraction of the bar did he eat?", s:"3 out of 10 → ?", a:"3⁄10", k:["fraction"], bm:{r:[{g:[{g:N(3,[1,'','s']),b:'?',bq:'3⁄10'},...N(7,[1,''])],t:'10 equal squares'}]}},
+ {st:"FDRP", q:"There are 36 pencils. A teacher gives out one quarter of them. How many pencils were given out?", s:"¼ of 36 = 36 ÷ 4 = ?", a:"9 pencils", k:["of"], bm:{r:[{g:[[1,'?','sq','9'],...N(3,[1,''])],t:'36'}], n:'Split into 4 equal parts (quarters)'}},
+ {st:"MEA", q:"A book costs £4 and a pen costs £2. Ed pays with a £10 note. How much change does he get?", s:"£10 − (£4 + £2) = ?", a:"£4", bm:{r:[{g:[[4,'£4 book','x'],[2.4,'£2 pen','x'],[4,'?','q','£4']],t:'£10'}]}},
+ {st:"MEA", q:"A piece of string is 1 m long. Jess cuts off 35 cm. How many cm of string are left? (1 m = 100 cm)", s:"100 − 35 = ?", a:"65 cm", bm:{r:[{g:[[35,'35 cm cut','x'],[65,'?','q','65 cm']],t:'1 m = 100 cm'}]}},
  {st:"GEO", q:"The two hands of a clock make a right angle. How many degrees is a right angle?", s:"right angle = ?", a:"90°", k:["right angle", "degrees"]},
- {st:"STA", q:"A bar chart shows 14 red cars, 9 blue cars and 7 white cars. How many cars are there altogether?", s:"14 + 9 + 7 = ?", a:"30 cars"},
+ {st:"STA", q:"A bar chart shows 14 red cars, 9 blue cars and 7 white cars. How many cars are there altogether?", s:"14 + 9 + 7 = ?", a:"30 cars", bm:{r:[{g:[[14,'14'],[9,'9'],[7,'7']],b:'?',bq:'30'}]}},
 ],
 4:[
  {st:"NPV", q:"A stadium holds 8,250 people. Round this number to the nearest thousand.", s:"8,250 → nearest 1,000", a:"8,000"},
- {st:"AS", q:"A factory made 3,628 toys on Monday and 2,955 toys on Tuesday. How many toys did it make in total?", s:"3,628 + 2,955 = ?", a:"6,583 toys"},
- {st:"MD", q:"Each box holds 12 eggs. How many eggs are there in 9 boxes altogether?", s:"9 × 12 = ?", a:"108 eggs"},
- {st:"MD", q:"144 stickers are shared equally into 12 bags. How many stickers are in each bag?", s:"144 ÷ 12 = ?", a:"12 stickers"},
- {st:"FDRP", q:"A pen costs £1.25. How much do 4 pens cost altogether?", s:"£1.25 × 4 = ?", a:"£5.00"},
- {st:"FDRP", q:"Maria runs 2.4 km in the morning and 1.8 km in the evening. How far does she run in total?", s:"2.4 + 1.8 = ?", a:"4.2 km"},
- {st:"MEA", q:"A rectangle is 8 cm long and 5 cm wide. What is its perimeter?", s:"2 × (8 + 5) = ?", a:"26 cm"},
- {st:"MEA", q:"A rectangle is 7 cm long and 4 cm wide. What is its area?", s:"7 × 4 = ?", a:"28 cm²"},
- {st:"MEA", q:"A film starts at 2:15 pm and lasts 90 minutes. What time does it finish?", s:"2:15 + 1 h 30 min = ?", a:"3:45 pm", k:["starts", "lasts", "finish"]},
+ {st:"AS", q:"A factory made 3,628 toys on Monday and 2,955 toys on Tuesday. How many toys did it make in total?", s:"3,628 + 2,955 = ?", a:"6,583 toys", bm:{r:[{g:[[3628,'3,628'],[2955,'2,955']],b:'?',bq:'6,583'}]}},
+ {st:"MD", q:"Each box holds 12 eggs. How many eggs are there in 9 boxes altogether?", s:"9 × 12 = ?", a:"108 eggs", bm:{r:[{g:N(9,[1,'12']),b:'?',bq:'108'}], n:'9 boxes of 12'}},
+ {st:"MD", q:"144 stickers are shared equally into 12 bags. How many stickers are in each bag?", s:"144 ÷ 12 = ?", a:"12 stickers", bm:{r:[{g:N(12,[1,'?','q','12']),t:'144'}], n:'144 shared into 12 equal bags'}},
+ {st:"FDRP", q:"A pen costs £1.25. How much do 4 pens cost altogether?", s:"£1.25 × 4 = ?", a:"£5.00", bm:{r:[{g:N(4,[1,'£1.25']),b:'?',bq:'£5.00'}]}},
+ {st:"FDRP", q:"Maria runs 2.4 km in the morning and 1.8 km in the evening. How far does she run in total?", s:"2.4 + 1.8 = ?", a:"4.2 km", bm:{r:[{g:[[2.4,'2.4 km'],[1.8,'1.8 km']],b:'?',bq:'4.2 km'}]}},
+ {st:"MEA", q:"A rectangle is 8 cm long and 5 cm wide. What is its perimeter?", s:"2 × (8 + 5) = ?", a:"26 cm", bm:{r:[{g:[[8,'8'],[5,'5'],[8,'8'],[5,'5']],b:'?',bq:'26 cm'}], n:'Go all the way round: 8 + 5 + 8 + 5'}},
+ {st:"MEA", q:"A rectangle is 7 cm long and 4 cm wide. What is its area?", s:"7 × 4 = ?", a:"28 cm²", bm:{r:[{g:N(4,[1,'7']),b:'?',bq:'28 cm²'}], n:'4 rows of 7 squares'}},
+ {st:"MEA", q:"A film starts at 2:15 pm and lasts 90 minutes. What time does it finish?", s:"2:15 + 1 h 30 min = ?", a:"3:45 pm", k:["starts", "lasts", "finish"], bm:{r:[{g:[[45,'2:15 → 3:00'],[45,'3:00 → ?','q','3:00 → 3:45']],t:'90 minutes'}]}},
  {st:"GEO", q:"On a grid, a point is 3 squares right and 2 squares up from (0, 0). What are its coordinates?", s:"(right, up) = ?", a:"(3, 2)", k:["right", "up", "coordinates"]},
- {st:"STA", q:"In a class, 12 children like football, 8 like tennis and 5 like swimming. How many more children like football than swimming?", s:"12 − 5 = ?", a:"7 children"},
+ {st:"STA", q:"In a class, 12 children like football, 8 like tennis and 5 like swimming. How many more children like football than swimming?", s:"12 − 5 = ?", a:"7 children", bm:{r:[{l:'Football',g:[[12,'12']]},{l:'Swimming',g:[[5,'5'],[7,'?','dq','7']]}], n:'Find the difference'}},
 ],
 5:[
  {st:"NPV", q:"Two cities have populations of 909,250 and 990,250. Which population is larger? Write the number.", s:"909,250  vs  990,250", a:"990,250"},
- {st:"NPV", q:"The temperature is 2 °C. It drops to −3 °C. What is the difference between the two temperatures?", s:"2 − (−3) = ?", a:"5 °C"},
- {st:"AS", q:"A charity raised £86,342 one year and £75,218 the next. How much did it raise altogether?", s:"86,342 + 75,218 = ?", a:"£161,560"},
- {st:"AS", q:"A company had £45,000 and spent £2,695. How much money is left?", s:"45,000 − 2,695 = ?", a:"£42,305"},
- {st:"MD", q:"A warehouse stores 6,537 boxes. Each box holds 12 items. How many items are stored in total?", s:"6,537 × 12 = ?", a:"78,444 items"},
- {st:"MD", q:"5,278 pencils are packed into boxes of 3. How many full boxes are there, and how many pencils are left over?", s:"5,278 ÷ 3 = ?", a:"1,759 boxes, 1 left over"},
- {st:"FDRP", q:"Write the decimal 0.54 as a fraction in hundredths.", s:"0.54 = ? ⁄100", a:"54⁄100", k:["fraction", "hundredths"]},
- {st:"FDRP", q:"A jacket costs £12. There is 10% off in a sale. How much money is taken off the price?", s:"10% of £12 = £12 ÷ 10", a:"£1.20"},
- {st:"FDRP", q:"A class has 42 children. 2⁄7 of them walk to school. How many children walk to school?", s:"2⁄7 of 42 = (42 ÷ 7) × 2", a:"12 children", k:["of"]},
- {st:"MEA", q:"A pot holds 450 g of jam. Write this mass in kilograms. (1000 g = 1 kg)", s:"450 ÷ 1000 = ?", a:"0.45 kg", k:["kilograms"]},
- {st:"MEA", q:"A box measures 5 cm by 4 cm by 6 cm. What is its volume?", s:"5 × 4 × 6 = ?", a:"120 cm³"},
- {st:"GEO", q:"A triangle has a base of 10 cm and a height of 8 cm. What is its area?", s:"½ × 10 × 8 = ?", a:"40 cm²"},
+ {st:"NPV", q:"The temperature is 2 °C. It drops to −3 °C. What is the difference between the two temperatures?", s:"2 − (−3) = ?", a:"5 °C", bm:{r:[{g:[[2,'2 °C → 0'],[3,'0 → −3 °C']],b:'?',bq:'5 °C'}], n:'Count down to zero, then below zero'}},
+ {st:"AS", q:"A charity raised £86,342 one year and £75,218 the next. How much did it raise altogether?", s:"86,342 + 75,218 = ?", a:"£161,560", bm:{r:[{g:[[86342,'£86,342'],[75218,'£75,218']],b:'?',bq:'£161,560'}]}},
+ {st:"AS", q:"A company had £45,000 and spent £2,695. How much money is left?", s:"45,000 − 2,695 = ?", a:"£42,305", bm:{r:[{g:[[10,'£2,695 spent','x'],[42,'?','q','£42,305']],t:'£45,000'}]}},
+ {st:"MD", q:"A warehouse stores 6,537 boxes. Each box holds 12 items. How many items are stored in total?", s:"6,537 × 12 = ?", a:"78,444 items", bm:{r:[{g:[[1,'6,537'],[1,'6,537'],[1,'…','d'],[1,'6,537']],b:'?',bq:'78,444'}], n:'6,537 boxes × 12 items — shown as 12 equal parts of 6,537'}},
+ {st:"MD", q:"5,278 pencils are packed into boxes of 3. How many full boxes are there, and how many pencils are left over?", s:"5,278 ÷ 3 = ?", a:"1,759 boxes, 1 left over", bm:{r:[{g:[{g:[[1,'3'],[1,'3'],[1,'…','d'],[1,'3']],b:'?',bq:'1,759 boxes'},[0.7,'?','dq','1']],t:'5,278'}], n:'Groups of 3, plus any left over'}},
+ {st:"FDRP", q:"Write the decimal 0.54 as a fraction in hundredths.", s:"0.54 = ? ⁄100", a:"54⁄100", k:["fraction", "hundredths"], bm:{r:[{g:[[54,'?','sq','54⁄100'],[46,'']],t:'1 whole = 100 hundredths'}]}},
+ {st:"FDRP", q:"A jacket costs £12. There is 10% off in a sale. How much money is taken off the price?", s:"10% of £12 = £12 ÷ 10", a:"£1.20", bm:{r:[{g:[[1,'?','sq','£1.20'],...N(9,[1,''])],t:'£12 = 100%'}], n:'10 equal parts — each part is 10%'}},
+ {st:"FDRP", q:"A class has 42 children. 2⁄7 of them walk to school. How many children walk to school?", s:"2⁄7 of 42 = (42 ÷ 7) × 2", a:"12 children", k:["of"], bm:{r:[{g:[{g:N(2,[1,'','s']),b:'?',bq:'12'},...N(5,[1,''])],t:'42'}], n:'Split into 7 equal parts — 2 of them walk'}},
+ {st:"MEA", q:"A pot holds 450 g of jam. Write this mass in kilograms. (1000 g = 1 kg)", s:"450 ÷ 1000 = ?", a:"0.45 kg", k:["kilograms"], bm:{r:[{g:[{g:[[450,'450 g','s']],b:'?',bq:'0.45 kg'},[550,'']],t:'1 kg = 1000 g'}]}},
+ {st:"MEA", q:"A box measures 5 cm by 4 cm by 6 cm. What is its volume?", s:"5 × 4 × 6 = ?", a:"120 cm³", bm:{r:[{g:N(6,[1,'20']),b:'?',bq:'120 cm³'}], n:'6 layers, each 5 × 4 = 20 cubes'}},
+ {st:"GEO", q:"A triangle has a base of 10 cm and a height of 8 cm. What is its area?", s:"½ × 10 × 8 = ?", a:"40 cm²", bm:{r:[{g:[[1,'?','sq','40 cm²'],[1,'']],t:'Rectangle 10 × 8 = 80 cm²'}], n:'A triangle is half of the rectangle around it'}},
  {st:"GEO", q:"Ravi is making a net of a cube. How many edges does a cube have?", s:"edges of a cube = ?", a:"12 edges", k:["edges"]},
 ],
 6:[
  {st:"NPV", q:"A number is 3,497,992. Round it to the nearest million.", s:"3,497,992 → nearest 1,000,000", a:"3,000,000"},
- {st:"AS", q:"Two towns have populations of 462,308 and 5,090. What is their combined population?", s:"462,308 + 5,090 = ?", a:"467,398"},
- {st:"MD", q:"A factory produces 4,238 parts each day. How many parts does it produce in 23 days?", s:"4,238 × 23 = ?", a:"97,474 parts"},
- {st:"MD", q:"4,936 apples are packed into boxes of 24. How many full boxes are there, and how many apples are left over?", s:"4,936 ÷ 24 = ?", a:"205 boxes, 16 left over"},
- {st:"FDRP", q:"A laptop costs £500. In a sale there is 30% off. How much will the laptop cost in the sale?", s:"£500 − (30% of £500)", a:"£350"},
- {st:"FDRP", q:"The ratio of blue tiles to orange tiles is 3 : 5. There are 16 tiles altogether. How many tiles are orange?", s:"16 ÷ (3+5) × 5 = ?", a:"10 orange tiles"},
- {st:"FDRP", q:"Work out ¾ × ½. Write the answer in its simplest form.", s:"(3 × 1) ⁄ (4 × 2) = ?", a:"3⁄8", k:["simplest form"]},
- {st:"MEA", q:"A footballer scored these goals over 8 matches: 4, 7, 9, 5, 7, 8, 6, 2. What is the mean number of goals?", s:"(4+7+9+5+7+8+6+2) ÷ 8 = 48 ÷ 8", a:"6 goals"},
- {st:"MEA", q:"A cuboid measures 6 cm by 7 cm by 11 cm. What is its volume?", s:"6 × 7 × 11 = ?", a:"462 cm³"},
- {st:"GEO", q:"What is the sum of the interior angles of a regular pentagon?", s:"(5 − 2) × 180° = ?", a:"540°"},
- {st:"GEO", q:"Point A is at (1, −1) and point B is at (5, −1). How many units apart are A and B?", s:"5 − 1 = ?", a:"4 units"},
- {st:"NPV", q:"Use the order of operations (BIDMAS) to work out 45 − 16 ÷ 4.", s:"16 ÷ 4 = 4, then 45 − 4", a:"41", k:["order of operations", "BIDMAS"]},
- {st:"MD", q:"Use the order of operations (BIDMAS) to work out 24 × 3 − 2.", s:"24 × 3 = 72, then 72 − 2", a:"70", k:["order of operations", "BIDMAS"]},
- {st:"STA", q:"50 people were asked their favourite book. Half of them chose adventure stories. How many people chose adventure stories?", s:"½ of 50 = 50 ÷ 2", a:"25 people", k:["of"]},
+ {st:"AS", q:"Two towns have populations of 462,308 and 5,090. What is their combined population?", s:"462,308 + 5,090 = ?", a:"467,398", bm:{r:[{g:[[88,'462,308'],[12,'5,090']],b:'?',bq:'467,398'}]}},
+ {st:"MD", q:"A factory produces 4,238 parts each day. How many parts does it produce in 23 days?", s:"4,238 × 23 = ?", a:"97,474 parts", bm:{r:[{g:[[1,'4,238'],[1,'4,238'],[1,'…','d'],[1,'4,238']],b:'?',bq:'97,474'}], n:'23 equal parts of 4,238 (one for each day)'}},
+ {st:"MD", q:"4,936 apples are packed into boxes of 24. How many full boxes are there, and how many apples are left over?", s:"4,936 ÷ 24 = ?", a:"205 boxes, 16 left over", bm:{r:[{g:[{g:[[1,'24'],[1,'24'],[1,'…','d'],[1,'24']],b:'?',bq:'205 boxes'},[0.7,'?','dq','16']],t:'4,936'}], n:'Groups of 24, plus any left over'}},
+ {st:"FDRP", q:"A laptop costs £500. In a sale there is 30% off. How much will the laptop cost in the sale?", s:"£500 − (30% of £500)", a:"£350", bm:{r:[{g:[{g:N(3,[1,'£50','x']),b:'30% off'},{g:N(7,[1,'£50']),b:'?',bq:'£350'}],t:'£500 = 100%'}], n:'10 equal parts of £50 (10% each)'}},
+ {st:"FDRP", q:"The ratio of blue tiles to orange tiles is 3 : 5. There are 16 tiles altogether. How many tiles are orange?", s:"16 ÷ (3+5) × 5 = ?", a:"10 orange tiles", bm:{r:[{l:'Blue',g:N(3,[1,'?','q','2'])},{l:'Orange',g:N(5,[1,'?','sq','2']),b:'?',bq:'10'}], n:'8 equal parts = 16 tiles, so each part = 16 ÷ 8'}},
+ {st:"FDRP", q:"Work out ¾ × ½. Write the answer in its simplest form.", s:"(3 × 1) ⁄ (4 × 2) = ?", a:"3⁄8", k:["simplest form"], bm:{r:[{g:[{g:[{g:N(3,[1,'','s']),b:'?',bq:'3⁄8'},[1,'']],t:'½'},[4,'½']],t:'1 whole'}], n:'Take ¾ of one half — the whole is now 8 equal parts'}},
+ {st:"MEA", q:"A footballer scored these goals over 8 matches: 4, 7, 9, 5, 7, 8, 6, 2. What is the mean number of goals?", s:"(4+7+9+5+7+8+6+2) ÷ 8 = 48 ÷ 8", a:"6 goals", bm:{r:[{g:N(8,[1,'?','q','6']),t:'48 goals'}], n:'4+7+9+5+7+8+6+2 = 48, shared equally over 8 matches'}},
+ {st:"MEA", q:"A cuboid measures 6 cm by 7 cm by 11 cm. What is its volume?", s:"6 × 7 × 11 = ?", a:"462 cm³", bm:{r:[{g:N(11,[1,'42']),b:'?',bq:'462 cm³'}], n:'11 layers, each 6 × 7 = 42 cubes'}},
+ {st:"GEO", q:"What is the sum of the interior angles of a regular pentagon?", s:"(5 − 2) × 180° = ?", a:"540°", bm:{r:[{g:N(3,[1,'180°']),b:'?',bq:'540°'}], n:'A pentagon splits into 3 triangles of 180°'}},
+ {st:"GEO", q:"Point A is at (1, −1) and point B is at (5, −1). How many units apart are A and B?", s:"5 − 1 = ?", a:"4 units", bm:{r:[{g:[[1,'0 → 1','d'],[4,'?','q','4 units']],t:'0 → 5'}], n:'Both points have y = −1, so subtract the x values'}},
+ {st:"NPV", q:"Use the order of operations (BIDMAS) to work out 45 − 16 ÷ 4.", s:"16 ÷ 4 = 4, then 45 − 4", a:"41", k:["order of operations", "BIDMAS"], bm:{r:[{g:[[9,'16 ÷ 4 = 4','x'],[41,'?','q','41']],t:'45'}], n:'Divide first, then subtract'}},
+ {st:"MD", q:"Use the order of operations (BIDMAS) to work out 24 × 3 − 2.", s:"24 × 3 = 72, then 72 − 2", a:"70", k:["order of operations", "BIDMAS"], bm:{r:[{g:[[70,'?','q','70'],[7,'2','x']],t:'24 × 3 = 72'}], n:'Multiply first, then subtract'}},
+ {st:"STA", q:"50 people were asked their favourite book. Half of them chose adventure stories. How many people chose adventure stories?", s:"½ of 50 = 50 ÷ 2", a:"25 people", k:["of"], bm:{r:[{g:[[1,'?','sq','25'],[1,'']],t:'50'}], n:'Split into 2 equal parts (halves)'}},
 ],
 };
 
@@ -390,6 +445,56 @@ function buildProblem(item){
   return mark(pre,RE)+`<span class="qn">${mark(qn,RE)}</span>`+mark(tail,RE);
 }
 
+// ---------- Bar model renderer ----------
+let showBM = false;
+try{ showBM = localStorage.getItem('cubes-bm')==='1'; }catch(e){}
+function bmLayout(node, x, out){
+  if(Array.isArray(node)){ const [w,lab,f='',ans]=node; out.segs.push({x,w,lab,f,ans}); return {w,tl:0,bl:0}; }
+  let cx=x, tl=0, bl=0;
+  for(const c of node.g){ const r=bmLayout(c,cx,out); cx+=r.w; tl=Math.max(tl,r.tl); bl=Math.max(bl,r.bl); }
+  const w=cx-x;
+  if(node.t!=null){ tl++; out.br.push({x,w,lab:node.t,ans:node.tq,pos:'t',lv:tl}); }
+  if(node.b!=null){ bl++; out.br.push({x,w,lab:node.b,ans:node.bq,pos:'b',lv:bl}); }
+  return {w,tl,bl};
+}
+function bmLabel(lab, ans, isUnk, solved){
+  if(!isUnk) return esc(lab);
+  return solved ? `<span class="unk done">${esc(ans)}</span>` : `<span class="unk">?</span>`;
+}
+function renderBM(item, solved){
+  const el=$('bmBody');
+  if(!item.bm){ el.innerHTML='<div class="bm-none">A bar model doesn\'t really fit this one — it\'s a fact or reading question. Use the number sentence instead.</div>'; return; }
+  const rows=item.bm.r.map(g=>{ const out={segs:[],br:[]}; const r=bmLayout(g,0,out); return {g,out,...r}; });
+  const scale=Math.max(...rows.map(r=>r.w));
+  const anyLab=rows.some(r=>r.g.l);
+  const H=36, pct=v=>(v/scale*100)+'%';
+  let html='';
+  for(const r of rows){
+    let t=`<div class="bm-track" style="padding-top:${r.tl*H}px;padding-bottom:${r.bl*H}px;width:${pct(r.w)}">`;
+    for(const b of r.out.br){
+      const top = b.pos==='t' ? (r.tl-b.lv)*H : `calc(${r.tl*H}px + 100% - ${(r.tl+r.bl)*H}px + ${(b.lv-1)*H}px)`;
+      const lb=`<span class="lb">${bmLabel(b.lab,b.ans,b.lab==='?',solved)}</span>`, bk='<div class="bk"></div>';
+      t+=`<div class="bm-br ${b.pos}" style="left:${b.x/r.w*100}%;width:${b.w/r.w*100}%;top:${typeof top==='number'?top+'px':top}">${b.pos==='t'?lb+bk:bk+lb}</div>`;
+    }
+    t+='<div class="bm-bar">';
+    for(const sg of r.out.segs){
+      const unk=sg.f.includes('q');
+      const cls=['bm-seg',...sg.f.replace('q','').split('').filter(Boolean)]; if(unk) cls.push('q'); if(unk&&solved) cls.push('done');
+      t+=`<div class="${cls.join(' ')}" style="left:${sg.x/r.w*100}%;width:${sg.w/r.w*100}%">${bmLabel(sg.lab,sg.ans,unk,solved)}</div>`;
+    }
+    t+='</div></div>';
+    html+=`<div class="bm-row">${anyLab?`<div class="bm-lab" style="margin-top:${r.tl*H}px">${esc(r.g.l||'')}</div>`:''}<div class="bm-trackwrap">${t}</div></div>`;
+  }
+  if(item.bm.n) html+=`<div class="bm-note">${esc(item.bm.n)}</div>`;
+  el.innerHTML=html;
+}
+$('bmToggle').checked=showBM;
+$('bmToggle').addEventListener('change',e=>{
+  showBM=e.target.checked;
+  try{ localStorage.setItem('cubes-bm', showBM?'1':'0'); }catch(err){}
+  e.target.blur(); render();
+});
+
 const STEPS = [
   {btn:'Circle the numbers',     bg:'var(--c-c)', ink:'#fff'},
   {btn:'Underline the question', bg:'var(--c-u)', ink:'#fff'},
@@ -418,6 +523,10 @@ function render(){
   pr.classList.toggle('b', state>=3);
   $('hint').classList.toggle('show', state>=4);
   $('answer').classList.toggle('show', state>=5);
+  const bmOn = showBM && state>=4;
+  if(bmOn) renderBM(current, state>=5);
+  $('bmPanel').classList.toggle('show', bmOn);
+  document.querySelector('.reveal').classList.toggle('bm-on', bmOn);
   for(let i=0;i<5;i++){
     const c=$('chip'+i);
     c.classList.toggle('done', state>i);
