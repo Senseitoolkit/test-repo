@@ -1745,6 +1745,7 @@ function refreshRoom() {
   set("v-motion", room.motion ? room.motion + " moving" : "still");
   document.getElementById("g-sound").classList.toggle("on", room.sound > 0.08);
   document.getElementById("g-motion").classList.toggle("on", room.motion > 0);
+  document.querySelector(".legend").hidden = !!(typeof game !== "undefined" && game.celebrate); // keep the key out of the way of a clip
   const fire = comps.some(c => c.st.fire), broken = comps.filter(c => c.st.broken).length;
   document.getElementById("alert").hidden = !fire && !broken;
   set("alert-t", fire ? "Short circuit: a battery is overheating" : `${broken} part${broken > 1 ? "s" : ""} burnt out from too much power`);
@@ -1924,7 +1925,7 @@ document.getElementById("b-chal").onclick = openChallenges;
 function startChallenge(id) {
   if (!game.active) game.freeSnap = serialize();
   ui.touched = false; game.fix = null;
-  game.active = CHALLENGES.find(c => c.id === id); game.done = false; game.celebrate = null;
+  game.active = CHALLENGES.find(c => c.id === id); game.done = false; game.celebrate = null; // also stops a clip that's still playing
   game.fill = {}; game.picks = []; game.msg = null; game.goodSince = 0;
   room.temp = 20; room.lights = true; syncLights();
   closeChallenges(); rebuildJob(); renderGoal();
@@ -1981,9 +1982,9 @@ function renderGoal() {
     <ul class="slots">${ch.slots.map(s => { const n = game.fill[s.label] || 0; return `<li class="${n >= s.count ? "done" : ""}">
       <span class="ck" aria-hidden="true"></span><span class="sl">${s.label}</span>
       <span class="fn" style="--c: var(--c-${s.fn})">${CATS.find(c => c.id === s.fn).name}</span>${s.count > 1 ? `<span class="d">${Math.min(n, s.count)}/${s.count}</span>` : ""}</li>`; }).join("")}</ul>
-    ${game.done ? `<div class="win"><b>It works!</b><small>Every device has its own path to the battery, so each one gets the full 9 V.${ch.id === "car" ? " Watch the car take a test drive." : " Tap any part on the bench to see its readings."}</small>
-        <div class="win-actions">${ch.id === "car" ? `<button class="btn primary" id="goal-replay">Test drive</button>` : ""}
-        ${next ? `<button class="btn ${ch.id === "car" ? "" : "primary"}" id="goal-next">Next: ${next.name}</button>` : `<button class="btn primary" id="goal-all">All builds</button>`}</div></div>`
+    ${game.done ? `<div class="win"><b>It works!</b><small>Every device has its own path to the battery, so each one gets the full 9 V. Watch your ${ch.noun} in action on the bench.</small>
+        <div class="win-actions"><button class="btn primary" id="goal-replay">Watch again</button>
+        ${next ? `<button class="btn" id="goal-next">Next: ${next.name}</button>` : `<button class="btn" id="goal-all">All builds</button>`}</div></div>`
       : filled ? `<p class="job-msg ok">Powering up…</p>`
       : `${game.msg ? `<p class="job-msg ${game.msg[0]}">${game.msg[1]}</p>` : `<p class="job-msg">Tap a device to add it. It gets wired up for you.</p>`}
       <div class="ptiles">${ch.offer.map(t => previewTile(t)).join("")}</div>`}
@@ -2009,30 +2010,212 @@ function updateGoal() {
   try { localStorage.setItem("circuit-workbench-stars", JSON.stringify(game.stars)); } catch (e) {}
   playNotes([523, 659, 784], "triangle", 0.1, 0.07);
   renderGoal();
-  if (ch.id === "car") celebrate();
+  celebrate();
 }
-function celebrate() { // the car challenge ends with a test drive of the finished car
-  game.celebrate = { t0: performance.now(), drive: true, conf: [] };
-  setTimeout(() => playNotes([440, 0, 440], "square", 0.16, 0.06), 1500);
+// ---------- Finished-build clips: a short animation of each machine in action ----------
+const CLIP_LEN = 6.5;
+function celebrate() {
+  const id = game.active ? game.active.id : "car";
+  game.celebrate = { t0: performance.now(), scene: id };
+  const cues = { car: [1.5, [440, 0, 440], "square"], house: [2.7, [659, 523], "sine"], factory: [0.6, [880, 0, 880, 0, 880], "square"], dryer: [0.3, [196, 220], "sawtooth"], fridge: [0.4, [1047], "triangle"] };
+  const q = cues[id]; if (q) setTimeout(() => playNotes(q[1], q[2], 0.16, 0.05), q[0] * 1000);
 }
 function drawCelebration(g) {
   const C = game.celebrate; if (!C) return;
   const t = (performance.now() - C.t0) / 1000;
-  if (t > 6) { game.celebrate = null; return; }
-  if (C.drive) drawCar(g, t);
-  for (const p of C.conf) {
-    const y = p.y + p.vy * t + 30 * t * t; if (y > H + 10) continue;
-    const x = p.x * W + Math.sin(t * p.f + p.ph) * 22;
-    g.save(); g.translate(x, y); g.rotate(p.r + t * p.f * 2); g.fillStyle = p.col; g.globalAlpha = Math.min(1, (7 - t) / 1.5);
-    g.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); g.restore();
+  if (t > CLIP_LEN) { game.celebrate = null; return; }
+  g.save();
+  g.globalAlpha = Math.max(0, Math.min(1, t * 3, (CLIP_LEN - t) * 2));
+  if (C.scene === "car") drawCar(g, t);
+  else {
+    // a 520 × 170 stage, scaled to fit along the bottom of the bench
+    const s = Math.min(1.25, (W - 24) / 520, (H * 0.6) / 170), sw = 520 * s, sh = 170 * s;
+    g.translate((W - sw) / 2, H - sh - 12); g.scale(s, s);
+    rr(g, 0, 0, 520, 170, 14); g.fillStyle = K.panel; g.fill(); g.strokeStyle = K.line; g.lineWidth = 1.5; g.stroke();
+    g.save(); rr(g, 0, 0, 520, 170, 14); g.clip();
+    SCENES[C.scene] && SCENES[C.scene](g, t);
+    g.restore();
   }
-  g.globalAlpha = 1;
+  g.restore();
 }
+const sceneFont = (w, px) => `${w} ${px}px ` + getComputedStyle(document.documentElement).getPropertyValue("--f-body");
+// little labels saying which device does which job
+function chips(g, x, y, list, maxX = 510) {
+  g.font = sceneFont(700, 10.5); g.textBaseline = "middle"; g.textAlign = "left";
+  for (const [cat, text] of list) {
+    const w = g.measureText(text).width + 14;
+    if (x + w > maxX) { x = 12; y += 20; }
+    rr(g, x, y - 8, w, 17, 8); g.fillStyle = K["c-" + cat]; g.fill();
+    g.fillStyle = "#fff"; g.fillText(text, x + 7, y + 0.5);
+    x += w + 5;
+  }
+}
+function bubble(g, x, y, text) {
+  g.font = "700 15px " + getComputedStyle(document.documentElement).getPropertyValue("--f-display");
+  const w = g.measureText(text).width + 20;
+  g.fillStyle = "#fff"; rr(g, x - w / 2, y - 15, w, 30, 10); g.fill();
+  g.strokeStyle = "#222"; g.lineWidth = 1.5; g.stroke();
+  g.fillStyle = "#222"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, x, y);
+}
+function blades(g, x, y, r, ang, col) {
+  g.save(); g.translate(x, y); g.rotate(ang);
+  for (let i = 0; i < 3; i++) { g.rotate(Math.PI * 2 / 3); g.fillStyle = col; g.beginPath(); g.ellipse(0, -r / 2, r / 4, r / 2, 0.35, 0, 7); g.fill(); }
+  g.fillStyle = "#44505b"; g.beginPath(); g.arc(0, 0, r / 5, 0, 7); g.fill(); g.restore();
+}
+function radGlow(g, x, y, r, rgb, a) {
+  const grd = g.createRadialGradient(x, y, 0, x, y, r); grd.addColorStop(0, `rgba(${rgb},${a})`); grd.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = grd; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+}
+const SCENES = {
+  dryer(g, t) {
+    chips(g, 12, 16, [["spin", "Spin: fan blows the air"], ["temp", "Temp: heater warms it"]]);
+    // warm air stream
+    for (let k = 0; k < 7; k++) {
+      const off = (t * 170 + k * 26) % 150, x0 = 248 + off, a = 1 - off / 150;
+      g.strokeStyle = `rgba(${k % 2 ? "255,140,60" : "255,190,90"},${a * 0.9})`; g.lineWidth = 3; g.lineCap = "round";
+      g.beginPath(); for (let i = 0; i <= 10; i++) { const x = x0 + i * 2.4, y = 78 + (k - 3) * 6 + Math.sin(i * 0.9 + t * 14 + k) * 3; i ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke();
+    }
+    // head with hair blowing back
+    g.fillStyle = "#e3b48a"; g.beginPath(); g.arc(430, 96, 30, 0, 7); g.fill();
+    g.fillStyle = "#2a2a2a"; g.beginPath(); g.arc(418, 92, 2.6, 0, 7); g.fill();
+    g.strokeStyle = "#2a2a2a"; g.lineWidth = 1.8; g.beginPath(); g.arc(418, 104, 7, 0.2, Math.PI - 0.6); g.stroke();
+    g.strokeStyle = "#6b4426"; g.lineWidth = 4; g.lineCap = "round";
+    for (let i = 0; i < 8; i++) {
+      const bx = 412 + i * 6, by = 68 + Math.abs(i - 3) * 1.5, sway = Math.sin(t * 13 + i * 0.8) * 7;
+      g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo(bx + 18, by - 6 + sway * 0.4, bx + 34 + sway, by + 12 + sway); g.stroke();
+    }
+    // the hair dryer
+    const shake = Math.sin(t * 60) * 0.6;
+    g.save(); g.translate(0, shake);
+    g.fillStyle = "#4a5560"; rr(g, 130, 96, 26, 58, 8); g.fill();                 // handle
+    g.fillStyle = K["c-sound"]; rr(g, 86, 52, 130, 52, 24); g.fill();              // body
+    g.fillStyle = "#3a3f46"; rr(g, 208, 60, 40, 36, 6); g.fill();                  // nozzle
+    const glowA = 0.6 + 0.4 * Math.sin(t * 9);
+    g.strokeStyle = `rgba(255,${110 + 60 * glowA},40,1)`; g.lineWidth = 2.5; g.beginPath();
+    for (let i = 0; i <= 8; i++) g.lineTo(214 + i * 3.5, i % 2 ? 66 : 90); g.stroke();
+    radGlow(g, 230, 78, 34, "255,120,40", 0.45);
+    g.fillStyle = "#e9edf1"; g.beginPath(); g.arc(98, 78, 22, 0, 7); g.fill();     // intake with fan
+    blades(g, 98, 78, 20, t * 40, K["c-spin"]);
+    g.restore();
+  },
+
+  house(g, t) {
+    // night sky
+    const sky = g.createLinearGradient(0, 0, 0, 170); sky.addColorStop(0, "#0f1a33"); sky.addColorStop(1, "#24375e");
+    g.fillStyle = sky; g.fillRect(0, 0, 520, 170);
+    g.fillStyle = "#fff"; for (let i = 0; i < 18; i++) { const x = (i * 97) % 510 + 5, y = (i * 53) % 60 + 40; g.globalAlpha *= 1; g.fillRect(x, y, 1.6, 1.6); }
+    g.fillStyle = "#f4f0d8"; g.beginPath(); g.arc(470, 50, 14, 0, 7); g.fill();
+    g.fillStyle = "#24375e"; g.beginPath(); g.arc(476, 46, 12, 0, 7); g.fill();
+    g.fillStyle = "#2f4a2c"; g.fillRect(0, 150, 520, 20);
+    chips(g, 12, 16, [["light", "Light: bulbs light the rooms"], ["temp", "Temp: heater warms it"], ["sound", "Signal + Sound: radio doorbell"]]);
+    // house
+    g.fillStyle = "#c98f5a"; g.fillRect(200, 78, 170, 72);
+    g.fillStyle = "#7a3d14"; g.beginPath(); g.moveTo(188, 80); g.lineTo(285, 36); g.lineTo(382, 80); g.closePath(); g.fill();
+    g.fillStyle = "#6b4a2c"; g.fillRect(300, 42, 16, 26);
+    // heat shimmer from the chimney once the heater is on
+    if (t > 1.4) for (let i = 0; i < 3; i++) { g.strokeStyle = `rgba(255,150,90,${0.6 - i * 0.15})`; g.lineWidth = 2; g.beginPath(); for (let k = 0; k < 8; k++) g.lineTo(304 + i * 5 + Math.sin(t * 5 + k + i) * 3, 40 - k * 4); g.stroke(); }
+    // windows light up one by one
+    [[218, 92, 0.5], [326, 92, 1.0]].forEach(([x, y, on]) => {
+      const lit = t > on;
+      if (lit) radGlow(g, x + 13, y + 13, 50, "255,220,130", 0.55);
+      g.fillStyle = lit ? "#ffe38a" : "#2a3550"; g.fillRect(x, y, 26, 26);
+      g.strokeStyle = "#5a3a1e"; g.lineWidth = 2; g.strokeRect(x, y, 26, 26); g.beginPath(); g.moveTo(x + 13, y); g.lineTo(x + 13, y + 26); g.moveTo(x, y + 13); g.lineTo(x + 26, y + 13); g.stroke();
+    });
+    // red heater glow under the right window
+    if (t > 1.4) { radGlow(g, 339, 135, 20, "255,90,40", 0.7); g.fillStyle = "#d9502b"; g.fillRect(328, 132, 22, 8); }
+    g.fillStyle = "#5a3a1e"; g.fillRect(272, 112, 26, 38);
+    g.fillStyle = "#d9a62b"; g.beginPath(); g.arc(292, 132, 2, 0, 7); g.fill();
+    // a visitor walks up and presses the button
+    const walk = Math.min(1, t / 2.2), vx = 60 + walk * 190;
+    g.fillStyle = "#e3b48a"; g.beginPath(); g.arc(vx, 112, 7, 0, 7); g.fill();
+    g.strokeStyle = "#3b6fb5"; g.lineWidth = 5; g.lineCap = "round"; g.beginPath(); g.moveTo(vx, 121); g.lineTo(vx, 138); g.stroke();
+    const step = walk < 1 ? Math.sin(t * 12) * 5 : 0;
+    g.strokeStyle = "#333"; g.lineWidth = 3.5; g.beginPath(); g.moveTo(vx, 138); g.lineTo(vx - 4 + step, 150); g.moveTo(vx, 138); g.lineTo(vx + 4 - step, 150); g.stroke();
+    g.fillStyle = "#ddd"; g.fillRect(262, 118, 6, 8);                                // the button
+    if (t > 2.2) {
+      g.strokeStyle = "#3b6fb5"; g.lineWidth = 3; g.beginPath(); g.moveTo(vx + 3, 124); g.lineTo(262, 121); g.stroke();
+      g.strokeStyle = K["c-signal"]; g.lineWidth = 2;
+      for (let i = 0; i < 3; i++) { const r = 6 + ((t - 2.2) * 40 + i * 10) % 30; g.globalAlpha = Math.max(0, 1 - r / 36) * Math.min(1, (CLIP_LEN - t) * 2); g.beginPath(); g.arc(265, 118, r, -1, 1); g.stroke(); }
+      g.globalAlpha = Math.min(1, (CLIP_LEN - t) * 2);
+    }
+    if (t > 2.6 && t < 4.6) bubble(g, 285, 18 + 52, "DING DONG!");
+  },
+
+  fridge(g, t) {
+    chips(g, 12, 16, [["temp", "Temp: cooler pumps heat out"], ["spin", "Spin: fan moves the air"], ["light", "Light: LED and display"]]);
+    // box and open door
+    g.fillStyle = "#d8dee4"; rr(g, 170, 34, 150, 128, 8); g.fill();
+    g.fillStyle = "#e9f5ff"; g.fillRect(180, 44, 130, 108);
+    radGlow(g, 245, 50, 70, "255,255,240", 0.8);                                     // LED light inside
+    g.fillStyle = "#fffbe6"; g.fillRect(232, 44, 26, 4);
+    g.fillStyle = "#b8c4cf"; g.fillRect(180, 96, 130, 4);                              // shelf
+    blades(g, 200, 66, 22, t * 30, K["c-spin"]);                                      // fan at the back
+    // food
+    g.fillStyle = "#3b9a5a"; rr(g, 266, 58, 12, 36, 4); g.fill(); g.fillRect(269, 52, 6, 8);
+    g.fillStyle = "#d63b2f"; g.beginPath(); g.arc(234, 86, 9, 0, 7); g.fill();
+    g.fillStyle = "#f0c93a"; g.beginPath(); g.moveTo(208, 148); g.lineTo(250, 148); g.lineTo(250, 128); g.closePath(); g.fill();
+    g.fillStyle = "#f2f2f2"; rr(g, 262, 120, 34, 28, 4); g.fill();
+    // cold air: drifting snowflakes and frost
+    for (let i = 0; i < 14; i++) { const x = 184 + (i * 37) % 122 + Math.sin(t * 2 + i) * 4, y = 46 + ((t * 18 + i * 23) % 104); g.fillStyle = "rgba(120,180,235,0.85)"; g.beginPath(); g.arc(x, y, 1.8, 0, 7); g.fill(); }
+    // door swung open with the display
+    g.fillStyle = "#c9d1d8"; g.beginPath(); g.moveTo(320, 34); g.lineTo(380, 48); g.lineTo(380, 150); g.lineTo(320, 162); g.closePath(); g.fill();
+    const temp = 20 - Math.min(1, t / 3.2) * 16;
+    g.fillStyle = "#0b1114"; g.fillRect(334, 66, 38, 22);
+    g.fillStyle = temp < 8 ? "#8fe0ff" : "#ffd27a"; g.font = "500 11px " + getComputedStyle(document.documentElement).getPropertyValue("--f-mono");
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(temp.toFixed(1) + "°", 353, 77.5);
+    // heat leaving through the back
+    g.strokeStyle = "rgba(255,120,60,0.7)"; g.lineWidth = 2;
+    for (let i = 0; i < 3; i++) { const off = (t * 40 + i * 14) % 42; g.beginPath(); g.moveTo(165 - off, 70 + i * 22); g.lineTo(155 - off, 70 + i * 22); g.stroke(); }
+    if (t > 3.3 && t < 5.4) bubble(g, 440, 80, "Nice and cold!");
+  },
+
+  factory(g, t) {
+    chips(g, 12, 16, [["spin", "Spin: belt and hoist"], ["move", "Move: press and lift"], ["sound", "Sound: alarm"]]);
+    // alarm beacon
+    const flash = Math.sin(t * 10) > 0;
+    g.fillStyle = "#59626a"; g.fillRect(24, 46, 18, 8);
+    g.fillStyle = flash ? "#ffb21e" : "#a86d00"; g.beginPath(); g.arc(33, 46, 9, Math.PI, 0); g.fill();
+    if (flash) radGlow(g, 33, 42, 30, "255,178,30", 0.6);
+    if (Math.floor(t * 2) % 2 === 0 && t < 5.5) bubble(g, 72, 46, "BEEP");
+    // conveyor
+    g.fillStyle = "#2c3036"; rr(g, 20, 128, 300, 14, 7); g.fill();
+    g.strokeStyle = "#8a939b"; g.lineWidth = 2; g.setLineDash([8, 6]); g.lineDashOffset = -t * 70;
+    g.beginPath(); g.moveTo(26, 128); g.lineTo(314, 128); g.stroke(); g.setLineDash([]);
+    for (const x of [27, 313]) { g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(x, 135, 6, 0, 7); g.fill(); }
+    // boxes riding along, stamped by the press
+    const press = Math.max(0, Math.sin(t * 3.2));
+    for (let k = 0; k < 4; k++) {
+      const x = 20 + ((t * 70 + k * 80) % 300);
+      const stamped = x > 196;
+      g.fillStyle = "#d9a85c"; g.fillRect(x - 13, 106 + (Math.abs(x - 182) < 14 ? press * 4 : 0), 26, 22 - (Math.abs(x - 182) < 14 ? press * 4 : 0));
+      if (stamped) { g.fillStyle = K["c-move"]; g.fillRect(x - 5, 112, 10, 8); }
+    }
+    // hydraulic press
+    g.fillStyle = "#59626a"; g.fillRect(158, 40, 48, 12);
+    g.fillStyle = K["c-move"]; rr(g, 172, 52, 20, 22, 3); g.fill();
+    g.fillStyle = "#c9ced3"; g.fillRect(179, 74, 6, 8 + press * 18);
+    g.fillStyle = "#4a5560"; g.fillRect(166, 82 + press * 18, 32, 6);
+    // pulley hoist
+    const hoist = Math.min(1, t / 3.5);
+    g.fillStyle = "#59626a"; g.fillRect(350, 30, 60, 6); g.fillRect(406, 30, 6, 130);
+    g.save(); g.translate(380, 46); g.rotate(t * 8); g.fillStyle = "#b8c0c8"; g.beginPath(); g.arc(0, 0, 10, 0, 7); g.fill(); g.strokeStyle = "#6c757d"; g.lineWidth = 2; g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.stroke(); g.restore();
+    const wy = 132 - hoist * 70;
+    g.strokeStyle = "#8b6b3d"; g.lineWidth = 2; g.beginPath(); g.moveTo(390, 46); g.lineTo(390, wy); g.stroke();
+    g.fillStyle = K["c-spin"]; g.fillRect(378, wy, 24, 20);
+    // scissor lift
+    const lh = Math.min(1, t / 3), top = 140 - 14 - lh * 50;
+    g.fillStyle = "#4a5560"; g.fillRect(432, 150, 70, 6);
+    g.strokeStyle = "#7c8790"; g.lineWidth = 3.5; g.beginPath(); g.moveTo(438, 150); g.lineTo(496, top + 6); g.moveTo(496, 150); g.lineTo(438, top + 6); g.stroke();
+    g.fillStyle = K["c-move"]; g.fillRect(432, top, 70, 6);
+    g.fillStyle = "#d9a85c"; g.fillRect(452, top - 18, 30, 18);
+  },
+};
 function drawCar(g, t) {
   const roadY = H - 64, x = -200 + (t / 5.5) * (W + 400), y = roadY + 18;
   g.fillStyle = "rgba(34,38,44,0.92)"; g.fillRect(0, roadY, W, 64);
   g.strokeStyle = "#f2d16b"; g.lineWidth = 3; g.setLineDash([22, 18]); g.lineDashOffset = t * 120;
   g.beginPath(); g.moveTo(0, roadY + 50); g.lineTo(W, roadY + 50); g.stroke(); g.setLineDash([]);
+  chips(g, 12, roadY + 12, [["spin", "Spin: wheels"], ["light", "Light: headlights"], ["sound", "Sound: horn"], ["light", "Light: dashboard"]], W - 12);
   // headlight beam
   const beam = g.createLinearGradient(x + 72, 0, x + 260, 0);
   beam.addColorStop(0, "rgba(255,236,150,0.75)"); beam.addColorStop(1, "rgba(255,236,150,0)");
