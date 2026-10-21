@@ -231,7 +231,7 @@ body.fs .card-foot{padding-top:8px}
 body.fs .card-foot .btn{padding:7px 14px}
 body.fs .tray{border-radius:16px 16px 0 0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))}
 body.fs .tiles{gap:clamp(6px,1vw,12px);flex-wrap:nowrap}
-@media (max-width:860px){body.fs .fs-btn span{display:none}body.fs .fs-btn{padding:6px 8px}body.fs .card-no{width:40px;height:40px}body.fs .card-no b{font-size:14px}body.fs .card-foot{gap:6px}body.fs .card-foot .btn{padding:5px 9px;font-size:12.5px}body.fs .probs{--cols:1!important}body.fs .prob.bl{border-left:0}body.fs .prob+.prob{border-top:2px dashed var(--line)}body.fs .tiles{flex-wrap:wrap}}
+@media (max-width:860px){body.fs .fs-btn span{display:none}body.fs .fs-btn{padding:6px 8px}body.fs .card-no{width:40px;height:40px}body.fs .card-no b{font-size:14px}body.fs .card-foot{gap:6px}body.fs .card-foot .btn{padding:5px 9px;font-size:12.5px}body.fs .probs{--cols:1!important;grid-auto-rows:auto;align-content:start;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}body.fs .prob.bl{border-left:0}body.fs .prob+.prob{border-top:2px dashed var(--line)}body.fs .tiles{flex-wrap:wrap}}
 
 /* ===== answer methods ===== */
 .prow>.widget{flex:0 1 auto;min-width:0}
@@ -788,6 +788,7 @@ function renderCard(){
   $('card-no').textContent=state.seed;
   renderFsNav();
   const active=document.activeElement?.dataset?.slot,afk=document.activeElement?.dataset?.fk;
+  const keepScroll=$('probs').scrollTop;
   if(!state.card.length){$('probs').innerHTML=`<li class="prob"><span></span><div class="pbody"><p class="q">These objectives are practical, so they are best done in class. Choose another strand.</p></div></li>`}
   else $('probs').innerHTML=state.card.map((p,i)=>{
     const r=state.results[i];
@@ -795,9 +796,10 @@ function renderCard(){
     return probHTML(p,i,pill,r);
   }).join('');
   layoutFs();
+  $('probs').scrollTop=keepScroll;
   renderPool();
-  if(active){const el=document.querySelector(`[data-slot="${active}"]`);el&&el.focus()}
-  else if(afk){const el=document.querySelector(`[data-fk="${CSS.escape(afk)}"]`);el&&el.focus()}
+  if(active){const el=document.querySelector(`[data-slot="${active}"]`);el&&el.focus({preventScroll:true})}
+  else if(afk){const el=document.querySelector(`[data-fk="${CSS.escape(afk)}"]`);el&&el.focus({preventScroll:true})}
   const st=$('status');
   if(state.revealed){st.textContent='Answers shown. Start a new card to try again.';st.className='status'}
   else if(state.done){st.textContent='Card complete. Well done!';st.className='status win'}
@@ -881,8 +883,15 @@ $('btn-new').onclick=()=>newCard();
 $('btn-clear').onclick=()=>{state.fill={};state.results=[];state.revealed=false;state.selected=null;resetAnswers();renderCard();renderTray()};
 $('btn-show').onclick=showAnswers;
 
-/* ---------- full screen ---------- */
+/* ---------- full screen ----------
+   Each question is scaled to fit its space. The scale is worked out once per card and screen size,
+   then kept while the student answers, so nothing moves under their finger. It only ever shrinks,
+   and only if an answer makes the question overflow. On phones the questions scroll in one column
+   at a usable size instead of all being squeezed onto one screen, and the on-screen keyboard
+   opening or closing does not trigger a re-layout. */
 let fsOn=false;
+let fitScale=[],fitKey='',fitCard=null,fsH=innerHeight,lastW=innerWidth;
+const isNarrow=()=>innerWidth<=860;
 function setFs(on){
   fsOn=on;state.zoom=null;document.body.classList.toggle("fs",on);
   const b=$('btn-fs');b.setAttribute('aria-pressed',on);b.querySelector('span').textContent=on?'Exit full screen':'Full screen';
@@ -890,35 +899,68 @@ function setFs(on){
     if(on&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});
     if(!on&&document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{});
   }catch(e){}
-  layoutFs();
+  fsH=innerHeight;lastW=innerWidth;
+  layoutFs(true);
 }
-function layoutFs(){
+function applyFit(li,k,narrow){
+  const f=li.firstElementChild;if(!f)return;
+  const cs=getComputedStyle(li);
+  const W=li.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+  f.style.width=(W/k)+'px';f.style.transform=`scale(${k})`;
+  // phones scroll, so each question's box takes its scaled height
+  if(narrow)li.style.height=(f.offsetHeight*k+parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom))+'px';
+}
+function layoutFs(force){
   const lis=[...document.querySelectorAll('#probs .prob')];
-  lis.forEach(li=>{li.classList.remove('bt','bl','wide','zoom');const f=li.firstElementChild;if(f){f.style.width='';f.style.transform=''}});
+  lis.forEach(li=>{li.classList.remove('bt','bl','wide','zoom');li.style.height='';
+    const f=li.firstElementChild;if(f&&!fsOn){f.style.width='';f.style.transform=''}});
   const z=fsOn&&state.zoom!=null&&lis[state.zoom];$('probs').classList.toggle('zoomed',!!z);
-  if(!fsOn)return;
-  if(z){lis[state.zoom].classList.add('zoom');$('probs').style.setProperty('--cols',1);requestAnimationFrame(fitProblems);return}
-  const n=lis.length,wideScreen=innerWidth>860;
-  const cols=!wideScreen?1:n<=2?n:2;
-  $('probs').style.setProperty('--cols',cols);
-  lis.forEach((li,i)=>{if(wideScreen){if(i>=cols)li.classList.add('bt');if(i%cols)li.classList.add('bl');if(n===3&&i===2)li.classList.add('wide')}});
+  if(!fsOn){fitScale=[];fitKey='';return}
+  const narrow=isNarrow();
+  if(z){lis[state.zoom].classList.add('zoom');$('probs').style.setProperty('--cols',1)}
+  else{
+    const n=lis.length,cols=narrow?1:n<=2?n:2;
+    $('probs').style.setProperty('--cols',cols);
+    if(!narrow)lis.forEach((li,i)=>{if(i>=cols)li.classList.add('bt');if(i%cols)li.classList.add('bl');if(n===3&&i===2)li.classList.add('wide')});
+  }
+  // keep each question's size unless the card, the screen width or the zoom changed
+  const key=[innerWidth,narrow?0:fsH,state.zoom].join('|');
+  if(force===true||key!==fitKey||fitCard!==state.card){fitKey=key;fitCard=state.card;fitScale=[]}
+  // re-apply the kept size straight away so nothing jumps after a tap
+  lis.forEach((li,i)=>{if(li.offsetParent&&fitScale[i])applyFit(li,fitScale[i],narrow)});
   requestAnimationFrame(fitProblems);
 }
 function fitProblems(){
-  if(!fsOn)return;
-  const items=[...document.querySelectorAll('#probs .prob')].filter(li=>li.offsetParent).map(li=>{const cs=getComputedStyle(li);return{li,f:li.firstElementChild,W:li.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight),H:li.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom)}}).filter(o=>o.f&&o.W>0&&o.H>0);
-  const fits=(o,k)=>{o.f.style.transform='';o.f.style.width=(o.W/k)+'px';return o.f.scrollHeight*k<=o.H&&o.f.scrollWidth*k<=o.W+1};
-  // each problem is as big as its own space allows (answer tools differ a lot in size)
-  items.forEach(o=>{let k=2.4;if(!fits(o,k)){let lo=.3,hi=k;for(let i=0;i<10;i++){const m=(lo+hi)/2;if(fits(o,m))lo=m;else hi=m}k=lo}
-    o.f.style.width=(o.W/k)+'px';o.f.style.transform=`scale(${k})`});
+  if(!fsOn)return;const narrow=isNarrow();
+  document.querySelectorAll('#probs .prob').forEach((li,i)=>{
+    if(!li.offsetParent)return;const f=li.firstElementChild;if(!f)return;
+    const cs=getComputedStyle(li);
+    const W=li.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    const H=li.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+    if(W<=0||(!narrow&&H<=0))return;
+    const fits=k=>{f.style.transform='';f.style.width=(W/k)+'px';
+      return f.scrollWidth*k<=W+1&&(narrow||f.scrollHeight*k<=H)};
+    let k=fitScale[i];
+    if(k&&fits(k)){applyFit(li,k,narrow);return}   // still fits: leave it exactly as it is
+    const top=k||(narrow?1.25:2.4);                 // a kept size can only shrink
+    if(fits(top))k=top;
+    else{let lo=narrow?.5:.3,hi=top;for(let t=0;t<10;t++){const m=(lo+hi)/2;if(fits(m))lo=m;else hi=m}k=lo}
+    fitScale[i]=k;applyFit(li,k,narrow);
+  });
 }
 $('btn-fs').onclick=()=>setFs(!fsOn);
 $('fs-strand').addEventListener('change',e=>{state.strand=e.target.value;newCard()});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-step]');if(!b)return;const ss=strandsFor();const i=ss.indexOf(state.strand);state.strand=ss[(i+ +b.dataset.step+ss.length)%ss.length];newCard()});
-document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&fsOn)setFs(false);else layoutFs()});
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&fsOn)setFs(false);else{fsH=innerHeight;lastW=innerWidth;layoutFs(true)}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&fsOn&&!document.fullscreenElement)setFs(false)});
-let rsz;addEventListener('resize',()=>{cancelAnimationFrame(rsz);rsz=requestAnimationFrame(layoutFs)});
-try{document.fonts&&document.fonts.ready.then(layoutFs)}catch(e){}
+let rsz;addEventListener('resize',()=>{
+  // the on-screen keyboard changes only the height while a box is focused: ignore it
+  const typing=document.activeElement?.matches?.('input:not([type=range]),select,textarea');
+  if(typing&&innerWidth===lastW)return;
+  lastW=innerWidth;fsH=innerHeight;
+  cancelAnimationFrame(rsz);rsz=requestAnimationFrame(()=>layoutFs());
+});
+try{document.fonts&&document.fonts.ready.then(()=>layoutFs(true))}catch(e){}
 document.addEventListener('keydown',e=>{
   const slot=e.target.closest?.('.slot');if(!slot)return;
   const id=slot.dataset.slot;const all=[...document.querySelectorAll('.slot')];const i=all.indexOf(slot);
