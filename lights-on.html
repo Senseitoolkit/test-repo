@@ -545,6 +545,17 @@ tr:last-child td{border-bottom:0}
   .hero .mode{padding:4px 14px}
   .hero .mode .n{display:none}
 }
+/* full screen: the app fills the screen (true full screen when the browser allows it, otherwise the whole window) */
+html.full-on, html.full-on body{overflow:hidden}
+html.full-on .app{position:fixed;inset:0;z-index:50;max-width:none;margin:0;overflow-y:auto;overscroll-behavior:contain;background:var(--bg);padding-block:10px 24px;gap:10px}
+html.full-on .hero .eyebrow, html.full-on .hero .lede{display:none}
+@media (max-width:1023px){ html.full-on .hero{display:none} }
+@media (min-width:1024px){
+  html.full-on .hero{grid-template-rows:auto}
+  html.full-on .hero h1{grid-row:1;align-self:center}
+  html.full-on .hero .topbar{grid-row:1}
+  html.full-on .viewport, html.full-on .side{height:calc(100vh - 100px);max-height:none}
+}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -585,7 +596,7 @@ tr:last-child td{border-bottom:0}
           <div class="hscores" id="hud-scores"></div>
         </div>
         <div class="hud lensbar" id="lensbar" role="group" aria-label="Map lens"></div>
-        <div class="hud viewbtns"><button class="vbtn" id="v-reset" aria-label="Reset view"></button><button class="vbtn" id="v-spin" aria-pressed="false" aria-label="Spin the city"></button></div>
+        <div class="hud viewbtns"><button class="vbtn" id="v-reset" aria-label="Reset view"></button><button class="vbtn" id="v-spin" aria-pressed="false" aria-label="Spin the city"></button><button class="vbtn" id="v-full" aria-label="Full screen" title="Full screen (F)"></button></div>
         <div class="toast" id="toast" role="status"></div>
         <div class="hud dis-banner" id="dis-banner" hidden></div>
         <div class="hud alerts" id="alerts" hidden aria-live="polite"></div>
@@ -697,7 +708,7 @@ tr:last-child td{border-bottom:0}
       <div class="tcard"><b>Big idea</b><p>No energy mix is perfect. Every choice trades off cost, CO₂, reliability, and land and materials.</p></div>
       <div class="tcard"><b>Look for</b><ul><li>Blackouts after sunset</li><li>Smog from coal</li><li>Batteries running empty</li><li>“Eco ideal” failing on dark, still days</li><li>Red warnings when disasters hit</li></ul></div>
       <div class="tcard"><b>Ask</b><p>Which mix would you choose for Japan? What would you give up?</p></div>
-      <div class="tcard"><b>Good to know</b><ul><li>Numbers are simplified but point the right way.</li><li>Real facts and sources are in Fact files and the disaster cards.</li><li>War and cyber attack are kept simple. Preview them first.</li><li>Nothing is saved after a refresh.</li></ul></div>
+      <div class="tcard"><b>Good to know</b><ul><li>Numbers are simplified but point the right way.</li><li>Real facts and sources are in Fact files and the disaster cards.</li><li>War and cyber attack are kept simple. Preview them first.</li><li>Nothing is saved after a refresh.</li><li>Projecting? Press <b>F</b> or the full-screen button on the map.</li></ul></div>
     </div>
   </details>
 </div>
@@ -2717,6 +2728,8 @@ const IC={
   pause:'<path class="f" d="M6.5 4h4v16h-4zM13.5 4h4v16h-4z"/>',
   home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
   spin:'<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>',
+  expand:'<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
+  shrink:'<path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/>',
   restart:'<path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 3v6h6"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/>',
   x:'<path d="M6 6l12 12M18 6L6 18"/>',
@@ -3415,6 +3428,20 @@ function updateDrawerLabels(){
 }
 /* on a computer the test week sits in the side panel; on a phone it sits under the city */
 /* on a computer the steps sit in the header row, so the map gets the whole width */
+/* full screen */
+let fullReal=false;
+const isFull=()=>document.documentElement.classList.contains('full-on');
+const fsElement=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
+function setFull(on){
+  const de=document.documentElement; de.classList.toggle('full-on', on);
+  const b=$('#v-full'); if (b){ b.innerHTML=ico(on?'shrink':'expand'); b.setAttribute('aria-label', on?'Exit full screen':'Full screen'); b.title=on?'Exit full screen (Esc)':'Full screen (F)'; }
+  try{
+    if (on && !fsElement()){ const req=de.requestFullscreen||de.webkitRequestFullscreen; if (req){ const p=req.call(de); if (p&&p.catch) p.catch(()=>{}); } }
+    if (!on && fsElement()){ const ex=document.exitFullscreen||document.webkitExitFullscreen; if (ex){ const p=ex.call(document); if (p&&p.catch) p.catch(()=>{}); } }
+  }catch(e){}
+  dirtyChart=true;
+}
+function onFsChange(){ const now=!!fsElement(); if (fullReal && !now && isFull()) setFull(false); fullReal=now; }
 function placeTopbar(){
   const desk=window.matchMedia('(min-width:1024px)').matches, tb=document.querySelector('.topbar'), hero=document.querySelector('.hero'), stage=document.querySelector('.stage');
   if (!tb||!hero||!stage) return;
@@ -3702,6 +3729,15 @@ function init(){
   $('#again').addEventListener('click',()=>{ setMode('run'); resetRun(); });
   $('#back-explore').addEventListener('click',()=>setMode('explore'));
   $('#v-reset').addEventListener('click',()=>{ stopSpin(); resetView(); });
+  $('#v-full').innerHTML=ico('expand');
+  $('#v-full').addEventListener('click',()=>setFull(!isFull()));
+  document.addEventListener('fullscreenchange', onFsChange); document.addEventListener('webkitfullscreenchange', onFsChange);
+  document.addEventListener('keydown',e=>{
+    const tag=(e.target&&e.target.tagName)||''; if (/INPUT|SELECT|TEXTAREA/.test(tag) && e.target.type!=='range') return;
+    if (e.ctrlKey||e.metaKey||e.altKey) return;
+    if (e.key==='f'||e.key==='F'){ e.preventDefault(); setFull(!isFull()); }
+    else if (e.key==='Escape' && isFull() && !fsElement()) setFull(false);
+  });
   $('#v-spin').addEventListener('click',()=>{ if(!R) return; const on=!R.controls.autoRotate && !reduced; R.controls.autoRotate=on; $('#v-spin').setAttribute('aria-pressed',on); });
   const cv=$('#chart'); let scrub=false;
   const scrubTo=e=>{ if (S.mode!=='explore') return; const m=cv._map; if(!m) return; const r=cv.getBoundingClientRect(); setExTime(Math.round(clamp((e.clientX-r.left-m.P.l)/m.W*24,0,24)*4)/4); };
