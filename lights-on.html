@@ -292,7 +292,7 @@ select{border:1px solid var(--line);background:var(--surface);border-radius:999p
 .dc-breaks{display:flex;flex-wrap:wrap;gap:6px}
 .dc-ex{font-size:.92rem;max-width:80ch}
 .dc-ex a{color:var(--muted);font-size:.82rem}
-.dis-banner{top:12px;left:12px;max-width:calc(100% - 170px);overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(185,28,28,.88);border-color:#FCA5A5;pointer-events:none;white-space:nowrap;font-size:.9rem}
+.dis-banner{top:12px;left:12px;max-width:calc(100% - 80px);overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;padding:7px 12px;background:rgba(185,28,28,.88);border-color:#FCA5A5;pointer-events:none;white-space:nowrap;font-size:.9rem}
 .dis-banner span{font:500 .7rem/1 var(--f-mono);text-transform:uppercase;letter-spacing:.05em;opacity:.9}
 .lbl .stag{font:700 10px/1 var(--f-body);font-style:normal;background:#DC2626;color:#fff;border-radius:999px;padding:3px 6px;margin-left:2px}
 .day{position:relative}
@@ -620,7 +620,7 @@ html.full-on .hero .eyebrow, html.full-on .hero .lede{display:none}
         <canvas id="scene" role="img" aria-label="3D island city with solar, wind, hydro, nuclear, coal and battery stations"></canvas>
         <div class="labels" id="labels"></div>
         <div class="hud lensbar" id="lensbar" role="group" aria-label="Map lens"></div>
-        <div class="hud viewbtns"><button class="vbtn" id="v-reset" aria-label="Reset view"></button><button class="vbtn" id="v-spin" aria-pressed="false" aria-label="Spin the city"></button><button class="vbtn" id="v-full" aria-label="Full screen" title="Full screen (F)"></button></div>
+        <div class="hud viewbtns"><button class="vbtn" id="v-full" aria-label="Full screen" title="Full screen (F)"></button></div>
         <div class="toast" id="toast" role="status"></div>
         <div class="hud dis-banner" id="dis-banner" hidden></div>
         <div class="hud alerts" id="alerts" hidden aria-live="polite"></div>
@@ -1804,7 +1804,7 @@ const reduced = (()=>{ try{ return matchMedia('(prefers-reduced-motion: reduce)'
 
 /* =========================================================
    SIMULATION — you build capacity; the grid decides what runs.
-   Order: sun + wind (free) → nuclear (steady) → battery → hydro (saves its water) → coal (slow, cheap fuel) → gas (fast, costly fuel)
+   Order: sun + wind (free) → nuclear (steady) → battery → hydro (saves its water) → coal (slow, low-cost fuel) → gas (fast, costly fuel)
    Numbers are simplified for a city of about one million people.
    ========================================================= */
 const DT = 0.1;              // hours per sim step
@@ -1817,13 +1817,13 @@ const BAT_EFF = 0.9;
 
 /* fixed = cost per day of what is built (¥); vc = running cost per MWh (¥); co2 = t per MWh */
 const SRC = {
-  solar:{name:'Solar farms', short:'Solar', css:'--c-solar', hex:0xF5B700, kind:'farms', max:4, step:1, per:250, fixed:11e6, vc:0, co2:0.04, renewable:'yes'},
-  wind:{name:'Wind turbines', short:'Wind', css:'--c-wind', hex:0x22B8CF, kind:'farms', max:4, step:1, per:150, fixed:14e6, vc:0, co2:0.01, renewable:'yes'},
+  solar:{name:'Solar farms', short:'Solar', css:'--c-solar', hex:0xF5B700, kind:'farms', max:4, step:1, per:250, fixed:12e6, vc:0, co2:0.04, renewable:'yes'},
+  wind:{name:'Wind turbines', short:'Wind', css:'--c-wind', hex:0x22B8CF, kind:'farms', max:4, step:1, per:150, fixed:25e6, vc:0, co2:0.01, renewable:'yes'},
   hydro:{name:'Hydro dam', short:'Hydro', css:'--c-hydro', hex:0x3B82F6, kind:'mw', max:300, step:10, fixed:12000, vc:1000, co2:0.01, renewable:'yes'},
-  nuclear:{name:'Nuclear power station', short:'Nuclear', css:'--c-nuclear', hex:0xA78BFA, kind:'mw', max:600, step:50, fixed:260000, vc:2000, co2:0.012, renewable:'no'},
+  nuclear:{name:'Nuclear power station', short:'Nuclear', css:'--c-nuclear', hex:0xA78BFA, kind:'mw', max:600, step:50, fixed:300000, vc:2000, co2:0.012, renewable:'no'},
   gas:{name:'Gas power station', short:'Gas', css:'--c-gas', hex:0xF97316, kind:'mw', max:1000, step:50, fixed:12000, vc:14000, co2:0.40, renewable:'no'},
   coal:{name:'Coal power station', short:'Coal', css:'--c-coal', hex:0xB08968, kind:'mw', max:1000, step:50, fixed:15000, vc:6000, co2:0.95, renewable:'no'},
-  battery:{name:'Battery packs', short:'Battery', css:'--c-battery', hex:0x22C55E, kind:'units', max:8, step:1, per:100, capPer:400, fixed:4.5e6, vc:0, co2:0, renewable:'depends'}
+  battery:{name:'Battery packs', short:'Battery', css:'--c-battery', hex:0x22C55E, kind:'units', max:8, step:1, per:100, capPer:400, fixed:7e6, vc:0, co2:0, renewable:'depends'}
 };
 const ORDER = ['nuclear','coal','gas','hydro','wind','solar','battery'];      // chart stacking
 const LIST  = ['solar','wind','hydro','nuclear','gas','coal','battery'];      // UI order
@@ -1846,19 +1846,19 @@ const CUT_ORDER = [1,2,3,0];
 
 const PRESETS = [
   {id:'eco', name:'Eco ideal', icon:'leaf', set:{solar:4, wind:4, hydro:300, nuclear:0, gas:0, coal:0, battery:8},
-    txt:'100% sun, wind and water with lots of batteries. Zero CO₂, but dark, still days are a real problem, and it needs a lot of land and minerals.'},
+    txt:'100% sun, wind and water with lots of batteries. Zero CO₂, but very costly to build, dark, still days are a real problem, and it needs a lot of land and minerals.'},
   {id:'backup', name:'Clean + gas backup', icon:'flame', set:{solar:4, wind:4, hydro:300, nuclear:0, gas:1000, coal:0, battery:4},
-    txt:'Mostly sun, wind and water. Gas plants switch on for dark, still days. Reliable, but not zero CO₂.'},
+    txt:'Mostly sun, wind and water. Gas plants switch on for dark, still days. Reliable, but you pay for two systems, and it is not zero CO₂.'},
   {id:'pricey', name:'Expensive eco', icon:'coin', set:{solar:2, wind:1, hydro:200, nuclear:600, gas:0, coal:0, battery:2},
     txt:'Nuclear plus some renewables. Clean and reliable in any weather, but very expensive, and it leaves radioactive waste.'},
   {id:'mix', name:'Balanced mix', icon:'scale', set:{solar:2, wind:2, hydro:200, nuclear:0, gas:300, coal:400, battery:2},
     txt:'A bit of everything. Nothing perfect, nothing terrible.'},
   {id:'japan', name:'Japan today (roughly)', icon:'city', set:{solar:1, wind:0, hydro:50, nuclear:50, gas:700, coal:250, battery:0},
     txt:'Roughly like Japan: mostly gas and coal shipped from abroad, with some solar, hydro and nuclear.'},
-  {id:'dirty', name:'Polluting & cheap', icon:'factory', set:{solar:0, wind:0, hydro:150, nuclear:0, gas:0, coal:1000, battery:0},
-    txt:'Mostly coal. Cheap and reliable, but lots of CO₂ and smog.'},
+  {id:'dirty', name:'Polluting & low cost', icon:'factory', set:{solar:0, wind:0, hydro:150, nuclear:0, gas:0, coal:1000, battery:0},
+    txt:'Mostly coal. Low cost and reliable, but lots of CO₂ and smog.'},
   {id:'sunwind', name:'Sun & wind only', icon:'sun', set:{solar:4, wind:4, hydro:0, nuclear:0, gas:0, coal:0, battery:0},
-    txt:'Clean and cheap… until the sun sets and the wind drops.'}
+    txt:'Clean, with no fuel to buy, but costly to build… and dark when the sun sets and the wind drops.'}
 ];
 
 const gs = (t,m,s)=>Math.exp(-((t-m)*(t-m))/(2*s*s));
@@ -1966,7 +1966,7 @@ function scores(T, set){
   const fp = footprint({...T, nuclear:T.nuclear*k, coal:T.coal*k, gas:T.gas*k}, set);
   return {
     clean: clamp(100*(1-co2/12000),0,100),
-    cheap: clamp(100*(1-(costM-80)/(240-80)),0,100),
+    cheap: clamp(100*(1-(costM-80)/(280-80)),0,100),
     reliable: clamp((lights-90)/10*100,0,100),   // grids aim for 99.9%+, so 95% is only half marks
     nature: clamp(100-fp.pts,0,100),
     lights, costM, co2, fp
@@ -1994,9 +1994,9 @@ function simWeek(set, season, opts={}){
   W.days=out; W.rows=rows; return W;
 }
 function weekLights(W){ return W.demand?100*W.served/W.demand:100; }
-/* the cheapest sun + wind + water + battery city that keeps the lights on (99.5%) for the whole test week.
+/* the lowest-cost sun + wind + water + battery city that keeps the lights on (99.5%) for the whole test week.
    Found by searching every mix of solar farms, wind farms and battery packs with this same model. */
-const CLEAN_NEEDS={"summer|false|false": {"set": {"solar": 12, "wind": 14, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 4}, "cost": 352, "wastedPct": 53}, "summer|false|true": {"set": {"solar": 10, "wind": 12, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 3}, "cost": 298, "wastedPct": 52}, "summer|true|false": {"set": {"solar": 14, "wind": 20, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 6}, "cost": 467, "wastedPct": 52}, "summer|true|true": {"set": {"solar": 14, "wind": 14, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 9}, "cost": 397, "wastedPct": 50}, "winter|false|false": {"set": {"solar": 2, "wind": 26, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 4}, "cost": 410, "wastedPct": 62}, "winter|false|true": {"set": {"solar": 2, "wind": 20, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 6}, "cost": 335, "wastedPct": 58}, "winter|true|false": {"set": {"solar": 6, "wind": 28, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 21}, "cost": 559, "wastedPct": 55}, "winter|true|true": {"set": {"solar": 2, "wind": 28, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 10}, "cost": 465, "wastedPct": 60}};
+const CLEAN_NEEDS={"summer|false|false": {"set": {"solar": 24, "wind": 2, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 19}, "cost": 477, "wastedPct": 51}, "summer|false|true": {"set": {"solar": 20, "wind": 2, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 16}, "cost": 408, "wastedPct": 51}, "summer|true|false": {"set": {"solar": 28, "wind": 4, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 28}, "cost": 638, "wastedPct": 48}, "summer|true|true": {"set": {"solar": 26, "wind": 2, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 23}, "cost": 529, "wastedPct": 50}, "winter|false|false": {"set": {"solar": 14, "wind": 12, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 28}, "cost": 670, "wastedPct": 36}, "winter|false|true": {"set": {"solar": 8, "wind": 12, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 23}, "cost": 563, "wastedPct": 38}, "winter|true|false": {"set": {"solar": 12, "wind": 18, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 40}, "cost": 880, "wastedPct": 36}, "winter|true|true": {"set": {"solar": 14, "wind": 14, "hydro": 300, "nuclear": 0, "gas": 0, "coal": 0, "battery": 31}, "cost": 741, "wastedPct": 37}};
 
 /* =========================================================
    DISASTERS — natural and human-made shocks to the grid.
@@ -2358,7 +2358,7 @@ function init3D(){
   for (let i=0;i<4;i++){ const c=mesh(new T.BoxGeometry(1.7,0.75,0.8), std(i===0?0xe11d48:0xf1f5f9)); c.position.y=0.62; const g=new T.Group(); g.add(c); train.add(g); trainCars.push(g); }
   city.traverse(o=>{ if (o.isMesh){ o.userData.src='city'; pick.push(o); } });
 
-  /* trees across the island (two instanced meshes, very cheap to draw) */
+  /* trees across the island (two instanced meshes, quick to draw) */
   const AVOID=[[-30,9,12],[23,-23,6.5],[33,-15,6.5],[31,-27,6.5],[37,-4,6.5],[-24,-22,10],[8,-29,9],[13,31,7.5],[27,13,9.5],[-7,23.7,9],[44,33,6],
                [-35,-26,8],[-24,-35,9],[-12,-31,7],[-38,-14,7]];
   const treePts=[...parkTrees];
@@ -2587,7 +2587,7 @@ function focusSource(k){
   flyTo(base, off);
 }
 function resetView(){ if (!R) return; flyTo(R.HOME_T, R.homePos().sub(R.HOME_T)); }
-function stopSpin(){ if (R && R.controls.autoRotate){ R.controls.autoRotate=false; $('#v-spin').setAttribute('aria-pressed','false'); } }
+function stopSpin(){ if (R && R.controls.autoRotate) R.controls.autoRotate=false; }
 
 const SKY=[[0,0x0a1430],[4.8,0x0e1a3a],[6,0xf0a060],[7.5,0x9fcff2],[12,0x86c3f0],[16.5,0x9ccdf0],[18,0xf08a5d],[19.4,0x1a2147],[24,0x0a1430]];
 function skyAt(t, out){
@@ -2790,9 +2790,9 @@ const ico=(n,c='')=>`<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true"
 
 const META={
   solar:{icon:'sun', name:'Solar', cap:v=>v?`${v} farm${v>1?'s':''} · ${v*250} MW`:'none built', form:'Light energy', chain:['Sunlight','Panel','Electricity'],
-    trade:[['Clean',1],['No fuel',1],['Needs sun',0],['Lots of land',0]], fb:'Sunlight will not run out.'},
+    trade:[['Clean',1],['No fuel',1],['Costly to build',0],['Needs sun',0],['Lots of land',0]], fb:'Sunlight will not run out.'},
   wind:{icon:'wind', name:'Wind', cap:v=>v?`${v} farm${v>1?'s':''} · ${v*150} MW`:'none built', form:'Kinetic energy (moving air)', chain:['Moving air','Turbine','Electricity'],
-    trade:[['Clean',1],['No fuel',1],['Needs wind',0],['Steel & magnets',0]], fb:'The wind keeps coming back.'},
+    trade:[['Clean',1],['No fuel',1],['Costly to build',0],['Needs wind',0],['Steel & magnets',0]], fb:'The wind keeps coming back.'},
   hydro:{icon:'drop', name:'Hydro', cap:v=>v?`turbines: ${v} MW`:'turned off', form:'Gravitational potential energy (water held high)', chain:['Water held high','Turbine','Electricity'],
     trade:[['Clean',1],['Quick to change',1],['Limited water',0],['Floods a valley',0]], fb:'Rain refills the lake, unless it is a dry year.'},
   nuclear:{icon:'atom', name:'Nuclear', cap:v=>v?`reactor: ${v} MW · steady`:'none built', form:'Nuclear energy (stored in uranium atoms)', chain:['Uranium','Heat','Steam','Turbine','Electricity'],
@@ -2800,9 +2800,9 @@ const META={
   gas:{icon:'flame', name:'Gas', cap:v=>v?`plant: ${v} MW · fast`:'none built', form:'Chemical energy (stored in natural gas)', chain:['Natural gas','Heat','Turbine','Electricity'],
     trade:[['Switches on fast',1],['Under half coal’s CO₂',1],['Still makes CO₂',0],['Imported fuel',0]], fb:'Gas is a fossil fuel. It took millions of years to form, and it will run out.'},
   coal:{icon:'factory', name:'Coal', cap:v=>v?`plant: ${v} MW · slow`:'none built', form:'Chemical energy (stored in coal)', chain:['Coal','Heat','Steam','Turbine','Electricity'],
-    trade:[['Cheap',1],['Any weather',1],['Most CO₂',0],['Smog & mines',0]], fb:'Coal took millions of years to form. Once burned, it is gone.'},
+    trade:[['Low cost',1],['Any weather',1],['Most CO₂',0],['Smog & mines',0]], fb:'Coal took millions of years to form. Once burned, it is gone.'},
   battery:{icon:'battery', name:'Battery', cap:v=>v?`${v} pack${v>1?'s':''} · ${v*400} MWh`:'none built', form:'Chemical energy (stored electricity)', chain:['Spare electricity','Chemical store','Electricity later'],
-    trade:[['Very fast',1],['Saves sun for night',1],['Mined metals',0],['Only hours',0]], fb:'A battery is a store, not a source. It is as clean as the power that charged it.'}
+    trade:[['Very fast',1],['Saves sun for night',1],['Costly to build',0],['Mined metals',0],['Only hours',0]], fb:'A battery is a store, not a source. It is as clean as the power that charged it.'}
 };
 
 /* =========================================================
@@ -2821,7 +2821,10 @@ const SOURCES={
   vogtle:['AP News, Vogtle nuclear plant, 2023','https://www.clickondetroit.com/news/politics/2023/05/25/georgia-nuclear-rebirth-arrives-7-years-late-17b-over-cost/'],
   gorges:['EBSCO Research Starters, Three Gorges Dam','https://www.ebsco.com/research-starters/engineering/three-gorges-dam-china'],
   eiaco2:['US EIA, CO₂ per kWh by fuel (2023)','https://www.eia.gov/tools/faqs/faq.php?id=74'],
-  ch4:['IEA, Global Methane Tracker 2025','https://www.iea.org/reports/global-methane-tracker-2025']
+  ch4:['IEA, Global Methane Tracker 2025','https://www.iea.org/reports/global-methane-tracker-2025'],
+  meticost:['METI, power generation cost review 2024 (Japanese)','https://www.enecho.meti.go.jp/committee/council/basic_policy_subcommittee/mitoshi/cost_wg/2024/data/06_04.pdf'],
+  reiwind:['Renewable Energy Institute, offshore wind after Mitsubishi’s exit, 2025','https://www.renewable-ei.org/en/activities/reports/20250902.php'],
+  bessjp:['Japan Energy Hub, battery costs in Japan (MRI study for METI), 2024','https://japanenergyhub.com/news/bess-costs-meti']
 };
 const TAG={cost:['coin','Cost'], materials:['cube','Materials'], weather:['cloud','Weather'], waste:['trash','Waste'], nature:['mountain','Nature'], safety:['shield','Safety'], time:['clock','Time'], amount:['pie','Amount'], co2:['smoke','CO₂'], fuel:['cube','Fuel'], air:['smoke','Air']};
 const FACTS={
@@ -2832,20 +2835,22 @@ const FACTS={
     hard:[
       ['amount','Still under 1 in 10 units of the world’s electricity, and under 2% of all the energy we use.'],
       ['weather','Nothing at night and less on cloudy days, so it needs storage or backup.'],
-      ['materials','Panels need silicon, glass and silver. Big farms cover a lot of land, and old panels are hard to recycle.']],
-    japan:'Solar made about 10% of Japan’s electricity in 2025, a record. Rooftops help in a crowded country.',
-    src:['ember','ei','irena','emberjp']},
+      ['materials','Panels need silicon, glass and silver. Big farms cover a lot of land, and old panels are hard to recycle.'],
+      ['cost','Almost all the cost is paid up front: panels, steel frames, land, workers and power lines. To keep the lights on with sun alone you must also pay for extra panels and batteries. Japan’s government says that extra cost can make each kWh of solar cost about 2 to 4 times as much.']],
+    japan:'Solar made about 10% of Japan’s electricity in 2025, a record. Rooftops help in a crowded country. But building here costs more than the world average: about ¥11 per kWh from a big solar farm.',
+    src:['ember','ei','irena','emberjp','meticost']},
   wind:{share:8.5, good:[
-      ['coin','New wind farms on land made the cheapest new electricity in the world in 2025.'],
+      ['coin','Around the world, new wind farms on land made the lowest-cost new electricity in 2025.'],
       ['up','Wind costs fell about 71% since 2010.'],
       ['bolt','Wind and solar together now make 17% of the world’s electricity.']],
     hard:[
       ['weather','On calm days the blades barely turn.'],
       ['materials','A wind farm needs about 9 times more minerals than a gas power plant of the same size: steel, copper and rare-earth magnets.'],
       ['waste','Old blades are made of fibreglass, which is hard to recycle.'],
-      ['amount','Wind is under 2% of all the energy the world uses.']],
-    japan:'Only about 1% of Japan’s electricity. Mountains, typhoons and deep seas make it hard, so Japan is testing turbines that float at sea.',
-    src:['ember','irena','iea','emberjp']},
+      ['amount','Wind is under 2% of all the energy the world uses.'],
+      ['cost','Building costs jumped. In 2025 Mitsubishi pulled out of three big wind farms at sea in Japan: turbine prices had about doubled, and materials, workers and transport cost over 20% more.']],
+    japan:'Only about 1% of Japan’s electricity. Mountains, typhoons and deep seas make it hard, so Japan is testing turbines that float at sea. Wind on land here costs about ¥16 per kWh, more than solar.',
+    src:['ember','irena','iea','emberjp','meticost','reiwind']},
   hydro:{share:14.0, good:[
       ['bolt','The biggest clean source of electricity in the world.'],
       ['clock','It can be turned up or down in minutes, and the lake stores energy for later.'],
@@ -2876,7 +2881,7 @@ const FACTS={
     japan:'Gas made about 34% of Japan’s electricity in 2022, more than any other source.',
     src:['pew','eiaco2','ch4','eiajp']},
   coal:{share:33.0, good:[
-      ['bolt','Reliable in any weather, and the fuel is cheap.'],
+      ['bolt','Reliable in any weather, and the fuel costs little.'],
       ['up','Things are changing: in 2025, renewables made more of the world’s electricity than coal for the first time.']],
     hard:[
       ['co2','Burning coal releases more CO₂ than any other way of making electricity.'],
@@ -2885,21 +2890,22 @@ const FACTS={
     japan:'Coal made about 31% of Japan’s electricity in 2022, and gas made about 34%. Almost all of it arrives by ship from other countries.',
     src:['ember','eiajp']},
   battery:{big:'−95%', bigTxt:'drop in the cost of battery storage since 2010', good:[
-      ['coin','Big battery packs for the grid cost about US$70 per kWh in 2025, 45% cheaper than one year before.'],
+      ['coin','Big battery packs for the grid cost about US$70 per kWh in 2025, 45% less than one year before.'],
       ['clock','They react in under a second and carry sunny-day power into the evening.']],
     hard:[
       ['materials','They need lithium, nickel and sometimes cobalt. Mining can harm land, water and workers.'],
       ['time','Most store only a few hours of power. That is not enough for a dark, calm week.'],
-      ['safety','They can catch fire if damaged, and recycling is still growing.']],
-    japan:null, src:['irena','bnef']}
+      ['safety','They can catch fire if damaged, and recycling is still growing.'],
+      ['cost','The packs are only part of the price. In Japan a finished battery yard cost about ¥62,000 per kWh in 2023, up from ¥49,000 the year before, including about ¥14,000 for building work.']],
+    japan:null, src:['irena','bnef','bessjp']}
 };
 const WORLD=[['coal',33.0],['gas',21.8],['hydro',14.0],['nuclear',8.9],['solar',8.7],['wind',8.5],['oil',2.6],['bio',2.2],['geo',0.3]];   // adds up to 100.0
 
 /* =========================================================
    TRADE-OFF HELPERS
    ========================================================= */
-const AX=[['clean','leaf','Clean'],['cheap','coin','Cheap'],['reliable','bolt','Reliable'],['nature','mountain','Footprint']];
-const AX_HINT={clean:'little CO₂', cheap:'low cost', reliable:'lights stay on', nature:'little land & mining'};
+const AX=[['clean','leaf','Clean'],['cheap','coin','Cost'],['reliable','bolt','Reliable'],['nature','mountain','Footprint']];
+const AX_HINT={clean:'little CO₂', cheap:'a high score means a low cost', reliable:'lights stay on', nature:'little land & mining'};
 function scoreCol(v){ return v>=70?'#16A34A':v>=40?'#D97706':'#DC2626'; }
 function heat(v){ /* 0 good → 1 bad : green → amber → red */
   v=clamp(v,0,1); const a=[22,163,74], b=[217,119,6], c=[220,38,38];
@@ -3375,9 +3381,9 @@ function renderHonest(){
       ${tile('trash', fmt(100*W.wasted/((W.solar+W.wind+W.hydro)||1))+'% wasted', 'made on good days, with nowhere to go', '#D97706')}
       ${tile('mountain', fmt(n.set.solar*500)+' ha', 'of solar panels: about '+fmt(domes)+' Tokyo Domes', '#6B7280')}
     </div>
-    <p class="why"><b>Why so much?</b> Batteries store hours, not days. To get through dark, still days you must build far more than you need on good days. That is why “Eco ideal” keeps the lights on only <b>${fmt(eco.sc.lights,0)}%</b> of this week.</p>
+    <p class="why"><b>Why so much?</b> Batteries store hours, not days. To get through dark, still days you must build far more than you need on good days, and every extra panel, turbine and battery costs money for materials and workers. That is why “Eco ideal” keeps the lights on only <b>${fmt(eco.sc.lights,0)}%</b> of this week.</p>
     <div class="tbl-wrap"><table class="cmp-t"><thead><tr><th>Mix (per day, this week)</th><th>Cost</th><th>CO₂</th><th>Lights on</th></tr></thead><tbody>
-      ${row('100% clean, built big enough', sc, 'leaf')}${row('Clean + gas backup', backup.sc, 'flame')}${row('Eco ideal (not enough)', eco.sc, 'leaf')}${row('Polluting & cheap', dirty.sc, 'factory')}
+      ${row('100% clean, built big enough', sc, 'leaf')}${row('Clean + gas backup', backup.sc, 'flame')}${row('Eco ideal (not enough)', eco.sc, 'leaf')}${row('Polluting & low cost', dirty.sc, 'factory')}
     </tbody></table></div>
     <h4>${ico('up')} How people are solving this</h4>
     <ul class="solve">
@@ -3739,7 +3745,7 @@ function init(){
   buildDeck(); buildConds(); buildLabels(); buildLensBar(); buildDisasters(); renderDisCard(); renderPresets(); renderWeek(); setupDrawers();
   $('#mini-key').innerHTML='bars: '+AX.map(([k,i,l])=>`<span>${ico(i)}${l}</span>`).join('');
   $('#to-honest').addEventListener('click',()=>{ setMode('score'); setTimeout(()=>{ const h=$('#honest'); if(h) h.scrollIntoView({behavior:reduced?'auto':'smooth', block:'start'}); }, 50); });
-  $('#v-reset').innerHTML=ico('home'); $('#v-spin').innerHTML=ico('spin'); $('#restart').innerHTML=ico('restart');
+  $('#restart').innerHTML=ico('restart');
   document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>setMode(b.id.slice(2))));
   $('#time').addEventListener('input',e=>{ if (S.mode==='explore') setExTime(+e.target.value); });
   $('#play').addEventListener('click',()=>{
@@ -3753,7 +3759,6 @@ function init(){
     resetRun(); toast(e.target.options[e.target.selectedIndex].text); });
   $('#again').addEventListener('click',()=>{ setMode('run'); resetRun(); });
   $('#back-explore').addEventListener('click',()=>setMode('explore'));
-  $('#v-reset').addEventListener('click',()=>{ stopSpin(); resetView(); });
   $('#v-full').innerHTML=ico('expand');
   $('#v-full').addEventListener('click',()=>setFull(!isFull()));
   document.addEventListener('fullscreenchange', onFsChange); document.addEventListener('webkitfullscreenchange', onFsChange);
@@ -3763,7 +3768,6 @@ function init(){
     if (e.key==='f'||e.key==='F'){ e.preventDefault(); setFull(!isFull()); }
     else if (e.key==='Escape' && isFull() && !fsElement()) setFull(false);
   });
-  $('#v-spin').addEventListener('click',()=>{ if(!R) return; const on=!R.controls.autoRotate && !reduced; R.controls.autoRotate=on; $('#v-spin').setAttribute('aria-pressed',on); });
   const cv=$('#chart'); let scrub=false;
   const scrubTo=e=>{ if (S.mode!=='explore') return; const m=cv._map; if(!m) return; const r=cv.getBoundingClientRect(); setExTime(Math.round(clamp((e.clientX-r.left-m.P.l)/m.W*24,0,24)*4)/4); };
   cv.addEventListener('pointerdown',e=>{ if (S.mode!=='explore') return; scrub=true; try{cv.setPointerCapture(e.pointerId);}catch(_){} scrubTo(e); });
