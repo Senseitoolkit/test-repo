@@ -227,6 +227,17 @@ body.moving #spinCenter{opacity:0;pointer-events:none}
 .pick p{margin:0;font-size:13px;color:var(--muted)}
 .pick dl{display:grid;grid-template-columns:auto 1fr;gap:1px 8px;margin:0;font-size:12px;color:var(--muted)}.pick dd{margin:0;text-align:right;color:var(--ink)}
 .pick .soon{color:var(--warn);font-size:11px;font-weight:700}
+.picks.icons .pick{justify-items:center;text-align:center}
+.picks.icons .pick dl{width:100%;text-align:left}
+.bigicon{width:56px;height:56px;border-radius:50%;background:var(--panel-2);border:3px solid var(--ink);display:grid;place-items:center;color:var(--ink)}
+.bigicon .ico{width:30px;height:30px}
+.ico{width:1em;height:1em;display:inline-block;vertical-align:-0.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.avatar .ico{width:22px;height:22px}
+.mchip i .ico{width:14px;height:14px}
+.meter em .ico{width:18px;height:18px}
+.badge span .ico{width:24px;height:24px}
+.warnings .ico{width:14px;height:14px}
+.pick .more{font-size:12px;color:var(--ink)}
 .pawn{width:18px;height:18px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;display:inline-block;border:2px solid var(--ink)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center}
 .legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
@@ -310,6 +321,9 @@ body.moving #topbar .wallet, body.moving #topbar .who, body.moving #stats, body.
   .choice{padding:8px 10px}.choice b{font-size:14px}.choice .odds{font-size:14px;padding:2px 6px}
   .logo h1{font-size:clamp(40px,13vw,72px);-webkit-text-stroke:2px var(--ink);text-shadow:0 4px 0 var(--ink),0 10px 20px rgba(0,0,0,.45)}
   .banner{padding:18px 12px 14px;transform:rotate(-1deg)}
+  .wizard .row.footer{flex-wrap:nowrap;gap:6px}
+  .wizard .row.footer .gbtn{font-size:12px;padding:7px 9px;border-width:2.5px;box-shadow:0 3px 0 var(--ink)}
+  .wizard .row.footer .hint{display:none}
   .menu>.gbtn{min-width:220px}
   .pause{margin-top:4vh}
   .finals{grid-template-columns:1fr 1fr}
@@ -333,7 +347,7 @@ body.moving #topbar .wallet, body.moving #topbar .who, body.moving #stats, body.
 // phones must lay out at device width; add the viewport tag if the host page forgot it
 (function(){ if(!document.querySelector('meta[name="viewport"]')){ const m=document.createElement('meta'); m.name='viewport'; m.content='width=device-width,initial-scale=1,viewport-fit=cover'; document.head.appendChild(m); setTimeout(()=>dispatchEvent(new Event('resize')),50); } })();
 const RATES={JPY:{rate:1,sym:'¥',name:'Yen'},USD:{rate:1/150,sym:'$',name:'Dollars'},GBP:{rate:1/190,sym:'£',name:'Pounds'}};
-let CUR='JPY'; try{ if(RATES[localStorage.getItem('whgl-cur')]) CUR=localStorage.getItem('whgl-cur'); }catch(e){}
+let CUR='GBP'; try{ if(RATES[localStorage.getItem('whgl-cur')]) CUR=localStorage.getItem('whgl-cur'); }catch(e){}
 function setCurrency(c){ CUR=c; try{ localStorage.setItem('whgl-cur',c); }catch(e){} }
 const Y = n => { const r=RATES[CUR]; const v=Math.round(n*r.rate); return (v<0?'−':'') + r.sym + Math.abs(v).toLocaleString('en-US'); };
 const loc = s => String(s).replace(/¥([\d,]+)/g,(m,d)=>Y(parseInt(d.replace(/,/g,''),10)));
@@ -341,36 +355,34 @@ const clamp = (v,a=0,b=100) => Math.max(a,Math.min(b,v));
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 const MODES = [
-  {id:'quick', name:'Quick Life', desc:'10 years, one season per turn. About 40 turns.', years:10},
-  {id:'full',  name:'Full Life',  desc:'40 years, 22 to 62. About 160 turns. A proper saga.', years:40},
-  {id:'epic',  name:'Epic Life',  desc:'60 years, 22 to 82. About 240 turns. Bring snacks.', years:60},
-  {id:'same',  name:'Same Luck, Different Start', desc:'Same events and same luck. Change only who you are and compare.', years:10, fixedSeed:true},
-  {id:'shock', name:'Economic Shock', desc:'15 years that begin inside a recession with high inflation.', years:15, shock:true},
-  {id:'class', name:'Classroom Economy', desc:'Many players share one economy.', soon:true},
+  {id:'quick', name:'Quick Life', icon:'⚡', desc:'10 years · about 40 turns', more:'One season per turn from age 22 to 32. A short, punchy life to learn the ropes.', years:10},
+  {id:'full',  name:'Full Life',  icon:'🌳', desc:'40 years · about 160 turns', more:'From 22 to 62: careers, homes, kids, crashes and comebacks. A proper saga.', years:40},
+  {id:'epic',  name:'Epic Life',  icon:'🏔️', desc:'60 years · about 240 turns', more:'From 22 to 82. The longest board, the most surprises. Bring snacks.', years:60},
+  {id:'shock', name:'Economic Shock', icon:'🌪️', desc:'15 years · starts in a recession', more:'Begin with high prices, high interest and lots of people out of work. Can you ride it out?', years:15, shock:true},
 ];
 const SEASONS=['Spring','Summer','Autumn','Winter'];
 
 const PROFILES = [
-  {id:'A', name:'Player A', tag:'Safety cushion', desc:'Your family can help with money and school, but you have not had a job yet.',
+  {id:'A', name:'Supported Starter', icon:'🏡', tag:'Safety cushion', short:'Family can help with money and school.', desc:'Your family can help with money and school, but you have not had a job yet.',
    cash:300000, savings:1200000, debt:0, income:180000, expenses:150000, skills:55, wellbeing:80, connections:45, familySupport:true},
-  {id:'B', name:'Player B', tag:'Steady earner', desc:'Not much saved up, but you are great with your hands and have a steady part-time job.',
+  {id:'B', name:'Hands-on Hustler', icon:'🔧', tag:'Steady earner', short:'Little saved, great with your hands.', desc:'Not much saved up, but you are great with your hands and have a steady part-time job.',
    cash:80000, savings:100000, debt:0, income:210000, expenses:160000, skills:62, wellbeing:75, connections:35},
-  {id:'C', name:'Player C', tag:'Team around you', desc:'You help look after family, earn an okay wage, and lots of people have your back.',
+  {id:'C', name:'Family Rock', icon:'🤝', tag:'Team around you', short:'Caring for family, lots of friends.', desc:'You help look after family, earn an okay wage, and lots of people have your back.',
    cash:120000, savings:250000, debt:100000, income:240000, expenses:225000, skills:50, wellbeing:70, connections:75, community:true},
-  {id:'D', name:'Player D', tag:'High wire act', desc:'Big paycheck, but a big loan to pay off and almost nothing saved for surprises.',
+  {id:'D', name:'High Flyer', icon:'🚀', tag:'High wire act', short:'Big pay, big debt, no cushion.', desc:'Big paycheck, but a big loan to pay off and almost nothing saved for surprises.',
    cash:200000, savings:50000, debt:2500000, income:420000, expenses:310000, skills:70, wellbeing:62, connections:55},
 ];
 
 
 // ---- education & careers ----
 const EDU=[
- {id:'none',name:'Start working now',level:0,years:0,cost:0,skills:0,blurb:'Earn money from day one. You can always study later.'},
- {id:'trade',name:'Trade school',level:1,years:1,cost:300000,skills:14,blurb:'One year learning a hands-on trade: electrics, cooking, plumbing.'},
- {id:'bootcamp',name:'Coding bootcamp',level:2,years:1,cost:450000,skills:18,blurb:'One intense year of computers and code.'},
- {id:'college',name:'College diploma',level:2,years:2,cost:800000,skills:24,blurb:'Two years. Opens a lot of office and creative jobs.'},
- {id:'uni',name:'University degree',level:3,years:3,cost:1500000,skills:36,blurb:'Three years. The most doors, the biggest bill, the longest wait.'},
- {id:'night',name:'Night school',level:1,years:1,cost:150000,skills:9,blurb:'Cheap evening classes. Keeps your job going. Slow but steady.'},
- {id:'masters',name:"Master's degree",level:4,years:2,cost:1200000,skills:22,requires:3,blurb:'Two more years after university. Unlocks the expert jobs.'},
+ {id:'none',icon:'💼',name:'Start working now',level:0,years:0,cost:0,skills:0,blurb:'Earn money from day one. You can always study later.'},
+ {id:'trade',icon:'🔧',name:'Trade school',level:1,years:1,cost:300000,skills:14,blurb:'One year learning a hands-on trade: electrics, cooking, plumbing.'},
+ {id:'bootcamp',icon:'💻',name:'Coding bootcamp',level:2,years:1,cost:450000,skills:18,blurb:'One intense year of computers and code.'},
+ {id:'college',icon:'📘',name:'College diploma',level:2,years:2,cost:800000,skills:24,blurb:'Two years. Opens a lot of office and creative jobs.'},
+ {id:'uni',icon:'🎓',name:'University degree',level:3,years:3,cost:1500000,skills:36,blurb:'Three years. The most doors, the biggest bill, the longest wait.'},
+ {id:'night',icon:'🌙',name:'Night school',level:1,years:1,cost:150000,skills:9,blurb:'Cheap evening classes. Keeps your job going. Slow but steady.'},
+ {id:'masters',icon:'🏅',name:"Master's degree",level:4,years:2,cost:1200000,skills:22,requires:3,blurb:'Two more years after university. Unlocks the expert jobs.'},
 ];
 const JOBS=[
  {id:'cafe',name:'Café worker',pay:180000,skills:0,edu:0,mood:0,note:'Friendly, tiring, not much pay.'},
@@ -421,7 +433,7 @@ function newState(profile, mode, seed){
     income:profile.income, expenses:profile.expenses,
     skills:profile.skills, wellbeing:profile.wellbeing, connections:profile.connections,
     employed:true, job:{A:'cafe',B:'delivery',C:'clerk',D:'engineer'}[profile.id], eduLevel:{A:0,B:1,C:1,D:2}[profile.id], eduName:{A:'High school',B:'Trade school',C:'Trade school',D:'College diploma'}[profile.id], studying:null, applied:false, turn:0, home:null, partner:false, kids:0, pets:0, jobsHeld:1, stocks:0, stocksCost:0, insured:false, monthlyInvest:0, safetyNet:false, cheapCourses:false,
-    familySupport:!!profile.familySupport, community:!!profile.community,
+    familySupport:!!profile.familySupport, community:!!profile.community, flags:{},
     econ:{inflation:2, rate:1, unemployment:4, tax:15, housing:2},
     log:[], stats:{setbacks:0, savedByCushion:0, borrowed:0, educationSpent:0, investNet:0, rolls:0, hits:0},
     used:[], phase:'event', current:null, outcome:null,
@@ -601,7 +613,7 @@ const CARDS = [
   cond:s=>s.year>=1,
   choices:[
    {label:'Go all in!', hint:'Odds depend on skills and contacts.', odds:s=>0.25+s.skills/250+s.connections/300-(s.econ.unemployment-4)*0.02, idea:'Entrepreneur risk',
-    run:(s,hit)=>{ const src=pay(s,500000); if(hit){ s.income+=90000; adj(s,'wellbeing',-4); return `Paid from ${src}. Customers love it: +¥90,000 a month!`; } adj(s,'wellbeing',-10); s.stats.setbacks++; return `Paid from ${src}. Not enough customers. The shop closed.`; },
+    run:(s,hit)=>{ const src=pay(s,500000); if(hit){ s.income+=90000; s.flags.shop=true; adj(s,'wellbeing',-4); return `Paid from ${src}. Customers love it: +¥90,000 a month!`; } adj(s,'wellbeing',-10); s.stats.setbacks++; return `Paid from ${src}. Not enough customers. The shop closed.`; },
     why:'Most new businesses fail. The ones that win usually had skills, contacts and some luck. Owners carry risk that employees do not.'},
    {label:'Start tiny on weekends', hint:'¥100,000. Smaller win, smaller loss.', odds:s=>0.4+s.skills/400, idea:'Test cheaply',
     run:(s,hit)=>{ const src=pay(s,100000); if(hit){ s.income+=30000; return `Paid from ${src}. A nice ¥30,000 a month on the side.`; } return `Paid from ${src}. It did not take off, but you learned a lot and lost a little.`; },
@@ -768,7 +780,7 @@ const CARDS = [
     run:s=>{ s.cash+=100000; s.savings+=200000; adj(s,'wellbeing',5); return 'Mr Nibbles is a star and your savings jar is fat.'; },
     why:'A WINDFALL is money you did not plan for and may never see again. Saving most of it turns one lucky day into years of safety.'},
    {label:'Quit my job to manage the hamster full time', hint:'Fame fades. 25% chance it lasts.', odds:()=>0.25, idea:'Fads fade',
-    run:(s,hit)=>{ s.cash+=300000; if(hit){ s.income=Math.round(s.income*1.4); return 'Somehow it worked. Hamster merch is everywhere.'; } s.employed=false; s.stats.setbacks++; return 'Views dropped to zero in a month. You are now unemployed with a very smug hamster.'; },
+    run:(s,hit)=>{ s.cash+=300000; if(hit){ s.income=Math.round(s.income*1.4); s.flags.hamster=true; return 'Somehow it worked. Hamster merch is everywhere.'; } s.employed=false; s.stats.setbacks++; return 'Views dropped to zero in a month. You are now unemployed with a very smug hamster.'; },
     why:'Fame and fads fade fast. Building a life on a short burst of luck is a risky bet.'},
    {label:'Spend it all on a hamster mansion', hint:'Mr Nibbles deserves it.', idea:'Spending vs saving',
     run:s=>{ adj(s,'wellbeing',8); return 'Three storeys. A tiny hot tub. No money left, but what a house.'; },
@@ -864,7 +876,7 @@ const CARDS = [
  {id:'w_beanstalk', cat:'Events', wild:true, title:'A magic beanstalk grew in your garden', text:'It is 40 metres tall and dropping golden beans. About ¥10,000 worth a month, for now.',
   choices:[
    {label:'Sell the beans each month', hint:'Income +¥10,000 while it lasts.', idea:'Passive income',
-    run:s=>{ s.income+=10000; return 'Bean money every month. You barely have to climb.'; },
+    run:s=>{ s.income+=10000; s.flags.beans=true; return 'Bean money every month. You barely have to climb.'; },
     why:'Money that arrives without you working for it is PASSIVE INCOME. Rent, dividends and golden beans all count. It can stop, though.'},
    {label:'Chop it down and sell the wood', hint:'¥150,000 once.', idea:'One-off vs ongoing',
     run:s=>{ s.cash+=150000; return 'Lovely timber. No more beans.'; },
@@ -1387,7 +1399,7 @@ CARDS.push(
     run:s=>{ s.cash+=30000; adj(s,'wellbeing',-2); return 'The penguin waved. Probably.'; },
     why:'Rewards exist because finding something is worth money to whoever lost it. A fair trade all round.'},
    {label:'Keep it (secretly)', hint:'Costs +¥9,000. Happiness +7. Risky.', odds:()=>0.5, idea:'Hidden costs',
-    run:(s,hit)=>{ s.expenses+=9000; adj(s,'wellbeing',7); if(hit) return 'Nobody found out. The bath is permanently cold.'; pay(s,50000); return 'The zoo found out. Fine: ¥50,000. You kept the penguin anyway.'; },
+    run:(s,hit)=>{ s.expenses+=9000; adj(s,'wellbeing',7); s.flags.penguin=true; if(hit) return 'Nobody found out. The bath is permanently cold.'; pay(s,50000); return 'The zoo found out. Fine: ¥50,000. You kept the penguin anyway.'; },
     why:'Some choices have costs you can see (fish) and costs you cannot (a fine). Count both.'},
    {label:'Charge neighbours to visit', hint:'+¥12,000 a month, contacts +5.', idea:'Turning a cost into income',
     run:s=>{ s.expenses+=9000; s.income+=12000; adj(s,'connections',5); return 'Penguin Saturdays. The kids are obsessed. The zoo eventually sent a polite letter.'; },
@@ -1395,13 +1407,13 @@ CARDS.push(
  {id:'w_bees', cat:'Events', wild:true, title:'Bees moved into your attic', text:'About forty thousand of them. They seem happy. There is a LOT of honey.',
   choices:[
    {label:'Sell the honey', hint:'+¥8,000 a month.', idea:'Found income',
-    run:s=>{ s.income+=8000; return 'Attic Gold, ¥900 a jar. The bees do the work.'; },
+    run:s=>{ s.income+=8000; s.flags.bees=true; return 'Attic Gold, ¥900 a jar. The bees do the work.'; },
     why:'Income does not always come from a job. Nature, hobbies and luck can all produce things people will buy.'},
    {label:'Call a beekeeper to move them', hint:'¥30,000.', idea:'Paying experts',
     run:s=>{ pay(s,30000); adj(s,'wellbeing',2); return 'Rehomed in a field. The attic is quiet again.'; },
     why:'Paying someone who knows what they are doing is often cheaper than finding out the hard way.'},
    {label:'Learn beekeeping properly', hint:'¥40,000 course. Skills +5, honey +¥14,000 a month.', idea:'Skills multiply luck',
-    run:s=>{ pay(s,40000); adj(s,'skills',5); s.income+=14000; return 'More hives, better honey, zero stings (eventually).'; },
+    run:s=>{ pay(s,40000); adj(s,'skills',5); s.income+=14000; s.flags.bees=true; return 'More hives, better honey, zero stings (eventually).'; },
     why:'Luck gives you bees. Skill turns bees into a business. Skill is how you make luck last.'}]},
  {id:'w_radio', cat:'Events', wild:true, title:'A pirate radio station wants you', text:'"Your voice is perfect for 3am." They cannot pay, but 2,000 people listen.',
   choices:[
@@ -1452,6 +1464,77 @@ CARDS.push(
    {label:'Treatment plus a lifestyle change', hint:s=>`${Y(medBill(s,s.insured?40000:150000))} plus ¥6,000 a month. Health +12.`, idea:'Prevention',
     run:s=>{ const a=medBill(s,s.insured?40000:150000); const src=pay(s,a); s.expenses+=6000; adj(s,'wellbeing',12); return `Paid ${Y(a)} from ${src}. Walking, veg, sleep. Future bills shrink.`; },
     why:'Prevention is the cheapest medicine. Spending a little every month now shrinks the bills that come with age.'}]},
+);
+CARDS.push(
+ {id:'w_meme', cat:'Events', wild:true, title:'You became a meme', text:'Someone filmed you slipping on a banana peel while holding a cake. Forty million views. Your face is on everything.',
+  choices:[
+   {label:'Sue for defamation', hint:'¥200,000 in lawyer fees. 30% chance you win ¥600,000.', odds:()=>0.3, idea:'Legal costs',
+    run:(s,hit)=>{ const src=pay(s,200000); adj(s,'wellbeing',-5); if(hit){ s.cash+=600000; return `Paid lawyers from ${src}. You won! ¥600,000, and the meme got twice as popular.`; } return `Paid lawyers from ${src}. The judge laughed. Case dismissed. The meme lives on.`; },
+    why:'Courts cost money whether you win or lose. Before suing anyone, ask what it costs, what the odds are, and what you actually get back.'},
+   {label:'Have a laugh and get on with it', hint:'Happiness +6, friends +5.', idea:'Resilience',
+    run:s=>{ adj(s,'wellbeing',6); adj(s,'connections',5); return 'You reposted it yourself with the caption "cake was fine". The internet loved you for it.'; },
+    why:'Some things cost nothing but pride. Letting them go is free, and often pays back in friends.'},
+   {label:'Make merch', hint:'¥60,000 for T-shirts. Odds depend on contacts.', odds:s=>0.45+s.connections/250, idea:'Monetising',
+    run:(s,hit)=>{ const src=pay(s,60000); if(hit){ s.income+=15000; s.flags.merch=true; return `Paid from ${src}. "Cake Was Fine" shirts sell ¥15,000 a month. Fame as a business.`; } return `Paid from ${src}. Forty-one shirts sold. Thirty-nine to your family.`; },
+    why:'Attention can be turned into income if you move fast, but fame fades quickly. Spend what you can afford to lose.'}]},
+ {id:'w_ghost', cat:'Events', wild:true, title:'Your flat is haunted', text:'Doors slam. The kettle boils itself. The landlord cuts your rent by 30% because nobody else will live here.',
+  cond:s=>!s.home,
+  choices:[
+   {label:'Stay and enjoy cheap rent', hint:'Bills −¥20,000 a month, happiness −4.', idea:'Risk discount',
+    run:s=>{ s.expenses-=20000; adj(s,'wellbeing',-4); s.flags.ghost=true; return 'The ghost mostly keeps to itself. Mostly.'; },
+    why:'Things other people are scared of get cheaper. That discount is the price of the risk, or the fear, you take on.'},
+   {label:'Move out', hint:'Moving costs ¥60,000.', idea:'Peace of mind',
+    run:s=>{ pay(s,60000); adj(s,'wellbeing',4); return 'A boring, quiet flat. Bliss.'; },
+    why:'Peace of mind is worth money. How much is a personal choice, and that is fine.'},
+   {label:'Run ghost tours on weekends', hint:'Odds depend on contacts.', odds:s=>0.4+s.connections/250, idea:'Turning a cost into income',
+    run:(s,hit)=>{ s.expenses-=20000; s.flags.ghost=true; if(hit){ s.income+=25000; adj(s,'connections',6); return 'Sold-out every Saturday. The ghost has started doing requests.'; } adj(s,'wellbeing',-3); return 'Two tourists came. The ghost refused to perform.'; },
+    why:'A problem for you can be a product for someone else. Entrepreneurs look for exactly that.'}]},
+ {id:'w_mayor', cat:'Events', wild:true, title:'You were elected mayor by accident', text:'You signed a form at the market stall. It was a candidacy form. Nobody else ran. Congratulations?',
+  cond:s=>s.year>=2,
+  choices:[
+   {label:'Serve the full term', hint:'Pay becomes ¥350,000, skills +8, friends +15, tired −8.', idea:'Public service',
+    run:s=>{ s.flags.mayor=true; s.lastJob=s.job; s.job='clerk'; s.employed=true; s.income=350000; adj(s,'skills',8); adj(s,'connections',15); adj(s,'wellbeing',-8); return 'Potholes. Budgets. Ribbon cuttings. You are weirdly good at it.'; },
+    why:'Governments are run by people making trade-offs with everyone\'s money. Every service has a cost and every cut has a loser.'},
+   {label:'Cut taxes to be popular', hint:'Tax −3%, but services shrink.', idea:'Taxes and public goods',
+    run:s=>{ s.flags.mayor=true; s.econ.tax-=3; adj(s,'connections',8); adj(s,'wellbeing',2); return 'Cheers in the street. Then the buses stopped running on Sundays.'; },
+    why:'Lower taxes feel great on payday. The bill arrives later as fewer buses, shabbier parks and longer waits.'},
+   {label:'Resign politely', hint:'Hand it to the runner-up. Friends +3.', idea:'Knowing your limits',
+    run:s=>{ adj(s,'connections',3); return 'The runner-up (a goat named Barnaby) accepted. The town is fine.'; },
+    why:'Saying no to a job you cannot do well is a kind of responsibility too.'}]},
+ {id:'w_suitcase', cat:'Events', wild:true, title:'A suitcase full of cash', text:'It fell off a truck. ¥800,000 in neat bundles. A name tag. Nobody saw you.',
+  choices:[
+   {label:'Return it', hint:'Reward ¥80,000, friends +6.', idea:'Honesty pays',
+    run:s=>{ s.cash+=80000; adj(s,'connections',6); adj(s,'wellbeing',5); return 'The owner cried, hugged you and gave you ¥80,000. The story made the local paper.'; },
+    why:'Trust is the invisible thing every economy runs on. Honest people are worth more to everyone around them, including themselves.'},
+   {label:'Keep it', hint:'60% nobody ever knows. 40% the police knock.', odds:()=>0.6, idea:'Risk',
+    run:(s,hit)=>{ if(hit){ s.savings+=800000; adj(s,'wellbeing',-4); return 'Nobody came. You never quite relaxed again, though.'; } pay(s,200000); adj(s,'connections',-15); adj(s,'wellbeing',-12); return 'Police. Court. A ¥200,000 fine and a town that remembers.'; },
+    why:'A gamble with a big prize and a big, long-lasting loss. The money you keep is never quite yours.'},
+   {label:'Return it and ask the owner for a job', hint:'Odds depend on skills.', odds:s=>0.4+s.skills/200, idea:'Opportunity',
+    run:(s,hit)=>{ adj(s,'connections',6); if(hit&&s.employed){ s.income=Math.round(s.income*1.15); return 'The owner runs a company. Honest people are hard to find. Pay +15%.'; } s.cash+=80000; return 'No job going, but a ¥80,000 reward and a very good reference.'; },
+    why:'Doing the right thing in front of the right person is sometimes the best networking there is.'}]},
+ {id:'w_aivoice', cat:'Events', wild:true, title:'An AI made a hit song with your voice', text:'You sang in a karaoke video years ago. Now a robot pop star sounds exactly like you and is number one.',
+  choices:[
+   {label:'Claim royalties', hint:'Odds depend on skills. ¥120,000 a season for a while.', odds:s=>0.35+s.skills/250, idea:'Property rights',
+    run:(s,hit)=>{ if(hit){ s.income+=40000; s.flags.aivoice=true; return 'Your voice is legally yours. ¥40,000 a month in royalties.'; } return 'The contract you clicked "agree" on in 2019 said otherwise. Read the small print.'; },
+    why:'Who owns a thing decides who gets paid for it. Property rights are the rules that answer that question, including for your own voice.'},
+   {label:'Sing it live yourself', hint:'Odds depend on contacts.', odds:s=>0.35+s.connections/250, idea:'Comparative advantage',
+    run:(s,hit)=>{ if(hit){ s.cash+=200000; adj(s,'wellbeing',8); return 'The real voice sold out a hall. ¥200,000 and a very good night.'; } adj(s,'wellbeing',-3); return 'Eleven people came. One asked for the robot.'; },
+    why:'The robot can sing, but it cannot be you in a room. Find what only you can do and charge for that.'},
+   {label:'Ignore it', hint:'Nothing changes.', idea:'Opting out',
+    run:s=>{ adj(s,'wellbeing',1); return 'You hum it in the shower. It is, annoyingly, catchy.'; },
+    why:'Not every windfall needs chasing. Time has a cost too.'}]},
+ {id:'w_treasure', cat:'Events', wild:true, title:'Treasure in the park', text:'Your metal detector beeped. A small chest. Old coins. The museum, a collector and the tax office are all interested.',
+  cond:s=>s.year>=1,
+  choices:[
+   {label:'Sell to the museum', hint:'¥300,000, taxed 20%. Friends +6.', idea:'Windfall tax',
+    run:s=>{ s.savings+=240000; adj(s,'connections',6); return 'The coins are in a glass case with your name on the card.'; },
+    why:'Lucky money is still income, so it is still taxed. The tax pays for the museum your coins now live in.'},
+   {label:'Sell to a private collector', hint:'¥450,000 cash. 25% chance of trouble.', odds:()=>0.75, idea:'Grey markets',
+    run:(s,hit)=>{ if(hit){ s.savings+=450000; return 'Cash, no questions. You feel slightly piratical.'; } pay(s,150000); adj(s,'connections',-6); return 'The coins were listed as stolen heritage. Fine: ¥150,000, coins gone.'; },
+    why:'Deals outside the rules pay more because they carry risks the rules were there to remove.'},
+   {label:'Keep digging as a hobby', hint:'Skills +4, happiness +5. Coins kept.', idea:'Hobbies',
+    run:s=>{ adj(s,'skills',4); adj(s,'wellbeing',5); s.flags.detector=true; return 'Every Sunday, beep beep. Mostly bottle caps. Sometimes not.'; },
+    why:'Not everything valuable is for sale. A hobby that costs little and gives a lot is a great investment in you.'}]},
 );
 // ================= CHANCE: quick little moments of luck =================
 const CHANCE=[
@@ -1522,6 +1605,23 @@ const CHANCE=[
  {t:'Your card was declined at the supermarket. Embarrassing, and a sign.', f:s=>{adj(s,'wellbeing',-3);}, cond:s=>debtMonths(s)>30},
  {t:'Feeling great: a free health check came back perfect.', f:s=>{adj(s,'wellbeing',2);}, cond:s=>s.wellbeing>=75},
  {t:'Your good credit got you a cheaper loan rate. Interest −¥2,000 this season.', f:s=>{s.cash+=2000;}, cond:s=>s.debt>0&&debtMonths(s)<6},
+ {t:'Mr Nibbles the hamster turned three. Fans sent ¥20,000 in birthday cards.', f:s=>{s.cash+=20000;adj(s,'wellbeing',3);}, cond:s=>!!s.flags.hamster},
+ {t:'A rival hamster went viral. Mr Nibbles\' ad money dipped: pay −¥8,000 a month.', f:s=>{s.income=Math.max(100000,s.income-8000);}, cond:s=>!!s.flags.hamster},
+ {t:'The penguin learned to open the fridge. Fish bill +¥2,000 a month.', f:s=>{s.expenses+=2000;}, cond:s=>!!s.flags.penguin},
+ {t:'The penguin brought a friend home. There are two now. You did not agree to this.', f:s=>{s.expenses+=5000;adj(s,'wellbeing',4);s.pets++;}, cond:s=>!!s.flags.penguin&&s.pets<3},
+ {t:'A glorious summer for flowers. Attic honey sold out: +¥18,000.', f:s=>{s.cash+=18000;}, cond:s=>!!s.flags.bees, season:1},
+ {t:'The bees are sleeping through winter. No honey this season: −¥8,000 of pay.', f:s=>{s.cash-=8000;}, cond:s=>!!s.flags.bees, season:3},
+ {t:'The beanstalk dropped its leaves for winter. No beans this season.', f:s=>{s.cash-=30000;}, cond:s=>!!s.flags.beans, season:3},
+ {t:'The beanstalk sprouted a second trunk. Bean income +¥4,000 a month.', f:s=>{s.income+=4000;}, cond:s=>!!s.flags.beans, season:0},
+ {t:'A great month at your shop: a tour bus stopped outside. +¥40,000.', f:s=>{s.cash+=40000;}, cond:s=>!!s.flags.shop},
+ {t:'A pipe burst at your shop. Repairs: ¥35,000.', f:s=>{pay(s,35000);}, cond:s=>!!s.flags.shop},
+ {t:'Your "Cake Was Fine" shirts are in a museum show about internet culture. +¥15,000 and a laugh.', f:s=>{s.cash+=15000;adj(s,'wellbeing',3);}, cond:s=>!!s.flags.merch},
+ {t:'The meme is back for its anniversary. Merch sales spiked: +¥25,000.', f:s=>{s.cash+=25000;}, cond:s=>!!s.flags.merch},
+ {t:'The ghost rearranged your furniture again. Oddly, it looks better.', f:s=>{adj(s,'wellbeing',2);}, cond:s=>!!s.flags.ghost},
+ {t:'The ghost scared off a burglar. Nothing stolen.', f:s=>{adj(s,'wellbeing',3);}, cond:s=>!!s.flags.ghost},
+ {t:'A pothole you fixed as mayor got a thank-you plaque. Friends +3.', f:s=>{adj(s,'connections',3);}, cond:s=>!!s.flags.mayor},
+ {t:'The robot pop star released a Christmas album. Royalties +¥30,000 this season.', f:s=>{s.cash+=30000;}, cond:s=>!!s.flags.aivoice, season:3},
+ {t:'Beep beep: a gold ring under the swings. The owner gave you ¥10,000.', f:s=>{s.cash+=10000;adj(s,'wellbeing',2);}, cond:s=>!!s.flags.detector},
 ];
 
 // ================= 3D WORLD =================
@@ -2128,7 +2228,7 @@ async function spin(value){
   await tween(2400,t=>{ bigAngle=start+(end-start)*t; drawBigWheel(bigAngle); wheel.rotation.y=wheelStart+(wheelEnd-wheelStart)*t;
     const w=Math.floor(((-Math.PI/2-bigAngle)/(Math.PI/4)+0.5+1e-6)); if(w!==lastWedge){ lastWedge=w; SFX.tone(1100,0.025,'square',0.02); } },easeOutStrong);
   SFX.coin();
-  spinResult.innerHTML=`<span class="getlucky">GET LUCKY</span><br>You spun <b>${value}</b> · move ${value} space${value>1?'s':''}`;
+  spinResult.innerHTML=`<span class="getlucky">GET LUCKY</span><br>You spun <b>${value}</b>${(window.S&&(()=>{ for(let i=S.pos+1;i<=Math.min(S.track-2,S.pos+value);i++) if(TILES[i].cat==='Payday') return true; return false; })())?' · stop at Payday ¥':' · move '+value+' space'+(value>1?'s':'')}`;
   await tween(1400,()=>{});
   spinOverlay.classList.remove('show');
   await tween(250,()=>{});
@@ -2177,12 +2277,12 @@ async function takeTurn(){
   if(s.turn===4) s.used=s.used.filter(id=>id!=='joblost');
   const value=1+Math.floor(rng()*8);
   s.phase='rolling'; render(); panOff.set(0,0,0); autoCam=true; walkIdx=s.pos; SFX.spin();
-  await spin(value); s.lastSpin=value; renderBottom(s); popText('🎡 '+value,'#fff6dc','#1e2a2c');
-  const dest=Math.min(s.track-1, s.pos+value);
+  await spin(value); s.lastSpin=value; renderBottom(s); popText('Spun '+value,'#fff6dc','#1e2a2c');
+  let dest=Math.min(s.track-1, s.pos+value); for(let i=s.pos+1;i<=dest;i++){ if(TILES[i].cat==='Payday'&&i<s.track-1){ dest=i; break; } } s.stoppedAtPayday=dest<s.pos+value&&dest<s.track-1;
   await hop(s.pos,dest); s.pos=dest; placePawn(s.pos);
   const tile=TILES[s.pos]; const lm=LANDMARKS.find(L=>Math.abs(L[3]-s.pos)<=1&&L[1]!=='START'&&L[1]!=='RETIREMENT'); if(lm) showInfo({label:lm[1]});
   if(tile.special==='RETIREMENT'){ SFX.win(); finishYear({cat:'Payday',title:'Retirement!',text:'You reached the end of the path.'},null,null,'You made it to the beach house. Time to look back at the life you lived.','Retirement is paid for by everything you saved, earned and built in all the years before.'); }
-  else if(tile.cat==='Payday'){ finishYear({cat:'Payday',title:'A quiet '+seasonOf(s).toLowerCase(),text:'Nothing wild happened. Work, friends, weekends.'},null,null,'You got paid, paid your bills, and life rolled on. Quiet seasons are when savings quietly grow.','Most seasons are ordinary. That is when interest and good habits do their work in the background.'); }
+  else if(tile.cat==='Payday'){ finishYear({cat:'Payday',title:'Payday!',text:'Everyone stops here.'},null,null,(s.stoppedAtPayday?'Everyone stops at Payday. ':'')+'You got paid, paid your bills, and life rolled on. Quiet seasons are when savings quietly grow.','Most seasons are ordinary. That is when interest and good habits do their work in the background.'); }
   else if(tile.cat==='Chance'){ const pool=CHANCE.filter(c=>(!c.cond||c.cond(s))&&(c.season===undefined||c.season===s.turn%4)); const c=pool[Math.floor(rng()*pool.length)]; c.f(s); finishYear({cat:'Chance',title:'Chance!',text:''},null,null,c.t,'Little surprises, good and bad, happen to everyone. A cushion makes the bad ones small and the good ones fun.'); }
   else { s.current=pickCard(s,tile.cat); s.used.push(s.current.id); s.phase='event'; SFX.card(); if(isPhone()) statsOpen=false; }
   busy=false; render();
@@ -2241,20 +2341,22 @@ function popText(text,bg='#ffffff',fg='#1e2a2c',delay=0){ if(!pawn.visible) retu
   setTimeout(()=>{ tween(1700,t=>{ sp.position.y=pawn.position.y+1.5+t*1.6; sp.material.opacity=t<0.15?t/0.15:1-Math.max(0,(t-0.55)/0.45); }).then(()=>{ world.remove(sp); sp.material.map.dispose(); sp.material.dispose(); }); },delay); }
 function popDeltas(b,a){ let k=0; const q=[]; const dCash=(a.cash+a.savings)-(b.cash+b.savings); if(Math.abs(dCash)>=1000) q.push([(dCash>0?'+':'')+Y(dCash),dCash>0?'#d8f3e3':'#ffd9d6',dCash>0?'#1f6b45':'#8a1f19']);
   if(a.debt>b.debt) q.push(['Debt +'+Y(a.debt-b.debt),'#ffd9d6','#8a1f19']); else if(a.debt<b.debt) q.push(['Debt −'+Y(b.debt-a.debt),'#d8f3e3','#1f6b45']);
-  const dw=Math.round(a.wellbeing-b.wellbeing); if(dw) q.push([(dw>0?'❤ +':'❤ ')+dw,dw>0?'#d8f3e3':'#ffd9d6',dw>0?'#1f6b45':'#8a1f19']);
-  const ds=Math.round(a.skills-b.skills); if(ds) q.push([(ds>0?'🎓 +':'🎓 ')+ds,'#efe3ff','#4b2a7a']);
-  const dc=Math.round(a.connections-b.connections); if(dc) q.push([(dc>0?'🤝 +':'🤝 ')+dc,'#e3f0ff','#1f3d6b']);
+  const dw=Math.round(a.wellbeing-b.wellbeing); if(dw) q.push(['Happiness '+(dw>0?'+':'')+dw,dw>0?'#d8f3e3':'#ffd9d6',dw>0?'#1f6b45':'#8a1f19']);
+  const ds=Math.round(a.skills-b.skills); if(ds) q.push(['Skills '+(ds>0?'+':'')+ds,'#efe3ff','#4b2a7a']);
+  const dc=Math.round(a.connections-b.connections); if(dc) q.push(['Friends '+(dc>0?'+':'')+dc,'#e3f0ff','#1f3d6b']);
   q.slice(0,4).forEach(([t,bg,fg])=>{ popText(t,bg,fg,k*260); k++; }); }
 
 // ================= RENDERERS =================
 const topbar=document.getElementById('topbar'), statsEl=document.getElementById('stats'), stage=document.getElementById('stage'), bottombar=document.getElementById('bottombar'), overlay=document.getElementById('overlay');
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 const isPhone=()=>innerWidth<=760;
+let studyMode=false; try{ studyMode=localStorage.getItem('whgl-study')==='on'; }catch(e){}
+function setStudy(v){ studyMode=v; try{ localStorage.setItem('whgl-study',v?'on':'off'); }catch(e){} }
 let statsOpen=!isPhone(), careerOpen=false, chartsOpen=false, paused=false, wizardStep=0, titleDrift=false, hudOpen=false, moreOpen=false;
 const PAWN_HEX=id=>'#'+PAWN[id].shirt.toString(16).padStart(6,'0');
 const curPicker=()=>`<span class="curpick">${Object.keys(RATES).map(k=>`<button class="gbtn small ${CUR===k?'gold':''}" data-cur="${k}">${RATES[k].sym} ${RATES[k].name}</button>`).join('')}</span>`;
 function bindCur(root){ root.querySelectorAll('[data-cur]').forEach(b=>b.onclick=()=>{ SFX.click(); setCurrency(b.dataset.cur); render(); }); }
-const LEGEND=[['Education','E','Learn stuff. Skills open doors later.'],['Stocks','S','Own tiny pieces of companies. Prices go up AND down.'],['Assets','A','Useful things you own: a home, a car, a shop.'],['Events','★','Life happens! Some of it is wild.'],['Chance','?','A quick surprise, lucky or not.'],['Payday','¥','A quiet season. Pay in, bills out, savings grow.']];
+const LEGEND=[['Education','E','Learn stuff. Skills open doors later.'],['Stocks','S','Own tiny pieces of companies. Prices go up AND down.'],['Assets','A','Useful things you own: a home, a car, a shop.'],['Events','★','Life happens! Some of it is wild.'],['Chance','?','A quick surprise, lucky or not.'],['Payday','¥','Everyone stops here. Pay in, bills out, savings grow.']];
 const LEGEND_CSS={Education:'var(--education)',Stocks:'var(--stocks)',Assets:'var(--assets)',Events:'var(--events)',Chance:'var(--chance)',Payday:'var(--payday)'};
 const GLOSSARY=[
  ['Net worth','Everything you own (wallet, savings, shares, your share of a home) minus everything you owe. The number the Money chart follows.'],
@@ -2277,6 +2379,48 @@ const GLOSSARY=[
  ['Decision vs luck','A good decision can have a bad result, and the other way round. The % badge tells you the odds; the dice decide the rest.'],
 ];
 
+
+// ---------- line icons (inline SVG, stroke = current text colour) ----------
+const ICONS={
+ bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+ tree:'<path d="M12 3 6 12h3l-4 6h14l-4-6h3z"/><path d="M12 18v3"/>',
+ mountain:'<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
+ wind:'<path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/>',
+ school:'<path d="M14 22v-4a2 2 0 1 0-4 0v4"/><path d="m18 10 4 2v10H2V12l4-2"/><path d="M18 5v17"/><path d="M6 5v17"/><path d="m12 2 6 3H6z"/>',
+ home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+ wrench:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+ users:'<circle cx="9" cy="7" r="4"/><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/>',
+ rocket:'<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>',
+ briefcase:'<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
+ laptop:'<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9"/><path d="M2 20h20"/>',
+ book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+ bookopen:'<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+ cap:'<path d="M22 10v6"/><path d="m2 10 10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+ moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>',
+ medal:'<circle cx="12" cy="8" r="6"/><path d="M15.5 13.5 17 22l-5-3-5 3 1.5-8.5"/>',
+ heart:'<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7z"/>',
+ shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+ dice:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="8" r="1"/><circle cx="16" cy="8" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="8" cy="16" r="1"/><circle cx="16" cy="16" r="1"/>',
+ trend:'<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+ bars:'<path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+ bank:'<path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="m12 2 10 6H2z"/>',
+ coins:'<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>',
+ sparkles:'<path d="m9.9 2.8 1.6 4.3 4.3 1.6-4.3 1.6-1.6 4.3-1.6-4.3-4.3-1.6 4.3-1.6z"/><path d="m19 14 .9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9z"/>',
+ wallet:'<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M16 15h.01"/>',
+ gem:'<path d="M6 3h12l4 6-10 13L2 9z"/><path d="M2 9h20"/><path d="m12 22-4-13 4-6 4 6z"/>',
+ compass:'<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+ wheel:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 3v7M12 14v7M3 12h7M14 12h7M5.6 5.6l5 5M13.4 13.4l5 5M18.4 5.6l-5 5M10.6 13.4l-5 5"/>',
+ calendar:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+ alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4M12 17h.01"/>',
+ sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+ lifebuoy:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/>',
+ receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 7h8M8 11h8M8 15h5"/>',
+};
+const ic=(n,cls='')=>`<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]||''}</svg>`;
+const MODE_ICON={quick:'bolt',full:'tree',epic:'mountain',shock:'wind',class:'school'};
+const PROF_ICON={A:'home',B:'wrench',C:'users',D:'rocket'};
+const EDU_ICON={none:'briefcase',trade:'wrench',bootcamp:'laptop',college:'book',uni:'cap',night:'moon',masters:'medal'};
+
 // animated numbers: remember what each chip last showed and count from there
 const lastShown={};
 function Yshort(n){ const r=RATES[CUR]; const v=Math.round(n*r.rate); const a=Math.abs(v); const s=a>=1e9?(a/1e9).toFixed(a<1e10?1:0)+'B':a>=1e6?(a/1e6).toFixed(a<1e7?1:0)+'M':a>=1e4?Math.round(a/1e3)+'K':String(a); return (v<0?'−':'')+r.sym+s; }
@@ -2288,6 +2432,7 @@ function howToHTML(){ return `<div class="sheet wizard"><h2>How to play</h2>
       <p>Land on a tile, draw that kind of card. Near the school there are more <b>E</b> tiles, near the bank more <b>S</b>, near homes and shops more <b>A</b>, near the hospital more <b>★</b>.</p></div></div>
       <div class="legend">${LEGEND.map(([c,l,d])=>`<div class="lg" style="--cat:${LEGEND_CSS[c]}"><b>${l}</b><span>${CAT_LABEL[c]}</span><small>${d}</small></div>`).join('')}</div>
       <div class="panel" style="--cat:var(--education)"><div class="ribbon">Key ideas you will meet</div><div class="body"><p class="note" style="margin:0">Every choice carries one of these as a badge. Tap a word to read it.</p><div class="gloss">${GLOSSARY.map(([k,d])=>`<details><summary>${k}</summary><p>${d}</p></details>`).join('')}</div></div></div>
+      <div class="panel" style="--cat:var(--gold)"><div class="ribbon">Study Mode</div><div class="body"><p>Turn on <b>Study Mode</b> (title screen or pause menu) for fuller explanations: longer descriptions on the setup cards, the odds note on every card, a one-line definition of each key idea after your choice, and the season's budget open by default.</p></div></div>
       <div class="panel" style="--cat:var(--assets)"><div class="ribbon">How things feed back</div><div class="body"><p>Your stats change what can happen. <b>Low health</b> brings more and bigger medical bills, especially after 40. <b>Heavy debt</b> makes interest dearer and gets loans and mortgages refused. <b>Skills and friends</b> raise your odds on chances. <b>Age</b> slowly lowers your odds of landing new jobs. Quiet seasons are when savings quietly grow.</p></div></div>
       <div class="panel" style="--cat:var(--stocks)"><div class="ribbon">Controls</div><div class="body"><p><b>Drag</b> to look around · <b>scroll or pinch</b> to zoom · <b>right-drag or two fingers</b> to slide the map · <b>arrow keys</b> turn and slide · <b>Space</b> spins or continues · <b>Esc</b> pauses · <b>C</b> opens charts.</p><p>Tap any building, the big wheel or a tile to learn what it does. The buttons under SPIN (<b>Study, Jobs, Assets, Invest</b>) let you go to school, change job, buy insurance or a home, and move money into or out of shares on any turn.</p></div></div>
       <div class="row footer"><button class="gbtn gold" id="back">Got it</button></div></div>`; }
@@ -2299,40 +2444,45 @@ function renderStart(){
     overlay.innerHTML=`<div class="titlescreen">
       <div class="banner"><h1>WORK HARD <span>GET LUCKY</span></h1><div class="tagline">Real choices. Bigger perspectives.</div></div>
       <div class="menu"><button class="gbtn gold big" id="play">▶ Play</button><button class="gbtn" id="howto">How to play</button>
-        <div class="row">${curPicker()}<button class="gbtn small" id="sfxT">${SFX.on?'🔊 Sound on':'🔇 Sound off'}</button></div></div>
+        <div class="row">${curPicker()}<button class="gbtn small" id="sfxT">Sound: ${SFX.on?'on':'off'}</button><button class="gbtn small ${studyMode?'gold':''}" id="studyT0">${ic('bookopen')} Study Mode: ${studyMode?'on':'off'}</button></div></div>
       <p class="hint">Drag to look around · Scroll to zoom · Tap buildings to learn</p></div>`;
     document.getElementById('play').onclick=()=>{ SFX.init(); SFX.click(); wizardStep=1; renderStart(); };
     document.getElementById('howto').onclick=()=>{ SFX.init(); SFX.click(); wizardStep=9; renderStart(); };
     document.getElementById('sfxT').onclick=()=>{ SFX.init(); SFX.on=!SFX.on; try{localStorage.setItem('whgl-sfx',SFX.on?'on':'off');}catch(e){} SFX.click(); renderStart(); };
+    document.getElementById('studyT0').onclick=()=>{ SFX.init(); SFX.click(); setStudy(!studyMode); renderStart(); };
     bindCur(overlay); return;
   }
   if(wizardStep===9){ overlay.innerHTML=howToHTML(); document.getElementById('back').onclick=()=>{ SFX.click(); wizardStep=0; renderStart(); }; return; }
   const dots=`<div class="steps">${[1,2,3].map(i=>`<i class="${wizardStep>=i?'on':''}"></i>`).join('')}</div>`;
+  const moreT=`<button class="gbtn small ${studyMode?'gold':'ghost'}" id="moreT" title="Study Mode shows fuller explanations everywhere">${ic('bookopen')} Study Mode: ${studyMode?'on':'off'}</button>`;
   if(wizardStep===1){
-    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>How long a life?</h2><p class="lede">Every turn is one season. Longer lives mean more surprises, more chances and a bigger map.</p>
-      <div class="picks">${MODES.map(m=>`<button class="pick" aria-pressed="${selected.mode===m.id}" data-mode="${m.id}" ${m.soon?'disabled':''}><h3>${m.name}</h3><p>${m.desc}</p>${m.soon?'<span class="soon">Planned for a later version</span>':''}</button>`).join('')}</div>
-      <div class="row footer"><button class="gbtn" id="back">◀ Back</button><button class="gbtn gold" id="nextStep">Next ▶</button></div></div>`;
+    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>How long a life?</h2><p class="lede">Every turn is one season.</p>
+      <div class="picks icons">${MODES.map(m=>`<button class="pick" aria-pressed="${selected.mode===m.id}" data-mode="${m.id}" ${m.soon?'disabled':''}><span class="bigicon">${ic(MODE_ICON[m.id])}</span><h3>${m.name}</h3><p>${m.desc}</p>${studyMode?`<p class="more">${m.more}</p>`:''}</button>`).join('')}</div>
+      <div class="row footer"><button class="gbtn" id="back">◀ Back</button>${moreT}<button class="gbtn gold" id="nextStep">Next ▶</button></div></div>`;
+    document.getElementById('moreT').onclick=()=>{ SFX.click(); setStudy(!studyMode); renderStart(); };
     overlay.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{ SFX.click(); selected.mode=b.dataset.mode; renderStart(); });
     document.getElementById('back').onclick=()=>{ SFX.click(); wizardStep=0; renderStart(); };
     document.getElementById('nextStep').onclick=()=>{ SFX.click(); wizardStep=2; renderStart(); }; return;
   }
   if(wizardStep===2){
-    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>Who are you?</h2><p class="lede">A starting life is dealt at random. You can swap. In real life nobody picks where they start.</p>
-      <div class="picks">${PROFILES.map(p=>`<button class="pick" aria-pressed="${selected.profile===p.id}" data-profile="${p.id}">
-        <h3><span class="pawn" style="background:${PAWN_HEX(p.id)}"></span>${p.name}</h3><span class="tag">${p.tag}</span><p>${p.desc}</p>
-        <dl><dt>Pay each month</dt><dd class="num">${Y(p.income)}</dd><dt>Bills each month</dt><dd class="num">${Y(p.expenses)}</dd><dt>Savings</dt><dd class="num">${Y(p.savings)}</dd><dt>Debt</dt><dd class="num">${Y(p.debt)}</dd></dl></button>`).join('')}</div>
-      <div class="row footer"><button class="gbtn" id="back">◀ Back</button><button class="gbtn" id="reroll">🎲 Deal a random life</button><button class="gbtn gold" id="nextStep">Next ▶</button></div></div>`;
+    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>Who are you?</h2><p class="lede">One life is dealt at random. You can swap. Nobody picks where they start.</p>
+      <div class="picks icons">${PROFILES.map(p=>`<button class="pick" aria-pressed="${selected.profile===p.id}" data-profile="${p.id}">
+        <span class="bigicon" style="background:${PAWN_HEX(p.id)};color:#fff">${ic(PROF_ICON[p.id])}</span><h3>${p.name}</h3><span class="tag">${p.tag}</span><p>${studyMode?p.desc:p.short}</p>
+        <dl><dt>Pay / mo</dt><dd class="num">${Y(p.income)}</dd><dt>Bills / mo</dt><dd class="num">${Y(p.expenses)}</dd><dt>Savings</dt><dd class="num">${Y(p.savings)}</dd><dt>Debt</dt><dd class="num">${Y(p.debt)}</dd></dl></button>`).join('')}</div>
+      <div class="row footer"><button class="gbtn" id="back">◀ Back</button><button class="gbtn" id="reroll">${ic('dice')} Random</button>${moreT}<button class="gbtn gold" id="nextStep">Next ▶</button></div></div>`;
+    document.getElementById('moreT').onclick=()=>{ SFX.click(); setStudy(!studyMode); renderStart(); };
     overlay.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{ SFX.click(); selected.profile=b.dataset.profile; renderStart(); });
     document.getElementById('reroll').onclick=()=>{ SFX.coin(); selected.profile=PROFILES[Math.floor(Math.random()*4)].id; renderStart(); };
     document.getElementById('back').onclick=()=>{ SFX.click(); wizardStep=1; renderStart(); };
     document.getElementById('nextStep').onclick=()=>{ SFX.click(); wizardStep=3; renderStart(); }; return;
   }
   const profile=PROFILES.find(p=>p.id===selected.profile); const fake={familySupport:!!profile.familySupport,cheapCourses:false};
-  overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>First big choice</h2><p class="lede">Studying costs money and time now but unlocks better jobs later. Working now means money today. You can go back to study any time.</p>
-    <div class="picks">${EDU.filter(ed=>!ed.requires).map(ed=>{ const cost=tuition(fake,ed); const unlocks=JOBS.filter(j=>j.edu===ed.level).map(j=>j.name).join(', ');
-      return `<button class="pick" data-edu="${ed.id}"><h3>${ed.name}</h3><span class="tag">${ed.years?ed.years+' year'+(ed.years>1?'s':''):'No study'}${cost?' · '+Y(cost):''}${profile.familySupport&&cost?' (family pays half)':''}</span><p>${ed.blurb}</p>
-      <dl><dt>Skills</dt><dd>+${ed.skills}</dd><dt>Unlocks</dt><dd style="text-align:left;grid-column:1/-1;font-size:11px">${ed.level?unlocks:'Starter jobs only'}</dd></dl></button>`; }).join('')}</div>
-    <div class="row footer"><button class="gbtn" id="back">◀ Back</button><span class="hint">Starting job: ${jobById({A:'cafe',B:'delivery',C:'clerk',D:'engineer'}[profile.id]).name}. While studying you work part time at half pay.</span></div></div>`;
+  overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>Work or study first?</h2><p class="lede">Study costs now, pays later. Work pays now. You can change your mind any season.</p>
+    <div class="picks icons">${EDU.filter(ed=>!ed.requires).map(ed=>{ const cost=tuition(fake,ed); const unlocks=JOBS.filter(j=>j.edu===ed.level).map(j=>j.name).join(', ');
+      return `<button class="pick" data-edu="${ed.id}"><span class="bigicon">${ic(EDU_ICON[ed.id])}</span><h3>${ed.name}</h3><span class="tag">${ed.years?ed.years+' yr':'Start now'}${cost?' · '+Y(cost):''}${profile.familySupport&&cost?' · family pays half':''}</span>${studyMode?`<p>${ed.blurb}</p>`:''}
+      <dl><dt>Skills</dt><dd>+${ed.skills}</dd>${studyMode?`<dt>Unlocks</dt><dd style="text-align:left;grid-column:1/-1;font-size:11px">${ed.level?unlocks:'Starter jobs only'}</dd>`:''}</dl></button>`; }).join('')}</div>
+    <div class="row footer"><button class="gbtn" id="back">◀ Back</button>${moreT}<span class="hint">Starting job: ${jobById({A:'cafe',B:'delivery',C:'clerk',D:'engineer'}[profile.id]).name}${studyMode?'. While studying you work part time at half pay':''}</span></div></div>`;
+  document.getElementById('moreT').onclick=()=>{ SFX.click(); setStudy(!studyMode); renderStart(); };
   overlay.querySelectorAll('[data-edu]').forEach(b=>b.onclick=()=>{ SFX.good(); wizardStep=0; startGame(b.dataset.edu); });
   document.getElementById('back').onclick=()=>{ SFX.click(); wizardStep=2; renderStart(); };
 }
@@ -2352,7 +2502,7 @@ function applyJob(id){ const s=S, j=jobById(id); if(s.applied) return; const p=j
   if(hit){ s.employed=true; s.job=j.id; s.income=j.pay; s.jobsHeld++; adj(s,'wellbeing',j.mood*2); SFX.good(); popText('New job!','#d8f3e3','#1f6b45'); showToastMsg(`You got the job! You are now a ${j.name}, earning ${Y(j.pay)} a month.`,'#4fae5c'); }
   else { SFX.bad(); showToastMsg(`${Math.round(p*100)}% chance and no luck this time. You can apply again next season.`,'#e4553f'); } render(); }
 function showToastMsg(text,color,title='Life choices'){ let el=document.getElementById('toast'); if(!el){ el=document.createElement('div'); el.id='toast'; el.className='toast'; document.body.appendChild(el); } el.style.setProperty('--cat',color); el.innerHTML=`<b>${esc(title)}</b>${esc(text)}`; el.hidden=false; clearTimeout(infoTimer); infoTimer=setTimeout(()=>{el.hidden=true},6000); }
-function doBuyHome(id){ const s=S, hm=HOMES.find(h=>h.id===id); const chk=mortgageCheck(s,hm.price); if(!chk.ok){ SFX.bad(); showToastMsg(chk.why,'#e4553f','Home'); return; } const src=buyHome(s,hm.price); adj(s,'wellbeing',5); s.strat&&(s.strat.investor++); SFX.win(); popText('🏠 Home!','#d8f3e3','#1f6b45'); showToastMsg(`Deposit ${Y(Math.round(hm.price*0.1))} paid from ${src}. You own ${hm.name.toLowerCase()} and owe the bank ${Y(hm.price-Math.round(hm.price*0.1))}. Rent stops; the loan payment starts.`,'#4fae5c','Home'); render(); }
+function doBuyHome(id){ const s=S, hm=HOMES.find(h=>h.id===id); const chk=mortgageCheck(s,hm.price); if(!chk.ok){ SFX.bad(); showToastMsg(chk.why,'#e4553f','Home'); return; } const src=buyHome(s,hm.price); adj(s,'wellbeing',5); s.strat&&(s.strat.investor++); SFX.win(); popText('New home!','#d8f3e3','#1f6b45'); showToastMsg(`Deposit ${Y(Math.round(hm.price*0.1))} paid from ${src}. You own ${hm.name.toLowerCase()} and owe the bank ${Y(hm.price-Math.round(hm.price*0.1))}. Rent stops; the loan payment starts.`,'#4fae5c','Home'); render(); }
 function doInvest(amount){ const s=S; const avail=Math.max(0,s.cash+s.savings-s.expenses*2); const m=Math.min(amount==='max'?avail:amount,avail); if(m<=0){ SFX.bad(); showToastMsg('Keep at least two months of bills as a cushion before investing.','#e4553f','Invest'); return; } pay(s,m); s.stocks+=m; s.stocksCost+=m; s.strat&&(s.strat.investor++); SFX.coin(); showToastMsg(`${Y(m)} moved into the index fund. It will rise and fall with the whole market.`,'#4fae5c','Invest'); render(); }
 function doSellShares(amount){ const s=S; const m=Math.min(amount==='all'?s.stocks:amount,s.stocks); if(m<=0) return; const cost=s.stocksCost*(m/s.stocks); s.stats.investNet+=m-cost; s.stocks-=m; s.stocksCost-=cost; s.savings+=m; SFX.coin(); showToastMsg(`Sold ${Y(m)} of shares into savings.`,'#f2b53a','Invest'); render(); }
 function setAuto(n){ const s=S; s.monthlyInvest=n; if(n) s.strat&&(s.strat.investor++); SFX.click(); showToastMsg(n?`${Y(n)} a month now goes into the fund automatically.`:'Automatic investing is off.','#4fae5c','Invest'); render(); }
@@ -2362,14 +2512,14 @@ function renderCareer(s){
   const cur=s.job?jobById(s.job):null;
   const homes=HOMES.map(h=>{ const chk=mortgageCheck(s,h.price); const dep=Math.round(h.price*0.1); return `<button class="choice" data-home="${h.id}" ${(!chk.ok||s.home)?'disabled':''}><b>${h.name} · ${Y(h.price)}</b><small>${h.blurb} Deposit ${Y(dep)}, then about ${Y(chk.monthly)} a month.${s.home?' You already own a home.':chk.ok?'':' '+chk.why}</small>${chk.ok&&!s.home?`<span class="odds" style="background:linear-gradient(180deg,#9ff0e8,var(--accent));color:#073c38">BUY</span>`:''}</button>`; }).join('');
   const avail=Math.max(0,s.cash+s.savings-s.expenses*2);
-  const TITLES={jobs:'💼 Jobs',study:'🎓 Study',assets:'🏠 Assets',invest:'📈 Invest'};
+  const TITLES={jobs:ic('briefcase')+' Jobs',study:ic('cap')+' Study',assets:ic('home')+' Assets',invest:ic('trend')+' Invest'};
   let body='';
   if(careerTab==='jobs') body=`<p class="note">${s.applied?'You already applied this season. Try again next season.':'You can apply for one job a season. Odds depend on your skills, contacts, your age and how many people are out of work.'}</p>
     <div class="choices">${JOBS.map(j=>{ const ok=canApply(s,j), p=Math.round(jobOdds(s,j)*100), mine=s.employed&&s.job===j.id;
       const need=[j.edu>s.eduLevel?EDU.find(e=>e.level===j.edu).name:null, s.skills<j.skills-10?'skills '+j.skills:null, j.conn&&s.connections<j.conn-15?'contacts '+j.conn:null].filter(Boolean).join(', ');
       return `<button class="choice" data-job="${j.id}" ${(!ok||mine||s.applied)?'disabled':''}><b>${j.name} · ${Y(j.pay)}/mo</b><small>${j.note}${need?' · Needs: '+need:''}${mine?' · Your job':''}</small>${ok&&!mine?`<span class="odds">${p}%<small>CHANCE</small></span>`:''}</button>`; }).join('')}</div>`;
   else if(careerTab==='study') body=`<p class="note">Four terms a year. Pay halves while you study. ${s.studying?'Press <b>Study</b> under the spinner to do a term, or spin to take the season off.':'Pick a course to enrol. Each term you can still choose to spin instead.'}</p>
-    ${s.studying?`<div class="setting"><span>Studying ${EDU.find(e=>e.id===s.studying.id).name}, ${s.studying.left} term${s.studying.left>1?'s':''} left</span><span style="display:flex;gap:6px"><button class="gbtn small teal" id="studyNow">📚 Study this term</button><button class="gbtn small red" id="dropout">Drop out</button></span></div>`:''}
+    ${s.studying?`<div class="setting"><span>Studying ${EDU.find(e=>e.id===s.studying.id).name}, ${s.studying.left} term${s.studying.left>1?'s':''} left</span><span style="display:flex;gap:6px"><button class="gbtn small teal" id="studyNow">${ic('bookopen')} Study this term</button><button class="gbtn small red" id="dropout">Drop out</button></span></div>`:''}
     <div class="choices">${EDU.filter(e=>e.years).map(ed=>{ const c=tuition(s,ed); const locked=ed.requires&&s.eduLevel<ed.requires; const done=ed.level<=s.eduLevel||locked;
       return `<button class="choice" data-edu="${ed.id}" ${(done||s.studying)?'disabled':''}><b>${ed.name} · ${ed.years} yr · ${Y(c)}</b><small>${ed.blurb} Skills +${ed.skills}.${locked?' Needs a university degree first.':done?' Already done.':''}</small></button>`; }).join('')}</div>`;
   else if(careerTab==='assets') body=`<div class="eyebrow">Insurance</div>
@@ -2424,14 +2574,14 @@ function drawMoney(c,hist,hover,tall){
     for(const [name,f,color] of active){ g.fillStyle=color; g.beginPath(); g.arc(x,ty(f(d)),4,0,Math.PI*2); g.fill(); g.strokeStyle=CH.surface; g.lineWidth=2; g.stroke(); } return {d,x,active,w}; }
   return null;
 }
-const STRAT_INFO={saver:['🏦','Saver','You keep money in your pocket and skip the pricey option.'],investor:['📈','Investor','You put money to work in shares, funds and homes.'],learner:['🎓','Learner','You spend time and money on skills.'],community:['🤝','Community builder','You invest in people, and they invest back.'],enjoyer:['☀️','Enjoyer','You spend on health, fun and the people you love.'],bold:['🎲','Risk-taker','You take chances. Some pay off, some do not.']};
+const STRAT_INFO={saver:['','Saver','You keep money in your pocket and skip the pricey option.'],investor:['','Investor','You put money to work in shares, funds and homes.'],learner:['','Learner','You spend time and money on skills.'],community:['','Community builder','You invest in people, and they invest back.'],enjoyer:['','Enjoyer','You spend on health, fun and the people you love.'],bold:['','Risk-taker','You take chances. Some pay off, some do not.']};
 function drawStrategy(c,strat){
   const keys=Object.keys(STRAT_INFO); const total=keys.reduce((a,k)=>a+(strat[k]||0),0);
   const {g,w,h}=fitCanvas(c,keys.length*30+10); g.clearRect(0,0,w,h);
   if(!total){ label(g,'Make a few choices and your style shows up here.',w/2,h/2,CH.muted,'center',12,'600'); return; }
   const max=Math.max(1,...keys.map(k=>strat[k]||0)); const L=w<420?120:150, R=12;
   keys.forEach((k,i)=>{ const v=strat[k]||0, y=8+i*30, bw=(w-L-R)*v/max; const [icon,name]=STRAT_INFO[k];
-    label(g,icon+' '+(w<420?name.replace(' builder',''):name),4,y+10,CH.ink,'left',12,'600');
+    label(g,(w<420?name.replace(' builder',''):name),4,y+10,CH.ink,'left',12,'600');
     g.fillStyle=CH.grid; g.beginPath(); g.roundRect(L,y+3,w-L-R,14,4); g.fill();
     if(v){ g.fillStyle=CH.s1; g.beginPath(); g.roundRect(L,y+3,Math.max(6,bw),14,4); g.fill(); }
     const txt=v+' move'+(v===1?'':'s'); if(bw>90) label(g,txt,L+bw-6,y+10,'#fff','right',11,'700'); else label(g,txt,L+Math.max(6,bw)+6,y+10,CH.ink,'left',11,'700'); });
@@ -2458,14 +2608,14 @@ function riskSummary(gambles){ if(!gambles||!gambles.length) return '<p class="n
   const luck=won-exp; const luckTxt=luck>1.5?'Luckier than the odds said. Enjoy it, but do not count on it.':luck<-1.5?'Unluckier than the odds said. That is not a bad decision, that is dice.':'About what the odds predicted. Chance usually evens out over time.';
   return `<div class="deltas"><span class="delta">${n} chance${n>1?'s':''} taken</span><span class="delta up">${won} paid off</span><span class="delta">${Math.round(avg*100)}% average odds</span><span class="delta">expected ${exp.toFixed(1)} wins</span><span class="delta ${net>=0?'up':'down'}">net ${Y(net)}</span></div><p class="note" style="margin-top:6px"><b>${luckTxt}</b> Dots on the left are long shots: big prizes, usually lost. Dots on the right are safe bets: small prizes, usually won. Judge the choice by its odds and its size, not by one result. Payoff counts money now plus a year of any pay or bill change.</p>`; }
 function stratSummary(strat){ const keys=Object.keys(STRAT_INFO); const total=keys.reduce((a,k)=>a+(strat[k]||0),0); if(!total) return ''; const top=keys.slice().sort((a,b)=>(strat[b]||0)-(strat[a]||0)); const [i1,n1,d1]=STRAT_INFO[top[0]]; const second=(strat[top[1]]||0)>=(strat[top[0]]||0)*0.7?STRAT_INFO[top[1]]:null;
-  return `<p style="margin:0"><b>You played like ${/^[AEIOU]/.test(n1)?'an':'a'} ${n1} ${i1}</b>${second?` with a ${second[1]} streak ${second[0]}`:''}. ${d1}</p><p class="note" style="margin-top:4px">One move can count for more than one style: a course that also makes friends is Learner and Community. There is no best style. Mixed styles tend to survive surprises better.</p>`; }
+  return `<p style="margin:0"><b>You played like ${/^[AEIOU]/.test(n1)?'an':'a'} ${n1}</b>${second?` with a ${second[1]} streak`:''}. ${d1}</p><p class="note" style="margin-top:4px">One move can count for more than one style: a course that also makes friends is Learner and Community. There is no best style. Mixed styles tend to survive surprises better.</p>`; }
 function moneySummary(hist){ if(!hist||hist.length<2) return ''; const f=hist[0], l=hist[hist.length-1]; const d=l.nw-f.nw; const peak=hist.reduce((b,x)=>x.nw>b.nw?x:b,f), low=hist.reduce((b,x)=>x.nw<b.nw?x:b,f);
   return `<div class="deltas"><span class="delta ${d>=0?'up':'down'}">Net worth ${d>=0?'+':''}${Y(d)} since the start</span><span class="delta">Best: ${Y(peak.nw)} at ${peak.age}</span><span class="delta">Lowest: ${Y(low.nw)} at ${low.age}</span></div><p class="note" style="margin-top:6px">Net worth = everything you own (cash, savings, shares, your share of a home) minus everything you owe. Debt is drawn below the zero line. Each dot is a choice you made; rings are chances you took (green paid off, red did not). Hover or tap the chart to see what you did that season.</p>`; }
 function histTable(hist){ if(!hist||hist.length<2) return ''; return `<details><summary class="note" style="cursor:pointer">Show every season as a list</summary><div style="overflow:auto;max-height:260px"><table class="tbl"><tr><th>Age</th><th>Season</th><th>What happened</th><th>Net worth</th><th>Change</th></tr>${hist.slice(1).map(d=>`<tr><td>${d.age}</td><td>${d.season||''}</td><td style="text-align:left;white-space:normal;min-width:180px">${esc(loc(d.note||''))}${d.hit===true?' ✓':d.hit===false?' ✕':''}</td><td>${Y(d.nw)}</td><td class="${d.gain>0?'pos':d.gain<0?'neg':''}">${d.gain>0?'+':''}${Y(d.gain||0)}</td></tr>`).join('')}</table></div></details>`; }
 function chartsHTML(s,forEnd){
   const money=`<div class="chartwrap"><canvas id="c-money"></canvas><div class="ctip" id="tip-money" hidden></div></div>${moneySummary(s.hist)}${histTable(s.hist)}`;
   if(forEnd) return `<div><div class="eyebrow">Money over your life</div>${money}</div><div><div class="eyebrow">Your style</div><div class="chartwrap"><canvas id="c-strat"></canvas></div>${stratSummary(s.strat||{})}</div><div><div class="eyebrow">Risk vs reward</div><div class="chartwrap"><canvas id="c-risk"></canvas><div class="ctip" id="tip-risk" hidden></div></div>${riskSummary(s.gambles)}</div>`;
-  return `<section class="panel card wide" style="--cat:var(--stocks)"><div class="ribbon">📊 Money so far<button class="gbtn small" id="closeCharts">✕</button></div><div class="body">${money}<p class="note">Your playing style and a risk-vs-reward review are revealed at the beach house, so you can judge the whole life, not one season.</p></div></section>`;
+  return `<section class="panel card wide" style="--cat:var(--stocks)"><div class="ribbon">${ic('bars')} Money so far<button class="gbtn small" id="closeCharts">✕</button></div><div class="body">${money}<p class="note">Your playing style and a risk-vs-reward review are revealed at the beach house, so you can judge the whole life, not one season.</p></div></section>`;
 }
 function wireCharts(root,s){
   const cm=root.querySelector('#c-money'); if(cm){ let hv=null; const tip=root.querySelector('#tip-money'); const draw=()=>{ const r=drawMoney(cm,s.hist,hv,!!root.querySelector('.endcharts')); if(tip){ if(r){ const d=r.d; tip.hidden=false; const left=r.x>r.w*0.55?Math.max(0,r.x-230):r.x+10; tip.style.left=left+'px'; tip.innerHTML=`<b>Age ${d.age}${d.season?' · '+d.season:''}</b>${d.note?`<div class="tipnote">${esc(loc(d.note))}${d.hit===true?' <span style="color:#0ca30c">✓ paid off</span>':d.hit===false?' <span style="color:#d03b3b">✕ missed</span>':''}</div>`:''}${d.gain!==undefined?`<div>Net worth ${d.gain>=0?'+':''}${Y(d.gain)} that season</div>`:''}${r.active.map(([n,f,color])=>`<div><i style="background:${color}"></i>${n}: ${Y(f(d))}</div>`).join('')}`; } else tip.hidden=true; } }; draw();
@@ -2480,9 +2630,9 @@ function renderTop(s){
   const p=PROFILES.find(x=>x.id===s.profile); const jobName=s.studying?'Studying: '+EDU.find(e=>e.id===s.studying.id).name:(s.job?jobById(s.job).name:'Out of work');
   const compact=isPhone()&&!hudOpen;
   topbar.hidden=false; topbar.className='gutter'+(compact?' compact':'');
-  topbar.innerHTML=`<div class="who"><div class="avatar" style="background:${PAWN_HEX(s.profile)}">${s.profile}</div><div><b>${p.name}</b><small>${esc(jobName)} · ${s.eduName}</small></div></div>
+  topbar.innerHTML=`<div class="who"><div class="avatar" style="background:${PAWN_HEX(s.profile)}">${ic(PROF_ICON[s.profile])}</div><div><b>${p.name}</b><small>${esc(jobName)} · ${s.eduName}</small></div></div>
     <div class="clock"><button class="chip" id="hudT" title="Show or hide details">Age ${s.age} · <span>${seasonOf(s)}</span>${isPhone()?`<em>${hudOpen?'▴':'▾'}</em>`:''}</button><div class="track">🏁<div class="bar" style="--p:${Math.round(s.pos/(s.track-1)*100)}%"><i></i><b></b></div>🏖 <span class="num">${s.track-1-s.pos}</span> to go</div></div>
-    <div class="wallet"><div class="mchip"><i>¥</i><span><small>Wallet</small><br><span class="num" id="n-cash"></span></span></div><div class="mchip sav"><i>🏦</i><span><small>Savings</small><br><span class="num" id="n-sav"></span></span></div>${s.debt>0?`<div class="mchip debt"><i>!</i><span><small>Debt</small><br><span class="num" id="n-debt"></span></span></div>`:`<div class="mchip"><i style="background:var(--assets);color:#fff">💼</i><span><small>Pay / mo</small><br><span class="num" id="n-pay"></span></span></div>`}<div class="mchip net"><i>◆</i><span><small>Net worth</small><br><span class="num" id="n-net"></span></span></div></div>
+    <div class="wallet"><div class="mchip"><i>¥</i><span><small>Wallet</small><br><span class="num" id="n-cash"></span></span></div><div class="mchip sav"><i>${ic('bank')}</i><span><small>Savings</small><br><span class="num" id="n-sav"></span></span></div>${s.debt>0?`<div class="mchip debt"><i>!</i><span><small>Debt</small><br><span class="num" id="n-debt"></span></span></div>`:`<div class="mchip"><i style="background:var(--assets);color:#fff">${ic('briefcase')}</i><span><small>Pay / mo</small><br><span class="num" id="n-pay"></span></span></div>`}<div class="mchip net"><i>${ic('gem')}</i><span><small>Net worth</small><br><span class="num" id="n-net"></span></span></div></div>
     <button class="gbtn icon" id="pauseBtn" title="Menu">☰</button>`;
   animNum(document.getElementById('n-cash'),'cash',s.cash); animNum(document.getElementById('n-sav'),'sav',s.savings); if(s.debt>0) animNum(document.getElementById('n-debt'),'debt',s.debt); else animNum(document.getElementById('n-pay'),'pay',s.employed?s.income:0); animNum(document.getElementById('n-net'),'net',netWorth(s));
   document.getElementById('pauseBtn').onclick=()=>{ SFX.click(); paused=true; render(); };
@@ -2492,12 +2642,12 @@ function renderStats(s){
   const [st,cls]=statusOf(s), sec=security(s), opp=opportunity(s), e=s.econ;
   const meter=(icon,l,v,c)=>`<div class="meter" style="--c:${c}"><em>${icon}</em><span>${l}<div class="bar"><i style="width:${v}%"></i></div></span><b class="num">${Math.round(v)}</b></div>`;
   statsEl.hidden=false; statsEl.className='gutter'+(statsOpen?' open':'');
-  const warn=[]; if(s.wellbeing<40) warn.push('⚠️ Low health: expect more and bigger medical bills.'); if(debtMonths(s)>12) warn.push('⚠️ Heavy debt: pricier interest, loans may be refused.'); if(s.age>=55&&!s.employed) warn.push('⚠️ New jobs get harder to land with age.');
+  const warn=[]; if(s.wellbeing<40) warn.push(ic('alert')+' Low health: expect more and bigger medical bills.'); if(debtMonths(s)>12) warn.push(ic('alert')+' Heavy debt: pricier interest, loans may be refused.'); if(s.age>=55&&!s.employed) warn.push(ic('alert')+' New jobs get harder to land with age.');
   statsEl.innerHTML=`<div class="meters">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="eyebrow">My life</span><span style="display:flex;gap:6px;align-items:center"><span class="status ${cls}">${st}</span><button class="gbtn small" id="statsClose" title="Hide">✕</button></span></div>
-    ${meter('❤️','Health & happiness',s.wellbeing,'var(--good)')}${meter('🎓','Skills',s.skills,'var(--education)')}${meter('🛡️','Money safety',sec,'var(--stocks)')}${meter('🍀','Chances',opp,'var(--gold)')}
+    ${meter(ic('heart'),'Health & happiness',s.wellbeing,'var(--good)')}${meter(ic('cap'),'Skills',s.skills,'var(--education)')}${meter(ic('shield'),'Money safety',sec,'var(--stocks)')}${meter(ic('dice'),'Chances',opp,'var(--gold)')}
     <div class="chartwrap mini"><canvas id="c-spark"></canvas></div>
-    <div class="lifeline"><span>Pay <b class="num">${s.employed?Y(s.income):'none'}/mo</b></span><span>Bills <b class="num">${Y(s.expenses)}/mo</b></span><span>Shares <b class="num">${Y(s.stocks)}</b></span><span>${s.home?'🏠 Home '+Y(s.home.value):'🏠 Renting'}</span>${s.partner?'<span>💞 Partner</span>':''}${s.kids?`<span>🧒 ${s.kids}</span>`:''}${s.pets?`<span>🐾 ${s.pets}</span>`:''}</div>
+    <div class="lifeline"><span>Pay <b class="num">${s.employed?Y(s.income):'none'}/mo</b></span><span>Bills <b class="num">${Y(s.expenses)}/mo</b></span><span>Shares <b class="num">${Y(s.stocks)}</b></span><span>${ic('home')} ${s.home?'Home '+Y(s.home.value):'Renting'}</span>${s.partner?`<span>${ic('heart')} Partner</span>`:''}${s.kids?`<span>${ic('users')} ${s.kids} kid${s.kids>1?'s':''}</span>`:''}${s.pets?`<span>${s.pets} pet${s.pets>1?'s':''}</span>`:''}</div>
     ${warn.length?`<div class="warnings">${warn.map(w=>`<div>${w}</div>`).join('')}</div>`:''}
     <div class="econ"><span>Prices rising <b>${e.inflation}%</b></span><span>Interest <b>${e.rate}%</b></span><span>Out of work <b>${e.unemployment}%</b></span><span>Tax <b>${e.tax}%</b></span><span>House prices <b>${e.housing>0?'+':''}${e.housing}%</b></span></div>
   </div>`;
@@ -2506,7 +2656,7 @@ function renderStats(s){
 }
 function renderBottom(s){
   bottombar.hidden=false; const phone=isPhone();
-  const opts=`<div class="opts"><button class="gbtn small ${s.studying?'teal':''}" data-opt="study">📚 ${s.studying?'Study term':'Study'}</button><button class="gbtn small" data-opt="jobs">💼 Jobs</button><button class="gbtn small" data-opt="assets">🏠 Assets</button><button class="gbtn small" data-opt="invest">📈 Invest</button></div>`;
+  const opts=`<div class="opts"><button class="gbtn small ${s.studying?'teal':''}" data-opt="study">${ic('bookopen')} ${s.studying?'Study term':'Study'}</button><button class="gbtn small" data-opt="jobs">${ic('briefcase')} Jobs</button><button class="gbtn small" data-opt="assets">${ic('home')} Assets</button><button class="gbtn small" data-opt="invest">${ic('trend')} Invest</button></div>`;
   let center='';
   const sc=document.getElementById('spinCenter');
   if(s.phase==='roll'){ const ed=s.studying?EDU.find(e=>e.id===s.studying.id):null;
@@ -2515,7 +2665,7 @@ function renderBottom(s){
   else if(s.phase==='rolling'){ sc.hidden=true; center=`<div class="center"><div class="hint">${s.lastSpin?'You spun '+s.lastSpin+' · moving '+s.lastSpin+' space'+(s.lastSpin>1?'s':'')+'…':'Here we go…'}</div></div>`; }
   else if(s.phase==='event'){ sc.hidden=true; center=`<div class="center"><div class="hint">Read the card and pick what you do</div></div>`; }
   else { sc.hidden=true; center=`<div class="center"><button class="gbtn gold big" id="next2">${s.pos>=s.track-1?'See your life story ▶':'Continue ▶'}</button></div>`; }
-  const tools=`<button class="gbtn small ${chartsOpen?'gold':''}" id="chartsT">📊 Money chart</button><button class="gbtn small" id="statsT">${statsOpen?'❤️ Hide life':'❤️ My life'}</button>`;
+  const tools=`<button class="gbtn small ${chartsOpen?'gold':''}" id="chartsT">${ic('bars')} Money chart</button><button class="gbtn small" id="statsT">${ic('heart')} ${statsOpen?'Hide life':'My life'}</button>`;
   bottombar.innerHTML=`<div class="bl">${phone?`<button class="gbtn small" id="moreT">${moreOpen?'✕':'☰'}</button><div class="more ${moreOpen?'open':''}">${tools}${camButtons()}</div>`:tools}</div>${center}<div class="br">${phone?'':'<canvas id="minimap" width="180" height="120"></canvas>'+camButtons()}</div>`;
   const rb=document.getElementById('roll'); if(rb) rb.onclick=()=>{ SFX.init(); moreOpen=false; careerOpen=false; chartsOpen=false; takeTurn(); };
   if(careerOpen||chartsOpen) sc.hidden=true;
@@ -2552,11 +2702,11 @@ function renderStage(s){
   }
   if(s.phase==='event'){
     const c=s.current;
-    setStage(`<section class="panel card ${c.wild?'wild':''}" style="--cat:${CAT_CSS[c.cat]}"><div class="ribbon">${c.wild?'✦ Wild card':CAT_LABEL[c.cat]}<span>Age ${s.age} · ${seasonOf(s)}</span></div><div class="body">
+    setStage(`<section class="panel card ${c.wild?'wild':''}" style="--cat:${CAT_CSS[c.cat]}"><div class="ribbon">${c.wild?ic('sparkles')+' Wild card':CAT_LABEL[c.cat]}<span>Age ${s.age} · ${seasonOf(s)}</span></div><div class="body">
       <h2>${esc(c.title)}</h2><p>${esc(loc(typeof c.text==='function'?c.text(s):c.text))}</p><div class="eyebrow">What do you do?</div>
       <div class="choices">${c.choices.map((ch,i)=>{const hint=typeof ch.hint==='function'?ch.hint(s):ch.hint; const p=ch.odds?Math.round(clamp(ch.odds(s),0.05,0.95)*100):null;
         const lab=typeof ch.label==='function'?ch.label(s):ch.label; return `<button class="choice" data-i="${i}"><b>${esc(loc(lab))}</b><small>${esc(loc(hint))}${ch.idea?` <span class="idea">${esc(ch.idea)}</span>`:''}</small>${p!==null?`<span class="odds">${p}%<small>CHANCE</small></span>`:''}</button>`;}).join('')}</div>
-      <p class="note">The % is your chance. Skills, friends, health and the economy move it up or down. The rest is luck.</p></div></section>`);
+      ${studyMode?`<p class="note">The % is your chance. Skills, friends, health and the economy move it up or down. The rest is luck.</p>`:''}</div></section>`);
     stage.querySelectorAll('.choice').forEach(b=>b.onclick=()=>{ SFX.click(); choose(+b.dataset.i); }); return;
   }
   if(s.phase==='outcome'){
@@ -2564,11 +2714,11 @@ function renderStage(s){
     const d=(label,x,y,money)=>{const dv=y-x; if(Math.abs(dv)<0.5) return ''; return `<span class="delta ${dv>0?'up':'down'}">${label} ${money?Y(dv):(dv>0?'+':'')+Math.round(dv)}</span>`;};
     setStage(`<section class="panel card" style="--cat:${CAT_CSS[o.card.cat]}"><div class="ribbon">${CAT_LABEL[o.card.cat]}<span>${esc(o.card.title)}</span></div><div class="body">
       <h2>${esc(loc(o.choice?(typeof o.choice.label==='function'?o.choice.label(s):o.choice.label):o.card.title))}</h2>
-      ${o.roll?`<div class="roll ${o.roll.hit?'hit':'miss'}">${Math.round(o.roll.p*100)}% chance · ${o.roll.hit?'it worked! 🎉':'not this time 😬'}</div>`:''}
+      ${o.roll?`<div class="roll ${o.roll.hit?'hit':'miss'}">${Math.round(o.roll.p*100)}% chance · ${o.roll.hit?'it worked!':'not this time'}</div>`:''}
       <p>${esc(loc(o.text))}${o.found?' Later that season you found a new job.':''}${L.freshStart?' <b>Your debts got so big a court wiped them out. You start again with ¥50,000 and a bruised reputation. That is called bankruptcy.</b>':''}</p>
-      <div class="why"><div class="eyebrow">${o.choice&&o.choice.idea?'Key idea: '+esc(o.choice.idea):'Why this happened'}</div>${esc(loc(o.why))}</div>
+      <div class="why"><div class="eyebrow">${o.choice&&o.choice.idea?'Key idea: '+esc(o.choice.idea):'Why this happened'}</div>${esc(loc(o.why))}${(()=>{ if(!studyMode||!o.choice||!o.choice.idea) return ''; const g=GLOSSARY.find(([k])=>k.toLowerCase()===o.choice.idea.toLowerCase()); return g?`<p class="note" style="margin:6px 0 0"><b>${esc(g[0])}:</b> ${esc(g[1])}</p>`:''; })()}</div>
       <div class="deltas">${d('Pay',b.income,a.income,true)}${d('Skills',b.skills,a.skills)}${d('Happiness',b.wellbeing,a.wellbeing)}${d('Friends',b.connections,a.connections)}${d('Safety',b.sec,a.sec)}${d('Chances',b.opp,a.opp)}</div>
-      <details class="ledgerbox"><summary class="note" style="cursor:pointer">Then the season went by: pay, bills, interest…</summary><div class="ledger">
+      <details class="ledgerbox" ${studyMode?'open':''}><summary class="note" style="cursor:pointer">Then the season went by: pay, bills, interest…</summary><div class="ledger">
         <span>Pay after ${s.econ.tax}% tax</span><span class="num">${Y(L.gross-L.tax)}</span>
         <span>Rent, food, bills</span><span class="num">−${Y(L.spend)}</span>
         ${L.invest?`<span>Automatic investing</span><span class="num">−${Y(L.invest)}</span>`:''}
@@ -2588,14 +2738,16 @@ function renderPause(){
   overlay.hidden=false; setStage(''); document.getElementById('spinCenter').hidden=true;
   overlay.innerHTML=`<div class="pause"><div class="logo"><h1 style="font-size:48px">PAUSED</h1></div>
     <button class="gbtn gold big" id="resume">▶ Resume</button>
-    <div class="setting"><span>Sound</span><button class="gbtn small" id="sfxT">${SFX.on?'🔊 On':'🔇 Off'}</button></div>
+    <div class="setting"><span>Sound</span><button class="gbtn small" id="sfxT">${SFX.on?'On':'Off'}</button></div>
     <div class="setting"><span>Money shown in</span>${curPicker()}</div>
+    <div class="setting"><span>Study Mode <small class="note">fuller explanations</small></span><button class="gbtn small ${studyMode?'gold':''}" id="studyT">${studyMode?'On':'Off'}</button></div>
     <div class="setting"><span>Stats panel</span><button class="gbtn small" id="statsT2">${statsOpen?'Shown':'Hidden'}</button></div>
     <button class="gbtn" id="howto2">How to play &amp; key ideas</button>
     <button class="gbtn red" id="quit">Quit this life</button><div id="confirm"></div></div>`;
   document.getElementById('resume').onclick=()=>{ SFX.click(); paused=false; render(); };
   document.getElementById('sfxT').onclick=()=>{ SFX.init(); SFX.on=!SFX.on; try{localStorage.setItem('whgl-sfx',SFX.on?'on':'off');}catch(e){} SFX.click(); renderPause(); };
   document.getElementById('statsT2').onclick=()=>{ SFX.click(); statsOpen=!statsOpen; renderPause(); };
+  document.getElementById('studyT').onclick=()=>{ SFX.click(); setStudy(!studyMode); renderPause(); };
   document.getElementById('howto2').onclick=()=>{ SFX.click(); overlay.innerHTML=howToHTML(); overlay.scrollTop=0; document.getElementById('back').onclick=()=>{ SFX.click(); renderPause(); }; };
   document.getElementById('quit').onclick=()=>{ SFX.click(); document.getElementById('confirm').innerHTML=`<div class="setting"><span>Really quit? Progress is lost.</span><span><button class="gbtn small red" id="yes">Yes</button> <button class="gbtn small" id="no">No</button></span></div>`; document.getElementById('yes').onclick=()=>{ S=null; paused=false; wizardStep=0; render(); }; document.getElementById('no').onclick=()=>renderPause(); };
   bindCur(overlay);
@@ -2605,13 +2757,13 @@ function renderPause(){
 function renderEnd(){
   overlay.scrollTop=0; document.getElementById('spinCenter').hidden=true; const s=S, p=PROFILES.find(x=>x.id===s.profile), st=s.stats; setStage(''); topbar.hidden=true; statsEl.hidden=true; bottombar.hidden=true; overlay.hidden=false;
   const net=netWorth(s);
-  const parts=[`You started as ${p.name}. ${p.desc} You reached the beach house at age ${s.age}, after ${s.turn} seasons.`];
+  const parts=[`You started as the ${p.name}: ${p.desc.charAt(0).toLowerCase()+p.desc.slice(1)} You reached the beach house at age ${s.age}, after ${s.turn} seasons.`];
   if(s.jobsHeld>1) parts.push(`You held ${s.jobsHeld} different jobs and finished as ${s.job?jobById(s.job).name.toLowerCase():'retired'}.`);
   if(s.eduLevel>=2) parts.push(`You earned a ${s.eduName.toLowerCase()}.`);
   if(s.home) parts.push(`You own a home worth ${Y(s.home.value)}${s.home.loan>0?' with '+Y(s.home.loan)+' still to pay':', fully paid off'}.`);
   if(s.partner) parts.push(s.kids?`You built a family: a partner and ${s.kids} kid${s.kids>1?'s':''}.`:'You share your life with a partner.');
   if(s.pets) parts.push('And a pet who thinks it owns the place.');
-  const badges=[]; if(st.savedByCushion>=3) badges.push(['🏦','Cushion Keeper','Savings caught at least three surprises.']); if(st.educationSpent>=800000) badges.push(['🎓','Scholar','Invested big in learning.']); if(s.jobsHeld>=4) badges.push(['🧭','Explorer','Tried four or more jobs.']); if(s.home) badges.push(['🏠','Homeowner','Bought a place of your own.']); if(st.setbacks>=3) badges.push(['🛟','Survivor','Knocked down three times, still standing.']); if(st.rolls>=10&&st.hits/st.rolls>=0.6) badges.push(['🍀','Lucky Duck','More than 60% of your gambles paid off.']); if(s.wellbeing>=80) badges.push(['🌞','Good Life','Finished happy and healthy.']); if(s.connections>=85) badges.push(['🤝','Pillar of the Town','Everyone knows you.']); if(net>=20000000) badges.push(['💎','Comfortable','A big nest egg.']); if(s.kids>=2) badges.push(['👨‍👩‍👧‍👦','Family First','Raised a crowd.']); if(st.borrowed===0) badges.push(['🧾','Never Borrowed','Not one loan, the whole way.']);
+  const badges=[]; if(st.savedByCushion>=3) badges.push([ic('bank'),'Cushion Keeper','Savings caught at least three surprises.']); if(st.educationSpent>=800000) badges.push([ic('cap'),'Scholar','Invested big in learning.']); if(s.jobsHeld>=4) badges.push([ic('compass'),'Explorer','Tried four or more jobs.']); if(s.home) badges.push([ic('home'),'Homeowner','Bought a place of your own.']); if(st.setbacks>=3) badges.push([ic('lifebuoy'),'Survivor','Knocked down three times, still standing.']); if(st.rolls>=10&&st.hits/st.rolls>=0.6) badges.push([ic('dice'),'Lucky Duck','More than 60% of your gambles paid off.']); if(s.wellbeing>=80) badges.push([ic('sun'),'Good Life','Finished happy and healthy.']); if(s.connections>=85) badges.push([ic('users'),'Pillar of the Town','Everyone knows you.']); if(net>=20000000) badges.push([ic('gem'),'Comfortable','A big nest egg.']); if(s.kids>=2) badges.push([ic('users'),'Family First','Raised a crowd.']); if(st.borrowed===0) badges.push([ic('receipt'),'Never Borrowed','Not one loan, the whole way.']);
   if(st.setbacks) parts.push(`Life knocked you down ${st.setbacks} time${st.setbacks>1?'s':''}, and you got back up.`);
   if(st.savedByCushion && !st.borrowed) parts.push('Your savings jar caught every surprise bill, so you never had to borrow.');
   else if(st.borrowed) parts.push(`${st.borrowed} time${st.borrowed>1?'s':''} a bill was bigger than your cushion, so you had to borrow.`);
@@ -2627,7 +2779,7 @@ function renderEnd(){
   if(s.wellbeing<45) learned.push('Health you skip in your twenties sends the bill in your fifties.');
   learned.push('Some things just happened to you. Where you started decided how much they hurt.');
   overlay.innerHTML=`<div class="sheet">
-    <div class="banner small"><h1>🏖 THE BEACH HOUSE</h1></div>
+    <div class="banner small"><h1>THE BEACH HOUSE</h1></div>
     <section class="panel" style="--cat:var(--gold)"><div class="ribbon">Your life story<span>${p.name}, age ${s.age}</span></div><div class="body story">
       <p>${parts.join(' ')}</p>
       <div class="finals">
@@ -2645,10 +2797,9 @@ function renderEnd(){
       <div><div class="eyebrow">Your timeline</div><ul class="tl">${s.log.map(l=>`<li><span class="age">${l.age}${l.season?' <small>'+l.season.slice(0,3)+'</small>':''}</span><span class="ev"><b>${esc(l.title)}</b> → ${esc(loc(l.choice))}${l.hit===null?'':l.hit?' <span style="color:var(--good)">✓</span>':' <span style="color:var(--bad)">✗</span>'}</span></li>`).join('')}</ul></div>
       <p class="note">There is no winner. A cosy family life, work you like, your own shop, or just a calm balanced life are all great endings.</p>
     </div></section>
-    <div class="row"><button class="gbtn gold big" id="again">▶ Live another life</button>${s.mode==='same'?`<button class="gbtn" id="sameseed">Same luck, different start</button>`:''}</div></div>`;
+    <div class="row"><button class="gbtn gold big" id="again">▶ Live another life</button></div></div>`;
   wireCharts(overlay,s);
   document.getElementById('again').onclick=()=>{ SFX.click(); S=null; selected.profile=null; wizardStep=0; render(); };
-  const ss=document.getElementById('sameseed'); if(ss) ss.onclick=()=>{ SFX.click(); S=null; wizardStep=2; render(); };
 }
 function render(){ if(!S) renderStart(); else if(S.phase==='end') renderEnd(); else if(paused) renderPause(); else { titleDrift=false; renderTop(S); renderStats(S); renderBottom(S); renderStage(S); } }
 
