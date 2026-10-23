@@ -1626,6 +1626,197 @@ const CHANCE=[
  {t:'The robot pop star released a Christmas album. Royalties +¥30,000 this season.', f:s=>{s.cash+=30000;}, cond:s=>!!s.flags.aivoice, season:3},
  {t:'Beep beep: a gold ring under the swings. The owner gave you ¥10,000.', f:s=>{s.cash+=10000;adj(s,'wellbeing',2);}, cond:s=>!!s.flags.detector},
 ];
+// ===== Big opportunities that depend on YOUR job, home and past choices =====
+// These are wild Events cards with a `career` tag; pickCard favours them when their condition is met.
+const hasJob=(s,...ids)=>s.employed&&ids.includes(s.job);
+const borrowFor=(s,amt)=>{ s.debt+=amt; s.stats.borrowed+=amt; };
+CARDS.push(
+ {id:'c_cure', cat:'Events', wild:true, career:true, title:'You found a cure!', cond:s=>hasJob(s,'doctor','scientist','nurse','vet'),
+  text:'After years in the lab, your team cracks it: a cure for a disease that makes millions of people sick. Everyone wants to know what you will do with it.',
+  choices:[
+   {label:'Give it away for free', hint:'No money. Happiness +15, friends +20. The world remembers.', idea:'Public good',
+    run:s=>{ adj(s,'wellbeing',15); adj(s,'connections',20); s.flags.cureHero=true; return 'Hospitals everywhere start using it the same week. Kids you will never meet get better. You sleep very well.'; },
+    why:'Some things are worth more than money. Giving a discovery away can save more lives faster, and reputation is a kind of wealth too.'},
+   {label:'Charge extreme prices', hint:'+¥30,000,000 now. Happiness −10. People are angry.', idea:'Price gouging',
+    run:s=>{ s.savings+=30000000; adj(s,'wellbeing',-10); adj(s,'connections',-15); s.flags.cureGreed=true; return 'You charge ¥2,000,000 a dose. The money pours in. So do the protest letters.'; },
+    why:'When people have no choice but to buy, a seller can charge almost anything. That is called price gouging, and governments often step in to stop it.'},
+   {label:'Sell to a trusted company for a fair price', hint:'+¥8,000,000 now, plus royalties every month.', idea:'Fair deal',
+    run:s=>{ s.savings+=8000000; s.income+=60000; adj(s,'wellbeing',5); adj(s,'connections',5); s.flags.cureFair=true; return 'A company with a good record takes over making it. You get ¥8,000,000 plus ¥60,000 a month, and it reaches patients at a price they can pay.'; },
+    why:'A fair deal shares the value: you get paid for your work, the company handles the hard part of making millions of doses, and patients can afford it.'}]},
+
+ {id:'c_app', cat:'Events', wild:true, career:true, title:'Your side project went viral', cond:s=>hasJob(s,'engineer','gamedev','analyst','designer'),
+  text:'The little app you built on weekends suddenly has 5 million users. A giant tech company calls. So do your users, who love it just the way it is.',
+  choices:[
+   {label:'Sell it to the giant', hint:'+¥20,000,000 now. They decide what happens to it.', idea:'Exit',
+    run:s=>{ s.savings+=20000000; s.flags.appSold=true; return 'Papers signed. ¥20,000,000 lands in your account. Six months later the giant quietly shuts the app down.'; },
+    why:'Selling a business is called an exit. You get certain money today, but you give up control and any future growth.'},
+   {label:'Quit and grow it yourself', hint:'Odds depend on skills. Big win or a hard year.', odds:s=>0.3+s.skills/200, idea:'Equity and risk',
+    run:(s,hit)=>{ if(hit){ s.job='gamedev'; s.employed=true; s.income+=300000; s.flags.appFounder=true; adj(s,'skills',10); return 'It works. Your company grows to 40 people and pays you ¥300,000 more a month. You own the whole thing.'; } const src=pay(s,2000000); adj(s,'wellbeing',-12); return `You paid for servers and ads from ${src}, then a bigger app copied every feature. Lesson learned, ¥2,000,000 lighter.`; },
+    why:'Owning your own company (equity) can be worth far more than a salary, but most new companies fail. Only risk what you can afford to lose.'},
+   {label:'Make it free and open for everyone', hint:'Skills +10, friends +25. Offers come later.', idea:'Reputation',
+    run:s=>{ adj(s,'skills',10); adj(s,'connections',25); s.income+=80000; s.flags.appOpen=true; return 'Thousands of coders improve it. You become famous in the industry and companies pay you ¥80,000 a month just for advice.'; },
+    why:'Giving work away can build a reputation that pays you back for years. Many of the tools the internet runs on were made this way.'}]},
+
+ {id:'c_critic', cat:'Events', wild:true, career:true, title:'A famous food critic loves your dish', cond:s=>hasJob(s,'chef','barista','cafe'),
+  text:'Five stars. The queue goes round the block. Investors want to open ten more places. A frozen-food company wants your recipe.',
+  choices:[
+   {label:'Open ten more places fast', hint:'Borrow ¥10,000,000. Odds depend on skills.', odds:s=>0.35+s.skills/250, idea:'Scaling',
+    run:(s,hit)=>{ borrowFor(s,10000000); if(hit){ s.income+=250000; s.flags.chainOwner=true; return 'All ten open. Your name is on every high street and you earn ¥250,000 more a month.'; } s.income=Math.round(s.income*0.8); adj(s,'wellbeing',-10); return 'Growing too fast: three branches lose money and the food gets worse. You close them, still owing the loan.'; },
+    why:'Growing a business (scaling) can multiply profits, but every new shop needs money and good people. Grow faster than you can manage and quality drops.'},
+   {label:'Keep one perfect place', hint:'+¥60,000 a month, happiness +8.', idea:'Quality over quantity',
+    run:s=>{ s.income+=60000; adj(s,'wellbeing',8); s.flags.perfectCafe=true; return 'Booked out every night. You know every regular by name and you still love cooking.'; },
+    why:'Bigger is not always better. A small business you can run well may make you richer in money AND happiness than a big one that stresses you out.'},
+   {label:'Sell the recipe to a frozen-food brand', hint:'+¥3,000,000 now. Your name goes on the box.', idea:'Brand',
+    run:s=>{ s.savings+=3000000; s.flags.recipeSold=true; return 'Your face is in every supermarket freezer. The frozen version tastes… fine.'; },
+    why:'Your name is a brand. Licensing it brings quick money, but if the product is bad, your reputation pays for it.'}]},
+
+ {id:'c_wall', cat:'Events', wild:true, career:true, title:'Gold in the wall', cond:s=>hasJob(s,'electrician','plumber','mechanic'),
+  text:'Fixing an old house, you knock through a wall and a bag of antique gold coins tumbles out. Worth about ¥4,000,000. The owner is out. Nobody saw.',
+  choices:[
+   {label:'Hand it to the owner', hint:'Friends +12, happiness +8. Rewards may follow.', idea:'Honesty',
+    run:s=>{ adj(s,'connections',12); adj(s,'wellbeing',8); s.flags.honestFind=true; return 'The owner cries. It was her grandmother\'s. She tells everyone she knows about the honest tradesperson.'; },
+    why:'Honesty builds trust, and trust brings customers. A good name is worth more over a lifetime than a one-off windfall.'},
+   {label:'Keep it quietly', hint:'+¥4,000,000. 40% chance someone finds out later.', idea:'Risk of getting caught',
+    run:s=>{ s.savings+=4000000; adj(s,'wellbeing',-4); s.flags.pocketed=true; return 'You tell yourself it was finders keepers. The bag is heavy in more ways than one.'; },
+    why:'Taking what is not yours can look like free money, but the cost shows up later: fines, lost work, and worry.'},
+   {label:'Suggest a 50/50 split', hint:'+¥2,000,000, friends +4.', idea:'Negotiation',
+    run:s=>{ s.savings+=2000000; adj(s,'connections',4); return 'The owner happily agrees. You both go home richer and nobody feels cheated.'; },
+    why:'A fair split is a negotiation where both sides win. It is often worth more than grabbing everything and losing the relationship.'}]},
+
+ {id:'c_case', cat:'Events', wild:true, career:true, title:'The river case', cond:s=>hasJob(s,'lawyer'),
+  text:'A factory poisoned the river and the town is suing. The factory offers you ¥15,000,000 to defend them. The town cannot afford a lawyer at all.',
+  choices:[
+   {label:'Defend the factory', hint:'+¥15,000,000. Happiness −12. The town remembers.', idea:'Blood money',
+    run:s=>{ s.savings+=15000000; adj(s,'wellbeing',-12); adj(s,'connections',-15); s.flags.factoryLawyer=true; return 'You win on a technicality. The fish do not come back. Neither do your old friends from town.'; },
+    why:'Money earned by hurting others has hidden costs: guilt, lost friends, and a reputation that follows you.'},
+   {label:'Politely refuse', hint:'Happiness +5.', idea:'Saying no',
+    run:s=>{ adj(s,'wellbeing',5); return 'You pass. Someone else takes the money. You take a long walk by the river instead.'; },
+    why:'You do not have to take every deal. Knowing which money to turn down is part of being good with money.'},
+   {label:'Represent the town for free', hint:'No fee. Friends +25, happiness +10. Fame later.', idea:'Pro bono',
+    run:s=>{ adj(s,'connections',25); adj(s,'wellbeing',10); s.flags.heroLawyer=true; return 'You win. The factory pays to clean the river. Your face is on the front page.'; },
+    why:'Working for free (pro bono) costs income now but can build fame and trust that bring much bigger work later.'}]},
+
+ {id:'c_land', cat:'Events', wild:true, career:true, title:'Oil under your land', cond:s=>hasJob(s,'farmhand')||!!s.home,
+  text:'A survey team finds oil and rare minerals right under your land. A drilling company wants to buy it all for ¥25,000,000.',
+  choices:[
+   {label:'Sell everything to the drillers', hint:'+¥25,000,000. Lose the land. Happiness −5.', idea:'Windfall',
+    run:s=>{ s.savings+=25000000; if(s.home) sellHome(s,0.9); adj(s,'wellbeing',-5); s.flags.soldLand=true; return 'The cheque is enormous. A year later the valley is a grey pit and the trucks never stop.'; },
+    why:'A windfall is a big sudden gain. It feels great, but think about what you give up forever to get it.'},
+   {label:'Lease it with strict green rules', hint:'+¥120,000 a month. You keep the land.', idea:'Passive income',
+    run:s=>{ s.income+=120000; s.flags.leasedLand=true; return 'They drill carefully, pay rent every month, and plant trees when they are done. You still own the land.'; },
+    why:'Leasing means renting out something you own. You keep the asset and earn passive income from it for years.'},
+   {label:'Leave it in the ground', hint:'Happiness +6, friends +8.', idea:'Long-term value',
+    run:s=>{ adj(s,'wellbeing',6); adj(s,'connections',8); s.flags.greenLand=true; return 'The birds stay. The river stays clean. Your neighbours bring pie.'; },
+    why:'Not every asset should be turned into cash. Some things, like clean land, are worth more left as they are.'}]},
+
+ {id:'c_scoop', cat:'Events', wild:true, career:true, title:'The big scoop', cond:s=>hasJob(s,'journalist'),
+  text:'You uncover proof that a powerful company lied about its safety tests. Publishing could change everything. The company offers you ¥8,000,000 to forget it.',
+  choices:[
+   {label:'Publish the story', hint:'Odds 70%. Fame or a lawsuit.', odds:()=>0.7, idea:'Truth has a price',
+    run:(s,hit)=>{ if(hit){ adj(s,'connections',20); s.income+=80000; s.flags.famousReporter=true; return 'Front page. The company is fined. You win an award and a ¥80,000-a-month column.'; } const src=pay(s,3000000); adj(s,'wellbeing',-8); return `They sued. You were right, but proving it cost ¥3,000,000 from ${src}.`; },
+    why:'Doing the right thing can be risky and expensive. Journalists, whistleblowers and honest workers often pay first and get thanked later.'},
+   {label:'Take the hush money', hint:'+¥8,000,000. Happiness −15. Risky later.', idea:'Bribery',
+    run:s=>{ s.savings+=8000000; adj(s,'wellbeing',-15); s.flags.hushMoney=true; return 'You delete the files. The money arrives. You stop sleeping well.'; },
+    why:'Taking money to stay quiet is a bribe. Bribes carry a hidden cost: guilt, and the chance it all comes out.'},
+   {label:'Sell the story to a rival paper', hint:'+¥1,500,000.', idea:'Selling your work',
+    run:s=>{ s.savings+=1500000; adj(s,'connections',3); return 'The rival paper runs it. The truth comes out, and you got paid for the work.'; },
+    why:'Your skills and your work have a market price. Selling what you made is a normal, honest way to earn.'}]},
+
+ {id:'c_class', cat:'Events', wild:true, career:true, title:'Your class goes viral', cond:s=>hasJob(s,'teacher'),
+  text:'The way you teach fractions with pizza became a video with 20 million views. Parents everywhere want more.',
+  choices:[
+   {label:'Launch a paid online course', hint:'Odds depend on skills. +¥100,000 a month if it works.', odds:s=>0.4+s.skills/250, idea:'Side income',
+    run:(s,hit)=>{ if(hit){ s.income+=100000; s.flags.courseStar=true; return 'Thousands sign up. You teach by day and earn ¥100,000 extra a month by night.'; } const src=pay(s,300000); return `You spent ¥300,000 from ${src} on cameras and editing. Forty-two people bought the course. Twelve were your relatives.`; },
+    why:'Turning a skill into a product is a side income. It can grow while you sleep, but most products need marketing and luck.'},
+   {label:'Keep it free for every kid', hint:'Friends +15, happiness +8.', idea:'Public good',
+    run:s=>{ adj(s,'connections',15); adj(s,'wellbeing',8); s.flags.openTeacher=true; return 'Teachers in forty countries use your videos. Kids send you drawings of pizza.'; },
+    why:'Education shared freely helps everyone, and the goodwill it creates can come back as prizes, offers and friends.'},
+   {label:'Sell the idea to an ed-tech company', hint:'+¥2,000,000 now.', idea:'Licensing',
+    run:s=>{ s.savings+=2000000; s.flags.soldLessons=true; return 'They buy the videos. Then they put them behind a ¥9,000-a-month paywall.'; },
+    why:'Licensing means letting a company use your idea for money. You lose control of how they use it.'}]},
+
+ {id:'c_rescue', cat:'Events', wild:true, career:true, title:'A movie about YOU', cond:s=>hasJob(s,'firefighter','pilot','captain'),
+  text:'You pulled off a daring rescue that made the news worldwide. A movie studio wants the rights to your story.',
+  choices:[
+   {label:'Sell the rights', hint:'+¥5,000,000.', idea:'Selling a story',
+    run:s=>{ s.savings+=5000000; s.flags.moviePerson=true; return 'The actor playing you is much taller. The movie is a hit.'; },
+    why:'Your experiences have value too. A fair price today is often better than hoping for more.'},
+   {label:'Give the money to the rescue crew\'s charity', hint:'Happiness +10, friends +15.', idea:'Giving back',
+    run:s=>{ adj(s,'wellbeing',10); adj(s,'connections',15); s.flags.charityHero=true; return 'The charity buys three new rescue boats. One of them is named after you.'; },
+    why:'Giving can be its own reward and builds strong ties with people who may help you later.'},
+   {label:'Hold out for a bigger deal', hint:'40% chance of ¥12,000,000, otherwise nothing.', odds:()=>0.4, idea:'Greed vs patience',
+    run:(s,hit)=>{ if(hit){ s.savings+=12000000; s.flags.moviePerson=true; return 'A rival studio bids ¥12,000,000. Patience paid.'; } adj(s,'wellbeing',-5); return 'The news cycle moves on. The studio makes a film about a different rescue. You get a nice mug.'; },
+    why:'Holding out can win a bigger deal, or lose the deal entirely. Know when a good offer is good enough.'}]},
+
+ {id:'c_developer', cat:'Events', wild:true, career:true, title:'A developer wants your home', cond:s=>!!s.home&&s.home.value>=10000000,
+  text:'A big company wants to build a shopping centre where your home stands. They offer 1.8 times what it is worth.',
+  choices:[
+   {label:'Sell at 1.8×', hint:'Quick profit. You move out.', idea:'Taking profit',
+    run:s=>{ const got=sellHome(s,1.8); return `You sell for a great price and pocket ${Y(got)} after paying off the loan. Time to find a new place.`; },
+    why:'Taking a profit when an asset is worth more than you paid is how property makes people money. Selling means finding somewhere else to live, though.'},
+   {label:'Refuse and hold out', hint:'50% they pay 2.5×. Otherwise they build around you.', odds:()=>0.5, idea:'Holding out',
+    run:(s,hit)=>{ if(hit){ const got=sellHome(s,2.5); return `They really needed your plot. 2.5 times the value: ${Y(got)} after the loan.`; } if(s.home) s.home.value=Math.round(s.home.value*0.7); adj(s,'wellbeing',-6); return 'They build the shopping centre around you. Your garden is now a car park view and the house lost 30% of its value.'; },
+    why:'Holding out for more can win big or leave you worse off. The other side has options too.'},
+   {label:'Organise the whole street', hint:'Everyone sells together at 2.1×. Friends +15.', idea:'Collective bargaining',
+    run:s=>{ const got=sellHome(s,2.1); adj(s,'connections',15); s.flags.streetHero=true; return `The street negotiates as one and everybody gets 2.1 times. You get ${Y(got)} after the loan, and a lot of thank-you cards.`; },
+    why:'People who negotiate together have more power than one person alone. That is collective bargaining.'}]},
+
+ {id:'c_layoffs', cat:'Events', wild:true, career:true, title:'Cut 50 jobs?', cond:s=>hasJob(s,'manager','architect'),
+  text:'Head office asks you to cut 50 jobs to boost profits. Your bonus for doing it would be ¥3,000,000.',
+  choices:[
+   {label:'Do it and take the bonus', hint:'+¥3,000,000. Happiness −10, friends −10.', idea:'Short-term profit',
+    run:s=>{ s.savings+=3000000; adj(s,'wellbeing',-10); adj(s,'connections',-10); s.flags.axeManager=true; return 'Fifty families have a terrible week. Profits go up for one quarter. You get the bonus and a very quiet office.'; },
+    why:'Cutting costs boosts profit fast, but losing good people can hurt a company for years. Short-term wins can have long-term costs.'},
+   {label:'Find the savings somewhere else', hint:'Odds depend on skills. Promotion or the chop.', odds:s=>0.35+s.skills/200, idea:'Creative problem solving',
+    run:(s,hit)=>{ if(hit){ s.income+=150000; adj(s,'connections',10); return 'You find waste nobody noticed and save more than the layoffs would have. Promoted, +¥150,000 a month.'; } s.employed=false; s.job=null; s.stats.setbacks++; adj(s,'wellbeing',-8); return 'Head office did not like being told no. The 51st job cut was yours.'; },
+    why:'There is usually more than one way to fix a budget. Finding it takes skill, and standing up to the boss takes courage.'},
+   {label:'Refuse and resign', hint:'You are unemployed. Happiness +5. Doors open later.', idea:'Principles',
+    run:s=>{ s.employed=false; s.job=null; adj(s,'wellbeing',5); adj(s,'connections',8); s.flags.principled=true; return 'You walk out. Half the team takes you for a drink. Word gets around that you are a boss worth working for.'; },
+    why:'Walking away from money for your values is a real cost. Sometimes it is the best investment in your reputation.'}]},
+
+ {id:'c_insider', cat:'Events', wild:true, career:true, title:'A secret tip', cond:s=>s.stocks>=3000000,
+  text:'A friend who works at a big company whispers: "Buy our shares before Monday. Trust me." Using secret company news to trade is illegal.',
+  choices:[
+   {label:'Use the tip', hint:'50%: shares double. 50%: caught, fined ¥10,000,000.', odds:()=>0.5, idea:'Insider trading',
+    run:(s,hit)=>{ if(hit){ const g=s.stocks; s.stocks*=2; s.stats.investNet+=g; adj(s,'wellbeing',-5); s.flags.insider=true; return `Shares doubled to ${Y(s.stocks)}. Nobody noticed. Yet.`; } const src=pay(s,10000000); s.flags.insiderCaught=true; adj(s,'wellbeing',-15); adj(s,'connections',-20); return `Regulators noticed the timing. Fined ¥10,000,000, paid from ${src}. Your name is in the paper for the wrong reason.`; },
+    why:'Insider trading is using secret information to beat other investors. It is illegal because markets only work when everyone plays by the same rules.'},
+   {label:'Report it', hint:'Friends −5 now, happiness +5. A reward may follow.', idea:'Whistleblowing',
+    run:s=>{ adj(s,'connections',-5); adj(s,'wellbeing',5); s.flags.whistle=true; return 'Your friend is furious. The regulator is grateful.'; },
+    why:'Reporting wrongdoing can cost friendships, but many countries reward whistleblowers and the market stays fair for everyone.'},
+   {label:'Ignore it', hint:'Nothing happens.', idea:'Staying clean',
+    run:s=>{ adj(s,'wellbeing',2); return 'You change the subject to football. Your shares do whatever shares do.'; },
+    why:'The easiest way to stay out of trouble is not to start. Boring is a fine investment strategy.'}]}
+);
+
+// Echoes of those big choices, years later
+CHANCE.push(
+ {t:'The World Health Prize goes to… you! ¥5,000,000 and a very heavy medal.', f:s=>{s.savings+=5000000; adj(s,'wellbeing',8);}, cond:s=>!!s.flags.cureHero},
+ {t:'A hospital wing is named after you. Friends +10.', f:s=>{adj(s,'connections',10);}, cond:s=>!!s.flags.cureHero},
+ {t:'Parliament caps medicine prices after the protests. Your cure money is investigated: ¥10,000,000 fine.', f:s=>{pay(s,10000000); adj(s,'wellbeing',-8);}, cond:s=>!!s.flags.cureGreed},
+ {t:'Protesters outside your house again. Happiness −6.', f:s=>{adj(s,'wellbeing',-6);}, cond:s=>!!s.flags.cureGreed},
+ {t:'The company you trusted cut the price again. Royalty bonus ¥1,000,000.', f:s=>{s.savings+=1000000; adj(s,'wellbeing',4);}, cond:s=>!!s.flags.cureFair},
+ {t:'Old users of your app still email asking for it back. Happiness −4.', f:s=>{adj(s,'wellbeing',-4);}, cond:s=>!!s.flags.appSold},
+ {t:'Your company is valued at ¥500,000,000 on paper. You still take the bus. Happiness +6.', f:s=>{adj(s,'wellbeing',6); s.income+=50000;}, cond:s=>!!s.flags.appFounder},
+ {t:'A big company sponsors your open-source project: +¥1,500,000.', f:s=>{s.savings+=1500000;}, cond:s=>!!s.flags.appOpen},
+ {t:'One of your restaurants gets a famous award. Income +¥40,000 a month.', f:s=>{s.income+=40000;}, cond:s=>!!s.flags.chainOwner},
+ {t:'The frozen version of your dish is voted "Worst Supermarket Meal". Friends −8.', f:s=>{adj(s,'connections',-8);}, cond:s=>!!s.flags.recipeSold},
+ {t:'The grandmother\'s coins made the news. Her family sends a ¥800,000 reward and tells everyone to hire you. Income +¥20,000.', f:s=>{s.savings+=800000; s.income+=20000; s.flags.honestFind=false;}, cond:s=>!!s.flags.honestFind},
+ {t:'A coin dealer recognised the gold you sold. Fine ¥6,000,000 and the work dries up.', f:s=>{pay(s,6000000); s.income=Math.round(s.income*0.8); adj(s,'connections',-15); s.flags.pocketed=false;}, cond:s=>!!s.flags.pocketed&&((s.year*7+s.turn*3)%10)<4},
+ {t:'The river town invites you to cut the ribbon on the clean river. A top law firm offers you partner: income +¥200,000.', f:s=>{s.income+=200000; s.flags.heroLawyer=false;}, cond:s=>!!s.flags.heroLawyer},
+ {t:'Someone sprayed "RIVER KILLER" on your car. ¥80,000 to repaint.', f:s=>{pay(s,80000); adj(s,'wellbeing',-4);}, cond:s=>!!s.flags.factoryLawyer},
+ {t:'The old valley is now a toxic pit. You avoid driving past it. Happiness −5.', f:s=>{adj(s,'wellbeing',-5);}, cond:s=>!!s.flags.soldLand},
+ {t:'Your land becomes a nature reserve. Prize ¥1,000,000.', f:s=>{s.savings+=1000000; adj(s,'wellbeing',5);}, cond:s=>!!s.flags.greenLand},
+ {t:'The scandal you buried comes out anyway. You are named. Fired, friends −20.', f:s=>{s.employed=false; s.job=null; adj(s,'connections',-20); adj(s,'wellbeing',-10); s.flags.hushMoney=false;}, cond:s=>!!s.flags.hushMoney&&((s.year*7+s.turn*3)%2)===0},
+ {t:'Your reporting wins the Press Prize. ¥2,000,000.', f:s=>{s.savings+=2000000;}, cond:s=>!!s.flags.famousReporter},
+ {t:'Teacher of the Year! ¥500,000 and a standing ovation.', f:s=>{s.savings+=500000; adj(s,'wellbeing',6);}, cond:s=>!!s.flags.openTeacher},
+ {t:'Your old students found the paywall. Angry emails. Friends −5.', f:s=>{adj(s,'connections',-5);}, cond:s=>!!s.flags.soldLessons},
+ {t:'The movie about you gets a sequel. Royalties ¥1,200,000.', f:s=>{s.savings+=1200000;}, cond:s=>!!s.flags.moviePerson},
+ {t:'The rescue boat with your name on it saved a family today. Happiness +8.', f:s=>{adj(s,'wellbeing',8);}, cond:s=>!!s.flags.charityHero},
+ {t:'A better company heard why you resigned. They hire you: income +¥100,000.', f:s=>{s.employed=true; s.job=s.job||'manager'; s.income+=100000; s.flags.principled=false;}, cond:s=>!!s.flags.principled},
+ {t:'The team you cut built a rival company. Your bonus dried up: income −¥50,000.', f:s=>{s.income=Math.max(100000,s.income-50000);}, cond:s=>!!s.flags.axeManager},
+ {t:'Regulators reopen old trades. Yours. Fine ¥8,000,000.', f:s=>{pay(s,8000000); s.flags.insider=false; adj(s,'wellbeing',-10);}, cond:s=>!!s.flags.insider&&((s.year*5+s.turn*3)%2)===0},
+ {t:'Whistleblower reward: ¥3,000,000 for reporting insider trading.', f:s=>{s.savings+=3000000; s.flags.whistle=false;}, cond:s=>!!s.flags.whistle}
+);
 
 // ================= 3D WORLD =================
 const CAT_COLOR={Events:0xf08a3c,Education:0x9b5fd0,Stocks:0x3d7be6,Assets:0x4fae5c,Payday:0xfff3c4,Chance:0x2fa1b5};
@@ -1845,7 +2036,7 @@ const cobbleTex=canvasTex(128,128,(g,w,h)=>{ g.fillStyle='#9a9389'; g.fillRect(0
 const courtTex=canvasTex(128,256,(g,w,h)=>{ g.fillStyle='#d57a4e'; g.fillRect(0,0,w,h); g.strokeStyle='#ffffff'; g.lineWidth=4; g.strokeRect(8,8,w-16,h-16); g.beginPath(); g.moveTo(8,h/2); g.lineTo(w-8,h/2); g.stroke(); g.beginPath(); g.arc(w/2,h/2,20,0,Math.PI*2); g.stroke(); });
 const tennisTex=canvasTex(128,256,(g,w,h)=>{ g.fillStyle='#2f8f8a'; g.fillRect(0,0,w,h); g.strokeStyle='#ffffff'; g.lineWidth=4; g.strokeRect(10,10,w-20,h-20); g.beginPath(); g.moveTo(10,h/2); g.lineTo(w-10,h/2); g.moveTo(w/2,40); g.lineTo(w/2,h-40); g.moveTo(10,40); g.lineTo(w-10,40); g.moveTo(10,h-40); g.lineTo(w-10,h-40); g.stroke(); });
 function billboardTex(text,bg,fg){ return canvasTex(512,256,(g,w,h)=>{ g.fillStyle=bg; g.fillRect(0,0,w,h); g.fillStyle=fg; g.font='700 110px Fredoka, system-ui, sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,w/2,h/2); }); }
-const ADS=[['SAVE','#f2b53a','#1e2a2c'],['INVEST','#3d7be6','#ffffff'],['LEARN','#9b5fd0','#ffffff'],['¥¥¥','#4fae5c','#ffffff'],['BANK','#1e2a2c','#f2b53a'],['NEWS','#e4553f','#ffffff']];
+const ADS=[['SAVE','#f2b53a','#1e2a2c'],['INVEST','#3d7be6','#ffffff'],['LEARN','#9b5fd0','#ffffff'],['SALE','#4fae5c','#ffffff'],['BANK','#1e2a2c','#f2b53a'],['NEWS','#e4553f','#ffffff']];
 function facade(prng,w,h){ const k=prng(); if(k<0.3) return new THREE.MeshStandardMaterial({map:windowTex(Math.max(2,Math.round(w*3)),Math.max(2,Math.round(h*2.2)),['#dfe9f3','#f3efe4','#cfe3ee','#e9dcc8'][Math.floor(prng()*4)]),roughness:0.35,metalness:0.1});
   const tex=k<0.45?brickTex:k<0.6?panelTex:k<0.8?bandTex:stripeTex; const m=new THREE.MeshStandardMaterial({map:tex.clone(),roughness:k<0.45?0.9:0.4,metalness:k>0.6?0.15:0}); m.map.repeat.set(Math.max(1,Math.round(w*1.2)),Math.max(1,Math.round(h*0.9))); m.map.needsUpdate=true; return m; }
 function rooftop(prng,g,w,d,h){ const r=prng();
@@ -1928,7 +2119,9 @@ function buildSky(){ if(skyBuilt) return; skyBuilt=true;
 
 
 // ---- instanced vegetation (thousands of trees without thousands of draw calls) ----
-const INST={trunk:[],canopy:[],pine:[],bush:[]};
+const INST={trunk:[],canopy:[],pine:[],bush:[],rock:[],pole:[],bulb:[]};
+function addRock(x,z,s,prng){ INST.rock.push([x,z,s,prng()]); }
+function addLamp(x,z){ INST.pole.push([x,z,1,0]); INST.bulb.push([x,z,1,0]); }
 function addTree(x,z,s,kind,prng){ if(kind==='pine'){ INST.pine.push([x,z,s,prng()]); } else if(kind==='bush'){ INST.bush.push([x,z,s,prng()]); } else { INST.trunk.push([x,z,s,0]); INST.canopy.push([x,z,s,prng()]); } }
 function flushInstances(){
   const mk=(list,geo,colors,yfn,sfn)=>{ if(!list.length) return; const m=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({roughness:0.9}),list.length); const M=new THREE.Matrix4(), c=new THREE.Color();
@@ -1938,6 +2131,9 @@ function flushInstances(){
   mk(INST.canopy,new THREE.SphereGeometry(0.42,9,7),[0x3f9b45,0x59b24f,0x2f8a3e,0x6cbf4a],s=>0.72*s,v=>0.9+v*0.3);
   mk(INST.pine,new THREE.ConeGeometry(0.4,1.2,7),[0x2f8a3e,0x247a35,0x3a9448],s=>0.6*s);
   mk(INST.bush,new THREE.SphereGeometry(0.3,8,6),[0x4fae5c,0x6cbf4a,0xd9a3b8],s=>0.18*s);
+  mk(INST.rock,new THREE.DodecahedronGeometry(0.32,0),[0x9aa3ad,0x8a8f96,0xb3b8bf],s=>0.18*s,v=>0.8+v*0.6);
+  mk(INST.pole,new THREE.CylinderGeometry(0.03,0.04,1.2,6),[0x3b4350],s=>0.6);
+  mk(INST.bulb,new THREE.SphereGeometry(0.08,8,8),[0xfff2c0],s=>1.24);
   for(const k in INST) INST[k]=[];
 }
 const sandTex=canvasTex(256,256,(g,w,h)=>{ g.fillStyle='#f1dfae'; g.fillRect(0,0,w,h); const p=mulberry32(5); for(let i=0;i<500;i++){ g.fillStyle=['#e8d39c','#f7e8bd'][i%2]; g.fillRect(p()*w,p()*h,3,3);} },[20,20]);
@@ -2025,6 +2221,36 @@ function ferris(){ const g=new THREE.Group(); const R=2.4; for(const z of [-0.5,
 function pagoda(){ const g=new THREE.Group(); for(let i=0;i<3;i++){ const w=1.6-i*0.35; put(g,box(w,0.7,w,0xb5412e),0,0.35+i*0.9); const roof=shadowed(new THREE.Mesh(new THREE.ConeGeometry(w*0.95,0.35,4),std(0x2f3b55))); roof.rotation.y=Math.PI/4; put(g,roof,0,0.85+i*0.9);} return g; }
 function stadium(){ const g=new THREE.Group(); const ring=shadowed(new THREE.Mesh(new THREE.CylinderGeometry(4,4.4,1.4,32,1,true),std(0xdfe9f3,{side:THREE.DoubleSide}))); ring.scale.z=0.7; ring.position.y=0.7; g.add(ring); const field=new THREE.Mesh(new THREE.CircleGeometry(3.5,32),std(0x3f9b45)); field.rotation.x=-Math.PI/2; field.scale.y=0.7; field.position.y=0.05; g.add(field); for(let i=0;i<4;i++){ const a=i*Math.PI/2+Math.PI/4; const l=box(0.1,2.6,0.1,0x3b4350); l.position.set(Math.cos(a)*4.6,1.3,Math.sin(a)*3.3); g.add(l); const lamp2=box(0.6,0.3,0.1,0xfff2c0); lamp2.position.set(Math.cos(a)*4.6,2.6,Math.sin(a)*3.3); g.add(lamp2);} return g; }
 
+function waterTower(){ const g=new THREE.Group(); for(let i=0;i<4;i++){ const a=i*Math.PI/2+Math.PI/4; const leg=cylinder(0.05,2.6,0x8a5a2b); leg.position.set(Math.cos(a)*0.55,1.3,Math.sin(a)*0.55); leg.rotation.z=Math.cos(a)*0.12; leg.rotation.x=-Math.sin(a)*0.12; g.add(leg);} for(const y of [0.9,1.8]) put(g,shadowed(new THREE.Mesh(new THREE.TorusGeometry(0.62,0.03,6,16),std(0x8a5a2b))).rotateX(Math.PI/2),0,y);
+  put(g,cylinder(0.7,1.1,0xd9b48a),0,3.1); for(const y of [2.7,3.5]) put(g,shadowed(new THREE.Mesh(new THREE.TorusGeometry(0.71,0.03,6,20),std(0x3b4350))).rotateX(Math.PI/2),0,y); const roof=shadowed(new THREE.Mesh(new THREE.ConeGeometry(0.8,0.5,16),std(0x6b4a2b,{flatShading:true}))); put(g,roof,0,3.9); put(g,cylinder(0.04,0.6,0x3b4350),0,2.2); return g; }
+function billboard(ad){ const g=new THREE.Group(); const panel=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.2,0.08),[std(0x3b4350),std(0x3b4350),std(0x3b4350),std(0x3b4350),new THREE.MeshStandardMaterial({map:billboardTex(...ad)}),std(0x3b4350)]); panel.position.y=1.9; g.add(panel); for(const x of [-0.8,0.8]) put(g,box(0.08,1.4,0.08,0x3b4350),x,0.7,-0.05); const lampBar=box(2.2,0.05,0.05,0x3b4350); lampBar.position.set(0,2.55,0.25); g.add(lampBar); return g; }
+function balloon(color,color2){ const g=new THREE.Group(); const env=shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.9,16,12),std(color))); env.scale.y=1.15; env.position.y=1.6; g.add(env); for(let i=0;i<4;i++){ const stripe=new THREE.Mesh(new THREE.TorusGeometry(0.9,0.05,6,24),std(color2)); stripe.scale.y=1.15; stripe.rotation.y=i*Math.PI/4; stripe.position.y=1.6; g.add(stripe);} put(g,box(0.45,0.35,0.45,0x8a5a2b),0,0.17); for(const x of [-0.2,0.2]) for(const z of [-0.2,0.2]) put(g,box(0.02,0.6,0.02,0x5a4030),x,0.6,z); return g; }
+function golfCourse(x0,x1,z0,z1,prng){ const w=x1-x0,d=z1-z0,cx=(x0+x1)/2,cz=(z0+z1)/2; flat(w,d,std(0x8ad15c),cx,cz,0.012);
+  const holes=Math.max(4,Math.floor(w*d/40));
+  for(let k=0;k<holes;k++){ const gx=x0+2+prng()*(w-4), gz=z0+2+prng()*(d-4); const green=new THREE.Mesh(new THREE.CircleGeometry(1.2+prng()*0.6,24),std(0x3f9b45)); green.rotation.x=-Math.PI/2; green.position.set(gx,0.02,gz); world.add(green);
+    const pole=cylinder(0.025,1.2,0xffffff); pole.position.set(gx,0.6,gz); world.add(pole); const flag=box(0.45,0.28,0.02,0xe4553f); flag.position.set(gx+0.24,1.05,gz); world.add(flag);
+    const bunker=new THREE.Mesh(new THREE.CircleGeometry(0.6+prng()*0.5,16),std(0xf1dfb0)); bunker.rotation.x=-Math.PI/2; bunker.position.set(gx+1.6+prng()*1.4,0.018,gz+(prng()-0.5)*3); world.add(bunker); }
+  const pd=pond(); pd.scale.setScalar(1.3); pd.position.set(cx+(prng()-0.5)*w*0.4,0.012,cz+(prng()-0.5)*d*0.4); world.add(pd);
+  for(let k=0;k<Math.floor(w*d/14);k++) addTree(x0+prng()*w,z0+prng()*d,0.7+prng()*0.5,prng()<0.4?'pine':'round',prng);
+  for(let k=0;k<3;k++){ const cart=A.car(0xffffff); cart.scale.setScalar(0.24); cart.position.set(x0+1+prng()*(w-2),0.02,z0+1+prng()*(d-2)); cart.rotation.y=prng()*Math.PI*2; world.add(cart); }
+  const club=shop(prng); club.scale.setScalar(1.3); club.position.set(x1-2.5,0,z1-2.2); club.rotation.y=Math.PI; world.add(club); const s=textSprite('GOLF CLUB',{size:0.5}); s.position.set(x1-2.5,2.2,z1-2.2); world.add(s); }
+function themePark(x0,x1,z0,z1,prng){ const w=x1-x0,d=z1-z0,cx=(x0+x1)/2,cz=(z0+z1)/2; flat(w,d,new THREE.MeshStandardMaterial({map:plazaTex,roughness:0.9}),cx,cz,0.012);
+  // roller coaster loop with hills
+  const pts=[]; const N=14; for(let i=0;i<N;i++){ const a=i/N*Math.PI*2; const y=(i%3===0)?2.6+prng()*1.6:0.6+prng()*0.9; pts.push(new THREE.Vector3(cx+Math.cos(a)*w*0.4,y,cz+Math.sin(a)*d*0.36)); }
+  const cc=new THREE.CatmullRomCurve3(pts,true,'catmullrom',0.5); world.add(new THREE.Mesh(new THREE.TubeGeometry(cc,180,0.09,6,true),std(0xe4553f)));
+  for(let i=0;i<44;i++){ const p=cc.getPointAt(i/44); const post=cylinder(0.045,p.y,0x3b4350); post.position.set(p.x,p.y/2,p.z); world.add(post); }
+  for(let k=0;k<3;k++){ const car=box(0.75,0.35,0.42,[0xf2b53a,0x3d7be6,0x4fae5c][k]); car.userData.pathDrive={t:k*0.045,speed:0.00009,curve:cc,lift:0.26}; world.add(car); }
+  const fw=ferris(); fw.scale.setScalar(0.9); fw.position.set(cx,0,cz); world.add(fw);
+  { const g=new THREE.Group(); put(g,cylinder(1.3,0.15,0xf2b53a),0,0.08); const roof=shadowed(new THREE.Mesh(new THREE.ConeGeometry(1.5,0.8,12),std(0xe4553f,{flatShading:true}))); put(g,roof,0,1.95); put(g,cylinder(0.08,1.7,0xffffff),0,0.9); const ring=new THREE.Group(); for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; put(ring,cylinder(0.03,1.4,0xffffff),Math.cos(a)*0.9,0.85,Math.sin(a)*0.9); const horse=box(0.36,0.3,0.15,[0xffffff,0x9b5fd0,0x3d7be6][i%3]); horse.position.set(Math.cos(a)*0.9,0.6,Math.sin(a)*0.9); horse.rotation.y=-a; ring.add(horse);} ring.userData.turn=true; g.add(ring); g.position.set(x0+2.6,0,z1-2.6); world.add(g); }
+  { const g=new THREE.Group(); put(g,cylinder(0.12,6.5,0x9aa3ad),0,3.25); put(g,box(0.9,0.2,0.9,0x3b4350),0,0.1); const cab=shadowed(new THREE.Mesh(new THREE.TorusGeometry(0.55,0.2,8,16),std(0xf2b53a))); cab.rotation.x=Math.PI/2; cab.userData.drop={base:0.8,h:5.2,p:prng()*6}; g.add(cab); const top=box(0.6,0.3,0.6,0xe4553f); top.position.y=6.6; g.add(top); g.position.set(x1-2.6,0,z0+2.6); world.add(g); }
+  for(let k=0;k<5;k++){ const pole=cylinder(0.03,1.8,0xffffff); pole.position.set(x0+1+k*(w-2)/4,0.9,z0+0.8); world.add(pole); const fl=box(0.5,0.3,0.02,[0xe4553f,0x3d7be6,0xf2b53a,0x4fae5c,0x9b5fd0][k]); fl.position.set(x0+1+k*(w-2)/4+0.26,1.65,z0+0.8); world.add(fl); }
+  { const booth=box(1.2,1,1,0xf2b53a); booth.position.set(cx,0.5,z0+1.2); world.add(booth); const bh=shadowed(new THREE.Mesh(new THREE.ConeGeometry(1,0.5,4),std(0xe4553f,{flatShading:true}))); bh.rotation.y=Math.PI/4; bh.position.set(cx,1.25,z0+1.2); world.add(bh); const s=textSprite('FUN PARK',{size:0.6}); s.position.set(cx,2.3,z0+1.2); world.add(s); }
+  for(let k=0;k<4;k++){ const v=vending(); v.position.set(x0+1.5+prng()*(w-3),0,z1-1.2); world.add(v); } }
+function hillSign(text,x,z){ const R=18,H=7.5; const hillM=shadowed(new THREE.Mesh(new THREE.ConeGeometry(R,H,12),std(0x5fa84a,{flatShading:true}))); hillM.position.set(x,H/2-0.2,z); world.add(hillM);
+  const chars=text.split(''); const sp=3.2, x0=x-(chars.length-1)*sp/2; const r=9, y0=H*(1-r/R)-0.2;
+  chars.forEach((ch,i)=>{ if(ch===' ') return; const tex=canvasTex(256,320,(g,w,h)=>{ g.clearRect(0,0,w,h); g.fillStyle='#ffffff'; g.font='800 300px Fredoka, system-ui, sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(ch,w/2,h/2+10); });
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(3.0,3.6),new THREE.MeshStandardMaterial({map:tex,transparent:true,alphaTest:0.4,side:THREE.DoubleSide,roughness:0.6})); m.position.set(x0+i*sp,y0+1.8,z+r); m.rotation.x=-0.22; world.add(m);
+    for(const dx of [-0.8,0.8]){ const post=cylinder(0.05,2.0,0x3b4350); post.position.set(x0+i*sp+dx,y0+0.8,z+r-0.4); world.add(post);} }); }
 function buildWorld(count,seed){
   buildSky();
   while(world.children.length) world.remove(world.children[0]);
@@ -2040,10 +2266,10 @@ function buildWorld(count,seed){
   const add=(o,x,z,r,rot)=>{ o.position.set(x,0,z); if(rot!==undefined) o.rotation.y=rot; world.add(o); placed.push([x,z,r]); return o; };
   // ocean, beach, land
   const water=new THREE.Mesh(new THREE.CircleGeometry(600,64),std(0x3fa5e8,{roughness:0.2,metalness:0.15})); water.rotation.x=-Math.PI/2; water.position.y=-0.32; water.receiveShadow=true; world.add(water);
-  const sand=new THREE.Mesh(new THREE.ExtrudeGeometry(roundedRect(Wd+6,Dd+6,14),{depth:0.25,bevelEnabled:true,bevelSize:1.5,bevelThickness:0.1,bevelSegments:4}),new THREE.MeshStandardMaterial({map:sandTex,roughness:1})); sand.rotation.x=-Math.PI/2; sand.position.set(cx,-0.34,(Z0+Z1)/2); shadowed(sand); world.add(sand);
-  const grass=new THREE.Mesh(new THREE.ExtrudeGeometry(roundedRect(Wd,Dd-10,12),{depth:0.3,bevelEnabled:true,bevelSize:0.6,bevelThickness:0.1,bevelSegments:3}),new THREE.MeshStandardMaterial({map:grassTex.clone(),roughness:0.95})); grass.material.map.repeat.set(Wd/6,Dd/6); grass.material.map.needsUpdate=true; grass.rotation.x=-Math.PI/2; grass.position.set(cx,-0.31,(Z0+Z1)/2-5); shadowed(grass); world.add(grass);
+  const sand=new THREE.Mesh(new THREE.ExtrudeGeometry(roundedRect(Wd+6,Dd+6,14),{depth:0.25,bevelEnabled:true,bevelSize:1.5,bevelThickness:0.1,bevelSegments:4}),new THREE.MeshStandardMaterial({map:sandTex,roughness:1})); sand.rotation.x=-Math.PI/2; sand.position.set(cx,-0.37,(Z0+Z1)/2); shadowed(sand); world.add(sand);
+  const grass=new THREE.Mesh(new THREE.ExtrudeGeometry(roundedRect(Wd,Dd-10,12),{depth:0.3,bevelEnabled:true,bevelSize:0.6,bevelThickness:0.1,bevelSegments:3}),new THREE.MeshStandardMaterial({map:grassTex.clone(),roughness:0.95})); grass.material.map.repeat.set(Wd/6,Dd/6); grass.material.map.needsUpdate=true; grass.rotation.x=-Math.PI/2; grass.position.set(cx,-0.40,(Z0+Z1)/2-5); shadowed(grass); world.add(grass);
   // path ribbon and tiles with printed glyphs
-  const ribbon=new THREE.Mesh(new THREE.TubeGeometry(curve,count*4,0.85,8,false),std(0xf3e9d2)); ribbon.position.y=-0.55; ribbon.scale.y=0.09; ribbon.receiveShadow=true; world.add(ribbon);
+  const ribbon=new THREE.Mesh(new THREE.TubeGeometry(curve,count*4,0.85,8,false),std(0xf3e9d2)); ribbon.position.y=-0.03; ribbon.scale.y=0.09; ribbon.receiveShadow=true; world.add(ribbon);
   { tileRef=new Array(count); const byCat={}; TILES.forEach((t,i)=>{ (byCat[t.cat]=byCat[t.cat]||[]).push(i); });
     const geo=tileGeometry(); const M=new THREE.Matrix4(), Q=new THREE.Quaternion(), P=new THREE.Vector3(), Sc=new THREE.Vector3(), UP=new THREE.Vector3(0,1,0);
     for(const cat in byCat){ const idx=byCat[cat]; const tex=tileTop(cat); tex.generateMipmaps=false; tex.minFilter=THREE.LinearFilter;
@@ -2066,7 +2292,7 @@ function buildWorld(count,seed){
     const cob=flat(14,8,new THREE.MeshStandardMaterial({map:cobbleTex,roughness:1}),cx-30,dz0-3,0.012); const gz=gazebo(); gz.position.set(cx-26,0,dz0-1); world.add(gz); const tc=court('tennis'); tc.position.set(cx+22,0,dz0-3); world.add(tc); const bc=court('basket'); bc.position.set(cx+25,0,dz0-3); world.add(bc); }
   const pg=pagoda(); pg.position.set(cx-30,0,dz0-3); world.add(pg); forest(cx-36,cx-24,dz0-8,dz0-4,0.9,prng,'pine');
   forest(X0+4,X1-4,dz0-22,dz0-8,0.75,prng);
-  mountains(X0-10,X1+10,dz0-30,prng);
+  mountains(X0-10,X1+10,dz0-30,prng); hillSign('GET LUCKY',cx,dz0-27);
   { const rz=dz0-5.5; for(const o of [-0.14,0.14]){ const r=box(Wd-24,0.05,0.05,0x6e6e6e); r.position.set(cx,0.03,rz+o); world.add(r);} for(let x=X0+12;x<X1-12;x+=0.7){ const s=box(0.12,0.03,0.5,0x8a5a2b); s.position.set(x,0.02,rz); world.add(s);} 
     const plat=box(7,0.25,1.2,0xd9d4ca); plat.position.set(cx,0.12,rz+1.1); world.add(plat); const roofS=box(7,0.08,1.4,0x3b4350); roofS.position.set(cx,1.5,rz+1.1); world.add(roofS); for(const x of [-3,0,3]){ const p=box(0.08,1.5,0.08,0x3b4350); p.position.set(cx+x,0.75,rz+1.6); world.add(p);} const st2=textSprite('CENTRAL STATION',{size:0.5}); st2.position.set(cx,2.1,rz+1.1); world.add(st2);
     const tr=train(); tr.scale.setScalar(1.1); tr.position.set(cx-10,0.02,rz); tr.userData.shuttle={speed:0.004,min:X0+13,max:X1-13,dir:1}; world.add(tr); }
@@ -2074,7 +2300,12 @@ function buildWorld(count,seed){
 
   // ===== EAST & WEST: suburbs, farmland, forest belts =====
   const sx=tx1+6, subZ1=Math.min(tz1+2,tz0+40); suburb(sx,sx+28,tz0-2,subZ1,prng); suburb(tx0-34,tx0-6,tz0-2,subZ1,prng);
-  farmland(sx+30,X1-6,tz0-4,tz1+6,prng); farmland(X0+6,tx0-36,tz0-4,tz1+6,prng);
+  themePark(sx+29,sx+44,tz0-3,Math.min(tz0+13,tz1+5),prng); farmland(sx+46,X1-12,tz0-3,Math.min(tz0+13,tz1+5),prng);
+  // fields north of the avenue, either side of the downtown wings
+  farmland(Math.max(sx+2,cx+42),X1-12,dz0+2,dz1-1,prng); farmland(X0+12,Math.min(tx0-8,cx-42),dz0+2,dz1-1,prng); if(tz1+6-(tz0+16)>6) farmland(sx+30,X1-6,tz0+16,tz1+6,prng);
+  golfCourse(X0+8,tx0-38,tz0-3,Math.min(tz0+16,tz1+5),prng); if(tz1+6-(tz0+19)>6) farmland(X0+6,tx0-36,tz0+19,tz1+6,prng);
+  for(const [wx,wz] of [[sx+29.5,tz0-4],[tx0-35,tz0-4.5],[X1-14,tz1+1],[cx-12,dz0-6.5]]){ const wt=waterTower(); wt.position.set(wx,0,wz); world.add(wt); }
+  for(let k=0;k<3;k++){ const b=balloon([0xe4553f,0x3d7be6,0xf2b53a][k],[0xffffff,0xf2b53a,0xe4553f][k]); b.position.set(X0+20+k*(Wd-40)/2,7+k*1.3,tz0-10+prng()*(tz1-tz0+16)); b.userData.float={y:7+k*1.3,p:k*2,v:0.0006+k*0.0002,min:X0+6,max:X1-6}; world.add(b); }
   if(subZ1<tz1){ downtown(sx,sx+26,subZ1+4,subZ1+16,prng,false); if(tz1-subZ1>30) farmland(sx,sx+28,subZ1+19,tz1+4,prng); forest(tx0-34,tx0-6,subZ1+3,tz1+4,0.5,prng); for(let z=subZ1+6;z<tz1;z+=14){ const pd=pond(); pd.scale.setScalar(1.6); pd.position.set(tx0-20,0.01,z); world.add(pd); const gz=gazebo(); gz.position.set(tx0-16,0,z+3); world.add(gz);} }
   forest(X1-10,X1-2,Z0+10,Z1-16,0.8,prng); forest(X0+2,X0+10,Z0+10,Z1-16,0.8,prng);
   // a lake in the west farmland with a river to the south coast
@@ -2096,7 +2327,7 @@ function buildWorld(count,seed){
   for(let k=0;k<6;k++){ const b2=boat(); b2.position.set(X0+10+prng()*(Wd-20), -0.3, Z1+6+prng()*14); b2.rotation.y=prng()*Math.PI*2; b2.userData.bob=prng()*6; world.add(b2); }
 
   // ===== INSIDE THE PATH: landmark districts, wheel, park =====
-  LANDMARKS.forEach(([f,label,color,li],lk)=>{ const i=li; const t=TILES[i]; const tan=curve.getTangentAt(i/(count-1)); const sideV=new THREE.Vector3(-tan.z,0,tan.x).normalize(); const sgn=label==='START'?-1:(lk%2?1:-1); const off=sideV.clone().multiplyScalar(3.4*sgn);
+  LANDMARKS.forEach(([f,label,color,li],lk)=>{ const i=li; const t=TILES[i]; const tan=curve.getTangentAt(i/(count-1)); const sideV=new THREE.Vector3(-tan.z,0,tan.x).normalize(); const sgn=1; const off=sideV.clone().multiplyScalar(3.6*sgn);
     const bx=t.x+off.x, bz=t.z+off.z; const b=building(label,color,prng); add(b,bx,bz,2.4); b.lookAt(t.x,0,t.z);
     const s=textSprite(label,{size:0.7}); s.position.set(t.x+off.x*0.45,1.4,t.z+off.z*0.45); world.add(s);
     const perp=new THREE.Vector3(tan.x,0,tan.z); const at=(u,v)=>[bx+perp.x*u+sideV.x*v*sgn,bz+perp.z*u+sideV.z*v*sgn];
@@ -2114,7 +2345,27 @@ function buildWorld(count,seed){
   const rowZ=r=>-((rowsN-1)*ROWGAP)/2+r*ROWGAP;
   const bestSpot=(z)=>{ let best=null; for(let x=tx0+3;x<=tx1-3;x+=0.5){ let dmin=99; for(const tt of TILES){ const d=Math.hypot(tt.x-x,tt.z-z); if(d<dmin) dmin=d; } for(const p of placed){ const d=Math.hypot(p[0]-x,p[1]-z)-p[2]; if(d<dmin) dmin=d; } if(!best||dmin>best[1]) best=[x,dmin]; } return best; };
   { const z=rowZ(0)+ROWGAP/2; const [wx,dm]=bestSpot(z); const wheelG=A.economyWheel(); const ws=clamp((dm-0.5)/3.2,0.3,0.7); wheelG.position.set(wx,0.02,z); wheelG.scale.setScalar(ws); wheelG.userData.turn=true; world.add(wheelG); placed.push([wx,z,ws*3.2+0.4]); }
-  for(let r=0;r<rowsN-1;r++){ const z=rowZ(r)+ROWGAP/2; const sp=bestSpot(z); if(sp&&sp[1]>2.2){ const pd=pond(); add(pd,sp[0],z,1.7); const bn=bench(); add(bn,sp[0]+2.1,z,0.4,Math.PI/2); const bn2=bench(); add(bn2,sp[0]-2.1,z,0.4,-Math.PI/2); for(let k=0;k<4;k++) addTree(sp[0]+(prng()-0.5)*5,z+(prng()-0.5)*2.5,0.8,'round',prng); if(sp[1]>3.2){ const gz=gazebo(); gz.scale.setScalar(0.7); add(gz,sp[0],z-2.6,1.0);} } }
+  function hill(prng,r){ const g=new THREE.Group(); const hh=0.5+prng()*0.7; const m=shadowed(new THREE.Mesh(new THREE.ConeGeometry(r,hh,9),std([0x5fb44a,0x6cc04a,0x4f9a4a][Math.floor(prng()*3)],{flatShading:true}))); m.position.y=hh/2-0.05; g.add(m); return g; }
+  function picnic(){ const g=new THREE.Group(); put(g,box(1.1,0.06,0.5,0x986d46),0,0.45); put(g,box(0.08,0.45,0.4,0x986d46),-0.4,0.22); put(g,box(0.08,0.45,0.4,0x986d46),0.4,0.22); for(const z of [-0.5,0.5]) put(g,box(1.1,0.05,0.22,0x986d46),0,0.26,z); return g; }
+  for(let r=0;r<rowsN-1;r++){ const z=rowZ(r)+ROWGAP/2; const sp=bestSpot(z); if(!sp||sp[1]<2.2) continue; const x=sp[0]; const kind=r%4;
+    if(kind===0){ const pd=pond(); add(pd,x,z,1.7); const bn=bench(); add(bn,x+2.1,z,0.4,Math.PI/2); const bn2=bench(); add(bn2,x-2.1,z,0.4,-Math.PI/2); for(let k=0;k<4;k++) addTree(x+(prng()-0.5)*5,z+(prng()-0.5)*2.5,0.8,'round',prng); for(let k=0;k<4;k++) addRock(x+(prng()-0.5)*3.6,z+(prng()-0.5)*3,0.7,prng); }
+    else if(kind===1){ const f=fountain(); f.scale.setScalar(1.15); add(f,x,z,1.3); const st=statue(); add(st,x+2.2,z,0.7); const st2=statue(); add(st2,x-2.2,z,0.7); for(let k=0;k<3;k++){ const fb=flowerbed(prng); add(fb,x+(k-1)*1.6,z+1.6,0.6); } flat(5.2,4.2,new THREE.MeshStandardMaterial({map:plazaTex,roughness:0.9}),x,z,0.012); }
+    else if(kind===2){ const h=hill(prng,2.2); add(h,x,z,2.3); for(let k=0;k<3;k++) addTree(x+(prng()-0.5)*2,z+(prng()-0.5)*2,0.7,'pine',prng); for(let k=0;k<6;k++) addRock(x+(prng()-0.5)*5,z+(prng()-0.5)*4,0.9,prng); }
+    else { const gz=gazebo(); gz.scale.setScalar(0.8); add(gz,x,z,1.1); const pt=picnic(); add(pt,x+2.2,z+0.6,0.7,prng()*Math.PI); const pt2=picnic(); add(pt2,x-2.2,z-0.4,0.7,prng()*Math.PI); for(let k=0;k<3;k++) addTree(x+(prng()-0.5)*5,z+(prng()-0.5)*3,0.8,'round',prng); }
+  }
+  // a road alongside the path (left of travel) with a few cars that follow it, and lamp posts
+  { const pts=[]; for(let i=0;i<count;i+=2){ const p=TILES[i], tan=curve.getTangentAt(i/(count-1)); const sv=new THREE.Vector3(-tan.z,0,tan.x).normalize(); pts.push(new THREE.Vector3(p.x-sv.x*3.0,0,p.z-sv.z*3.0)); }
+    const roadCurve=new THREE.CatmullRomCurve3(pts,false,'catmullrom',0.5); const road=new THREE.Mesh(new THREE.TubeGeometry(roadCurve,count*2,0.55,6,false),std(0x4c525a,{roughness:0.95})); road.position.y=-0.03; road.scale.y=0.1; road.receiveShadow=true; world.add(road);
+    const line=new THREE.Mesh(new THREE.TubeGeometry(roadCurve,count*2,0.06,4,false),std(0xe8e2c8)); line.position.y=0.03; line.scale.y=0.2; world.add(line);
+    for(let k=0;k<Math.max(3,Math.floor(count/40));k++){ const c=A.car([0xe16b60,0x448ad2,0xf5bf4e,0xffffff,0x3b4350][k%5]); c.scale.setScalar(0.33); c.userData.pathDrive={t:prng(),speed:(0.00002+prng()*0.00001)/Math.max(1,count/100),curve:roadCurve}; world.add(c); }
+    for(let i=3;i<count;i+=6){ const p=TILES[i], tan=curve.getTangentAt(i/(count-1)); const sv=new THREE.Vector3(-tan.z,0,tan.x).normalize(); addLamp(p.x-sv.x*1.9,p.z-sv.z*1.9); }
+    for(let i=5;i<count-3;i+=4){ const p=TILES[i], tan=curve.getTangentAt(i/(count-1)); const sv=new THREE.Vector3(-tan.z,0,tan.x).normalize(); const x=p.x-sv.x*5.3, z=p.z-sv.z*5.3; if(!free(x,z,1.3)) continue; const face=Math.atan2(sv.x,sv.z);
+      if(i%12===5){ const bb=billboard(ADS[Math.floor(prng()*ADS.length)]); add(bb,x,z,1.3,face); }
+      else if(i%12===9){ const s=shop(prng); add(s,x,z,1.2,face); if(prng()<0.5){ const v=vending(); add(v,x+sv.z*1.4,z-sv.x*1.4,0.4,face);} }
+      else if(prng()<0.4){ addTree(x,z,0.9,'round',prng); placed.push([x,z,0.8]); } }
+  }
+  // small hills along the board's edges, like the frame of a board game
+  for(let k=0;k<rowsN*3;k++){ const side=k%2?1:-1; const x=(side>0?tx1+4:tx0-4)+(prng()-0.5)*3, z=tz0+prng()*(tz1-tz0); if(nearTrack(x,z,3.5)) continue; const h=hill(prng,1.4+prng()*1.4); add(h,x,z,2.2); for(let j=0;j<2;j++) addTree(x+(prng()-0.5)*2,z+(prng()-0.5)*2,0.7,'pine',prng); for(let j=0;j<3;j++) addRock(x+(prng()-0.5)*3.5,z+(prng()-0.5)*3.5,0.8,prng); }
   // sparse scatter inside and around the path: trees, flowers, benches
   for(let k=0;k<Math.min(900,count*8);k++){ const x=tx0-4+prng()*(tx1-tx0+8), z=tz0-2+prng()*(tz1-tz0+4); if(!free(x,z,1.0)) continue;
     const r=prng(); if(r<0.6){ addTree(x,z,0.8+prng()*0.5,r<0.25?'pine':'round',prng); placed.push([x,z,0.8]); } else if(r<0.85){ const f=flowerbed(prng); add(f,x,z,0.7); } else add(bench(),x,z,0.5,prng()*Math.PI*2); }
@@ -2195,6 +2446,9 @@ function frame(now){
   { const cp=new THREE.Vector3(camAim.x+Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+0.5, camAim.z+Math.cos(yaw)*Math.cos(pitch)*dist); camera.position.lerp(cp,1-Math.exp(-dtc/(chase?45:90))); camera.lookAt(camAim); } sun.position.set(camAim.x+14,22,camAim.z+10); sun.target.position.copy(camAim);
   const dt=Math.min(50,elapsed||16);
   world.traverse(o=>{ const u=o.userData; if(u.turn){ o.rotation.y+=0.0002*dt; } else if(u.shuttle){ const s=u.shuttle; o.position.x+=s.speed*s.dir*dt; if(o.position.x>s.max||o.position.x<s.min){ s.dir*=-1; o.rotation.y=s.dir>0?0:Math.PI; } } else if(u.spin2){ o.rotation.z+=0.0006*dt; if(u.keepCabins) o.children.forEach(c=>{ if(c.userData.cabin) c.rotation.z=-o.rotation.z; }); } else if(u.rail!==undefined){ u.rail=(u.rail+0.00003*dt)%1; const [x,z,rot]=railPos(u.rail,BOARD.w,BOARD.d); o.position.set(x,0,z); o.rotation.y=rot; } else if(u.bobY){ o.position.y=u.bobY+Math.sin(now*0.004)*0.08; } else if(u.spin){ o.rotation.y+=0.002*dt; o.rotation.x+=0.001*dt; } else if(u.fly){ o.position.y=1.6+Math.sin(now*0.002)*0.15; }
+    else if(u.pathDrive){ const pd=u.pathDrive; pd.t=(pd.t+pd.speed*dt)%1; const p=pd.curve.getPointAt(pd.t), tn=pd.curve.getTangentAt(pd.t); o.position.set(p.x,p.y+(pd.lift||0.01),p.z); o.rotation.y=Math.atan2(-tn.z,tn.x); }
+    else if(u.drop){ const d=u.drop; const ph=(now*0.0012+d.p)%(Math.PI*2); const k=ph<Math.PI*1.4?Math.min(1,ph/(Math.PI*1.4)):Math.max(0,1-(ph-Math.PI*1.4)/(Math.PI*0.25)); o.position.y=d.base+k*d.h; }
+    else if(u.float){ const f=u.float; o.position.y=f.y+Math.sin(now*0.0007+f.p)*0.5; o.position.x+=f.v*dt; if(o.position.x>f.max) o.position.x=f.min; }
     else if(u.drive){ o.position.x+=u.drive.speed*dt; if(o.position.x>u.drive.max) o.position.x=u.drive.min; if(o.position.x<u.drive.min) o.position.x=u.drive.max; }
     else if(u.bob!==undefined){ o.position.y=-0.3+Math.sin(now*0.0015+u.bob)*0.05; o.rotation.z=Math.sin(now*0.0012+u.bob)*0.04; } });
   scene.children.forEach(o=>{ if(o.userData.drift){ o.position.x+=o.userData.drift*dt; if(o.position.x>140) o.position.x=-140; } });
@@ -2255,6 +2509,8 @@ const TRACK_LEN=years=>Math.round(years*4*4.5+6);
 
 function pickCard(s,cat){
   const wantWild=cat==='Events'&&rng()<0.35; const fits=c=>cat==='Events'?((c.cat==='Events'||c.cat==='Economy')&&(wantWild?!!c.wild:!c.wild)):c.cat===cat;
+  // big opportunities tied to your job, home or past: offered first when one fits
+  if(cat==='Events'){ const cc=CARDS.filter(c=>c.career && !s.used.includes(c.id) && c.cond(s)); if(cc.length && rng()<0.45) return cc[Math.floor(rng()*cc.length)]; }
   let pool=CARDS.filter(c=>fits(c) && !s.used.includes(c.id) && (!c.cond||c.cond(s)));
   if(!pool.length){ pool=CARDS.filter(c=>fits(c) && (!c.cond||c.cond(s))); s.used=s.used.filter(id=>!fits(CARDS.find(c=>c.id===id))); }
   if(!pool.length) pool=CARDS.filter(c=>!c.cond||c.cond(s));
