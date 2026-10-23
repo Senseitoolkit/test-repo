@@ -2065,10 +2065,10 @@ function frame(now){
   for(let i=tweens.length-1;i>=0;i--){const w=tweens[i];const t=Math.min(1,(now-w.t0)/w.dur);w.fn(w.ease(t));if(t>=1){tweens.splice(i,1);w.res();}}
   const elapsed=now-lastT; lastT=now; if(typeof titleDrift!=='undefined'&&titleDrift) yaw+=0.00005*elapsed;
   const want = (pawn.visible ? new THREE.Vector3(pawn.position.x,0.22,pawn.position.z) : camTarget.clone()).add(panOff);
-  camAim.lerp(want,chase?0.1:0.08);
-  if(pawn.userData.heading!==undefined){ let d=pawn.userData.heading-pawn.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d)); pawn.rotation.y+=d*0.18; }
-  { const wo=wantOffset(); if(Math.abs(wo.x-vo.x)>0.5||Math.abs(wo.y-vo.y)>0.5){ vo.x+=(wo.x-vo.x)*0.12; vo.y+=(wo.y-vo.y)*0.12; camera.setViewOffset(innerWidth,innerHeight,vo.x,vo.y,innerWidth,innerHeight); camera.updateProjectionMatrix(); } }
-  { const cp=new THREE.Vector3(camAim.x+Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+0.5, camAim.z+Math.cos(yaw)*Math.cos(pitch)*dist); camera.position.lerp(cp,0.18); camera.lookAt(camAim); } sun.position.set(camAim.x+14,22,camAim.z+10); sun.target.position.copy(camAim);
+  const dtc=Math.min(100,elapsed||16); const kAim=1-Math.exp(-dtc/(chase?45:170)); camAim.lerp(want,kAim);
+  if(pawn.userData.heading!==undefined){ let d=pawn.userData.heading-pawn.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d)); pawn.rotation.y+=d*(1-Math.exp(-dtc/60)); }
+  { const wo=wantOffset(); if(Math.abs(wo.x-vo.x)>0.5||Math.abs(wo.y-vo.y)>0.5){ const kv=1-Math.exp(-dtc/130); vo.x+=(wo.x-vo.x)*kv; vo.y+=(wo.y-vo.y)*kv; camera.setViewOffset(innerWidth,innerHeight,vo.x,vo.y,innerWidth,innerHeight); camera.updateProjectionMatrix(); } }
+  { const cp=new THREE.Vector3(camAim.x+Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+0.5, camAim.z+Math.cos(yaw)*Math.cos(pitch)*dist); camera.position.lerp(cp,1-Math.exp(-dtc/(chase?45:90))); camera.lookAt(camAim); } sun.position.set(camAim.x+14,22,camAim.z+10); sun.target.position.copy(camAim);
   const dt=Math.min(50,elapsed||16);
   world.traverse(o=>{ const u=o.userData; if(u.turn){ o.rotation.y+=0.0002*dt; } else if(u.shuttle){ const s=u.shuttle; o.position.x+=s.speed*s.dir*dt; if(o.position.x>s.max||o.position.x<s.min){ s.dir*=-1; o.rotation.y=s.dir>0?0:Math.PI; } } else if(u.spin2){ o.rotation.z+=0.0006*dt; if(u.keepCabins) o.children.forEach(c=>{ if(c.userData.cabin) c.rotation.z=-o.rotation.z; }); } else if(u.rail!==undefined){ u.rail=(u.rail+0.00003*dt)%1; const [x,z,rot]=railPos(u.rail,BOARD.w,BOARD.d); o.position.set(x,0,z); o.rotation.y=rot; } else if(u.bobY){ o.position.y=u.bobY+Math.sin(now*0.004)*0.08; } else if(u.spin){ o.rotation.y+=0.002*dt; o.rotation.x+=0.001*dt; } else if(u.fly){ o.position.y=1.6+Math.sin(now*0.002)*0.15; }
     else if(u.drive){ o.position.x+=u.drive.speed*dt; if(o.position.x>u.drive.max) o.position.x=u.drive.min; if(o.position.x<u.drive.min) o.position.x=u.drive.max; }
@@ -2212,8 +2212,8 @@ const SFX={on:true,ctx:null,
   win(){ [523,659,784,1047,1319].forEach((f,i)=>this.tone(f,0.25,'triangle',0.07,i*0.12)); },
 };
 try{ if(localStorage.getItem('whgl-sfx')==='off') SFX.on=false; }catch(e){}
-let lite=false; try{ lite=localStorage.getItem('whgl-lite')==='on'; }catch(e){}
-function applyLite(){ renderer.shadowMap.enabled=!lite; renderer.setPixelRatio(lite?1:Math.min(devicePixelRatio,2)); scene.traverse(o=>{ if(o.material&&o.material.needsUpdate!==undefined) o.material.needsUpdate=true; }); }
+let lite=innerWidth<=760; try{ const lv=localStorage.getItem('whgl-lite'); if(lv) lite=lv==='on'; }catch(e){}
+function applyLite(){ renderer.shadowMap.enabled=!lite; renderer.setPixelRatio(lite?Math.min(devicePixelRatio,1.5):Math.min(devicePixelRatio,2)); scene.traverse(o=>{ if(o.material&&o.material.needsUpdate!==undefined) o.material.needsUpdate=true; }); }
 
 // ================= 3D FLOATING TEXT =================
 function popText(text,bg='#ffffff',fg='#1e2a2c',delay=0){ if(!pawn.visible) return; const sp=textSprite(text,{size:0.55,bg,fg}); sp.material.opacity=0; const x=(Math.random()-0.5)*0.8; sp.position.set(pawn.position.x+x,pawn.position.y+1.5,pawn.position.z); world.add(sp);
