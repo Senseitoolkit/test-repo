@@ -153,6 +153,9 @@ button{font:inherit;cursor:pointer;color:inherit}
 .delta.up{background:#d8f3e3;color:#1f6b45}.delta.down{background:#ffd9d6;color:#8a1f19}
 .why{border:2px solid var(--ink);border-left:8px solid var(--gold);padding:7px 10px;background:#fff6dc;border-radius:10px;font-size:14px}
 .why .eyebrow{color:#8a5a00}
+.whyfold summary{list-style:none;display:flex;align-items:center;gap:6px}
+.whyfold summary::before{content:'▸';font-size:12px}
+.whyfold[open] summary::before{content:'▾'}
 .ledger{font-size:12px;display:grid;grid-template-columns:1fr auto;gap:1px 14px;border-top:2px dashed var(--line);padding-top:8px;color:var(--muted)}
 .ledger .num{color:var(--ink)}.ledger .total{font-weight:700;color:var(--ink);border-top:2px solid var(--line);padding-top:3px}
 .toast{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 160px);left:50%;transform:translateX(-50%);z-index:7;max-width:min(440px,calc(100% - 32px));background:var(--panel);color:var(--ink);border:3px solid var(--ink);border-left:10px solid var(--cat);border-radius:14px;padding:10px 14px;box-shadow:0 6px 0 rgba(30,42,44,.35),0 10px 30px rgba(0,0,0,.35);font-size:14px;display:grid;gap:2px;animation:deal .3s}
@@ -2456,7 +2459,7 @@ function renderStart(){
   const dots=`<div class="steps">${[1,2,3].map(i=>`<i class="${wizardStep>=i?'on':''}"></i>`).join('')}</div>`;
   const moreT=`<button class="gbtn small ${studyMode?'gold':'ghost'}" id="moreT" title="Study Mode shows fuller explanations everywhere">${ic('bookopen')} Study Mode: ${studyMode?'on':'off'}</button>`;
   if(wizardStep===1){
-    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>How long a life?</h2><p class="lede">Every turn is one season.</p>
+    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>How long a life?</h2>${studyMode?'<p class="lede">Every turn is one season. Longer lives mean more surprises, more chances and a bigger map.</p>':''}
       <div class="picks icons">${MODES.map(m=>`<button class="pick" aria-pressed="${selected.mode===m.id}" data-mode="${m.id}" ${m.soon?'disabled':''}><span class="bigicon">${ic(MODE_ICON[m.id])}</span><h3>${m.name}</h3><p>${m.desc}</p>${studyMode?`<p class="more">${m.more}</p>`:''}</button>`).join('')}</div>
       <div class="row footer"><button class="gbtn" id="back">◀ Back</button>${moreT}<button class="gbtn gold" id="nextStep">Next ▶</button></div></div>`;
     document.getElementById('moreT').onclick=()=>{ SFX.click(); setStudy(!studyMode); renderStart(); };
@@ -2465,7 +2468,7 @@ function renderStart(){
     document.getElementById('nextStep').onclick=()=>{ SFX.click(); wizardStep=2; renderStart(); }; return;
   }
   if(wizardStep===2){
-    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>Who are you?</h2><p class="lede">One life is dealt at random. You can swap. Nobody picks where they start.</p>
+    overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>Who are you?</h2>${studyMode?'<p class="lede">One life is dealt at random. You can swap. In real life nobody picks where they start.</p>':''}
       <div class="picks icons">${PROFILES.map(p=>`<button class="pick" aria-pressed="${selected.profile===p.id}" data-profile="${p.id}">
         <span class="bigicon" style="background:${PAWN_HEX(p.id)};color:#fff">${ic(PROF_ICON[p.id])}</span><h3>${p.name}</h3><span class="tag">${p.tag}</span><p>${studyMode?p.desc:p.short}</p>
         <dl><dt>Pay / mo</dt><dd class="num">${Y(p.income)}</dd><dt>Bills / mo</dt><dd class="num">${Y(p.expenses)}</dd><dt>Savings</dt><dd class="num">${Y(p.savings)}</dd><dt>Debt</dt><dd class="num">${Y(p.debt)}</dd></dl></button>`).join('')}</div>
@@ -2477,7 +2480,7 @@ function renderStart(){
     document.getElementById('nextStep').onclick=()=>{ SFX.click(); wizardStep=3; renderStart(); }; return;
   }
   const profile=PROFILES.find(p=>p.id===selected.profile); const fake={familySupport:!!profile.familySupport,cheapCourses:false};
-  overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>Work or study first?</h2><p class="lede">Study costs now, pays later. Work pays now. You can change your mind any season.</p>
+  overlay.innerHTML=`<div class="sheet wizard">${dots}<h2>Work or study first?</h2>${studyMode?'<p class="lede">Study costs now, pays later. Work pays now. You can change your mind any season.</p>':''}
     <div class="picks icons">${EDU.filter(ed=>!ed.requires).map(ed=>{ const cost=tuition(fake,ed); const unlocks=JOBS.filter(j=>j.edu===ed.level).map(j=>j.name).join(', ');
       return `<button class="pick" data-edu="${ed.id}"><span class="bigicon">${ic(EDU_ICON[ed.id])}</span><h3>${ed.name}</h3><span class="tag">${ed.years?ed.years+' yr':'Start now'}${cost?' · '+Y(cost):''}${profile.familySupport&&cost?' · family pays half':''}</span>${studyMode?`<p>${ed.blurb}</p>`:''}
       <dl><dt>Skills</dt><dd>+${ed.skills}</dd>${studyMode?`<dt>Unlocks</dt><dd style="text-align:left;grid-column:1/-1;font-size:11px">${ed.level?unlocks:'Starter jobs only'}</dd>`:''}</dl></button>`; }).join('')}</div>
@@ -2514,21 +2517,21 @@ function renderCareer(s){
   const avail=Math.max(0,s.cash+s.savings-s.expenses*2);
   const TITLES={jobs:ic('briefcase')+' Jobs',study:ic('cap')+' Study',assets:ic('home')+' Assets',invest:ic('trend')+' Invest'};
   let body='';
-  if(careerTab==='jobs') body=`<p class="note">${s.applied?'You already applied this season. Try again next season.':'You can apply for one job a season. Odds depend on your skills, contacts, your age and how many people are out of work.'}</p>
+  if(careerTab==='jobs') body=`<p class="note">${s.applied?'You already applied this season. Try again next season.':(studyMode?'You can apply for one job a season. Odds depend on your skills, contacts, your age and how many people are out of work.':'One application a season.')}</p>
     <div class="choices">${JOBS.map(j=>{ const ok=canApply(s,j), p=Math.round(jobOdds(s,j)*100), mine=s.employed&&s.job===j.id;
       const need=[j.edu>s.eduLevel?EDU.find(e=>e.level===j.edu).name:null, s.skills<j.skills-10?'skills '+j.skills:null, j.conn&&s.connections<j.conn-15?'contacts '+j.conn:null].filter(Boolean).join(', ');
       return `<button class="choice" data-job="${j.id}" ${(!ok||mine||s.applied)?'disabled':''}><b>${j.name} · ${Y(j.pay)}/mo</b><small>${j.note}${need?' · Needs: '+need:''}${mine?' · Your job':''}</small>${ok&&!mine?`<span class="odds">${p}%<small>CHANCE</small></span>`:''}</button>`; }).join('')}</div>`;
-  else if(careerTab==='study') body=`<p class="note">Four terms a year. Pay halves while you study. ${s.studying?'Press <b>Study</b> under the spinner to do a term, or spin to take the season off.':'Pick a course to enrol. Each term you can still choose to spin instead.'}</p>
+  else if(careerTab==='study') body=`${studyMode?`<p class="note">Four terms a year. Pay halves while you study. ${s.studying?'Press <b>Study</b> under the spinner to do a term, or spin to take the season off.':'Pick a course to enrol. Each term you can still choose to spin instead.'}</p>`:''}
     ${s.studying?`<div class="setting"><span>Studying ${EDU.find(e=>e.id===s.studying.id).name}, ${s.studying.left} term${s.studying.left>1?'s':''} left</span><span style="display:flex;gap:6px"><button class="gbtn small teal" id="studyNow">${ic('bookopen')} Study this term</button><button class="gbtn small red" id="dropout">Drop out</button></span></div>`:''}
     <div class="choices">${EDU.filter(e=>e.years).map(ed=>{ const c=tuition(s,ed); const locked=ed.requires&&s.eduLevel<ed.requires; const done=ed.level<=s.eduLevel||locked;
       return `<button class="choice" data-edu="${ed.id}" ${(done||s.studying)?'disabled':''}><b>${ed.name} · ${ed.years} yr · ${Y(c)}</b><small>${ed.blurb} Skills +${ed.skills}.${locked?' Needs a university degree first.':done?' Already done.':''}</small></button>`; }).join('')}</div>`;
   else if(careerTab==='assets') body=`<div class="eyebrow">Insurance</div>
     <div class="setting"><span>${s.insured?'Insured: medical, car and home surprises cost you a fraction.':'Not insured: ¥5,000 a month covers most surprise bills.'}</span><button class="gbtn small ${s.insured?'red':'teal'}" id="insT">${s.insured?'Cancel':'Sign up'}</button></div>
     <div class="eyebrow">A home</div>
-    <p class="note">A home needs a 10% deposit and a bank that trusts you: steady pay, payments under 40% of it, and not too much other debt. ${s.home?`You own a home worth ${Y(s.home.value)} with ${Y(s.home.loan)} left to pay.`:'Rates right now: '+(s.econ.rate+1).toFixed(1)+'% a year, house prices moving '+(s.econ.housing>0?'+':'')+s.econ.housing+'%.'}</p>
+    ${studyMode?`<p class="note">A home needs a 10% deposit and a bank that trusts you: steady pay, payments under 40% of it, and not too much other debt. ${s.home?`You own a home worth ${Y(s.home.value)} with ${Y(s.home.loan)} left to pay.`:'Rates right now: '+(s.econ.rate+1).toFixed(1)+'% a year, house prices moving '+(s.econ.housing>0?'+':'')+s.econ.housing+'%.'}</p>`:''}
     ${s.home?`<div class="setting"><span>Sell up and rent again? You would pocket ${Y(s.home.value-s.home.loan)}.</span><button class="gbtn small red" id="sellhome">Sell home</button></div>`:''}
     <div class="choices">${homes}</div>`;
-  else body=`<p class="note">An index fund owns tiny pieces of hundreds of companies. It rises and falls with the whole market: about +6% a year on average in this game, with bumps of ±20% along the way. Money you might need soon belongs in savings, not shares.</p>
+  else body=`${studyMode?`<p class="note">An index fund owns tiny pieces of hundreds of companies. It rises and falls with the whole market: about +6% a year on average in this game, with bumps of ±20% along the way. Money you might need soon belongs in savings, not shares.</p>`:''}
     <div class="deltas"><span class="delta">Shares now ${Y(s.stocks)}</span><span class="delta ${s.stocks-s.stocksCost>=0?'up':'down'}">${s.stocks-s.stocksCost>=0?'+':''}${Y(s.stocks-s.stocksCost)} since you bought</span><span class="delta">Spare to invest ${Y(avail)}</span><span class="delta">Savings earn ${s.econ.rate}%</span></div>
     <div class="eyebrow">Buy shares (from your wallet and savings, keeping two months of bills)</div>
     <div class="tabs">${[50000,200000,1000000].map(a=>`<button class="gbtn small" data-inv="${a}" ${avail<a?'disabled':''}>+${Y(a)}</button>`).join('')}<button class="gbtn small teal" data-inv="max" ${avail<=0?'disabled':''}>All spare ${Y(avail)}</button></div>
@@ -2536,7 +2539,7 @@ function renderCareer(s){
     <div class="tabs">${[50000,200000,1000000].map(a=>`<button class="gbtn small" data-sell="${a}" ${s.stocks<a?'disabled':''}>−${Y(a)}</button>`).join('')}<button class="gbtn small red" data-sell="all" ${s.stocks<=0?'disabled':''}>Sell all</button></div>
     <div class="eyebrow">Automatic investing every month</div>
     <div class="tabs">${[0,5000,20000,50000].map(a=>`<button class="gbtn small ${s.monthlyInvest===a?'gold':''}" data-auto="${a}">${a?Y(a):'Off'}</button>`).join('')}</div>
-    <p class="note">Key ideas: <b>diversification</b> (many companies, not one), <b>compounding</b> (growth on growth needs time), and <b>dollar-cost averaging</b> (buying every month means buying at high AND low prices).</p>`;
+    ${studyMode?`<p class="note">Key ideas: <b>diversification</b> (many companies, not one), <b>compounding</b> (growth on growth needs time), and <b>dollar-cost averaging</b> (buying every month means buying at high AND low prices).</p>`:''}`;
   return `<section class="panel card wide" style="--cat:var(--education)"><div class="ribbon">${TITLES[careerTab]||'Life choices'}<button class="gbtn small" id="closeCareer">✕</button></div><div class="body">
     <h2>${cur?cur.name:'No job right now'} · ${s.eduName}${s.studying?' · studying':''}</h2>
     <div class="tabs">${Object.entries(TITLES).map(([k,n])=>`<button class="gbtn small ${careerTab===k?'gold':''}" data-ctab="${k}">${n}</button>`).join('')}</div>
@@ -2606,16 +2609,16 @@ function drawRisk(c,gambles,hoverPt){
 }
 function riskSummary(gambles){ if(!gambles||!gambles.length) return '<p class="note">You did not take a single chance. Steady! Chances are not bad; they are just chances.</p>'; const n=gambles.length, won=gambles.filter(x=>x.hit).length, exp=gambles.reduce((a,x)=>a+x.p,0), avg=exp/n, net=gambles.reduce((a,x)=>a+x.gain,0);
   const luck=won-exp; const luckTxt=luck>1.5?'Luckier than the odds said. Enjoy it, but do not count on it.':luck<-1.5?'Unluckier than the odds said. That is not a bad decision, that is dice.':'About what the odds predicted. Chance usually evens out over time.';
-  return `<div class="deltas"><span class="delta">${n} chance${n>1?'s':''} taken</span><span class="delta up">${won} paid off</span><span class="delta">${Math.round(avg*100)}% average odds</span><span class="delta">expected ${exp.toFixed(1)} wins</span><span class="delta ${net>=0?'up':'down'}">net ${Y(net)}</span></div><p class="note" style="margin-top:6px"><b>${luckTxt}</b> Dots on the left are long shots: big prizes, usually lost. Dots on the right are safe bets: small prizes, usually won. Judge the choice by its odds and its size, not by one result. Payoff counts money now plus a year of any pay or bill change.</p>`; }
+  return `<div class="deltas"><span class="delta">${n} chance${n>1?'s':''} taken</span><span class="delta up">${won} paid off</span><span class="delta">${Math.round(avg*100)}% average odds</span><span class="delta">expected ${exp.toFixed(1)} wins</span><span class="delta ${net>=0?'up':'down'}">net ${Y(net)}</span></div><p class="note" style="margin-top:6px"><b>${luckTxt}</b>${studyMode?` Dots on the left are long shots: big prizes, usually lost. Dots on the right are safe bets: small prizes, usually won. Judge the choice by its odds and its size, not by one result. Payoff counts money now plus a year of any pay or bill change.`:''}</p>`; }
 function stratSummary(strat){ const keys=Object.keys(STRAT_INFO); const total=keys.reduce((a,k)=>a+(strat[k]||0),0); if(!total) return ''; const top=keys.slice().sort((a,b)=>(strat[b]||0)-(strat[a]||0)); const [i1,n1,d1]=STRAT_INFO[top[0]]; const second=(strat[top[1]]||0)>=(strat[top[0]]||0)*0.7?STRAT_INFO[top[1]]:null;
-  return `<p style="margin:0"><b>You played like ${/^[AEIOU]/.test(n1)?'an':'a'} ${n1}</b>${second?` with a ${second[1]} streak`:''}. ${d1}</p><p class="note" style="margin-top:4px">One move can count for more than one style: a course that also makes friends is Learner and Community. There is no best style. Mixed styles tend to survive surprises better.</p>`; }
+  return `<p style="margin:0"><b>You played like ${/^[AEIOU]/.test(n1)?'an':'a'} ${n1}</b>${second?` with a ${second[1]} streak`:''}. ${d1}</p>${studyMode?`<p class="note" style="margin-top:4px">One move can count for more than one style: a course that also makes friends is Learner and Community. There is no best style. Mixed styles tend to survive surprises better.</p>`:''}`; }
 function moneySummary(hist){ if(!hist||hist.length<2) return ''; const f=hist[0], l=hist[hist.length-1]; const d=l.nw-f.nw; const peak=hist.reduce((b,x)=>x.nw>b.nw?x:b,f), low=hist.reduce((b,x)=>x.nw<b.nw?x:b,f);
-  return `<div class="deltas"><span class="delta ${d>=0?'up':'down'}">Net worth ${d>=0?'+':''}${Y(d)} since the start</span><span class="delta">Best: ${Y(peak.nw)} at ${peak.age}</span><span class="delta">Lowest: ${Y(low.nw)} at ${low.age}</span></div><p class="note" style="margin-top:6px">Net worth = everything you own (cash, savings, shares, your share of a home) minus everything you owe. Debt is drawn below the zero line. Each dot is a choice you made; rings are chances you took (green paid off, red did not). Hover or tap the chart to see what you did that season.</p>`; }
+  return `<div class="deltas"><span class="delta ${d>=0?'up':'down'}">Net worth ${d>=0?'+':''}${Y(d)} since the start</span><span class="delta">Best: ${Y(peak.nw)} at ${peak.age}</span><span class="delta">Lowest: ${Y(low.nw)} at ${low.age}</span></div>${studyMode?`<p class="note" style="margin-top:6px">Net worth = everything you own (cash, savings, shares, your share of a home) minus everything you owe. Debt is drawn below the zero line. Each dot is a choice you made; rings are chances you took (green paid off, red did not). Hover or tap the chart to see what you did that season.</p>`:''}`; }
 function histTable(hist){ if(!hist||hist.length<2) return ''; return `<details><summary class="note" style="cursor:pointer">Show every season as a list</summary><div style="overflow:auto;max-height:260px"><table class="tbl"><tr><th>Age</th><th>Season</th><th>What happened</th><th>Net worth</th><th>Change</th></tr>${hist.slice(1).map(d=>`<tr><td>${d.age}</td><td>${d.season||''}</td><td style="text-align:left;white-space:normal;min-width:180px">${esc(loc(d.note||''))}${d.hit===true?' ✓':d.hit===false?' ✕':''}</td><td>${Y(d.nw)}</td><td class="${d.gain>0?'pos':d.gain<0?'neg':''}">${d.gain>0?'+':''}${Y(d.gain||0)}</td></tr>`).join('')}</table></div></details>`; }
 function chartsHTML(s,forEnd){
   const money=`<div class="chartwrap"><canvas id="c-money"></canvas><div class="ctip" id="tip-money" hidden></div></div>${moneySummary(s.hist)}${histTable(s.hist)}`;
   if(forEnd) return `<div><div class="eyebrow">Money over your life</div>${money}</div><div><div class="eyebrow">Your style</div><div class="chartwrap"><canvas id="c-strat"></canvas></div>${stratSummary(s.strat||{})}</div><div><div class="eyebrow">Risk vs reward</div><div class="chartwrap"><canvas id="c-risk"></canvas><div class="ctip" id="tip-risk" hidden></div></div>${riskSummary(s.gambles)}</div>`;
-  return `<section class="panel card wide" style="--cat:var(--stocks)"><div class="ribbon">${ic('bars')} Money so far<button class="gbtn small" id="closeCharts">✕</button></div><div class="body">${money}<p class="note">Your playing style and a risk-vs-reward review are revealed at the beach house, so you can judge the whole life, not one season.</p></div></section>`;
+  return `<section class="panel card wide" style="--cat:var(--stocks)"><div class="ribbon">${ic('bars')} Money so far<button class="gbtn small" id="closeCharts">✕</button></div><div class="body">${money}${studyMode?`<p class="note">Your playing style and a risk-vs-reward review are revealed at the beach house, so you can judge the whole life, not one season.</p>`:''}</div></section>`;
 }
 function wireCharts(root,s){
   const cm=root.querySelector('#c-money'); if(cm){ let hv=null; const tip=root.querySelector('#tip-money'); const draw=()=>{ const r=drawMoney(cm,s.hist,hv,!!root.querySelector('.endcharts')); if(tip){ if(r){ const d=r.d; tip.hidden=false; const left=r.x>r.w*0.55?Math.max(0,r.x-230):r.x+10; tip.style.left=left+'px'; tip.innerHTML=`<b>Age ${d.age}${d.season?' · '+d.season:''}</b>${d.note?`<div class="tipnote">${esc(loc(d.note))}${d.hit===true?' <span style="color:#0ca30c">✓ paid off</span>':d.hit===false?' <span style="color:#d03b3b">✕ missed</span>':''}</div>`:''}${d.gain!==undefined?`<div>Net worth ${d.gain>=0?'+':''}${Y(d.gain)} that season</div>`:''}${r.active.map(([n,f,color])=>`<div><i style="background:${color}"></i>${n}: ${Y(f(d))}</div>`).join('')}`; } else tip.hidden=true; } }; draw();
@@ -2716,7 +2719,8 @@ function renderStage(s){
       <h2>${esc(loc(o.choice?(typeof o.choice.label==='function'?o.choice.label(s):o.choice.label):o.card.title))}</h2>
       ${o.roll?`<div class="roll ${o.roll.hit?'hit':'miss'}">${Math.round(o.roll.p*100)}% chance · ${o.roll.hit?'it worked!':'not this time'}</div>`:''}
       <p>${esc(loc(o.text))}${o.found?' Later that season you found a new job.':''}${L.freshStart?' <b>Your debts got so big a court wiped them out. You start again with ¥50,000 and a bruised reputation. That is called bankruptcy.</b>':''}</p>
-      <div class="why"><div class="eyebrow">${o.choice&&o.choice.idea?'Key idea: '+esc(o.choice.idea):'Why this happened'}</div>${esc(loc(o.why))}${(()=>{ if(!studyMode||!o.choice||!o.choice.idea) return ''; const g=GLOSSARY.find(([k])=>k.toLowerCase()===o.choice.idea.toLowerCase()); return g?`<p class="note" style="margin:6px 0 0"><b>${esc(g[0])}:</b> ${esc(g[1])}</p>`:''; })()}</div>
+      ${studyMode?`<div class="why"><div class="eyebrow">${o.choice&&o.choice.idea?'Key idea: '+esc(o.choice.idea):'Why this happened'}</div>${esc(loc(o.why))}${(()=>{ if(!o.choice||!o.choice.idea) return ''; const g=GLOSSARY.find(([k])=>k.toLowerCase()===o.choice.idea.toLowerCase()); return g?`<p class="note" style="margin:6px 0 0"><b>${esc(g[0])}:</b> ${esc(g[1])}</p>`:''; })()}</div>`
+        :`<details class="why whyfold"><summary class="eyebrow" style="cursor:pointer">${o.choice&&o.choice.idea?'Why? · '+esc(o.choice.idea):'Why this happened'}</summary><p style="margin:6px 0 0">${esc(loc(o.why))}</p></details>`}
       <div class="deltas">${d('Pay',b.income,a.income,true)}${d('Skills',b.skills,a.skills)}${d('Happiness',b.wellbeing,a.wellbeing)}${d('Friends',b.connections,a.connections)}${d('Safety',b.sec,a.sec)}${d('Chances',b.opp,a.opp)}</div>
       <details class="ledgerbox" ${studyMode?'open':''}><summary class="note" style="cursor:pointer">Then the season went by: pay, bills, interest…</summary><div class="ledger">
         <span>Pay after ${s.econ.tax}% tax</span><span class="num">${Y(L.gross-L.tax)}</span>
@@ -2790,10 +2794,10 @@ function renderEnd(){
         <div><div class="eyebrow">Happiness</div><div class="v num">${Math.round(s.wellbeing)}/100</div></div>
         <div><div class="eyebrow">Chances</div><div class="v num">${Math.round(opportunity(s))}/100</div></div></div>
       ${badges.length?`<div><div class="eyebrow">Badges</div><div class="badges">${badges.map(([i,n,d])=>`<div class="badge"><span>${i}</span><b>${n}</b><small>${d}</small></div>`).join('')}</div></div>`:''}
-      <div><div class="eyebrow">What you learned</div><ul>${learned.map(l=>`<li>${l}</li>`).join('')}</ul></div>
+      ${studyMode?`<div><div class="eyebrow">What you learned</div><ul>${learned.map(l=>`<li>${l}</li>`).join('')}</ul></div>`:''}
       <div class="endcharts">${chartsHTML(s,true)}</div>
       <div class="q">If you lived this life again, what would you do differently?</div>
-      <div class="formula">Your life = Where you started + Your choices + Chances + The economy + Wild surprises</div>
+      ${studyMode?`<div class="formula">Your life = Where you started + Your choices + Chances + The economy + Wild surprises</div>`:''}
       <div><div class="eyebrow">Your timeline</div><ul class="tl">${s.log.map(l=>`<li><span class="age">${l.age}${l.season?' <small>'+l.season.slice(0,3)+'</small>':''}</span><span class="ev"><b>${esc(l.title)}</b> → ${esc(loc(l.choice))}${l.hit===null?'':l.hit?' <span style="color:var(--good)">✓</span>':' <span style="color:var(--bad)">✗</span>'}</span></li>`).join('')}</ul></div>
       <p class="note">There is no winner. A cosy family life, work you like, your own shop, or just a calm balanced life are all great endings.</p>
     </div></section>
