@@ -1978,12 +1978,11 @@ function frame(now){
   requestAnimationFrame(frame);
   for(let i=tweens.length-1;i>=0;i--){const w=tweens[i];const t=Math.min(1,(now-w.t0)/w.dur);w.fn(w.ease(t));if(t>=1){tweens.splice(i,1);w.res();}}
   const elapsed=now-lastT; lastT=now; if(typeof titleDrift!=='undefined'&&titleDrift) yaw+=0.00005*elapsed;
-  const want = (pawn.visible ? pawn.position.clone() : camTarget.clone()).add(panOff);
-  camAim.lerp(want,0.08);
+  const want = (pawn.visible ? new THREE.Vector3(pawn.position.x,0.22,pawn.position.z) : camTarget.clone()).add(panOff);
+  camAim.lerp(want,chase?0.1:0.08);
   if(pawn.userData.heading!==undefined){ let d=pawn.userData.heading-pawn.rotation.y; d=Math.atan2(Math.sin(d),Math.cos(d)); pawn.rotation.y+=d*0.18; }
   { const wo=wantOffset(); if(Math.abs(wo.x-vo.x)>0.5||Math.abs(wo.y-vo.y)>0.5){ vo.x+=(wo.x-vo.x)*0.12; vo.y+=(wo.y-vo.y)*0.12; camera.setViewOffset(innerWidth,innerHeight,vo.x,vo.y,innerWidth,innerHeight); camera.updateProjectionMatrix(); } }
-  if(chase){ const f=new THREE.Vector3(Math.sin(pawn.rotation.y),0,Math.cos(pawn.rotation.y)); const want=pawn.position.clone().addScaledVector(f,-5.0); want.y+=3.0; camera.position.lerp(want,0.12); camera.lookAt(pawn.position.x,pawn.position.y+0.5,pawn.position.z); }
-  else { const cp=new THREE.Vector3(camAim.x+Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+0.5, camAim.z+Math.cos(yaw)*Math.cos(pitch)*dist); camera.position.lerp(cp,0.18); camera.lookAt(camAim); } sun.position.set(camAim.x+14,22,camAim.z+10); sun.target.position.copy(camAim);
+  { const cp=new THREE.Vector3(camAim.x+Math.sin(yaw)*Math.cos(pitch)*dist, Math.sin(pitch)*dist+0.5, camAim.z+Math.cos(yaw)*Math.cos(pitch)*dist); camera.position.lerp(cp,0.18); camera.lookAt(camAim); } sun.position.set(camAim.x+14,22,camAim.z+10); sun.target.position.copy(camAim);
   const dt=Math.min(50,elapsed||16);
   world.traverse(o=>{ const u=o.userData; if(u.turn){ o.rotation.y+=0.0002*dt; } else if(u.shuttle){ const s=u.shuttle; o.position.x+=s.speed*s.dir*dt; if(o.position.x>s.max||o.position.x<s.min){ s.dir*=-1; o.rotation.y=s.dir>0?0:Math.PI; } } else if(u.spin2){ o.rotation.z+=0.0006*dt; if(u.keepCabins) o.children.forEach(c=>{ if(c.userData.cabin) c.rotation.z=-o.rotation.z; }); } else if(u.rail!==undefined){ u.rail=(u.rail+0.00003*dt)%1; const [x,z,rot]=railPos(u.rail,BOARD.w,BOARD.d); o.position.set(x,0,z); o.rotation.y=rot; } else if(u.bobY){ o.position.y=u.bobY+Math.sin(now*0.004)*0.08; } else if(u.spin){ o.rotation.y+=0.002*dt; o.rotation.x+=0.001*dt; } else if(u.fly){ o.position.y=1.6+Math.sin(now*0.002)*0.15; }
     else if(u.drive){ o.position.x+=u.drive.speed*dt; if(o.position.x>u.drive.max) o.position.x=u.drive.min; if(o.position.x<u.drive.min) o.position.x=u.drive.max; }
@@ -2029,7 +2028,7 @@ async function spin(value){
 }
 let chase=false, savedDist=null;
 async function hop(from,to){
-  chase=true; savedDist=dist; await tween(260,()=>{});
+  chase=true; savedDist=dist; if(dist>36){ const d0=dist; tween(600,t=>{ dist=d0+(36-d0)*t; }); } await tween(260,()=>{});
   for(let i=from;i<to;i++){
     const a=TILES[i], b=TILES[i+1];
     pawn.userData.heading=Math.atan2(b.x-a.x,b.z-a.z); SFX.hop();
@@ -2037,8 +2036,7 @@ async function hop(from,to){
     const r=tileRef[i+1]; if(r){ const M=new THREE.Matrix4(); tween(220,t=>{ M.copy(r.base); M.elements[13]-=Math.sin(t*Math.PI)*0.06; r.mesh.setMatrixAt(r.idx,M); r.mesh.instanceMatrix.needsUpdate=true; }); }
   }
   await tween(350,t=>{});
-  // hand back to the orbit camera from behind the character so the switch is seamless
-  yaw=pawn.rotation.y+Math.PI; pitch=0.62; dist=Math.min(savedDist||dist,14); panOff.set(0,0,0); camAim.copy(pawn.position); chase=false;
+  chase=false;
 }
 
 // ================= GAME FLOW =================
