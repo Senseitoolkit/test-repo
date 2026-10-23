@@ -171,6 +171,14 @@ button{font:inherit;cursor:pointer;color:inherit}
 .tbl th:first-child,.tbl td:first-child{text-align:left}
 .endcharts{display:grid;gap:14px}
 
+/* ---- the SPIN button, dead centre ---- */
+#spinCenter{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:grid;justify-items:center;gap:10px;pointer-events:none}
+#spinCenter>*{pointer-events:auto}
+.spinbtn.huge{width:176px;height:176px;font-size:40px;box-shadow:0 9px 0 var(--ink),0 18px 34px rgba(0,0,0,.4)}
+.spinbtn.huge small{font-size:15px;letter-spacing:.16em}
+.spinbtn.huge:active{transform:translateY(6px);box-shadow:0 3px 0 var(--ink)}
+body.moving #spinCenter{opacity:0;pointer-events:none}
+
 /* ---- the big spinner ---- */
 #spinOverlay{position:fixed;inset:0;z-index:7;display:grid;place-items:center;background:rgba(14,30,34,.35);pointer-events:none;opacity:0;transition:opacity .25s}
 #spinOverlay.show{opacity:1}
@@ -286,6 +294,8 @@ body.moving #topbar .wallet, body.moving #topbar .who, body.moving #stats, body.
   .center .hint{font-size:11px;padding:3px 9px}
   .spinbtn{width:104px;height:104px;font-size:22px;box-shadow:0 5px 0 var(--ink),0 8px 16px rgba(0,0,0,.3)}
   .spinbtn small{font-size:10px}
+  .spinbtn.huge{width:150px;height:150px;font-size:34px}
+  .spinbtn.huge small{font-size:13px}
   .gbtn.big{font-size:17px;padding:10px 18px}
   #minimap{display:none}
   .camctl{padding:3px}.camctl .gbtn{width:30px;height:30px;font-size:14px}
@@ -309,12 +319,15 @@ body.moving #topbar .wallet, body.moving #topbar .who, body.moving #stats, body.
 <div id="topbar" class="gutter" hidden></div>
 <div id="stats" class="gutter" hidden></div>
 <div id="stage" class="gutter"></div>
+<div id="spinCenter" hidden></div>
 <div id="bottombar" class="gutter" hidden></div>
 <div id="spinOverlay"><div class="spinbox"><canvas id="spinCanvas" width="640" height="640"></canvas><div class="spinResult" id="spinResult"></div></div></div>
 <div id="overlay" class="overlay gutter"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
 <script>
+// phones must lay out at device width; add the viewport tag if the host page forgot it
+(function(){ if(!document.querySelector('meta[name="viewport"]')){ const m=document.createElement('meta'); m.name='viewport'; m.content='width=device-width,initial-scale=1,viewport-fit=cover'; document.head.appendChild(m); setTimeout(()=>dispatchEvent(new Event('resize')),50); } })();
 const RATES={JPY:{rate:1,sym:'¥',name:'Yen'},USD:{rate:1/150,sym:'$',name:'Dollars'},GBP:{rate:1/190,sym:'£',name:'Pounds'}};
 let CUR='JPY'; try{ if(RATES[localStorage.getItem('whgl-cur')]) CUR=localStorage.getItem('whgl-cur'); }catch(e){}
 function setCurrency(c){ CUR=c; try{ localStorage.setItem('whgl-cur',c); }catch(e){} }
@@ -2055,7 +2068,7 @@ function showInfo(info){ const key=info.cat||info.label; const text=INFO[key]; i
 function camButtons(){ return `<div class="camctl"><button class="gbtn" data-cam="left" title="Turn left">⟲</button><button class="gbtn" data-cam="right" title="Turn right">⟳</button><button class="gbtn" data-cam="in" title="Zoom in">+</button><button class="gbtn" data-cam="out" title="Zoom out">−</button><button class="gbtn" data-cam="home" title="Back to my token">⌖</button></div>`; }
 function bindCam(root){ root.querySelectorAll('[data-cam]').forEach(b=>b.onclick=()=>{ const k=b.dataset.cam; if(k==='left'){ yaw+=0.35; autoCam=false; } else if(k==='right'){ yaw-=0.35; autoCam=false; } else if(k==='in') dist=clamp(dist-3,6,110); else if(k==='out') dist=clamp(dist+3,6,110); else { panOff.set(0,0,0); dist=zoomBase; autoCam=true; } }); }
 const vo={x:0,y:0};
-function wantOffset(){ const h=innerHeight; return {x:0,y:-h*(chase?0.1:0.12)}; }
+function wantOffset(){ const h=innerHeight; return {x:0,y:-h*(chase?0.1:0.2)}; }
 function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h; camera.setViewOffset(w,h,vo.x,vo.y,w,h); camera.updateProjectionMatrix();dist=zoomBase;}
 addEventListener('resize',resize); resize();
 
@@ -2275,7 +2288,7 @@ function howToHTML(){ return `<div class="sheet wizard"><h2>How to play</h2>
       <div class="panel" style="--cat:var(--stocks)"><div class="ribbon">Controls</div><div class="body"><p><b>Drag</b> to look around · <b>scroll or pinch</b> to zoom · <b>right-drag or two fingers</b> to slide the map · <b>arrow keys</b> turn and slide · <b>Space</b> spins or continues · <b>Esc</b> pauses · <b>C</b> opens charts.</p><p>Tap any building, the big wheel or a tile to learn what it does. The buttons under SPIN (<b>Study, Jobs, Assets, Invest</b>) let you go to school, change job, buy insurance or a home, and move money into or out of shares on any turn.</p></div></div>
       <div class="row footer"><button class="gbtn gold" id="back">Got it</button></div></div>`; }
 function renderStart(){
-  overlay.scrollTop=0; topbar.hidden=true; statsEl.hidden=true; bottombar.hidden=true; stage.innerHTML=''; stage.classList.remove('on'); overlay.hidden=false; pawn.visible=false; titleDrift=true; paused=false; careerOpen=false; chartsOpen=false;
+  overlay.scrollTop=0; document.getElementById('spinCenter').hidden=true; topbar.hidden=true; statsEl.hidden=true; bottombar.hidden=true; stage.innerHTML=''; stage.classList.remove('on'); overlay.hidden=false; pawn.visible=false; titleDrift=true; paused=false; careerOpen=false; chartsOpen=false;
   if(!world.children.length){ buildWorld(TRACK_LEN(5),42); zoomBase=34; resize(); }
   if(!selected.profile) selected.profile=PROFILES[Math.floor(Math.random()*4)].id;
   if(wizardStep===0){
@@ -2491,14 +2504,17 @@ function renderBottom(s){
   bottombar.hidden=false; const phone=isPhone();
   const opts=`<div class="opts"><button class="gbtn small ${s.studying?'teal':''}" data-opt="study">📚 ${s.studying?'Study term':'Study'}</button><button class="gbtn small" data-opt="jobs">💼 Jobs</button><button class="gbtn small" data-opt="assets">🏠 Assets</button><button class="gbtn small" data-opt="invest">📈 Invest</button></div>`;
   let center='';
+  const sc=document.getElementById('spinCenter');
   if(s.phase==='roll'){ const ed=s.studying?EDU.find(e=>e.id===s.studying.id):null;
-    center=`<div class="center"><div class="hint">${ed?esc(ed.name)+' · term '+(s.studying.total-s.studying.left+1)+'/'+s.studying.total+' · spin to skip a term':(phone?'Tap SPIN · '+seasonOf(s)+', age '+s.age:'Tap SPIN to start '+seasonOf(s).toLowerCase()+', age '+s.age)}</div><button class="gbtn spinbtn" id="roll">🎡<small>SPIN</small></button>${opts}</div>`; }
-  else if(s.phase==='rolling') center=`<div class="center"><div class="hint">${s.lastSpin?'Moving '+s.lastSpin+' space'+(s.lastSpin>1?'s':'')+'…':'Here we go…'}</div><button class="gbtn spinbtn" disabled>🎡<small>${s.lastSpin?'YOU SPUN '+s.lastSpin:'SPINNING'}</small></button></div>`;
-  else if(s.phase==='event') center=`<div class="center"><div class="hint">Read the card and pick what you do</div></div>`;
-  else center=`<div class="center"><button class="gbtn gold big" id="next2">${s.pos>=s.track-1?'See your life story ▶':'Continue ▶'}</button></div>`;
+    sc.hidden=false; sc.innerHTML=`<button class="gbtn spinbtn huge" id="roll">🎡<small>SPIN</small></button><div class="hint">${ed?esc(ed.name)+' · term '+(s.studying.total-s.studying.left+1)+'/'+s.studying.total+' · spin to skip a term':(phone?'Tap SPIN · '+seasonOf(s)+', age '+s.age:'Tap SPIN to start '+seasonOf(s).toLowerCase()+', age '+s.age)}</div>`;
+    center=`<div class="center">${opts}</div>`; }
+  else if(s.phase==='rolling'){ sc.hidden=true; center=`<div class="center"><div class="hint">${s.lastSpin?'You spun '+s.lastSpin+' · moving '+s.lastSpin+' space'+(s.lastSpin>1?'s':'')+'…':'Here we go…'}</div></div>`; }
+  else if(s.phase==='event'){ sc.hidden=true; center=`<div class="center"><div class="hint">Read the card and pick what you do</div></div>`; }
+  else { sc.hidden=true; center=`<div class="center"><button class="gbtn gold big" id="next2">${s.pos>=s.track-1?'See your life story ▶':'Continue ▶'}</button></div>`; }
   const tools=`<button class="gbtn small ${chartsOpen?'gold':''}" id="chartsT">📊 Money chart</button><button class="gbtn small" id="statsT">${statsOpen?'❤️ Hide life':'❤️ My life'}</button>`;
   bottombar.innerHTML=`<div class="bl">${phone?`<button class="gbtn small" id="moreT">${moreOpen?'✕':'☰'}</button><div class="more ${moreOpen?'open':''}">${tools}${camButtons()}</div>`:tools}</div>${center}<div class="br">${phone?'':'<canvas id="minimap" width="180" height="120"></canvas>'+camButtons()}</div>`;
   const rb=document.getElementById('roll'); if(rb) rb.onclick=()=>{ SFX.init(); moreOpen=false; careerOpen=false; chartsOpen=false; takeTurn(); };
+  if(careerOpen||chartsOpen) sc.hidden=true;
   bottombar.querySelectorAll('[data-opt]').forEach(b=>b.onclick=()=>{ SFX.init(); SFX.click(); const k=b.dataset.opt; if(k==='study'&&s.studying){ careerOpen=false; studyYear(); return; } careerTab=k; careerOpen=true; chartsOpen=false; moreOpen=false; if(isPhone()) statsOpen=false; render(); });
   const n2=document.getElementById('next2'); if(n2) n2.onclick=()=>{ SFX.click(); next(); };
   const mt=document.getElementById('moreT'); if(mt) mt.onclick=()=>{ SFX.click(); moreOpen=!moreOpen; render(); };
@@ -2517,7 +2533,7 @@ function drawMinimap(s){ const c=document.getElementById('minimap'); if(!c||!TIL
 }
 
 // ---------- centred card / panel stage ----------
-function setStage(html){ stage.innerHTML=html; stage.classList.toggle('on',!!html); }
+function setStage(html){ stage.innerHTML=html; stage.classList.toggle('on',!!html); if(html) document.getElementById('spinCenter').hidden=true; }
 function renderStage(s){
   overlay.hidden=true;
   if(s.phase==='roll'||s.phase==='rolling'){
@@ -2565,7 +2581,7 @@ function renderStage(s){
 
 // ---------- pause menu ----------
 function renderPause(){
-  overlay.hidden=false; setStage('');
+  overlay.hidden=false; setStage(''); document.getElementById('spinCenter').hidden=true;
   overlay.innerHTML=`<div class="pause"><div class="logo"><h1 style="font-size:48px">PAUSED</h1></div>
     <button class="gbtn gold big" id="resume">▶ Resume</button>
     <div class="setting"><span>Sound</span><button class="gbtn small" id="sfxT">${SFX.on?'🔊 On':'🔇 Off'}</button></div>
@@ -2583,7 +2599,7 @@ function renderPause(){
 
 // ---------- ending ----------
 function renderEnd(){
-  overlay.scrollTop=0; const s=S, p=PROFILES.find(x=>x.id===s.profile), st=s.stats; setStage(''); topbar.hidden=true; statsEl.hidden=true; bottombar.hidden=true; overlay.hidden=false;
+  overlay.scrollTop=0; document.getElementById('spinCenter').hidden=true; const s=S, p=PROFILES.find(x=>x.id===s.profile), st=s.stats; setStage(''); topbar.hidden=true; statsEl.hidden=true; bottombar.hidden=true; overlay.hidden=false;
   const net=netWorth(s);
   const parts=[`You started as ${p.name}. ${p.desc} You reached the beach house at age ${s.age}, after ${s.turn} seasons.`];
   if(s.jobsHeld>1) parts.push(`You held ${s.jobsHeld} different jobs and finished as ${s.job?jobById(s.job).name.toLowerCase():'retired'}.`);
