@@ -156,21 +156,28 @@ const DECAY = {social:-5, health:-5, grades:-5};   // what one week of neglect c
 
 // Each action feeds one stat and taxes the others.
 const ACTIONS = [
- // pure cards: a big push on one meter, and one sensible cost — the thing that really gives way
+ // big cards: one meter up a lot, one small sensible cost
  {k:"social", t:"Say yes to every invite", d:"Parties, late ramen, a road trip nobody planned. Sleep suffers.", eff:{social:+22, health:-5}},
  {k:"social", t:"Host a dinner", d:"Cook for eight. The essay waits.", eff:{social:+22, grades:-5}},
  {k:"social", t:"Run for student council", d:"Shaking hands all week. Reading piles up.", eff:{social:+22, grades:-5}},
- {k:"health", t:"Sleep eight hours, every night", d:"Phone off at eleven. You miss the late nights.", eff:{social:-5, health:+22}},
- {k:"health", t:"Gym at 6 a.m.", d:"You see sunrises. Your friends don't see you.", eff:{social:-5, health:+22}},
+ {k:"health", t:"Sleep eight hours, every night", d:"Phone off at eleven. You skip a few late nights.", eff:{social:-3, health:+22}},
+ {k:"health", t:"Gym at 6 a.m.", d:"You see sunrises. A little less time at the desk.", eff:{health:+22, grades:-4}},
  {k:"health", t:"Meal-prep Sundays", d:"Eleven identical lunches. One lost study day.", eff:{health:+22, grades:-5}},
- {k:"grades", t:"Library lock-in", d:"Fourth floor, no windows. Nobody can find you.", eff:{social:-5, grades:+22}},
- {k:"grades", t:"Office hours every week", d:"The professor learns your name. Your friends forget it.", eff:{social:-5, grades:+22}},
+ {k:"grades", t:"Library lock-in", d:"Fourth floor, no windows, no sleep.", eff:{health:-5, grades:+22}},
+ {k:"grades", t:"Office hours every week", d:"The professor learns your name. Fewer evenings out.", eff:{social:-3, grades:+22}},
  {k:"grades", t:"All-nighter before the deadline", d:"Caffeine, panic, a surprisingly good essay.", eff:{health:-8, grades:+24}},
- // hybrid cards: two meters at once, no cost, but neither climbs fast — the patient road to all three
- {k:"social", t:"Join the hiking club", d:"New people, fresh air.", eff:{social:+9, health:+9}},
- {k:"grades", t:"Start a study group", d:"Half gossip, half flashcards.", eff:{social:+9, grades:+9}},
- {k:"health", t:"Intramural football", d:"A team, a sweat, a pizza after.", eff:{social:+9, health:+9}},
- {k:"health", t:"Study in the park", d:"Sun, a textbook, a walk home.", eff:{health:+9, grades:+9}},
+ // pair cards: two meters up, no cost or a small one
+ {h:1, k:"social", t:"Join the hiking club", d:"New people, fresh air.", eff:{social:+9, health:+9}},
+ {h:1, k:"grades", t:"Start a study group", d:"Half gossip, half flashcards.", eff:{social:+9, grades:+9}},
+ {h:1, k:"health", t:"Intramural football", d:"A team, a sweat, a pizza after.", eff:{social:+9, health:+9}},
+ {h:1, k:"health", t:"Study in the park", d:"Sun, a textbook, a walk home.", eff:{health:+9, grades:+9}},
+ {h:1, k:"social", t:"Weekend volunteering", d:"Good people, a long day on your feet, one chapter unread.", eff:{social:+11, health:+10, grades:-3}},
+ {h:1, k:"grades", t:"Tutor a classmate", d:"Teaching it is learning it twice. Late nights, though.", eff:{social:+10, health:-3, grades:+11}},
+ {h:1, k:"grades", t:"Late library session with friends", d:"Quiet floor, loud group chat. Bed at 2 a.m.", eff:{social:+10, health:-4, grades:+11}},
+ {h:1, k:"health", t:"Cooking club", d:"Real food, new faces, one skipped reading.", eff:{social:+10, health:+11, grades:-3}},
+ {h:1, k:"health", t:"Early run, then the library", d:"Up at six, done by noon, nobody around.", eff:{social:-3, health:+11, grades:+10}},
+ {h:1, k:"social", t:"Campus festival committee", d:"Everyone knows you by Friday. You slept Saturday.", eff:{social:+12, health:-3, grades:+8}},
+ {h:1, k:"health", t:"Yoga and a study podcast", d:"Stretch, listen, revise. A quiet week.", eff:{social:-3, health:+11, grades:+10}},
 ];
 
 // Events interrupt a week with a choice.
@@ -196,7 +203,7 @@ const EVENTS = [
 ];
 
 let S;
-function fresh(){ return {who:"boy", started:false, week:1, social:50, health:50, grades:50, phase:"act", log:[], event:null, hand:[], sick:0, done:false, seed:Date.now()%100000}; }
+function fresh(){ return {who:"boy", started:false, week:1, social:80, health:80, grades:80, phase:"act", log:[], event:null, hand:[], sick:0, done:false, seed:Date.now()%100000}; }
 // small seeded RNG so hot-reload keeps the same hand
 function rng(){ S.seed=(S.seed*9301+49297)%233280; return S.seed/233280; }
 function pick(arr,n){ const a=arr.slice(), out=[]; while(out.length<n&&a.length){ out.push(a.splice(Math.floor(rng()*a.length),1)[0]); } return out; }
@@ -210,11 +217,10 @@ function statusFor(k){ const v=S[k]; let s=""; for(const [th,n] of STATS[k].stat
 function fmt(n){ return (n>0?"+":"")+n; }
 
 function dealHand(){
-  // one card of each kind plus one wild, so every week is a real choice
-  const by=k=>ACTIONS.filter(a=>a.k===k);
-  const hand=[pick(by("social"),1)[0],pick(by("health"),1)[0],pick(by("grades"),1)[0]];
-  const rest=ACTIONS.filter(a=>!hand.includes(a));
-  hand.push(pick(rest,1)[0]);
+  // two big cards of different kinds and two pair cards, so every week has both a focus and a balance option
+  const big=k=>ACTIONS.filter(a=>!a.h&&a.k===k);
+  const kinds=pick(KEYS,2);
+  const hand=[pick(big(kinds[0]),1)[0],pick(big(kinds[1]),1)[0],...pick(ACTIONS.filter(a=>a.h),2)];
   return pick(hand,4).map(a=>ACTIONS.indexOf(a));
 }
 
@@ -348,8 +354,8 @@ function renderStage(){
     st.innerHTML=`<section class="week intro">
       <div class="head"><h2>How to play</h2><span class="tag">2 years · 32 turns</span></div>
       <ol class="steps">
-        <li><span class="n">1</span><div><b>You have three meters:</b> <em style="color:var(--social)">Friends</em>, <em style="color:var(--health)">Health</em>, <em style="color:var(--grades)">Grades</em>. Each starts at 50.</div></li>
-        <li><span class="n">2</span><div><b>Each week, pick one card.</b> Big cards push one meter up and cost a little on one other. Small cards lift two meters at once. Hover a card to see exactly what it does.</div></li>
+        <li><span class="n">1</span><div><b>You have three meters:</b> <em style="color:var(--social)">Friends</em>, <em style="color:var(--health)">Health</em>, <em style="color:var(--grades)">Grades</em>. Each starts at 80. Your job is to keep them there.</div></li>
+        <li><span class="n">2</span><div><b>Each week, pick one card.</b> Big cards push one meter up a lot and cost a little on one other. Pair cards lift two meters at once for little or nothing. Hover a card to see exactly what it does.</div></li>
         <li><span class="n">3</span><div><b>Every week, all three slip by 5 on their own.</b> What you ignore, you lose.</div></li>
         <li><span class="n">4</span><div><b>Keep a meter in the grey band and it's easy to push.</b> Let it drop low and it gets hard to lift. Keep it high and it builds momentum.</div></li>
         <li><span class="n">5</span><div><b>Every season ends with exams.</b> After two years you get your verdict. Top two is easy. All three is the real game.</div></li>
