@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trade Offs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a campus notice-board — a sticky header with the three meters, a week card below, action cards in a hand. */
+:root{
+  --paper:#f6f1e7; --ink:#1d1a16; --muted:#6c655a; --line:#d8cfbf; --card:#fffdf8;
+  --social:#e3542b; --health:#2f8f5c; --grades:#2e5fc4; --warn:#b8321a;
+  --display:"Syne",ui-sans-serif,system-ui,sans-serif;
+  --body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#1a1815; --ink:#efe8da; --muted:#a39a8a; --line:#3a352d; --card:#242019;
+  --social:#f26b43; --health:#4fb57c; --grades:#6b8ff0; --warn:#ff7a5c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#1a1815; --ink:#efe8da; --muted:#a39a8a; --line:#3a352d; --card:#242019;
+  --social:#f26b43; --health:#4fb57c; --grades:#6b8ff0; --warn:#ff7a5c; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,6vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1}
+.sub{color:var(--muted);margin:6px 0 0}
+.label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--grades);outline-offset:2px}
+
+/* meters */
+.meters{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.meter{border-top:4px solid var(--c);padding-top:8px}
+.meter .name{font-family:var(--display);font-weight:700;font-size:15px;color:var(--c)}
+.meter .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:22px;line-height:1.1;margin-top:2px}
+.meter .val small{font-size:12px;color:var(--muted)}
+.bar{height:10px;background:var(--line);border-radius:2px;margin-top:6px;position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0;width:calc(var(--p) * 1%);background:var(--c);transition:width .35s ease}
+.bar b{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.35;left:calc(var(--t) * 1%)}
+.meter .ghost{position:absolute;inset:0;background:var(--c);opacity:.35;width:calc(var(--g) * 1%);transition:width .2s}
+.meter .status{font-size:12px;color:var(--muted);margin-top:4px;min-height:18px}
+.meter.low .status{color:var(--warn);font-weight:600}
+
+/* week card */
+.week{margin-top:24px;background:var(--card);border:1.5px solid var(--ink);padding:18px;box-shadow:4px 4px 0 var(--ink)}
+.week .head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.week h2{font-size:22px;font-weight:800}
+.week .tag{font-family:var(--mono);font-size:12px;padding:3px 8px;border:1.5px solid var(--ink)}
+.week .tag.exam{background:var(--grades);color:#fff;border-color:var(--grades)}
+.week p{margin:10px 0 0}
+.news{margin-top:12px;padding:10px 12px;background:var(--paper);border-left:4px solid var(--ink);font-size:14px}
+.news.bad{border-color:var(--warn)}
+.news.good{border-color:var(--health)}
+
+/* hand */
+.hand{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.act{text-align:left;background:var(--card);border:1.5px solid var(--line);border-left:6px solid var(--c);padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-width:0;transition:transform .12s,border-color .12s}
+.act:hover,.act:focus-visible{transform:translate(-2px,-2px);border-color:var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.act .t{font-family:var(--display);font-weight:700;font-size:16px;line-height:1.15}
+.act .d{font-size:13px;color:var(--muted)}
+.deltas{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+.dl{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;padding:2px 6px;border-radius:2px;color:#fff;background:var(--dc)}
+.dl.neg{background:transparent;color:var(--dc);border:1.5px solid var(--dc)}
+
+/* event */
+.event .hand{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.event .act{border-left-color:var(--ink)}
+
+/* log */
+.log{margin-top:28px}
+.log ol{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:4px;font-size:13px}
+.log li{display:grid;grid-template-columns:44px 1fr;gap:10px;border-bottom:1px solid var(--line);padding:4px 0}
+.log li span:first-child{font-family:var(--mono);color:var(--muted)}
+
+/* ending */
+.end{margin-top:24px;background:var(--card);border:1.5px solid var(--ink);padding:22px;box-shadow:4px 4px 0 var(--ink)}
+.end h2{font-size:clamp(24px,5vw,34px);font-weight:800;line-height:1.05}
+.end .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+.end .cell{border-top:4px solid var(--c)}
+.end .cell .big{font-family:var(--display);font-size:30px;font-weight:800;color:var(--c);line-height:1;margin-top:6px}
+.end .cell .n{font-size:12px;color:var(--muted);margin-top:4px}
+.end p{margin:14px 0 0}
+.primary{margin-top:18px;background:var(--ink);color:var(--paper);border:0;padding:12px 18px;font-family:var(--display);font-weight:700;font-size:15px}
+.primary:hover{opacity:.9}
+.rules{margin-top:14px;font-size:13px;color:var(--muted)}
+.rules b{color:var(--ink)}
+@media (max-width:480px){.meters{gap:8px}.meter .val{font-size:18px}.end .grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="label">Four seasons, four turns each. Pick two.</div>
+    <h1>Trade Offs</h1>
+    <p class="sub">Friends, health, grades. You can max two of them. Three is another story.</p>
+  </header>
+
+  <section class="meters" id="meters" aria-live="polite"></section>
+
+  <main id="stage"></main>
+
+  <section class="log" id="log" hidden>
+    <div class="label">Your year so far</div>
+    <ol id="logList"></ol>
+  </section>
+</div>
+
+<script>
+(function(){
+const STATS = {
+  social:{name:"Friends", c:"var(--social)", low:"Nobody texts you anymore.", statuses:[[0,"Isolated"],[25,"Drifting"],[50,"A few close ones"],[75,"Known on campus"],[90,"Everyone's friend"]]},
+  health:{name:"Health", c:"var(--health)", low:"Running on fumes.", statuses:[[0,"Burnt out"],[25,"Tired all day"],[50,"Holding up"],[75,"Sleeping well"],[90,"Glowing"]]},
+  grades:{name:"Grades", c:"var(--grades)", low:"Academic probation looms.", statuses:[[0,"Failing"],[25,"Behind"],[50,"Passing"],[75,"Dean's list range"],[90,"Top of the class"]]},
+};
+const KEYS = ["social","health","grades"];
+const WEEKS = 16;
+const SEASONS = ["Spring","Summer","Autumn","Winter"];
+const isExam = w => w%4===0;
+const seasonOf = w => SEASONS[Math.min(3,Math.floor((w-1)/4))];
+const weekIn = w => ((w-1)%4)+1;
+const DECAY = {social:-6, health:-6, grades:-6};   // what one week of neglect costs
+
+// Each action feeds one stat and taxes the others.
+const ACTIONS = [
+ // pure cards: big push on one stat, small tax on the others — alternating two of these can max both
+ {k:"social", t:"Say yes to every invite", d:"Parties, late ramen, a road trip nobody planned.", eff:{social:+30, health:-6, grades:-4}},
+ {k:"social", t:"Host a dinner", d:"Cook for eight. Clean up at 2 a.m.", eff:{social:+28, health:-4, grades:-4}},
+ {k:"social", t:"Run for student council", d:"Shaking hands all week. Your inbox explodes.", eff:{social:+26, health:-3, grades:-5}},
+ {k:"health", t:"Sleep eight hours, every night", d:"Phone off at eleven. Friends call you boring.", eff:{social:-6, health:+28, grades:-3}},
+ {k:"health", t:"Gym at 6 a.m.", d:"You see sunrises now. You also see nobody.", eff:{social:-5, health:+30, grades:-4}},
+ {k:"health", t:"Meal-prep Sundays", d:"Eleven identical lunches. Quietly effective.", eff:{social:-3, health:+26, grades:-3}},
+ {k:"grades", t:"Library lock-in", d:"Fourth floor, no windows, no mercy.", eff:{social:-6, health:-5, grades:+30}},
+ {k:"grades", t:"Office hours every week", d:"The professor learns your name.", eff:{social:-4, health:-3, grades:+28}},
+ {k:"grades", t:"All-nighter before the deadline", d:"Caffeine, panic, a surprisingly good essay.", eff:{social:-2, health:-12, grades:+32}},
+ // hybrid cards: touch two stats at once, but neither climbs fast — the only road toward all three
+ {k:"social", t:"Join the hiking club", d:"New people, fresh air, less time at the desk.", eff:{social:+14, health:+12, grades:-5}},
+ {k:"grades", t:"Start a study group", d:"Half gossip, half flashcards. Snacks required.", eff:{social:+12, health:-5, grades:+14}},
+ {k:"health", t:"Morning run with a friend", d:"Slower pace, better company.", eff:{social:+12, health:+14, grades:-5}},
+ {k:"health", t:"Study in the park", d:"Sun, a textbook, and a nap you didn't plan.", eff:{social:-5, health:+12, grades:+14}},
+];
+
+// Events interrupt a week with a choice.
+const EVENTS = [
+ {w:[3,11], text:"Your roommate's birthday falls the night before a quiz.", opts:[
+   {t:"Go, stay late", eff:{social:+14, health:-6, grades:-8}},
+   {t:"Drop by for an hour, then study", eff:{social:+5, health:-2, grades:+4}}]},
+ {w:[2,10], text:"You wake up with a fever.", opts:[
+   {t:"Push through classes anyway", eff:{social:-2, health:-14, grades:+2}},
+   {t:"Stay in bed for three days", eff:{social:-6, health:+8, grades:-9}}]},
+ {w:[5,13], text:"A group project partner vanishes. The deadline doesn't.", opts:[
+   {t:"Carry the whole thing yourself", eff:{social:-3, health:-10, grades:+10}},
+   {t:"Rally friends to help cover it", eff:{social:+6, health:-4, grades:+3}}]},
+ {w:[6,14], text:"Someone you like asks if you're free this weekend.", opts:[
+   {t:"Absolutely", eff:{social:+16, health:+2, grades:-10}},
+   {t:"After finals, promise", eff:{social:-8, health:0, grades:+5}}]},
+ {w:[1,9], text:"Free campus gym trial week. Your friends are going. Your reading isn't done.", opts:[
+   {t:"Go with them", eff:{social:+8, health:+9, grades:-10}},
+   {t:"Reading first", eff:{social:-6, health:-3, grades:+8}}]},
+ {w:[7,15], text:"A scholarship application is due Friday. It's long.", opts:[
+   {t:"Apply, skip everything else", eff:{social:-9, health:-6, grades:+12}},
+   {t:"Let it go this year", eff:{social:+3, health:+4, grades:-4}}]},
+];
+
+let S;
+function fresh(){ return {week:1, social:50, health:50, grades:50, phase:"act", log:[], event:null, hand:[], sick:0, done:false, seed:Date.now()%100000}; }
+// small seeded RNG so hot-reload keeps the same hand
+function rng(){ S.seed=(S.seed*9301+49297)%233280; return S.seed/233280; }
+function pick(arr,n){ const a=arr.slice(), out=[]; while(out.length<n&&a.length){ out.push(a.splice(Math.floor(rng()*a.length),1)[0]); } return out; }
+function clamp(v){ return Math.max(0,Math.min(100,v)); }
+function statusFor(k){ const v=S[k]; let s=""; for(const [th,n] of STATS[k].statuses) if(v>=th) s=n; return s; }
+function fmt(n){ return (n>0?"+":"")+n; }
+
+function dealHand(){
+  // one card of each kind plus one wild, so every week is a real choice
+  const by=k=>ACTIONS.filter(a=>a.k===k);
+  const hand=[pick(by("social"),1)[0],pick(by("health"),1)[0],pick(by("grades"),1)[0]];
+  const rest=ACTIONS.filter(a=>!hand.includes(a));
+  hand.push(pick(rest,1)[0]);
+  return pick(hand,4).map(a=>ACTIONS.indexOf(a));
+}
+
+function apply(eff, who){
+  const before={social:S.social,health:S.health,grades:S.grades};
+  for(const k of KEYS) S[k]=clamp(S[k]+(eff[k]||0));
+  S.log.push({w:S.week, t:who, eff});
+  return before;
+}
+
+function startWeek(){
+  S.hand=dealHand();
+  S.event=null;
+  S.news=null;
+  // exam weeks
+  if(isExam(S.week)){ S.news={cls:"", text:S.week===WEEKS?"Winter finals. Last week of the year. Everything counts.":`${seasonOf(S.week)} exams this week. Your grades get a report card at the end of it.`}; }
+  // random event (not on exam weeks)
+  if(!isExam(S.week)){
+    const cands=EVENTS.filter(e=>e.w.includes(S.week));
+    if(cands.length && rng()<0.85){ S.event=EVENTS.indexOf(cands[0]); S.phase="event"; return; }
+  }
+  S.phase="act";
+}
+
+function endWeek(){
+  // decay: everything you didn't tend slips
+  for(const k of KEYS) S[k]=clamp(S[k]+DECAY[k]);
+  let notes=[];
+  if(isExam(S.week) && S.week<WEEKS){
+    const sn=seasonOf(S.week);
+    if(S.grades<30){ notes.push({cls:"bad",text:`${sn} report card: you bombed. The department sends a warning letter.`}); S.grades=clamp(S.grades-8); }
+    else if(S.grades>=70){ notes.push({cls:"good",text:`${sn} report card: strong. A professor asks if you'd TA next year.`}); S.social=clamp(S.social+4); }
+    else notes.push({cls:"",text:`${sn} report card: fine. Nobody is impressed, nobody is worried.`});
+  }
+  if(S.health<=15 && S.sick===0){
+    S.sick=1; notes.push({cls:"bad",text:"You collapse. The clinic orders a week of rest: no studying, no going out."});
+  } else if(S.sick===1){ S.sick=2; }
+  if(S.social<=15) notes.push({cls:"bad",text:"The group chat went quiet. Being lonely is making everything heavier."});
+  S.week++;
+  if(S.week>WEEKS){ S.done=true; S.phase="end"; render(); return; }
+  if(S.sick===1){
+    // forced rest week
+    S.health=clamp(S.health+18); S.social=clamp(S.social-6); S.grades=clamp(S.grades-10);
+    S.log.push({w:S.week,t:"Bed rest (ordered)",eff:{social:-6,health:+18,grades:-10}});
+    S.week++; S.sick=2;
+    if(S.week>WEEKS){ S.done=true; S.phase="end"; render(); return; }
+  }
+  if(S.sick===2 && S.health>40) S.sick=0;
+  startWeek();
+  if(notes.length) S.news=S.news? {cls:notes[0].cls,text:notes[0].text+" "+S.news.text} : notes[0];
+  render();
+}
+
+function choose(action){
+  apply(action.eff, action.t);
+  endWeek();
+}
+function chooseEvent(opt){
+  apply(opt.eff, opt.t);
+  S.phase="act"; S.event=null;
+  render();
+}
+
+// ---------- ending ----------
+function ending(){
+  const s=S.social,h=S.health,g=S.grades;
+  const TOP=80;
+  const tops=[s>=TOP,h>=TOP,g>=TOP].filter(Boolean).length;
+  const min=Math.min(s,h,g), max=Math.max(s,h,g);
+  const gpa = g>=90?"A":g>=80?"A-":g>=65?"B":g>=50?"C":g>=35?"D":"F";
+  const friends = Math.round(s/6);
+  const sleep = (4.5 + h/100*4).toFixed(1);
+  let title,body;
+  if(tops===3){ title="Top marks. Best health. Tons of friends."; body="You beat the triangle. Almost nobody does. Screenshot this, because next year the dice won't be this kind."; }
+  else if(tops===2){
+    if(s>=TOP&&g>=TOP){ title="Dean's list, and everyone came to the party."; body="You traded sleep for both. Your body kept the receipts. Still: two out of three, at the top, is the semester most people wish they'd had."; }
+    else if(s>=TOP&&h>=TOP){ title="Glowing, beloved, and on academic probation."; body="You feel incredible. Your transcript does not. The registrar would like a word, but it can wait until after the hike."; }
+    else { title="Top marks, perfect sleep, empty inbox."; body="Disciplined, rested, brilliant, and nobody has your number. The grades will outlast this. Will anything else?"; }
+  }
+  else if(tops===1){
+    if(g>=TOP){ title="Dean's list. Nothing else."; body="You chose grades, and you chose them completely. It shows on the transcript and on your face."; }
+    else if(s>=TOP){ title="The best semester of your life. Academically, a disaster."; body="You know everyone. Everyone knows you. The registrar also knows you, for different reasons."; }
+    else { title="Fit, rested, and strangely alone."; body="You sleep nine hours a night. Nobody texts. The transcript is thin."; }
+  }
+  else if(min>=50){ title="Balanced, and nothing to show for it."; body="You kept all three alive. None of them thrived. That's what trying to hold the whole triangle usually costs."; }
+  else if(max-min<=20){ title="Perfectly mediocre, and okay with it."; body="Nothing soared, nothing crashed. That's a more honest result than most people get."; }
+  else { title="Something had to give."; body="You never committed. The stats you half-chose stayed half-finished. Pick two next time, and mean it."; }
+  return {title,body,gpa,friends,sleep};
+}
+
+// ---------- render ----------
+const $=id=>document.getElementById(id);
+function renderMeters(){
+  $("meters").innerHTML = KEYS.map(k=>{
+    const v=S[k], low=v<=20;
+    return `<div class="meter ${low?"low":""}" style="--c:${STATS[k].c}">
+      <div class="name">${STATS[k].name}</div>
+      <div class="val"><span id="v-${k}">${v}</span><small>/100</small></div>
+      <div class="bar"><i style="--p:${v}" id="bar-${k}"></i><i class="ghost" id="g-${k}" style="--g:0"></i></div>
+      <div class="status">${low?STATS[k].low:statusFor(k)}</div>
+    </div>`;
+  }).join("");
+}
+function preview(eff){
+  for(const k of KEYS){
+    const cur=S[k], nxt=clamp(cur+(eff?eff[k]||0:0));
+    const bar=$("bar-"+k), g=$("g-"+k);
+    if(!bar) continue;
+    if(!eff){ bar.style.setProperty("--p",cur); g.style.setProperty("--g",0); continue; }
+    // show loss by shrinking main bar; show gain as ghost
+    if(nxt<cur){ bar.style.setProperty("--p",nxt); g.style.setProperty("--g",0); }
+    else { bar.style.setProperty("--p",cur); g.style.setProperty("--g",nxt); }
+  }
+}
+function deltaChips(eff){
+  return KEYS.map(k=>{ const v=eff[k]||0; if(!v) return ""; return `<span class="dl ${v<0?"neg":""}" style="--dc:${STATS[k].c}">${STATS[k].name.slice(0,1)} ${fmt(v)}</span>`; }).join("");
+}
+function renderStage(){
+  const st=$("stage");
+  if(S.phase==="end"){
+    const e=ending();
+    st.innerHTML=`<section class="end">
+      <div class="label">End of the year</div>
+      <h2>${e.title}</h2>
+      <div class="grid">
+        <div class="cell" style="--c:var(--social)"><div class="label">Friends</div><div class="big">${e.friends}</div><div class="n">people who'd help you move</div></div>
+        <div class="cell" style="--c:var(--health)"><div class="label">Health</div><div class="big">${e.sleep}h</div><div class="n">average sleep per night</div></div>
+        <div class="cell" style="--c:var(--grades)"><div class="label">Grades</div><div class="big">${e.gpa}</div><div class="n">semester average</div></div>
+      </div>
+      <p>${e.body}</p>
+      <button class="primary" id="again">Start a new year</button>
+    </section>`;
+    $("again").onclick=()=>{ S=fresh(); startWeek(); render(); };
+    return;
+  }
+  const examTag = isExam(S.week) ? `<span class="tag exam">${seasonOf(S.week)} exams · week 4 of 4</span>` : `<span class="tag">${seasonOf(S.week)} · week ${weekIn(S.week)} of 4</span>`;
+  const news = S.news ? `<div class="news ${S.news.cls||""}">${S.news.text}</div>` : "";
+  if(S.phase==="event"){
+    const ev=EVENTS[S.event];
+    st.innerHTML=`<section class="week event">
+      <div class="head"><h2>Something comes up</h2>${examTag}</div>
+      <p>${ev.text}</p>
+      <div class="hand">${ev.opts.map((o,i)=>`<button class="act" data-i="${i}" style="--c:var(--ink)"><span class="t">${o.t}</span><span class="deltas">${deltaChips(o.eff)}</span></button>`).join("")}</div>
+    </section>`;
+    st.querySelectorAll(".act").forEach(b=>{
+      const o=ev.opts[+b.dataset.i];
+      b.onmouseenter=b.onfocus=()=>preview(o.eff); b.onmouseleave=b.onblur=()=>preview(null);
+      b.onclick=()=>{ preview(null); chooseEvent(o); };
+    });
+    return;
+  }
+  st.innerHTML=`<section class="week">
+    <div class="head"><h2>What's this week about?</h2>${examTag}</div>
+    ${news}
+    <div class="hand">${S.hand.map(i=>{ const a=ACTIONS[i]; return `<button class="act" data-i="${i}" style="--c:${STATS[a.k].c}"><span class="t">${a.t}</span><span class="d">${a.d}</span><span class="deltas">${deltaChips(a.eff)}</span></button>`; }).join("")}</div>
+    <p class="rules">Every week, untended stats slip on their own (<b>${fmt(DECAY.social)} friends, ${fmt(DECAY.health)} health, ${fmt(DECAY.grades)} grades</b>). Hover a card to preview. Big cards push one stat hard; hybrid cards lift two slowly. Health at 15 or below puts you in bed for a week.</p>
+  </section>`;
+  st.querySelectorAll(".act").forEach(b=>{
+    const a=ACTIONS[+b.dataset.i];
+    b.onmouseenter=b.onfocus=()=>preview(a.eff); b.onmouseleave=b.onblur=()=>preview(null);
+    b.onclick=()=>{ preview(null); choose(a); };
+  });
+}
+function renderLog(){
+  const sec=$("log"); if(!S.log.length){ sec.hidden=true; return; }
+  sec.hidden=false;
+  $("logList").innerHTML=S.log.slice().reverse().map(l=>`<li><span>${seasonOf(l.w).slice(0,2)} ${weekIn(l.w)}</span><span>${l.t} <span style="color:var(--muted)">(${KEYS.filter(k=>l.eff[k]).map(k=>STATS[k].name.slice(0,1)+" "+fmt(l.eff[k])).join(", ")})</span></span></li>`).join("");
+}
+function render(){ renderMeters(); renderStage(); renderLog(); }
+
+function start(saved){
+  S = (saved && saved.week) ? saved : fresh();
+  if(!saved || !saved.week) startWeek();
+  render();
+}
+try{ window.claude?.hot?.snapshot?.(()=>S); }catch(e){}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
