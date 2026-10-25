@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Statecraft</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a Cabinet Office briefing board. Status strip on top, then three columns
+   (Treasury levers / trend charts / the world & the departments), dispatch log below. */
+:root{
+  --bg:#eceef2; --surface:#ffffff; --surface2:#e1e4ea; --fg:#141a2b; --muted:#5a6377;
+  --line:#cbd0da; --accent:#9c1b2a; --accent-ink:#ffffff;
+  --good:#1f7a4a; --warn:#b06f12; --crit:#b3232c;
+  --c1:#1c4f9c; --c2:#9c1b2a; --c3:#3e8a68; --c4:#7b5aa6;
+  --display:'Spectral',Georgia,'Times New Roman',serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141f; --surface:#171d2b; --surface2:#222a3b; --fg:#e7eaf1; --muted:#9aa3b8;
+    --line:#2e3749; --accent:#d4404f; --accent-ink:#ffffff;
+    --good:#4fc083; --warn:#e0a03a; --crit:#ef5a62;
+    --c1:#6b9cf0; --c2:#ef6a74; --c3:#6fcf9a; --c4:#b398e4; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f141f; --surface:#171d2b; --surface2:#222a3b; --fg:#e7eaf1; --muted:#9aa3b8;
+  --line:#2e3749; --accent:#d4404f; --accent-ink:#ffffff;
+  --good:#4fc083; --warn:#e0a03a; --crit:#ef5a62;
+  --c1:#6b9cf0; --c2:#ef6a74; --c3:#6fcf9a; --c4:#b398e4; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px;}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
+button{font:inherit;cursor:pointer}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.wrap{max-width:1380px;margin:0 auto;display:grid;gap:14px}
+
+/* header */
+.masthead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px;padding:18px 0 10px;border-bottom:2px solid var(--fg)}
+.masthead h1{font-size:30px;line-height:1;letter-spacing:-.01em}
+.masthead h1 span{color:var(--accent)}
+.masthead .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.turn{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.turn .q{font-family:var(--display);font-size:20px}
+.turn .ofq{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.btn{border:1px solid var(--fg);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:3px;font-weight:600;letter-spacing:.01em}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent;color:var(--fg)}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--c1);outline-offset:2px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+/* status strip */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.stat{background:var(--surface);padding:10px 12px;min-width:0}
+.stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stat .v{font-family:var(--mono);font-size:22px;font-weight:500;line-height:1.1;margin-top:4px;font-variant-numeric:tabular-nums}
+.stat .d{font-size:12px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
+.stat.approve{background:var(--fg);color:var(--bg);grid-column:span 2}
+.stat.approve .l{color:var(--bg);opacity:.75}
+.stat.approve .v{font-size:36px}
+.stat.approve .d{color:var(--bg);opacity:.8}
+.up{color:var(--good)} .dn{color:var(--crit)}
+.stat.approve .up{color:#8fe0b0}.stat.approve .dn{color:#ff9aa0}
+.pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;border:1px solid}
+.pill.good{color:var(--good);border-color:var(--good)} .pill.warn{color:var(--warn);border-color:var(--warn)} .pill.crit{color:var(--crit);border-color:var(--crit)}
+
+.test{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 12px;border:1px solid var(--line);background:var(--surface)}
+.test .tl{font-family:var(--display);font-weight:600;font-size:15px;margin-right:6px}
+.test .tl small{font-family:var(--body);font-weight:400;color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-left:6px}
+.test .ti{display:inline-flex;align-items:baseline;gap:6px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;white-space:nowrap}
+.test .ti small{color:var(--muted);font-size:11px}
+.test .ti .m{font-weight:700}
+.test .ti.ok{border-color:var(--good)} .test .ti.ok .m{color:var(--good)}
+.test .ti.bad{border-color:var(--crit)} .test .ti.bad .m{color:var(--crit)}
+.test .ti.meh{border-color:var(--warn)} .test .ti.meh .m{color:var(--warn)}
+.test .tv{margin-left:auto;font-weight:600;font-size:12.5px}
+.test .tv.good{color:var(--good)} .test .tv.warn{color:var(--warn)} .test .tv.crit{color:var(--crit)}
+@media (max-width:700px){.test .tv{margin-left:0;flex-basis:100%}}
+/* board */
+.board{display:grid;grid-template-columns:330px minmax(0,1fr) 330px;gap:14px}
+@media (max-width:1080px){.board{grid-template-columns:1fr 1fr}.board>.col-mid{grid-column:1/-1;order:3}}
+@media (max-width:700px){.board{grid-template-columns:1fr}.board>.col-mid{order:0}.stat.approve{grid-column:span 1}}
+.col{display:grid;gap:14px;align-content:start;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);padding:14px 16px;min-width:0}
+.panel h2{font-size:17px;display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px}
+.panel h2 small{font-family:var(--body);font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* budget */
+.dept{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 0;border-top:1px solid var(--line)}
+.dept:first-of-type{border-top:0;padding-top:0}
+.dept .name{font-weight:500}
+.dept .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.dept .amt small{color:var(--muted)}
+.dept input[type=range]{grid-column:1/-1;width:100%;margin:4px 0 0;accent-color:var(--fg)}
+.dept .meta{grid-column:1/-1;display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.cond{height:5px;background:var(--surface2);border-radius:2px;overflow:hidden;grid-column:1/-1;margin-top:5px}
+.cond i{display:block;height:100%;background:var(--good)}
+.cond i.warn{background:var(--warn)} .cond i.crit{background:var(--crit)}
+.ledger{margin-top:10px;border-top:2px solid var(--fg);padding-top:8px;display:grid;gap:3px;font-size:13px}
+.ledger div{display:flex;justify-content:space-between}
+.ledger .tot{font-weight:600}
+.ledger .num{min-width:0}
+.taxrow{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}
+.taxrow .r{display:flex;justify-content:space-between;align-items:center}
+.taxrow input{width:100%;accent-color:var(--accent)}
+select{font:inherit;padding:6px 8px;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:3px;max-width:100%}
+.chk{display:flex;gap:8px;align-items:center;font-size:13px}
+
+/* charts */
+.chart{width:100%;height:auto;display:block}
+.chart text{font-family:var(--mono);font-size:10px;fill:var(--muted)}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{stroke:var(--muted);stroke-width:1}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-bottom:4px}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.charts{display:grid;gap:14px}
+
+/* relations */
+.rel{display:grid;grid-template-columns:92px 1fr 46px;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.rel:first-of-type{border-top:0;padding-top:0}
+.rel .n{font-weight:500;font-size:13px}
+.rel .n small{display:block;color:var(--muted);font-weight:400;font-size:11px}
+.rel .bar{height:8px;background:var(--surface2);border-radius:2px;position:relative;overflow:hidden}
+.rel .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--c1)}
+.rel .bar i.hostile{background:var(--crit)}
+.rel .v{font-family:var(--mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.rel .v small{display:block;font-size:10px}
+.threat{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:10px}
+.threat .bar{height:10px;background:linear-gradient(90deg,var(--good),var(--warn),var(--crit));border-radius:2px;position:relative}
+.threat .bar b{position:absolute;top:-4px;width:3px;height:18px;background:var(--fg);transform:translateX(-50%)}
+
+/* log */
+.log{display:grid;gap:8px;max-height:260px;overflow:auto;font-size:13px}
+.log .e{display:grid;grid-template-columns:70px 1fr;gap:10px;padding:6px 0;border-top:1px solid var(--line)}
+.log .e:first-child{border-top:0}
+.log .e .q{font-family:var(--mono);color:var(--muted);font-size:12px}
+.log .e.bad .t{color:var(--crit)} .log .e.good .t{color:var(--good)}
+.log .t{font-weight:600}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(10,13,22,.62);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-left,0px));z-index:20}
+.modal{background:var(--surface);color:var(--fg);max-width:620px;width:100%;border-top:6px solid var(--accent);padding:22px 24px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.modal .kind{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.modal h2{font-size:26px;margin:6px 0 10px;line-height:1.15}
+.modal p{margin:0 0 12px;max-width:62ch}
+.choices{display:grid;gap:8px;margin-top:14px}
+.choice{text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px 12px;border-radius:3px;display:grid;gap:2px}
+.choice:hover{border-color:var(--fg)}
+.choice b{font-weight:600}
+.choice span{color:var(--muted);font-size:12.5px}
+.objectives{display:grid;gap:6px;margin:10px 0 0;padding-left:18px}
+.result{font-family:var(--mono);font-size:13px;display:grid;gap:4px;margin-top:10px;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){.modal{animation:in .18s ease-out}@keyframes in{from{transform:translateY(8px);opacity:0}}}
+
+/* budget banner */
+.budgetbar{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:10px 12px;margin-bottom:12px;border-left:5px solid var(--good);background:var(--surface2)}
+.budgetbar.over{border-left-color:var(--crit)} .budgetbar.warn{border-left-color:var(--warn)}
+.budgetbar .s{font-family:var(--display);font-size:17px;font-weight:600;line-height:1.1}
+.budgetbar.over .s{color:var(--crit)} .budgetbar.warn .s{color:var(--warn)} .budgetbar.ok .s{color:var(--good)}
+.budgetbar .g{font-family:var(--mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.budgetbar .x{grid-column:1/-1;font-size:12px;color:var(--muted)}
+/* locks */
+.lockbox{border:1px dashed var(--crit);padding:8px 10px;margin-bottom:10px;font-size:12.5px}
+.lockbox b{color:var(--crit);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.lockbox ul{margin:0;padding-left:16px;display:grid;gap:3px}
+.dept.locked .name{color:var(--muted)}
+.lock{font-size:11px;color:var(--crit);font-weight:500;letter-spacing:.02em}
+input[type=range]:disabled{opacity:.4}
+.choice.off{opacity:.55;cursor:not-allowed;border-style:dashed}
+.choice.off:hover{border-color:var(--line)}
+/* notes */
+.notes ul{margin:0;padding-left:18px;display:grid;gap:5px;font-size:13px}
+.notes li::marker{color:var(--accent)}
+.lesson{border-left:3px solid var(--accent);padding:6px 12px;font-family:var(--display);font-size:15px;line-height:1.4}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <h1>State<span>craft</span></h1>
+      <div class="sub">Run the United Kingdom for one five-year term. Every lever has a cost somewhere else. Spread the pain, keep the markets calm, and you might just win.</div>
+    </div>
+    <div class="turn">
+      <div><div class="q" id="qlabel">Q1 2027</div><div class="ofq" id="qof">Quarter 1 of 20</div></div>
+      <button class="btn primary" id="endq">End quarter →</button>
+      <button class="btn ghost" id="restart" title="Start a new term">Restart</button>
+    </div>
+  </header>
+
+  <section class="strip" id="strip"></section>
+  <section class="test" id="test"></section>
+
+  <div class="board">
+    <div class="col">
+      <section class="panel">
+        <h2>The Red Box <small>Annual spending, £bn</small></h2>
+        <div id="budgetstatus"></div>
+        <div id="locks"></div>
+        <div id="depts"></div>
+        <div class="taxrow">
+          <div class="r"><span><b>Tax stance</b> <span id="taxlabel" class="num"></span></span><span class="num" id="taxrev"></span></div>
+          <input type="range" id="tax" min="-5" max="5" step="1" value="0" aria-label="Tax stance">
+          <div class="meta" style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)"><span>Cut</span><span>Raise</span></div>
+        </div>
+        <div class="ledger" id="ledger"></div>
+      </section>
+    </div>
+
+    <div class="col col-mid">
+      <section class="panel notes">
+        <h2>What you traded <small>Last quarter's consequences</small></h2>
+        <div id="notes"></div>
+      </section>
+      <section class="panel">
+        <h2>Trends <small>Quarter by quarter</small></h2>
+        <div class="charts" id="charts"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2>The world <small>Relations 0–100</small></h2>
+        <div class="threat"><div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Threat level</div><div class="bar"><b id="threatpin" style="left:50%"></b></div></div><div class="num" id="threatv" style="font-size:20px"></div></div>
+        <div id="rels"></div>
+        <div style="margin-top:12px;display:grid;gap:8px">
+          <label style="font-size:12.5px;color:var(--muted)">Foreign Office focus this quarter
+            <select id="focus" style="width:100%;margin-top:4px">
+              <option value="">No particular focus</option>
+              <option value="US">Court Washington</option>
+              <option value="EU">Reset with Brussels</option>
+              <option value="China">Thaw with Beijing</option>
+              <option value="India">Deepen ties with Delhi</option>
+              <option value="Gulf">Woo Gulf investors</option>
+              <option value="NATO">Lead in NATO (defence +, Russia −)</option>
+            </select>
+          </label>
+          <label class="chk"><input type="checkbox" id="sanctions" checked> Maintain sanctions on Russia</label>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>Dispatches <small>Event log</small></h2>
+        <div class="log" id="log"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="modalhost"></div>
+
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=(v,d=1)=>Number(v).toFixed(d);
+const sign=v=>(v>0?'+':'')+fmt(v,1);
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+
+const DEPTS=[
+  {k:'nhs',name:'NHS & social care',need:195,min:120,max:300,cond:'nhs',condName:'Hospital capacity'},
+  {k:'defence',name:'Defence',need:60,min:30,max:120,cond:'defence',condName:'Readiness'},
+  {k:'infra',name:'Infrastructure & transport',need:50,min:15,max:120,cond:'infra',condName:'Network condition'},
+  {k:'educ',name:'Education & skills',need:112,min:70,max:170,cond:'educ',condName:'School & skills base'},
+  {k:'police',name:'Policing & justice',need:27,min:12,max:60,cond:'order',condName:'Public order'},
+  {k:'welfare',name:'Welfare & pensions',need:300,min:220,max:400,cond:null},
+  {k:'diplo',name:'Diplomacy & aid',need:12,min:3,max:30,cond:null},
+];
+const RELS=[
+  {k:'US',name:'United States',sub:'Security guarantor',base:60,trade:.35},
+  {k:'EU',name:'European Union',sub:'Largest market',base:50,trade:.45},
+  {k:'China',name:'China',sub:'Supply chains',base:40,trade:.2},
+  {k:'India',name:'India',sub:'Rising partner',base:55,trade:.12},
+  {k:'Gulf',name:'Gulf states',sub:'Capital & energy',base:50,trade:.1},
+  {k:'Russia',name:'Russia',sub:'Hostile',base:15,trade:0,hostile:true},
+];
+const OTHER_SPEND=225, GDP0=2850, REV0=915, TERM=20, WIN=40, IMPEACH=8;
+
+function fresh(){
+  return {
+    q:0, over:null,
+    gdp:GDP0, growth:1.0, infl:3.1, unemp:4.6, debt:100, yield:5.4,
+    pop:41, threat:50, censure:0,
+    cond:{nhs:47,defence:42,infra:45,educ:50,order:52},
+    rel:{US:60,EU:50,China:40,India:55,Gulf:50,Russia:15},
+    budget:{nhs:195,defence:60,infra:50,educ:112,police:27,welfare:300,diplo:12},
+    tax:0, focus:'', sanctions:true,
+    gShock:0,iShock:0,yShock:0,oneOff:0,tradeBonus:0,
+    lowPopStreak:0,recStreak:0,seen:{},
+    hist:[], log:[], notes:[], last:null, lastBudget:null, lastTax:0
+  };
+}
+let S;
+function snapshotOf(s){ return {q:s.q,pop:s.pop,growth:s.growth,infl:s.infl,unemp:s.unemp,debt:s.debt,yield:s.yield,rel:{...s.rel},cond:{...s.cond},threat:s.threat,censure:s.censure,defPct:fiscal(s).defPct}; }
+function snapshot(s){ s.hist.push(snapshotOf(s)); }
+
+/* ---------- fiscal arithmetic (also used live for projections) ---------- */
+// what each department needs just to stand still grows with the economy and with demand (ageing, pay, prices)
+function needScale(s){ return (s.gdp/GDP0)*(1+0.004*s.q); }
+function needOf(s,d){ return Math.round(d.need*needScale(s)); }
+function fiscal(s){
+  const disc=Object.values(s.budget).reduce((a,b)=>a+b,0);
+  const interest=s.debt/100*s.gdp*s.yield/100*0.55; // blended coupon lags market yield
+  const other=OTHER_SPEND*needScale(s);
+  const spend=disc+other+interest+s.oneOff;
+  const rev=REV0*(s.gdp/GDP0)*(1+0.014*s.tax)*(1-0.012*(s.unemp-4.3));
+  const deficit=spend-rev;
+  return {disc,interest,other,spend,rev,deficit,defPct:deficit/s.gdp*100};
+}
+function tradeEffect(s){ return RELS.reduce((a,r)=>a+r.trade*(s.rel[r.k]-50),0)/100+s.tradeBonus; }
+function qLabel(q){ return 'Q'+((q%4)+1)+' '+(2027+Math.floor(q/4)); }
+function addLog(s,title,body,tone){ s.log.unshift({q:qLabel(s.q),t:title,b:body,tone:tone||''}); }
+
+/* ---------- what you are no longer allowed to do ---------- */
+function locks(s){
+  const f=fiscal(s), L={min:{},max:{},taxMin:-5,taxMax:5,reasons:[],noMoney:false,noLiftSanctions:false};
+  if(s.yield>6.3||f.defPct>6){
+    for(const d of DEPTS) L.max[d.k]=Math.min(d.max,s.budget[d.k]);
+    L.taxMin=s.tax;
+    L.reasons.push('Gilt markets will not fund more borrowing: no budget can rise and taxes cannot be cut until yields and the deficit come down.');
+  }
+  if(s.yield>7){ L.noMoney=true; L.reasons.push('The Treasury cannot raise money for one-off commitments while yields are above 7%.'); }
+  if(s.threat>65){ L.min.defence=Math.max(L.min.defence||0,s.budget.defence); L.reasons.push('With the threat level this high, the Chiefs of Staff and the Commons will not accept defence cuts.'); }
+  for(const d of DEPTS){ if(d.cond&&s.cond[d.cond]<30){ L.min[d.k]=Math.max(L.min[d.k]||0,s.budget[d.k]); L.reasons.push(d.name+' is visibly failing; Cabinet will not sign off further cuts there.'); } }
+  if(s.pop<32){ L.taxMax=s.tax; L.reasons.push('Below 32% approval, your backbenchers will not vote for any tax rise.'); }
+  if(s.threat>60){ L.noLiftSanctions=true; L.reasons.push('Allies would not stand for lifting sanctions while Russia is this active.'); }
+  return L;
+}
+function enforceLocks(s){
+  const L=locks(s);
+  for(const d of DEPTS){ if(L.min[d.k]!==undefined) s.budget[d.k]=Math.max(s.budget[d.k],L.min[d.k]); if(L.max[d.k]!==undefined) s.budget[d.k]=Math.min(s.budget[d.k],L.max[d.k]); }
+  s.tax=clamp(s.tax,L.taxMin,L.taxMax);
+  if(L.noLiftSanctions) s.sanctions=true;
+}
+
+/* ---------- one quarter of the world turning ---------- */
+function simulate(s){
+  enforceLocks(s);
+  const f=fiscal(s);
+  const prev=snapshotOf(s);
+  const prevBudget={...s.budget};
+  // departments: spending above need rebuilds, below need decays; everything wears a little
+  for(const d of DEPTS){
+    if(!d.cond) continue;
+    const need=needOf(s,d);
+    const ratio=(s.budget[d.k]-need)/need;
+    s.cond[d.cond]=clamp(s.cond[d.cond]+clamp(ratio*6,-6,4)-0.12,0,100);
+  }
+  const wn=300*needScale(s);
+  const welfareGap=clamp((s.budget.welfare-wn)/wn,-0.35,0.35);
+  s.cond.order=clamp(s.cond.order+welfareGap*6,0,100);
+  // relations drift toward baseline, nudged by the Foreign Office budget, focus and sanctions
+  const dn=12*needScale(s);
+  const diploMod=clamp((s.budget.diplo-dn)/dn,-1,1)*1.5;
+  for(const r of RELS){
+    let v=s.rel[r.k]; v+=(r.base-v)*0.08;
+    if(!r.hostile) v+=diploMod;
+    if(s.focus===r.k) v+=4;
+    s.rel[r.k]=v;
+  }
+  if(s.focus==='China') s.rel.US-=2;
+  if(s.focus==='US') s.rel.EU-=1;
+  if(s.focus==='NATO'){ s.rel.US+=2.5; s.rel.EU+=1.5; s.rel.Russia-=3; s.cond.defence=clamp(s.cond.defence+1.5,0,100); }
+  if(s.sanctions){ s.rel.Russia-=2.5; s.rel.US+=.6; s.rel.EU+=.6; } else { s.rel.Russia+=3; s.rel.US-=1.5; s.rel.EU-=1.5; }
+  for(const r of RELS) s.rel[r.k]=clamp(s.rel[r.k],0,100);
+  // threat: weak defence and a confident Russia raise it
+  s.threat=clamp(50-(s.cond.defence-50)*0.8-(s.rel.Russia-15)*0.5+(s.rel.China<35?8:0)+rnd(-3,3),0,100);
+  // economy
+  const g=1.5+0.9*(s.cond.infra-50)/50+0.5*(s.cond.educ-50)/50+0.3*(s.cond.order-50)/50
+        -0.12*s.tax-0.6*(s.yield-4.0)-0.02*Math.max(0,s.debt-100)
+        +tradeEffect(s)+0.15*clamp(f.defPct-2.5,-3,3.5)+s.gShock+rnd(-0.3,0.3);
+  s.growth=s.growth*0.5+g*0.5;
+  const it=2+0.35*(s.growth-1.5)+0.35*Math.max(0,f.defPct-4)+s.iShock;
+  s.infl=s.infl*0.6+it*0.4;
+  const ut=4.3-0.6*(s.growth-1.5);
+  s.unemp=clamp(s.unemp*0.7+ut*0.3,2.5,15);
+  const over6=Math.max(0,f.defPct-6);
+  const yt=4+0.04*(s.debt-95)+0.35*Math.max(0,f.defPct-3)+0.12*over6*over6+0.4*(s.infl-2)+(s.pop<30?0.6:0)+s.yShock;
+  s.yield=clamp(s.yield*0.5+yt*0.5,1,14);
+  s.debt=s.debt+f.defPct/4-s.debt*(s.growth+s.infl)/400;
+  s.gdp*=1+s.growth/400; // constant prices: all £ figures are real
+  // popularity drifts toward what the country thinks of all this
+  let fail=0; for(const k in s.cond){ if(s.cond[k]<35) fail+=2.5; if(s.cond[k]<25) fail+=3; }
+  const t=58+3.5*(s.growth-1.5)-3*(s.infl-2)-2.5*(s.unemp-4.3)
+        +0.15*(s.cond.nhs-50)+0.1*(s.cond.order-50)+0.06*(s.cond.infra-50)+0.05*(s.cond.educ-50)+0.04*(s.cond.defence-50)
+        -1.0*s.tax-0.12*s.tax*s.tax+10*welfareGap-0.1*Math.max(0,s.threat-50)-1.2*Math.max(0,s.yield-5)-3.0*Math.max(0,f.defPct-3)-fail;
+  s.pop=clamp(s.pop+(t-s.pop)*0.3,5,85);
+  // censure: Parliament keeps a tally of visible failure
+  let c=0; if(s.yield>7) c++; if(s.pop<22) c++; if(s.growth<-2) c++; for(const k in s.cond) if(s.cond[k]<25) c++;
+  s.censure=clamp(s.censure+c,0,IMPEACH);
+  // shocks fade
+  s.gShock*=0.5; s.iShock*=0.5; s.yShock*=0.5; s.oneOff=0;
+  s.q++;
+  snapshot(s);
+  s.last=prev; s.lastBudget=prevBudget;
+  s.notes=tradeoffNotes(s,prev,f);
+  // headlines
+  if(f.defPct>6) addLog(s,'Deficit alarm','Borrowing is running at '+fmt(f.defPct)+'% of GDP. Gilt investors are getting nervous.','bad');
+  if(s.yield>7) addLog(s,'Gilt yields spike','Ten-year gilts at '+fmt(s.yield)+'%. The Bank of England is watching.','bad');
+  if(s.growth<-1) addLog(s,'Economy contracting','Output fell at an annualised '+fmt(s.growth)+'% this quarter.','bad');
+  if(s.growth>2.8) addLog(s,'Strong quarter','Growth running at '+fmt(s.growth)+'% annualised.','good');
+  if(c>0) addLog(s,'Censure motion tabled','Parliament adds '+c+' to the tally of failures. At '+IMPEACH+' you are impeached.','bad');
+  const Lk=locks(s); if(Lk.reasons.length&&!prevLockCount(s)) addLog(s,'Options closing','Some choices are now off the table. See the Red Box for why.','bad');
+  // end conditions
+  s.lowPopStreak=s.pop<27?s.lowPopStreak+1:0;
+  s.recStreak=s.growth<-2.5?s.recStreak+1:0;
+  if(s.censure>=IMPEACH) s.over={kind:'impeach',title:'Impeached',body:'The Commons revives a power last used in 1806. Articles of impeachment pass with your own party abstaining. You are the first Prime Minister removed this way.'};
+  else if(s.yield>8.5) s.over={kind:'crash',title:'Gilt crisis',body:'Bond markets have lost confidence in the Treasury. Yields passed 8.5% and the pound is in free fall. The Chancellor resigns, then you do.'};
+  else if(s.recStreak>=2) s.over={kind:'crash',title:'Deep recession',body:'Two quarters of sharp contraction. Unemployment is '+fmt(s.unemp)+'%, your backbenchers have had enough, and the confidence vote is lost.'};
+  else if(s.lowPopStreak>=2) s.over={kind:'ousted',title:'Leadership challenge',body:'With approval stuck at '+fmt(s.pop,0)+'%, letters go in to the 1922 Committee. You lose the ballot and leave by the back door.'};
+  else if(s.q>=TERM){
+    const T=electionTest(s);
+    if(!T.elected) s.over={kind:'lose',title:'Voted out',body:'You go to the country on '+fmt(s.pop,0)+'% approval and the country says no. The removal van is at the back gate.'};
+    else if(T.inOrder) s.over={kind:'win',title:'Re-elected, narrowly',body:'A majority of '+Math.round((s.pop-WIN)*6+2)+' on '+fmt(s.pop,0)+'% approval, with borrowing down, yields calm and growth positive. Nobody is cheering, but you are still here and the books are in order.'};
+    else if(T.deteriorating) s.over={kind:'pyrrhic',title:'Re-elected into a crisis',body:'You win the election on '+fmt(s.pop,0)+'% and inherit your own mess: '+T.items.filter(i=>i.bad).map(i=>i.label.toLowerCase()+' at '+i.val).join(', ')+'. Within a year the markets, not the voters, decide your fate.'};
+    else s.over={kind:'pyrrhic',title:'Re-elected on borrowed time',body:'You win on '+fmt(s.pop,0)+'%, but the economy fails the test: '+T.items.filter(i=>!i.ok&&i.label!=='Approval').map(i=>i.label.toLowerCase()+' at '+i.val+' (needs '+i.need+')').join(', ')+'. The second term starts where the first should have.'};
+  }
+}
+function electionTest(s){
+  const f=fiscal(s);
+  const items=[
+    {label:'Approval',val:fmt(s.pop,0)+'%',need:'≥ '+WIN+'%',ok:s.pop>=WIN,bad:s.pop<WIN},
+    {label:'Borrowing',val:fmt(f.defPct)+'% GDP',need:'≤ 4.5%',ok:f.defPct<=4.5,bad:f.defPct>=5.5},
+    {label:'Gilt yield',val:fmt(s.yield)+'%',need:'≤ 5.0%',ok:s.yield<=5.0,bad:s.yield>6.0},
+    {label:'Growth',val:fmt(s.growth)+'%',need:'≥ 0.5%',ok:s.growth>=0.5,bad:s.growth<0},
+    {label:'Debt',val:fmt(s.debt,0)+'% GDP',need:'≤ 105%',ok:s.debt<=105,bad:s.debt>110},
+  ];
+  const econ=items.slice(1);
+  return {items,elected:s.pop>=WIN,inOrder:econ.every(i=>i.ok),deteriorating:econ.some(i=>i.bad)};
+}
+let _lockCount=0;
+function prevLockCount(s){ const n=_lockCount; _lockCount=locks(s).reasons.length; return n; }
+
+function tradeoffNotes(s,p,f){
+  const n=[];
+  for(const d of DEPTS){
+    if(!d.cond) continue;
+    const need=needOf(s,d), gap=(s.budget[d.k]-need)/need, dc=s.cond[d.cond]-p.cond[d.cond];
+    if(gap<-0.04) n.push(`${d.name} ${fmt(-gap*100,0)}% under need saved £${fmt(need-s.budget[d.k],0)}bn. ${d.condName} ${sign(dc)}.`);
+    else if(gap>0.04) n.push(`${d.name} ${fmt(gap*100,0)}% over need cost £${fmt(s.budget[d.k]-need,0)}bn more. ${d.condName} ${sign(dc)}.`);
+  }
+  const dy=s.yield-p.yield;
+  if(f.defPct>4) n.push(`Borrowing at ${fmt(f.defPct)}% of GDP: gilt yield ${sign(dy)}, which feeds back into debt interest (£${fmt(f.interest,0)}bn) and approval.`);
+  else if(f.defPct<2.5) n.push(`Borrowing held to ${fmt(f.defPct)}% of GDP: markets calmer (yield ${sign(dy)}) but the fiscal squeeze costs about ${fmt(0.15*(2.5-f.defPct),2)} points of growth.`);
+  if(s.tax>0) n.push(`Tax ${['','nudged','raised','raised','raised sharply','hiked'][s.tax]||'raised'}: +£${fmt(REV0*0.014*s.tax*(s.gdp/GDP0),0)}bn revenue, roughly ${fmt(1.4*s.tax,1)} points off approval and ${fmt(0.12*s.tax,2)} off growth.`);
+  if(s.tax<0) n.push(`Tax cut: £${fmt(-REV0*0.014*s.tax*(s.gdp/GDP0),0)}bn less revenue; approval gains ${fmt(-1.4*s.tax,1)} but every pound is borrowed.`);
+  const dt=s.threat-p.threat; if(Math.abs(dt)>4) n.push(`Threat level ${sign(dt)}: ${dt>0?'weak readiness and a confident Moscow invite trouble':'readiness and allies are keeping Moscow cautious'}.`);
+  if(s.focus) n.push(`Foreign Office focus on ${s.focus}: ${s.focus==='China'?'Beijing warms, Washington cools.':s.focus==='US'?'Washington warms, Brussels notes it.':s.focus==='NATO'?'allies and readiness up, Moscow colder.':'that relationship warms; the others drift.'}`);
+  let fail=0; for(const k in s.cond) if(s.cond[k]<35) fail++;
+  if(fail) n.push(`${fail} service${fail>1?'s':''} below 35/100: visible failure costs approval directly and adds to the censure tally.`);
+  return n.slice(0,6);
+}
+
+/* ---------- events: the consequences of what you ignored ---------- */
+const money=cost=>s=>locks(s).noMoney?'The Treasury cannot raise £'+cost+'bn with yields above 7%.':'';
+const EVENTS=[
+  {id:'cable',kind:'Security',w:s=>s.cond.defence<50?0.6+s.threat/40:0.1,
+   title:'Undersea cable cut in the North Sea',
+   body:s=>'A data cable to Norway has been severed. Naval sources say a Russian "research vessel" was loitering nearby for two days, and with readiness at '+fmt(s.cond.defence,0)+'/100 there was nothing in the water to watch it.',
+   choices:[
+     {l:'Surge the Navy and fund a cable-protection task force',n:'£6bn one-off · readiness up · Russia −',req:money(6),a:s=>{s.oneOff+=6;s.cond.defence+=4;s.pop+=3;s.rel.Russia-=4;}},
+     {l:'Lodge a protest through NATO allies',n:'Russia −, US + · looks weak',a:s=>{s.rel.Russia-=2;s.rel.US+=2;s.pop-=2;}},
+     {l:'Play it down',n:'Approval −, threat up, censure +1',a:s=>{s.pop-=5;s.threat+=8;s.cond.defence-=2;s.censure++;}}]},
+  {id:'airspace',kind:'Security',w:s=>s.threat>55?0.5+(s.threat-55)/30:0.05,
+   title:'Russian bombers skirt Scottish airspace',
+   body:s=>'Two Tu-95s flew within twelve miles of Shetland before Typhoons were scrambled. The RAF says response times are "not what they should be". Threat level is '+fmt(s.threat,0)+'.',
+   choices:[
+     {l:'Order permanent quick-reaction patrols',n:'£4bn one-off · readiness up',req:money(4),a:s=>{s.oneOff+=4;s.cond.defence+=3;s.pop+=2;s.threat-=6;}},
+     {l:'Call it routine and move on',n:'Approval −, censure +1',a:s=>{s.pop-=4;s.threat+=4;s.censure++;}}]},
+  {id:'nato',kind:'Alliances',once:true,w:s=>s.q>=3&&s.budget.defence<0.03*s.gdp?0.45:0,
+   title:'NATO demands 3% of GDP on defence',
+   body:s=>'At the summit the Secretary-General names Britain as a laggard. Three per cent of GDP would mean about £'+fmt(0.03*s.gdp,0)+'bn a year; you are spending £'+fmt(s.budget.defence,0)+'bn.',
+   choices:[
+     {l:'Commit to 3% and raise the defence budget now',n:'Defence budget set to 3% · US ++ · approval −',req:s=>locks(s).max.defence!==undefined?'Markets will not fund a bigger defence budget right now.':'',a:s=>{s.budget.defence=Math.max(s.budget.defence,Math.round(0.03*s.gdp));s.rel.US+=7;s.rel.EU+=3;s.pop-=2;}},
+     {l:'Promise it "when conditions allow"',n:'US −, threat up',a:s=>{s.rel.US-=8;s.rel.EU-=3;s.threat+=5;}}]},
+  {id:'tariff',kind:'Trade',w:s=>s.rel.US<55?0.5:0.08,
+   title:'Washington slaps tariffs on British steel and cars',
+   body:s=>'The White House announces 25% tariffs, citing "unfair treatment". Relations stand at '+fmt(s.rel.US,0)+'/100 and the Business Secretary wants an answer by Friday.',
+   choices:[
+     {l:'Retaliate with tariffs on bourbon and Harleys',n:'Growth −, approval +, US −',a:s=>{s.gShock-=0.5;s.pop+=2;s.rel.US-=6;}},
+     {l:'Negotiate a carve-out',n:'Growth − a little, US +',a:s=>{s.gShock-=0.25;s.rel.US+=4;}},
+     {l:'Absorb it quietly',n:'Growth −, approval −',a:s=>{s.gShock-=0.35;s.pop-=3;}}]},
+  {id:'rareearth',kind:'Trade',w:s=>s.rel.China<40?0.45:0.05,
+   title:'Beijing restricts rare-earth exports to the UK',
+   body:s=>'Magnets, batteries and wind turbines all depend on them. Factories in the Midlands warn of layoffs within the quarter.',
+   choices:[
+     {l:'Send the Foreign Secretary to Beijing',n:'China ++, US −, growth − a little',a:s=>{s.rel.China+=9;s.rel.US-=3;s.gShock-=0.3;s.pop-=1;}},
+     {l:'Fund an alternative supply deal with India',n:'£4bn one-off · India +',req:money(4),a:s=>{s.oneOff+=4;s.rel.India+=6;s.gShock-=0.45;}},
+     {l:'Ride it out',n:'Growth −−',a:s=>{s.gShock-=0.7;s.pop-=2;}}]},
+  {id:'energy',kind:'Economy',w:s=>0.3,
+   title:'Energy prices surge after Gulf shipping attacks',
+   body:s=>'Wholesale gas doubles in a fortnight. The price cap will rise 40% in October unless the Treasury steps in.',
+   choices:[
+     {l:'Subsidise household bills through the winter',n:'£22bn one-off · approval +',req:money(22),a:s=>{s.oneOff+=22;s.iShock+=0.6;s.pop+=4;}},
+     {l:'Targeted help for the poorest households only',n:'£8bn one-off',req:money(8),a:s=>{s.oneOff+=8;s.iShock+=1.2;s.pop-=1;}},
+     {l:'Let prices find their level',n:'Inflation ++, approval −−',a:s=>{s.iShock+=1.8;s.pop-=6;}}]},
+  {id:'winter',kind:'Health',w:s=>s.cond.nhs<45?0.7:0.08,
+   title:'Winter crisis: ambulances queue outside A&E',
+   body:s=>'Twelve-hour waits are now routine and a hospital in Kent has declared a critical incident. Capacity is at '+fmt(s.cond.nhs,0)+'/100.',
+   choices:[
+     {l:'Emergency £9bn for beds, discharge and agency staff',n:'£9bn one-off · capacity +',req:money(9),a:s=>{s.oneOff+=9;s.cond.nhs+=5;s.pop+=1;}},
+     {l:'Blame the last government',n:'Approval −−, censure +1',a:s=>{s.pop-=6;s.cond.nhs-=2;s.censure++;}}]},
+  {id:'rail',kind:'Infrastructure',w:s=>s.cond.infra<45?0.6:0.06,
+   title:'Signalling failure paralyses the West Coast main line',
+   body:s=>'Forty-year-old equipment finally gave out. Manchester and London were cut off for three days. Network condition is '+fmt(s.cond.infra,0)+'/100.',
+   choices:[
+     {l:'Emergency renewal programme',n:'£5bn one-off · condition +',req:money(5),a:s=>{s.oneOff+=5;s.cond.infra+=4;s.pop+=1;}},
+     {l:'Order an inquiry',n:'Approval −, growth −',a:s=>{s.pop-=5;s.gShock-=0.2;}}]},
+  {id:'flood',kind:'Infrastructure',w:s=>s.cond.infra<50?0.35:0.1,
+   title:'Flood defences fail in Yorkshire',
+   body:s=>'Three towns under water after a defence scheme deferred twice was overtopped. Insurers put the bill at £3bn.',
+   choices:[
+     {l:'Rebuild and compensate',n:'£7bn one-off · approval +',req:money(7),a:s=>{s.oneOff+=7;s.cond.infra+=2;s.pop+=2;}},
+     {l:'Leave it to the insurers',n:'Approval −−, censure +1',a:s=>{s.pop-=7;s.censure++;}}]},
+  {id:'riot',kind:'Order',w:s=>s.cond.order<45?0.6:0.05,
+   title:'Rioting spreads across three northern cities',
+   body:s=>'A policing scandal, a hot weekend and a decade of thin budgets. Public order is at '+fmt(s.cond.order,0)+'/100.',
+   choices:[
+     {l:'Fund a community policing surge',n:'£3bn one-off · order +',req:money(3),a:s=>{s.oneOff+=3;s.cond.order+=6;s.pop+=1;}},
+     {l:'Curfews and mass arrests',n:'Order +, approval −, EU −',a:s=>{s.cond.order+=4;s.pop-=3;s.rel.EU-=3;}},
+     {l:'Appeal for calm',n:'Order −, approval −, censure +1',a:s=>{s.cond.order-=6;s.pop-=6;s.censure++;}}]},
+  {id:'teachers',kind:'Education',w:s=>s.cond.educ<48?0.5:0.06,
+   title:'Teachers walk out nationwide',
+   body:s=>'Pay has fallen 12% in real terms. Schools close two days a week and parents are furious.',
+   choices:[
+     {l:'Settle with a pay deal',n:'£4bn one-off · inflation +',req:money(4),a:s=>{s.oneOff+=4;s.cond.educ+=4;s.iShock+=0.2;}},
+     {l:'Hold the line',n:'Skills base −, approval −',a:s=>{s.cond.educ-=5;s.pop-=3;}}]},
+  {id:'youth',kind:'Europe',once:true,w:s=>s.q>=2&&s.rel.EU>45?0.4:0,
+   title:'Brussels offers a youth mobility and trade deal',
+   body:s=>'Easier trade in food and chemicals in exchange for a visa scheme for under-30s. Half the press calls it "Brexit betrayal".',
+   choices:[
+     {l:'Sign it',n:'EU ++, trade boost, approval −',a:s=>{s.rel.EU+=10;s.tradeBonus+=0.15;s.pop-=3;}},
+     {l:'Decline politely',n:'EU −, approval +',a:s=>{s.rel.EU-=5;s.pop+=1;}}]},
+  {id:'gulf',kind:'Investment',once:true,w:s=>s.rel.Gulf>52?0.35:0.05,
+   title:'A Gulf sovereign fund offers £30bn for British infrastructure',
+   body:s=>'Ports, a new reactor and the northern rail upgrade, in exchange for a say in how they are run.',
+   choices:[
+     {l:'Accept the investment',n:'Infrastructure +, Gulf ++, US −',a:s=>{s.cond.infra+=7;s.rel.Gulf+=8;s.rel.US-=2;s.pop-=1;}},
+     {l:'Decline on security grounds',n:'Gulf −, US +',a:s=>{s.rel.Gulf-=6;s.rel.US+=2;}}]},
+  {id:'india',kind:'Trade',once:true,w:s=>s.rel.India>60?0.45:0,
+   title:'The India trade deal is ready to sign',
+   body:s=>'Whisky, cars and financial services in; textiles and visas out. Business is delighted, the Home Office is not.',
+   choices:[
+     {l:'Sign in Delhi',n:'India ++, lasting trade boost, approval +',a:s=>{s.rel.India+=10;s.tradeBonus+=0.12;s.pop+=2;}},
+     {l:'Stall over visas',n:'India −',a:s=>{s.rel.India-=8;}}]},
+  {id:'cyber',kind:'Security',w:s=>s.cond.defence<52?0.35:0.1,
+   title:'Ransomware takes down NHS systems',
+   body:s=>'Appointments cancelled across England. GCHQ attributes it to a group with state backing.',
+   choices:[
+     {l:'Fund a national cyber-resilience programme',n:'£3bn one-off · readiness +',req:money(3),a:s=>{s.oneOff+=3;s.cond.defence+=3;s.cond.nhs-=2;}},
+     {l:'Patch and pray',n:'Capacity −, approval −',a:s=>{s.cond.nhs-=6;s.pop-=4;}}]},
+  {id:'bonds',kind:'Markets',w:s=>fiscal(s).defPct>5?0.6:0,
+   title:'Gilt auction nearly fails',
+   body:s=>'Demand for ten-year gilts came in thin and the yield jumped. Fund managers want to see a plan to bring borrowing below 5% of GDP.',
+   choices:[
+     {l:'Announce a fiscal consolidation',n:'Yields ease · approval −',a:s=>{s.yShock-=0.6;s.pop-=3;}},
+     {l:'Defend the spending plans',n:'Yields rise, censure +1',a:s=>{s.yShock+=0.7;s.censure++;}}]},
+  {id:'boom',kind:'Economy',w:s=>s.cond.educ>55&&s.cond.infra>50?0.35:0.08,
+   title:'Investment boom in the Oxford–Cambridge corridor',
+   body:s=>'Three AI labs and a chip fab announce British sites, citing skills and transport links. Growth forecasts are revised up.',
+   choices:[{l:'Take the credit',n:'Growth +, approval +',a:s=>{s.gShock+=0.6;s.pop+=2;}}]},
+  {id:'plot',kind:'Party',w:s=>s.pop<36?0.5:0,
+   title:'Cabinet rumblings',
+   body:s=>'The Home Secretary has been seen dining with the whips. At '+fmt(s.pop,0)+'% approval, your MPs are counting.',
+   choices:[
+     {l:'Reshuffle and promote loyalists',n:'Approval +, one department loses its minister',a:s=>{s.pop+=3;const d=pick(['nhs','infra','educ','order']);s.cond[d]-=3;}},
+     {l:'Face them down',n:'A gamble',a:s=>{s.pop+=Math.random()<0.5?5:-5;}}]},
+  {id:'welfare',kind:'Society',w:s=>s.budget.welfare<270?0.5:0,
+   title:'Food bank use hits a record',
+   body:s=>'Charities say welfare cuts are showing up in hospital admissions and school attendance.',
+   choices:[
+     {l:'Restore £20bn to the welfare budget',n:'Welfare budget up',req:s=>locks(s).max.welfare!==undefined?'Markets will not fund a bigger welfare budget right now.':'',a:s=>{s.budget.welfare+=20;s.pop+=2;}},
+     {l:'Hold firm on reform',n:'Approval −, order −, censure +1',a:s=>{s.pop-=4;s.cond.order-=3;s.censure++;}}]},
+  {id:'obr',kind:'Markets',once:true,w:s=>s.q>=1&&fiscal(s).defPct>4.5?0.5:0,
+   title:'The OBR says the numbers do not add up',
+   body:s=>'The fiscal watchdog projects debt rising for the whole term unless borrowing falls below 3% of GDP. The Chancellor says "every option is painful": tax, services, or both.',
+   choices:[
+     {l:'Accept the diagnosis publicly',n:'Yields ease a little · approval −',a:s=>{s.yShock-=0.3;s.pop-=2;}},
+     {l:'Dispute the forecast',n:'Yields +, censure +1',a:s=>{s.yShock+=0.5;s.censure++;}}]},
+];
+function rollEvent(s){
+  if(Math.random()<0.12) return null;
+  const pool=EVENTS.map(e=>{let w=e.w(s); if(e.once&&s.seen[e.id]) w=0; if(s.seen[e.id]) w*=0.45; return {e,w};}).filter(x=>x.w>0);
+  const tot=pool.reduce((a,x)=>a+x.w,0); let r=Math.random()*tot;
+  for(const x of pool){ r-=x.w; if(r<=0) return x.e; }
+  return pool.length?pool[pool.length-1].e:null;
+}
+
+/* ---------- rendering ---------- */
+function condTone(v){ return v<35?'crit':v<50?'warn':'good'; }
+function renderStrip(s){
+  const p=s.last||snapshotOf(s);
+  const d=(a,b,inv)=>{const x=a-b;const cls=Math.abs(x)<0.05?'':((x>0)!==!!inv?'up':'dn');return '<span class="'+cls+'">'+sign(x)+'</span> vs last q';};
+  const f=fiscal(s);
+  $('#strip').innerHTML=
+    `<div class="stat approve"><div class="l">Approval rating</div><div class="v">${fmt(s.pop,0)}%</div><div class="d">${d(s.pop,p.pop)} · ${s.pop>=WIN?'enough to be re-elected':'below the '+WIN+'% you need'}</div></div>`+
+    stat('GDP growth',fmt(s.growth)+'%',d(s.growth,p.growth),'annualised')+
+    stat('Inflation',fmt(s.infl)+'%',d(s.infl,p.infl,true),'target 2%')+
+    stat('Unemployment',fmt(s.unemp)+'%',d(s.unemp,p.unemp,true))+
+    stat('Debt / GDP',fmt(s.debt,0)+'%',d(s.debt,p.debt,true))+
+    stat('10-yr gilt yield',fmt(s.yield)+'%',d(s.yield,p.yield,true),s.yield>7?'<span class="pill crit">danger</span>':s.yield>5.5?'<span class="pill warn">watch</span>':'')+
+    stat('Borrowing',fmt(f.defPct)+'% GDP','£'+fmt(f.deficit,0)+'bn this year', f.defPct>5?'<span class="pill warn">high</span>':f.defPct<3?'<span class="pill good">credible</span>':'')+
+    stat('Censure',s.censure+' / '+IMPEACH,s.censure>=IMPEACH-2?'<span class="pill crit">impeachment near</span>':s.censure>=4?'<span class="pill warn">mounting</span>':'Parliament’s tally of failures');
+}
+function stat(l,v,d,extra){ return `<div class="stat"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}${extra?' '+extra:''}</div></div>`; }
+
+function renderDepts(s){
+  const L=locks(s);
+  $('#locks').innerHTML=L.reasons.length?`<div class="lockbox"><b>Options now closed</b><ul>${L.reasons.map(r=>`<li>${r}</li>`).join('')}</ul></div>`:'';
+  $('#depts').innerHTML=DEPTS.map(d=>{
+    const v=s.budget[d.k];
+    const cond=d.cond?s.cond[d.cond]:null;
+    const need=needOf(s,d), gap=(v-need)/need;
+    const mn=L.min[d.k]!==undefined?L.min[d.k]:d.min, mx=L.max[d.k]!==undefined?L.max[d.k]:d.max;
+    const locked=(L.min[d.k]!==undefined?'no cuts':'')+(L.max[d.k]!==undefined?(L.min[d.k]!==undefined?', ':'')+'no rises':'');
+    const hint=gap<-0.1?'<span class="dn">starved: deteriorating fast</span>':gap<-0.03?'<span class="dn">squeezed: slow decline</span>':gap<0.06?'holding, slowly wearing':'<span class="up">rebuilding</span>';
+    return `<div class="dept${locked?' locked':''}">
+      <div class="name">${d.name}${locked?` <span class="lock">🔒 ${locked}</span>`:''}</div>
+      <div class="amt">£<span id="v-${d.k}">${v}</span>bn <small>/ needs ~£${need}bn</small></div>
+      <input type="range" min="${mn}" max="${mx}" step="1" value="${v}" data-k="${d.k}" id="s-${d.k}" aria-label="${d.name} budget"${mn>=mx?' disabled':''}>
+      ${cond!==null?`<div class="cond"><i class="${condTone(cond)}" style="width:${cond}%"></i></div><div class="meta"><span>${d.condName} <b class="num">${fmt(cond,0)}</b>/100</span><span>${hint}</span></div>`
+        :`<div class="meta"><span>${d.k==='welfare'?'Cuts here hit approval and public order':'Smooths every relationship except Moscow'}</span><span>${hint}</span></div>`}
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#depts input[type=range]').forEach(inp=>{
+    inp.addEventListener('input',()=>{ S.budget[inp.dataset.k]=+inp.value; $('#v-'+inp.dataset.k).textContent=inp.value; renderLedger(S); });
+    inp.addEventListener('change',()=>renderDepts(S));
+  });
+  const tax=$('#tax'); tax.min=L.taxMin; tax.max=L.taxMax; tax.disabled=L.taxMin>=L.taxMax;
+  const sanc=$('#sanctions'); sanc.disabled=L.noLiftSanctions;
+}
+function renderBudgetStatus(s,f){
+  const rule=0.03*s.gdp, over=f.deficit-rule;
+  let cls,txt,gap,why;
+  if(f.deficit<=0){ cls='ok'; txt='Surplus'; gap='£'+fmt(-f.deficit,0)+'bn in hand'; why='Debt falls. Markets love it; the squeeze on services and taxpayers is real.'; }
+  else if(over<=0){ cls='ok'; txt='Within budget'; gap='£'+fmt(-over,0)+'bn under the 3% rule'; why='Borrowing is inside the 3%-of-GDP rule, so debt stabilises and yields ease.'; }
+  else if(f.defPct<=4.5){ cls='warn'; txt='Over budget'; gap='£'+fmt(over,0)+'bn over the 3% rule'; why='Debt is rising. Markets tolerate it while it is falling toward 4.5%, and charge a little more each quarter.'; }
+  else { cls='over'; txt='Badly over budget'; gap='£'+fmt(over,0)+'bn over the 3% rule'; why='Above 4.5% of GDP you fail the election test; above 6% yields climb, interest eats the budget, and options close.'; }
+  $('#budgetstatus').innerHTML=`<div class="budgetbar ${cls}"><div class="s">${txt}</div><div class="g">${gap}</div><div class="x">${why}</div></div>`;
+}
+function renderLedger(s){
+  const f=fiscal(s);
+  renderBudgetStatus(s,f);
+  const labels=['Deep cuts','Big cuts','Cuts','Trim','Nudge down','Unchanged','Nudge up','Rise','Raise','Big rise','Hike'];
+  $('#taxlabel').textContent='· '+labels[s.tax+5];
+  $('#taxrev').textContent=(s.tax>0?'+':'')+fmt(REV0*0.014*s.tax*(s.gdp/GDP0),0)+'bn/yr';
+  const tone=f.defPct>6?'crit':f.defPct>3?'warn':'good';
+  $('#ledger').innerHTML=
+    `<div><span>Departments</span><span class="num">£${fmt(f.disc,0)}bn</span></div>
+     <div><span>Other spending</span><span class="num">£${fmt(f.other,0)}bn</span></div>
+     <div><span>Debt interest</span><span class="num">£${fmt(f.interest,0)}bn</span></div>
+     ${s.oneOff?`<div><span>One-off commitments</span><span class="num">£${fmt(s.oneOff,0)}bn</span></div>`:''}
+     <div class="tot"><span>Total spending</span><span class="num">£${fmt(f.spend,0)}bn</span></div>
+     <div class="tot"><span>Tax revenue</span><span class="num">£${fmt(f.rev,0)}bn</span></div>
+     <div class="tot" style="color:var(--${tone})"><span>Borrowing</span><span class="num">£${fmt(f.deficit,0)}bn · ${fmt(f.defPct)}% GDP</span></div>
+     <div style="color:var(--muted);font-size:12px">${f.defPct>3?'Above 3%: debt keeps rising and markets charge for it.':'Below 3%: debt stabilises. Markets reward it; voters feel the squeeze.'}</div>`;
+}
+
+function lineChart(series,opts){
+  const W=600,H=190,L=38,R=12,T=14,B=24;
+  const n=TERM+1;
+  let lo=opts.min,hi=opts.max;
+  if(lo===undefined||hi===undefined){
+    const all=series.flatMap(x=>x.d);
+    let mn=Math.min(...all),mx=Math.max(...all);
+    if(mx-mn<1){mx+=1;mn-=1;}
+    const pad=(mx-mn)*0.15; lo=lo===undefined?mn-pad:lo; hi=hi===undefined?mx+pad:hi;
+  }
+  if(opts.zero!==false && lo>0 && lo<2) lo=0;
+  const step=niceStep((hi-lo)/4); lo=Math.floor(lo/step)*step; hi=Math.ceil(hi/step)*step;
+  const x=i=>L+(W-L-R)*i/(n-1), y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  let g='';
+  for(let v=lo;v<=hi+1e-9;v+=step){ g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-5}" y="${y(v)+3.5}" text-anchor="end">${fmtTick(v)}${opts.unit||''}</text>`; }
+  if(opts.line!==undefined && opts.line>=lo && opts.line<=hi) g+=`<line x1="${L}" x2="${W-R}" y1="${y(opts.line)}" y2="${y(opts.line)}" stroke="var(--${opts.lineColor||'crit'})" stroke-dasharray="4 3" stroke-width="1"/><text x="${W-R}" y="${y(opts.line)-4}" text-anchor="end" fill="var(--${opts.lineColor||'crit'})">${opts.lineLabel||''}</text>`;
+  for(let i=0;i<=TERM;i+=4) g+=`<text x="${x(i)}" y="${H-7}" text-anchor="${i===0?'start':i===TERM?'end':'middle'}">${i===TERM?'Election':qLabel(i)}</text>`;
+  g+=`<line class="axis" x1="${L}" x2="${W-R}" y1="${y(lo)}" y2="${y(lo)}"/>`;
+  for(const sr of series){
+    const pts=sr.d.map((v,i)=>[x(i),y(clamp(v,lo,hi))]);
+    const path=pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+    if(sr.area) g+=`<path d="${path} L${pts[pts.length-1][0].toFixed(1)} ${y(lo)} L${pts[0][0].toFixed(1)} ${y(lo)} Z" fill="var(--${sr.c})" opacity=".08"/>`;
+    g+=`<path d="${path}" fill="none" stroke="var(--${sr.c})" stroke-width="2" stroke-linejoin="round"/>`;
+    const e=pts[pts.length-1];
+    g+=`<circle cx="${e[0]}" cy="${e[1]}" r="3.5" fill="var(--${sr.c})"/>`;
+  }
+  const legend=series.map(sr=>`<span><i style="background:var(--${sr.c})"></i>${sr.n}</span>`).join('');
+  return `<div><div class="legend">${legend}</div><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.label}">${g}</svg></div>`;
+}
+function niceStep(raw){ const p=Math.pow(10,Math.floor(Math.log10(raw))); const m=raw/p; return (m<1.5?1:m<3.5?2:m<7.5?5:10)*p; }
+function fmtTick(v){ return Math.abs(v)>=100?Math.round(v):(Math.round(v*10)/10); }
+
+function renderCharts(s){
+  const h=s.hist;
+  const ser=k=>h.map(x=>x[k]);
+  $('#charts').innerHTML=
+    lineChart([{n:'Approval',c:'c2',d:ser('pop'),area:true}],{min:10,max:70,unit:'%',line:WIN,lineLabel:WIN+'% to win',lineColor:'muted',label:'Approval rating over the term'})+
+    lineChart([{n:'Borrowing, % of GDP',c:'c1',d:ser('defPct'),area:true},{n:'10-yr gilt yield',c:'c2',d:ser('yield')}],{min:0,unit:'%',line:8.5,lineLabel:'gilt crisis',label:'Borrowing and gilt yields'})+
+    lineChart([{n:'GDP growth',c:'c1',d:ser('growth')},{n:'Inflation',c:'c2',d:ser('infl')},{n:'Unemployment',c:'c3',d:ser('unemp')}],{unit:'%',line:0,lineColor:'muted',label:'Growth, inflation and unemployment'})+
+    lineChart([{n:'Hospitals',c:'c2',d:h.map(x=>x.cond.nhs)},{n:'Defence',c:'c1',d:h.map(x=>x.cond.defence)},{n:'Transport',c:'c3',d:h.map(x=>x.cond.infra)},{n:'Public order',c:'c4',d:h.map(x=>x.cond.order)}],{min:0,max:100,line:35,lineLabel:'visible failure',label:'Condition of the public services'})+
+    lineChart([{n:'Debt / GDP',c:'c1',d:ser('debt'),area:true},{n:'Threat level',c:'c4',d:ser('threat')}],{unit:'',label:'National debt and threat level'});
+}
+function renderRels(s){
+  const p=s.last||snapshotOf(s);
+  $('#threatpin').style.left=s.threat+'%';
+  $('#threatv').innerHTML=fmt(s.threat,0)+' <small class="pill '+(s.threat>65?'crit':s.threat>50?'warn':'good')+'">'+(s.threat>65?'high':s.threat>50?'elevated':'low')+'</small>';
+  $('#rels').innerHTML=RELS.map(r=>{
+    const v=s.rel[r.k],dlt=v-p.rel[r.k];
+    return `<div class="rel"><div class="n">${r.name}<small>${r.sub}</small></div><div class="bar"><i class="${r.hostile?'hostile':''}" style="width:${v}%"></i></div><div class="v">${fmt(v,0)}<small class="${dlt>0.4?'up':dlt<-0.4?'dn':''}">${Math.abs(dlt)>0.4?sign(dlt):'—'}</small></div></div>`;
+  }).join('');
+}
+function renderNotes(s){
+  $('#notes').innerHTML=s.notes&&s.notes.length?`<ul>${s.notes.map(n=>`<li>${n}</li>`).join('')}</ul>`:'<div style="color:var(--muted)">Nothing has happened yet. Every lever you move has a cost somewhere else; this panel will show you where.</div>';
+}
+function renderLog(s){
+  $('#log').innerHTML=s.log.length?s.log.slice(0,40).map(e=>`<div class="e ${e.tone}"><div class="q">${e.q}</div><div><div class="t">${e.t}</div><div>${e.b}</div></div></div>`).join('')
+    :'<div style="color:var(--muted)">Nothing yet. Set your first budget and end the quarter.</div>';
+}
+function renderTest(s){
+  const T=electionTest(s);
+  const verdict=!T.elected?['crit','Not re-elected']:T.inOrder?['good','Re-elected with the economy in order: a win']:T.deteriorating?['crit','Re-elected but the economy is clearly deteriorating: a loss']:['warn','Re-elected but the economy fails the test: a loss'];
+  $('#test').innerHTML=`<div class="tl">Election test <small>if the vote were held today</small></div>`+
+    T.items.map(i=>`<div class="ti ${i.ok?'ok':i.bad?'bad':'meh'}"><span class="m">${i.ok?'✓':i.bad?'✗':'–'}</span><span>${i.label}</span><span class="num">${i.val}</span><small>${i.need}</small></div>`).join('')+
+    `<div class="tv ${verdict[0]}">${verdict[1]}</div>`;
+}
+function render(s){
+  renderTest(s);
+  $('#qlabel').textContent=qLabel(s.q);
+  $('#qof').textContent='Quarter '+(s.q+1)+' of '+TERM;
+  $('#tax').value=s.tax; $('#focus').value=s.focus; $('#sanctions').checked=s.sanctions;
+  renderStrip(s); renderDepts(s); renderLedger(s); renderNotes(s); renderCharts(s); renderRels(s); renderLog(s);
+  $('#endq').disabled=!!s.over;
+}
+
+/* ---------- modals ---------- */
+function modal(html){ $('#modalhost').innerHTML=`<div class="scrim"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`; }
+function closeModal(){ $('#modalhost').innerHTML=''; }
+function showEvent(e){
+  const html=`<div class="kind">${e.kind} · ${qLabel(S.q)}</div><h2>${e.title}</h2><p>${e.body(S)}</p><div class="choices">`+
+    e.choices.map((c,i)=>{const why=c.req?c.req(S):''; return `<button class="choice${why?' off':''}" data-i="${i}"${why?' disabled':''}><b>${c.l}</b><span>${why?'🔒 '+why:c.n}</span></button>`;}).join('')+'</div>';
+  modal(html);
+  document.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>{
+    const c=e.choices[+b.dataset.i];
+    if(c.req&&c.req(S)) return;
+    c.a(S);
+    for(const k in S.cond) S.cond[k]=clamp(S.cond[k],0,100);
+    for(const k in S.rel) S.rel[k]=clamp(S.rel[k],0,100);
+    S.pop=clamp(S.pop,5,85); S.threat=clamp(S.threat,0,100); S.censure=clamp(S.censure,0,IMPEACH);
+    S.seen[e.id]=(S.seen[e.id]||0)+1;
+    addLog(S,e.title,'You chose: '+c.l+'.');
+    if(S.censure>=IMPEACH){ S.over={kind:'impeach',title:'Impeached',body:'One failure too many. The Commons revives a power last used in 1806 and articles of impeachment pass with your own party abstaining.'}; closeModal(); render(S); save(); showOver(S.over); return; }
+    closeModal(); render(S); save();
+  }));
+}
+const LESSONS={
+  win:'You won because you spread the pain: a little less everywhere, a little more tax, borrowing brought under 3%. Nobody thanks you for it, which is why the margin is small. There was no version of this where everyone was happy.',
+  lose:'Every lever you did not pull was a choice. Borrowing above 3% is a tax on the future; cutting one service to spare the others puts that service on the front page. The only path to re-election was a balanced squeeze, and even that wins by a whisker.',
+  crash:'The trade-off you refused was the one between spending now and credibility later. Markets lend to governments they believe will pay; once that belief goes, every other choice is made for you.',
+  ousted:'Approval is a lagging indicator of trade-offs made too late. The services you squeezed to spare voters a tax rise became the thing voters could not forgive.',
+  pyrrhic:'Winning the vote is not the job. You bought approval with borrowing the next government will have to repay. An election won on a deteriorating economy is a loss deferred by one news cycle.',
+  impeach:'Parliament will tolerate unpopularity and even a bad economy. What it will not tolerate is a government that lets failure after failure go unanswered. Each time you played something down, the tally grew.'
+};
+function showOver(o){
+  const h=S.hist, first=h[0], lastH=h[h.length-1];
+  const tone=o.kind==='win'?'good':'crit';
+  modal(`<div class="kind" style="color:var(--${tone})">End of term · ${qLabel(S.q)}</div><h2>${o.title}</h2><p>${o.body}</p>
+    <p class="lesson">${LESSONS[o.kind]}</p>
+    <div class="result">
+      <div>Approval: ${fmt(first.pop,0)}% → ${fmt(lastH.pop,0)}% (need ${WIN}%)</div>
+      <div>Borrowing: ${fmt(first.defPct)}% → ${fmt(lastH.defPct)}% of GDP · Debt: ${fmt(first.debt,0)}% → ${fmt(lastH.debt,0)}%</div>
+      <div>Gilt yield: ${fmt(first.yield)}% → ${fmt(lastH.yield)}% · Growth: ${fmt(first.growth)}% → ${fmt(lastH.growth)}%</div>
+      <div>Censure: ${S.censure} of ${IMPEACH} · Threat: ${fmt(first.threat,0)} → ${fmt(lastH.threat,0)} · Quarters served: ${S.q} of ${TERM}</div>
+    </div>
+    <div class="choices"><button class="btn primary" id="again">Start a new term</button></div>`);
+  $('#again').addEventListener('click',()=>{ S=fresh(); snapshot(S); _lockCount=0; closeModal(); render(S); save(); });
+}
+function showBriefing(){
+  modal(`<div class="kind">Briefing · Day one</div><h2>Prime Minister, you have inherited a hole.</h2>
+    <p>Borrowing is running near 6% of GDP, gilt yields are at 5.4%, every service is a little worse than it was, and you have twenty quarters until the election. Each quarter you set every department's budget, a tax stance and a foreign-policy focus, then the world responds.</p>
+    <ol class="objectives">
+      <li><b>Win the election with the economy in order.</b> You need ${WIN}% approval on election day <i>and</i> borrowing at or below 4.5% of GDP, gilt yields at or below 5%, growth above 0.5% and debt no higher than 105% of GDP. Re-election with a deteriorating economy is a loss. Approval under 27% for two quarters and your own MPs remove you early.</li>
+      <li><b>Keep the markets' confidence.</b> Borrowing above 3% of GDP pushes yields up and debt interest with it. Past 8.5% the markets end your premiership. Two quarters of deep recession do the same.</li>
+      <li><b>Mind what you neglect.</b> Every department has a level it needs just to stand still. Let one fall below 35 and its failures become headlines; below 25 and Parliament starts counting.</li>
+      <li><b>Answer for failure.</b> Parliament keeps a censure tally. Play down a crisis, dispute the forecasts, let a service collapse, and it climbs. At ${IMPEACH} you are impeached.</li>
+    </ol>
+    <p style="margin-top:12px;color:var(--muted);font-size:13px">As things go wrong, options close: markets stop lending, Cabinet refuses cuts, backbenchers refuse tax rises. The window for choosing narrows the longer you leave it.</p>
+    <div class="choices"><button class="btn primary" id="go">Take the keys</button></div>`);
+  $('#go').addEventListener('click',closeModal);
+}
+
+/* ---------- wiring ---------- */
+function endQuarter(){
+  if(S.over) return;
+  simulate(S);
+  render(S); save();
+  if(S.over){ showOver(S.over); return; }
+  const e=rollEvent(S);
+  if(e) showEvent(e);
+  else { addLog(S,'A quiet quarter','No crises, which is its own kind of news.'); renderLog(S); }
+}
+$('#endq').addEventListener('click',endQuarter);
+$('#restart').addEventListener('click',()=>{ S=fresh(); snapshot(S); _lockCount=0; closeModal(); render(S); save(); showBriefing(); });
+$('#tax').addEventListener('input',e=>{ S.tax=+e.target.value; renderLedger(S); });
+$('#focus').addEventListener('change',e=>{ S.focus=e.target.value; });
+$('#sanctions').addEventListener('change',e=>{ S.sanctions=e.target.checked; });
+
+function save(){ try{ localStorage.setItem('numberten2',JSON.stringify(S)); }catch(_){} }
+function load(){ try{ const j=localStorage.getItem('numberten2'); if(j){ const s=JSON.parse(j); if(s&&s.hist&&s.hist.length&&s.censure!==undefined) return s; } }catch(_){} return null; }
+
+function start(hot){
+  S=(hot&&hot.S)||load()||null;
+  const isNew=!S;
+  if(!S){ S=fresh(); snapshot(S); }
+  render(S);
+  if(S.over) showOver(S.over); else if(isNew) showBriefing();
+  if(window.claude&&window.claude.hot&&window.claude.hot.snapshot) window.claude.hot.snapshot(()=>({S}));
+}
+if(window.claude&&window.claude.hot&&window.claude.hot.ready) window.claude.hot.ready(start); else start((window.claude&&window.claude.hot&&window.claude.hot.data)||{});
+})();
+
+</script>
+
+</body>
+</html>
