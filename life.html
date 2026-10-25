@@ -145,6 +145,8 @@ body.toasting #stage{padding-top:calc(env(safe-area-inset-top,0px) + 150px)}
 .toast{animation:toastIn .25s ease-out}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
 .gbtn.teal:disabled,.gbtn.gold:disabled,.gbtn.red:disabled{opacity:.45;filter:grayscale(.5);cursor:not-allowed}
+.applyresult{border:3px solid var(--ink);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:14px;background:#d8f3e3}
+.applyresult.miss{background:#ffe3df}
 .sheetgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-bottom:14px}
 .sheetgrid .tbl th{border-top:2px solid var(--ink);padding-top:5px}
 .card p{margin:0}
@@ -231,6 +233,7 @@ body.moving #spinCenter{opacity:0;pointer-events:none}
 .menu>.gbtn{min-width:260px}
 .steps{display:flex;gap:8px;justify-content:center}.steps i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);background:#fff}.steps i.on{background:var(--gold)}
 .wizard{display:grid;gap:14px}
+.wizard .row.toggles{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
 .wizard h2{color:#fff;font-size:clamp(24px,4vw,38px);text-shadow:0 3px 0 var(--ink),0 8px 18px rgba(0,0,0,.4);text-align:center}
 .wizard .lede{text-align:center;max-width:62ch;margin:0 auto;color:#fff;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.6)}
 .picks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
@@ -339,7 +342,9 @@ body.moving #topbar .wallet, body.moving #topbar .who, body.moving #stats, body.
   .choice{padding:8px 10px}.choice b{font-size:14px}.choice .odds{font-size:14px;padding:2px 6px}
   .logo h1{font-size:clamp(40px,13vw,72px);-webkit-text-stroke:2px var(--ink);text-shadow:0 4px 0 var(--ink),0 10px 20px rgba(0,0,0,.45)}
   .banner{padding:18px 12px 14px;transform:rotate(-1deg)}
-  .wizard .row.footer{flex-wrap:nowrap;gap:6px}
+  .wizard .row.footer{flex-wrap:wrap;gap:6px;max-width:100%}
+  .wizard .row.toggles{justify-content:center;flex-wrap:wrap;gap:6px}
+  .sheet,.wizard{max-width:100%;overflow-x:hidden}
   .wizard .row.footer .gbtn{font-size:12px;padding:7px 9px;border-width:2.5px;box-shadow:0 3px 0 var(--ink)}
   .wizard .row.footer .hint{display:none}
   .menu>.gbtn{min-width:220px}
@@ -373,8 +378,8 @@ const clamp = (v,a=0,b=100) => Math.max(a,Math.min(b,v));
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
 const MODES = [
-  {id:'life',  name:'A Life', icon:'🌳', desc:'Age 22 to 65 · about 120 turns', more:'Careers, homes, family, crashes and comebacks, then you choose how to retire.', years:43, track:330},
-  {id:'shock', name:'A Life (recession start)', icon:'🌪️', desc:'Age 22 to 65 · starts in a recession', more:'Begin with high prices, high interest and lots of people out of work.', years:43, track:330, shock:true},
+  {id:'life',  name:'A Life', icon:'🌳', desc:'Age 22 to 65 · about 75 turns', more:'Careers, homes, family, crashes and comebacks, then you choose how to retire.', years:43, track:210},
+  {id:'shock', name:'A Life (recession start)', icon:'🌪️', desc:'Age 22 to 65 · starts in a recession', more:'Begin with high prices, high interest and lots of people out of work.', years:43, track:210, shock:true},
 ];
 const SEASONS=['Spring','Summer','Autumn','Winter'];
 
@@ -2573,7 +2578,7 @@ function buildWorld(count,seed){
   const dz1=tz0-4, dz0=tz0-20;
   const ringE=tx1+4.5, ringW=tx0-4.5, avN=dz1+1.6, avS=tz1+3.2, outE=ringE+32, outW=ringW-32;
   downtown(cx-16,cx+16,dz0+4,dz1,prng,true,{z1:dz1+1.6,x0:cx-19,x1:cx+19});
-  downtown(cx+19,cx+38,dz0+4,dz1,prng,false,{z1:dz1+1.6}); downtown(cx-38,cx-19,dz0+4,dz1,prng,false,{z1:dz1+1.6});
+  downtown(cx+19,cx+38,dz0+4,dz1,prng,false,{z1:dz1+1.6}); downtown(cx-34.6,cx-19,dz0+4,dz1,prng,false,{z1:dz1+1.6});
   // main avenue linking downtown to the path, with the two long streets
   roadX(outW,outE,avN,1.3); roadX(outW,outE,avS,1.3); roadZ(avN,avS,outW,1.2); roadZ(avN,avS,outE,1.2);
   for(let x=outW+4;x<outE-3;x+=6){ for(const z of [dz1+1.6,tz1+3.2]){ const l=lamp(); l.position.set(x,0,z+0.8); world.add(l); if(((x/6)|0)%4===0){ const b=busStop(); b.position.set(x+1.5,0,z+0.9); world.add(b);} } }
@@ -3046,7 +3051,8 @@ function renderStart(){
       <div class="picks icons">${PROFILES.map(p=>`<button class="pick" aria-pressed="${selected.profile===p.id}" data-profile="${p.id}">
         <span class="bigicon" style="background:${PAWN_HEX(p.id)};color:#fff">${ic(PROF_ICON[p.id])}</span><h3>${p.name}</h3><span class="tag">${p.tag}</span><p>${studyMode?p.desc:p.short}</p>
         <dl><dt>Pay / mo</dt><dd class="num">${Y(p.income)}</dd><dt>Bills / mo</dt><dd class="num">${Y(p.expenses)}</dd><dt>Savings</dt><dd class="num">${Y(p.savings)}</dd><dt>Debt</dt><dd class="num">${Y(p.debt)}</dd></dl></button>`).join('')}</div>
-      <div class="row footer"><button class="gbtn" id="back">◀ Back</button><button class="gbtn" id="reroll">${ic('dice')} Random</button><button class="gbtn small ${selected.mode==='shock'?'gold':'ghost'}" id="shockT" title="Start in a recession: high prices, high interest, lots of people out of work">${ic('wind')} Recession start: ${selected.mode==='shock'?'on':'off'}</button>${moreT}<button class="gbtn gold" id="nextStep">Next ▶</button></div></div>`;
+      <div class="row toggles"><button class="gbtn small ${selected.mode==='shock'?'gold':'ghost'}" id="shockT" title="Start in a recession: high prices, high interest, lots of people out of work">${ic('wind')} Recession start: ${selected.mode==='shock'?'on':'off'}</button>${moreT}</div>
+      <div class="row footer"><button class="gbtn" id="back">◀ Back</button><button class="gbtn" id="reroll">${ic('dice')} Random</button><button class="gbtn gold" id="nextStep">Next ▶</button></div></div>`;
     document.getElementById('moreT').onclick=()=>{ SFX.click(); setStudy(!studyMode); renderStart(); };
     document.getElementById('shockT').onclick=()=>{ SFX.click(); selected.mode=selected.mode==='shock'?'life':'shock'; renderStart(); };
     overlay.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>{ SFX.click(); selected.profile=b.dataset.profile; renderStart(); });
@@ -3076,9 +3082,9 @@ function studyYear(){ const s=S; if(!s.studying||busy) return; const ed=EDU.find
   if(s.studying.left<=0){ if(ed.level>s.eduLevel){ s.eduLevel=ed.level; s.eduName=ed.name; } text+=' You graduated! New jobs are unlocked.'; s.studying=null; SFX.win(); } else SFX.card();
   s.outcomeBefore=before; finishYear({cat:'Education',title:'Study term',text:''},{label:'Studied at '+ed.name,idea:'Human capital'},null,text,'Studying costs money and half your pay for a while. In return your skills grow and better jobs open up. Whether that pays off depends on the years that follow.');
   s.income=Math.round(savedIncome*(1+Math.max(0,s.econ.inflation-1)/100/4*0.9)); render(); }
-function applyJob(id){ const s=S, j=jobById(id); if(s.applied) return; const p=jobOdds(s,j); const hit=rng()<p; s.applied=true; s.stats.rolls++; if(hit) s.stats.hits++;
-  if(hit){ s.employed=true; s.job=j.id; s.income=j.pay+streamSum(s); s.jobsHeld++; adj(s,'wellbeing',j.mood*2); SFX.good(); popText('New job!','#d8f3e3','#1f6b45'); showToastMsg(`You got the job! You are now a ${j.name}, earning ${Y(j.pay)} a month.`,'#4fae5c'); }
-  else { SFX.bad(); showToastMsg(`${Math.round(p*100)}% chance and no luck this time. You can apply again next season.`,'#e4553f'); } render(); }
+function applyJob(id){ const s=S, j=jobById(id); if(s.applied) return; const p=jobOdds(s,j); const hit=rng()<p; s.applied=true; s.stats.rolls++; if(hit) s.stats.hits++; s.lastApply={job:j.id,hit,p,turn:s.turn};
+  if(hit){ s.employed=true; s.job=j.id; s.income=j.pay+streamSum(s); s.jobsHeld++; adj(s,'wellbeing',j.mood*2); SFX.good(); popText('New job!','#d8f3e3','#1f6b45'); }
+  else { SFX.bad(); } render(); }
 function showToastMsg(text,color,title='Life choices'){ let el=document.getElementById('toast'); if(!el){ el=document.createElement('div'); el.id='toast'; el.className='toast'; document.body.appendChild(el); } document.body.classList.add('toasting'); el.style.setProperty('--cat',color); el.innerHTML=`<b>${esc(title)}</b>${esc(text)}`; el.hidden=false; clearTimeout(infoTimer); infoTimer=setTimeout(()=>{el.hidden=true; document.body.classList.remove('toasting');},6000); }
 function doBuyHome(id){ const s=S, hm=HOMES.find(h=>h.id===id); const chk=mortgageCheck(s,hm.price); if(!chk.ok){ SFX.bad(); showToastMsg(chk.why,'#e4553f','Home'); return; } const src=buyHome(s,hm.price); adj(s,'wellbeing',5); s.strat&&(s.strat.investor++); SFX.win(); popText('New home!','#d8f3e3','#1f6b45'); showToastMsg(`Deposit ${Y(Math.round(hm.price*0.1))} paid from ${src}. You own ${hm.name.toLowerCase()} and owe the bank ${Y(hm.price-Math.round(hm.price*0.1))}. Rent stops; the loan payment starts.`,'#4fae5c','Home'); render(); }
 function doInvest(amount){ const s=S; const avail=Math.max(0,s.cash+s.savings-s.expenses*2); const m=Math.min(amount==='max'?avail:amount,avail); if(m<=0){ SFX.bad(); showToastMsg('Keep at least two months of bills as a cushion before investing.','#e4553f','Invest'); return; } pay(s,m); s.stocks+=m; s.stocksCost+=m; s.strat&&(s.strat.investor++); SFX.coin(); showToastMsg(`${Y(m)} moved into the index fund. It will rise and fall with the whole market.`,'#4fae5c','Invest'); render(); }
@@ -3092,7 +3098,7 @@ function renderCareer(s){
   const avail=Math.max(0,s.cash+s.savings-s.expenses*2);
   const TITLES={jobs:ic('briefcase')+' Jobs',study:ic('cap')+' Study',assets:ic('home')+' Assets',invest:ic('trend')+' Invest',loans:ic('receipt')+' Loans'};
   let body='';
-  if(careerTab==='jobs') body=`<p class="note">${s.applied?'You already applied this season. Try again next season.':(studyMode?'You can apply for one job a season. Odds depend on your skills, contacts, your age and how many people are out of work.':'One application a season.')}</p>
+  if(careerTab==='jobs') body=`${s.lastApply&&s.lastApply.turn===s.turn?`<div class="applyresult ${s.lastApply.hit?'win':'miss'}">${s.lastApply.hit?`${ic('sparkles')} <b>You got it!</b> You are now a ${esc(jobById(s.lastApply.job).name)}. Press <b>Work Hard</b> to carry on.`:`<b>No luck this time.</b> ${Math.round(s.lastApply.p*100)}% chance for ${esc(jobById(s.lastApply.job).name)}. One application per turn: press <b>Work Hard</b> and try again next turn.`}</div>`:''}<p class="note">${s.applied?'You already applied this turn. Try again next turn.':(studyMode?'Tap a job to apply. One application a turn. Odds depend on your skills, contacts, your age and how many people are out of work.':'Tap a job to apply. One application a turn.')}</p>
     <div class="choices">${JOBS.map(j=>{ const ok=canApply(s,j), p=Math.round(jobOdds(s,j)*100), mine=s.employed&&s.job===j.id;
       const need=[j.edu>s.eduLevel?EDU.find(e=>e.level===j.edu).name:null, s.skills<j.skills-10?'skills '+j.skills:null, j.conn&&s.connections<j.conn-15?'contacts '+j.conn:null].filter(Boolean).join(', ');
       return `<button class="choice" data-job="${j.id}" ${(!ok||mine||s.applied)?'disabled':''}><b>${j.name} · ${Y(j.pay)}/mo</b><small>${j.note}${need?' · Needs: '+need:''}${mine?' · Your job':''}</small>${ok&&!mine?`<span class="odds">${p}%<small>CHANCE</small></span>`:''}</button>`; }).join('')}</div>`;
@@ -3459,7 +3465,7 @@ function renderEnd(){
 function render(){ if(!S) renderStart(); else if(S.phase==='retire') renderRetire(); else if(S.phase==='end') renderEnd(); else if(paused) renderPause(); else { titleDrift=false; renderTop(S); renderStats(S); renderBottom(S); renderStage(S); } }
 
 addEventListener('keydown',e=>{ if(!S||S.phase==='end'||S.phase==='retire') return; if(e.key==='Escape'){ paused=!paused; render(); } if((e.key==='c'||e.key==='C')&&!paused&&S.phase==='roll'){ chartsOpen=!chartsOpen; careerOpen=false; render(); } if(e.key===' '&&!paused){ e.preventDefault(); if(S.phase==='roll'&&!careerOpen&&!chartsOpen){ SFX.init(); takeTurn(); } else if(S.phase==='outcome') next(); } });
-addEventListener('resize',()=>{ if(S&&S.phase!=='end'&&!paused) render(); });
+let lastW=innerWidth; addEventListener('resize',()=>{ if(Math.abs(innerWidth-lastW)<40) return; lastW=innerWidth; if(S&&S.phase!=='end'&&!paused) render(); });
 
 window.claude?.hot?.snapshot?.(()=>({S:S&&{...S,current:S.current&&S.current.id,outcome:null,outcomeBefore:null,phase:S.phase==='outcome'||S.phase==='rolling'?'roll':S.phase},selected}));
 function boot(data){
