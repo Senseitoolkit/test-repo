@@ -38,7 +38,9 @@
         header { background: rgba(255,253,249,0.92); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--slate-200); }
         .header-content { max-width: 1280px; margin: 0 auto; padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 1rem; }
         .logo { font-size: 1.25rem; font-weight: 700; color: var(--slate-900); display: flex; align-items: center; gap: 0.65rem; letter-spacing: -0.02em; text-decoration: none; flex-shrink: 0; }
-        .logo-mark { width: 34px; height: 34px; background: linear-gradient(135deg, var(--amber-500), var(--rose-500)); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(236,138,53,0.3); }
+        .logo-mark { width: 34px; height: 34px; background: linear-gradient(135deg, var(--amber-500), var(--rose-500)); border-radius: 10px; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(236,138,53,0.3); border: none; padding: 0; cursor: pointer; flex-shrink: 0; transition: transform 0.2s ease, box-shadow 0.2s ease; -webkit-tap-highlight-color: transparent; }
+        .logo-mark:hover, .logo-mark:focus-visible { transform: scale(1.06); box-shadow: 0 5px 12px rgba(236,138,53,0.4); outline: none; }
+        .logo-text { color: inherit; text-decoration: none; }
         .logo-mark svg { width: 18px; height: 18px; fill: none; stroke: white; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         nav { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; }
         .nav-link { color: var(--slate-700); font-weight: 600; font-size: 0.875rem; text-decoration: none; padding: 0.5rem 0.85rem; border-radius: 100px; transition: color 0.2s ease, background 0.2s ease; display: inline-flex; align-items: center; gap: 0.45rem; }
@@ -291,12 +293,12 @@
 
     <header>
         <div class="header-content">
-            <a href="/" class="logo">
-                <div class="logo-mark">
+            <div class="logo">
+                <button type="button" class="logo-mark" onclick="showModal('all')" aria-label="What’s the magic word?" title="What’s the magic word?">
                     <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                </div>
-                Teacher Toolkit
-            </a>
+                </button>
+                <a href="/" class="logo-text">Teacher Toolkit</a>
+            </div>
             <nav aria-label="Main sections">
                 <a href="#board" class="nav-link"><svg class="ico" aria-hidden="true"><use href="#i-board"/></svg>On the Board</a>
                 <a href="#practice" class="nav-link"><svg class="ico" aria-hidden="true"><use href="#i-practice"/></svg>Student Practice</a>
@@ -719,11 +721,18 @@
         }
 
         function showModal(type) {
-            const colorMap = { literacy: 'rose', math: 'teal', tdi: 'violet', guides: 'indigo', diagnostics: 'indigo', tools: 'amber', support: 'amber' };
+            const colorMap = { literacy: 'rose', math: 'teal', tdi: 'violet', guides: 'indigo', diagnostics: 'indigo', tools: 'amber', support: 'amber', all: 'amber' };
             const color = colorMap[type] || 'indigo';
+            if (type === 'all') { pendingHref = null; pendingType = 'all'; }
             document.getElementById('modalIcon').className = 'lock-icon ' + color;
             document.getElementById('modalBtn').className = 'modal-btn ' + color;
-            document.getElementById('modalMsg').textContent = timeUnlockTypes.includes(type)
+            document.getElementById('modalTitle').textContent = type === 'all' ? 'What’s the magic word?' : 'Apps Locked';
+            document.getElementById('modalBtn').textContent = type === 'all' ? 'Go' : 'Unlock';
+            const msg = document.getElementById('modalMsg');
+            msg.style.display = type === 'all' ? 'none' : '';
+            msg.textContent = type === 'all'
+                ? ''
+                : timeUnlockTypes.includes(type)
                 ? 'These apps are closed right now. They are open Monday–Friday, 8:00 AM – 4:15 PM, and open again ' + nextOpening() + '. Enter the password to open them now.'
                 : 'This section is password protected. Enter the password to access it.';
             const input = document.getElementById('modalInput');
@@ -743,7 +752,14 @@
         function submitPassword() {
             const input = document.getElementById('modalInput');
             const error = document.getElementById('modalError');
-            if (input.value.toLowerCase().trim() === PASSWORD) {
+            const typed = input.value.toLowerCase().trim();
+            if (pendingType === 'all' && typed === 'quest') {
+                closeModal();
+                window.location.href = 'levelquest.html';
+                return;
+            }
+            if (typed === PASSWORD) {
+                if (pendingType === 'all') { unlockAll(); return; }
                 const href = pendingHref;
                 setUnlocked(pendingType);
                 closeModal();
