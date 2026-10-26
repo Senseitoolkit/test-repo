@@ -193,7 +193,7 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
 <section class="menu" id="menu" aria-label="Start menu">
   <div class="card">
     <h1>Maths Representations</h1>
-    <p class="lead">Each question starts as a blank working-out space. Enter builds it with a model, Enter again checks, Enter once more moves on.</p>
+    <p class="lead">Each question starts as a blank working-out space. Enter builds it with a model, then checks, then reveals, then moves on.</p>
     <div class="mgrid">
     <div class="mrow"><span class="lbl">Operations</span>
       <div class="seg" role="group" aria-label="Operations">
@@ -238,8 +238,8 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
       <div class="steps">
         <button class="step" id="showBtn"><span class="n">1</span>Show me</button>
         <button class="step" id="checkBtn"><span class="n">2</span>Check</button>
-        <button class="step" id="nextBtn"><span class="n">3</span>Next question</button>
-        <button class="ghost small" id="revealBtn">Reveal answer</button>
+        <button class="step" id="revealBtn"><span class="n">3</span>Reveal</button>
+        <button class="step" id="nextBtn"><span class="n">4</span>Next question</button>
       </div>
       <div class="feedback" id="fb" aria-live="polite"></div>
       <div class="boardWrap">
@@ -272,7 +272,7 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
         <button id="clearBtn" class="warn">Clear board</button>
       </div></div>
       <div class="blurb" id="blurb"></div>
-      <div class="blurb">Enter: show the model → check → next question · N new question · P pen · L lines · F full screen · Ctrl/⌘ Z undo</div>
+      <div class="blurb">Enter: show → check → reveal → next · N new question · P pen · L lines · F full screen · Ctrl/⌘ Z undo</div>
     </aside>
   </main>
 </div>
@@ -833,7 +833,7 @@ function drawLinks(){
 /* ---------- app state ---------- */
 const ORDER = ['counters','array','tenframes','shapes','rods','base10','beads','numberline','bar','partwhole'];
 if (!M[S.model]) S.model = 'counters';
-let cur = null, states = {}, st = null, tries = 0, done = false, free = false, boardHidden = false;
+let cur = null, states = {}, st = null, tries = 0, done = false, free = false, boardHidden = false, checked = false, lastChecked = null;
 
 function render(){
   const m = M[S.model];
@@ -899,10 +899,8 @@ $('autoBtn').onclick = () => { S.auto = !S.auto; $('autoBtn').setAttribute('aria
 
 /* ---------- steps ---------- */
 function updateSteps(){
-  const cur1 = boardHidden, cur3 = done;
-  $('showBtn').setAttribute('aria-current', cur1 ? 'step' : 'false'); $('showBtn').classList.toggle('done', !cur1);
-  $('checkBtn').setAttribute('aria-current', !cur1 && !cur3 ? 'step' : 'false'); $('checkBtn').classList.toggle('done', cur3);
-  $('nextBtn').setAttribute('aria-current', cur3 ? 'step' : 'false'); $('nextBtn').classList.remove('done');
+  const step = boardHidden ? 1 : !checked && !done ? 2 : !done ? 3 : 4;
+  [['showBtn',1],['checkBtn',2],['revealBtn',3],['nextBtn',4]].forEach(([id,n]) => { const b = $(id); b.setAttribute('aria-current', step===n ? 'step' : 'false'); b.classList.toggle('done', step>n); });
 }
 
 /* ---------- pen: a drawing layer over the board ---------- */
@@ -954,15 +952,17 @@ function showQuestion(p){
   inp.oninput = () => { inp.classList.remove('no'); };
 }
 const expected = p => p.missing ? p.b : p.ans;
-/* Enter walks through the lesson: show the model, then check the answer, then the next question */
+/* Enter walks through the lesson: show the model, check the answer, reveal it, then the next question */
 function enterStep(){
   if (free) return;
   if (boardHidden){ $('showBtn').click(); const inp = $('ansIn'); if (inp) inp.focus(); return; }
-  if (done) newProblem(); else check();
+  if (done){ newProblem(); return; }
+  const inp = $('ansIn');
+  if (checked && inp && inp.value === lastChecked) $('revealBtn').click(); else check();
 }
 function setFb(text, cls=''){ fb.textContent = text; fb.className = 'feedback ' + cls; }
 function newProblem(){
-  cur = makeProblem(); tries = 0; done = false; boardHidden = !free;
+  cur = makeProblem(); tries = 0; done = false; checked = false; lastChecked = null; boardHidden = !free;
   states = {}; undo = []; strokes = []; drawInk();
   showQuestion(cur);
   const b = bestModel(cur); cur.best = b.m;
@@ -973,7 +973,8 @@ function newProblem(){
 }
 function check(){
   const inp = $('ansIn'); if (!inp || done) return;
-  if (inp.value==='') { setFb('Type your answer in the dashed box, or build it on the board first.'); inp.focus(); return; }
+  checked = true; lastChecked = inp.value; updateSteps();
+  if (inp.value==='') { setFb('Type your answer in the dashed box, or press Enter again to reveal it.'); inp.focus(); return; }
   if (+inp.value === expected(cur)){
     done = true; inp.classList.add('ok'); inp.readOnly = true; revealParts();
     if (!cur.revealed){ S.solved++; S.streak++; S.best = Math.max(S.best, S.streak); save(); updateScore(); }
@@ -984,7 +985,7 @@ function check(){
     if (S.streak){ S.streak = 0; save(); updateScore(); }
     if (tries===1) setFb('Not yet. Build it on the board and count carefully.', 'no');
     else if (tries===2) setFb('Not yet. Hint: ' + hintFor(cur), 'no');
-    else setFb('Still not right. Try "Show me" to see one way to build it, then count.', 'no');
+    else setFb('Still not right. Press Enter to reveal the answer, or keep counting on the board.', 'no');
     inp.select();
   }
 }
