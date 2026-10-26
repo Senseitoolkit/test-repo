@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Text Based Dungeon Crawler</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one torchlit codex. Start card, then a full-screen shell: header band, a scrolling chronicle,
+   and a side column with the route strip, vitals, journey stream and the choice tray. */
+:root {
+  --bg: #15161c;
+  --stone: #1e2029;
+  --stone-2: #282b37;
+  --line: #3a3e4e;
+  --bone: #e9e3d3;
+  --ash: #9b978a;
+  --torch: #e3a44f;
+  --ember: #c9502e;
+  --blood: #b9372f;
+  --mist: #73b4b8;
+  --moss: #86b06f;
+  --f-display: 'Grenze Gotisch', 'Palatino Linotype', Georgia, serif;
+  --f-body: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--bone);
+  font-family: var(--f-body);
+  font-size: 18px;
+  line-height: 1.5;
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% -10%, rgba(227,164,79,0.16), transparent 70%),
+    repeating-linear-gradient(0deg, transparent 0 46px, rgba(255,255,255,0.018) 46px 47px),
+    repeating-linear-gradient(90deg, transparent 0 92px, rgba(255,255,255,0.014) 92px 93px);
+}
+
+/* Start page */
+.start {
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 32px;
+  overflow-y: auto;
+}
+.start[hidden] { display: none; }
+.start-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--stone);
+  border: 1px solid var(--line);
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.start-card h1 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 8vw, 3.6rem);
+  line-height: 1;
+  margin: 0;
+  color: var(--torch);
+  text-shadow: 0 0 28px rgba(227,164,79,0.28);
+  text-wrap: balance;
+  text-align: center;
+}
+.start-card .sub { margin: -8px 0 0; text-align: center; color: var(--ash); font-style: italic; }
+.how { margin: 0; padding: 0 0 0 1.4em; display: flex; flex-direction: column; gap: 10px; max-width: 60ch; }
+.how li { padding-left: 4px; }
+.how li::marker { font-family: var(--f-mono); font-size: 0.8rem; color: var(--torch); }
+.how b { font-weight: 600; color: var(--bone); }
+.how .s { color: #e8865f; font-weight: 600; }
+.how .g { color: var(--mist); font-weight: 600; }
+.how .k { color: var(--moss); font-weight: 600; }
+.start-card .begin { align-self: center; width: 100%; max-width: 320px; align-items: center; text-align: center; }
+.wrap[hidden] { display: none; }
+
+/* Full-screen shell */
+.wrap {
+  height: 100%;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-auto-rows: auto;
+  gap: 14px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.chron { overflow-y: auto; min-height: 0; }
+aside { display: contents; }
+@media (min-width: 900px) {
+  .wrap {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 24px;
+    padding-block: 20px 20px;
+  }
+  header { grid-column: 1 / -1; }
+  .chron { grid-column: 1; grid-row: 2; padding: 26px 32px; }
+  aside { display: flex; flex-direction: column; gap: 14px; grid-column: 2; grid-row: 2; min-height: 0; overflow-y: auto; }
+  .vitals { grid-template-columns: 1fr; }
+  .choices { grid-template-columns: 1fr; }
+}
+header { text-align: center; position: relative; }
+header h1 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 7vw, 3.4rem);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  margin: 0;
+  color: var(--torch);
+  text-shadow: 0 0 28px rgba(227,164,79,0.28);
+  text-wrap: balance;
+}
+header p { margin: 6px 0 0; color: var(--ash); font-style: italic; }
+.hctl { position: absolute; right: 0; top: 4px; display: flex; gap: 6px; }
+.hctl button {
+  font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
+  background: transparent; color: var(--ash); border: 1px solid var(--line); padding: 6px 10px; cursor: pointer;
+}
+.hctl button:hover { color: var(--torch); border-color: var(--torch); }
+.hctl button:focus-visible { outline: 2px solid var(--torch); outline-offset: 2px; }
+#restart { border-left: 3px solid var(--ember); }
+@media (max-width: 560px) { .hctl { position: static; justify-content: center; margin-top: 10px; } }
+
+/* Route strip */
+.route {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+  font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--ash); min-height: 1.6em;
+}
+.route span { padding: 3px 9px; border: 1px solid var(--line); background: var(--stone); }
+.route span.won { border-color: var(--moss); color: var(--moss); }
+.route span.lost { border-color: var(--blood); color: #e07a72; }
+.route span.dead { border-color: var(--blood); background: #3a1f1d; color: #e07a72; }
+.route span.here { border-color: var(--torch); color: var(--torch); }
+
+/* Vitals */
+.vitals { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vitals[hidden] { display: none; }
+.vital { background: var(--stone); border: 1px solid var(--line); padding: 10px 12px; min-width: 0; }
+.vital .who {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font-family: var(--f-mono); font-size: 0.78rem; letter-spacing: 0.04em; margin-bottom: 6px;
+}
+.vital .who b { font-weight: 600; color: var(--bone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vital .num { font-variant-numeric: tabular-nums; color: var(--ash); flex-shrink: 0; }
+.bar { height: 10px; background: var(--stone-2); border: 1px solid var(--line); }
+.bar i { display: block; height: 100%; transition: width 0.35s ease; }
+.bar.you i { background: var(--torch); }
+.bar.foe i { background: var(--mist); }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+
+/* Journey stream */
+.journey {
+  background: var(--stone); border: 1px solid var(--line); padding: 10px 12px; min-width: 0;
+  max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+}
+.journey[hidden] { display: none; }
+@media (min-width: 900px) { .journey { max-height: none; flex: 1 1 160px; min-height: 120px; } }
+.jhead { font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ash); }
+.journey ol { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+.journey li { position: relative; font-family: var(--f-mono); font-size: 0.74rem; line-height: 1.35; color: var(--ash); font-variant-numeric: tabular-nums; }
+.journey li::before { content: ""; position: absolute; left: -18px; top: 0.42em; width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.journey li.room { color: var(--bone); margin-top: 4px; }
+.journey li.room::before { background: var(--torch); }
+.journey li.hit::before { background: var(--moss); }
+.journey li.hurt::before { background: var(--blood); }
+.journey li.won { color: var(--moss); }
+.journey li.won::before { background: var(--moss); }
+.journey li.lost { color: #e07a72; }
+.journey li.lost::before { background: var(--blood); }
+.journey li.end { color: var(--torch); }
+.journey li.end::before { background: var(--torch); box-shadow: 0 0 8px var(--torch); }
+.journey li.dead { color: #e07a72; }
+.journey li.dead::before { background: var(--blood); box-shadow: 0 0 8px var(--blood); }
+.journey li b { font-weight: 600; color: var(--bone); }
+
+/* Chronicle */
+.chron {
+  background: var(--stone); border: 1px solid var(--line); padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 12px; max-width: 100%; min-width: 0;
+}
+.chron h2 { font-family: var(--f-display); font-weight: 500; font-size: 1.9rem; color: var(--torch); margin: 6px 0 -4px; line-height: 1.1; }
+.chron h2:first-child { margin-top: 0; }
+.chron h2.dead { color: #e07a72; }
+.chron p { margin: 0; max-width: 62ch; }
+.chron p.you { color: var(--bone); }
+.chron p.you::before { content: "▸ "; color: var(--torch); }
+.chron p.foe { color: var(--mist); }
+.chron p.tell { color: var(--ash); font-style: italic; }
+.chron p.hit { color: var(--moss); }
+.chron p.hurt { color: #e07a72; }
+.chron p.sys { font-family: var(--f-mono); font-size: 0.8rem; color: var(--ash); letter-spacing: 0.03em; }
+.chron p.warn { font-family: var(--f-mono); font-size: 0.8rem; color: #e07a72; letter-spacing: 0.03em; }
+.chron p.end { font-size: 1.15rem; font-weight: 600; }
+.chron p.epitaph { font-family: var(--f-display); font-size: 1.6rem; color: #e07a72; }
+
+/* Choice tray */
+.tray { display: flex; flex-direction: column; gap: 10px; }
+.tray .q { font-family: var(--f-display); font-size: 1.5rem; color: var(--bone); text-align: center; text-wrap: balance; margin: 0; }
+.choices { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
+.choices.one { grid-template-columns: 1fr; max-width: 360px; margin-inline: auto; width: 100%; }
+@media (max-width: 560px) { .choices { grid-template-columns: 1fr; } }
+button.ch {
+  font: inherit; text-align: left; background: var(--stone-2); color: var(--bone);
+  border: 1px solid var(--line); border-left: 3px solid var(--torch); padding: 12px 14px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+button.ch:hover { background: #313545; border-color: var(--torch); }
+button.ch:focus-visible { outline: 2px solid var(--torch); outline-offset: 2px; }
+button.ch .n { font-family: var(--f-display); font-size: 1.35rem; line-height: 1.1; }
+button.ch .t { font-family: var(--f-mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); }
+button.ch .d { font-size: 0.95rem; color: var(--ash); }
+button.ch.strike { border-left-color: var(--ember); }
+button.ch.guard { border-left-color: var(--mist); }
+button.ch.trick { border-left-color: var(--moss); }
+button.ch .t.strike { color: #e8865f; }
+button.ch .t.guard { color: var(--mist); }
+button.ch .t.trick { color: var(--moss); }
+.rule { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.05em; color: var(--ash); text-align: center; margin: 0; }
+.rule b { font-weight: 600; }
+.rule .s { color: #e8865f; } .rule .g { color: var(--mist); } .rule .k { color: var(--moss); }
+</style>
+<style>[hidden]{display:none!important} img{max-width:100%}</style>
+</head>
+<body>
+<div class="start" id="start">
+  <div class="start-card">
+    <h1>Text Based Dungeon Crawler</h1>
+    <p class="sub">Descend into Torchfall. Four fights down. Fourteen ways out, and six of them are graves.</p>
+    <ol class="how">
+      <li><b>Pick a hero.</b> Warrior, Wizard, or Rogue. Each fights differently.</li>
+      <li><b>Each turn, choose a move.</b> <span class="s">Strike</span> beats <span class="k">Trick</span>. <span class="k">Trick</span> beats <span class="g">Guard</span>. <span class="g">Guard</span> beats <span class="s">Strike</span>.</li>
+      <li><b>Read the tell.</b> The monster shows a hint of its next move before you choose. It is usually true. Deeper monsters lie more.</li>
+      <li><b>Win or lose, the story branches.</b> Beat the monster and the path climbs. Fall near the surface and the dungeon drags you somewhere worse. Fall deep and you die.</li>
+    </ol>
+    <button class="ch begin" id="begin" type="button"><span class="n">Begin</span><span class="d">Light the torch and go down.</span></button>
+  </div>
+</div>
+
+<div class="wrap" id="wrap" hidden>
+  <header>
+    <h1>Text Based Dungeon Crawler</h1>
+    <p>Descend into Torchfall. Every blow is a wager of Strike, Guard, or Trick.</p>
+    <div class="hctl">
+      <button id="restart" type="button">Restart</button>
+      <button id="fs" type="button">Full screen</button>
+    </div>
+  </header>
+
+  <div class="chron" id="chron"></div>
+
+  <aside>
+  <div class="route" id="route"></div>
+
+  <div class="vitals" id="vitals" hidden>
+    <div class="vital">
+      <div class="who"><b id="youName">You</b><span class="num" id="youNum"></span></div>
+      <div class="bar you"><i id="youBar" style="width:100%"></i></div>
+    </div>
+    <div class="vital">
+      <div class="who"><b id="foeName">—</b><span class="num" id="foeNum"></span></div>
+      <div class="bar foe"><i id="foeBar" style="width:100%"></i></div>
+    </div>
+  </div>
+
+  <div class="journey" id="journey" hidden>
+    <div class="jhead">Journey</div>
+    <ol id="jlist"></ol>
+  </div>
+
+  <div class="tray">
+    <p class="q" id="q"></p>
+    <div class="choices" id="choices"></div>
+    <p class="rule" id="rule"></p>
+  </div>
+  </aside>
+</div>
+
+<script>
+(function () {
+  // ---------- Rules ----------
+  // Strike beats Trick. Trick beats Guard. Guard beats Strike.
+  const BEATS = { strike: 'trick', trick: 'guard', guard: 'strike' };
+  const TYPE_LABEL = { strike: 'Strike', trick: 'Trick', guard: 'Guard' };
+  const STANCE = { strike: 'Lunge', trick: 'Feint', guard: 'Brace' };
+
+  const CLASSES = {
+    warrior: {
+      name: 'Warrior', hp: 28, sig: 'strike',
+      pitch: 'Heavy iron and a short temper. Your Strikes hit hardest, and in a clash of equals you come out ahead.',
+      actions: [
+        { name: 'Cleave', type: 'strike', do: 'You bring the greatsword down in a two-handed arc.' },
+        { name: 'Shield Wall', type: 'guard', do: 'You plant your feet and raise the tower shield.' },
+        { name: 'Pommel Feint', type: 'trick', do: 'You show the blade, then crack the pommel in from the off side.' }
+      ],
+      perk: 'Ties: you deal 3, take 1.'
+    },
+    wizard: {
+      name: 'Wizard', hp: 22, sig: 'guard',
+      pitch: 'Thin robes, a glass staff, and a mind that reads intent. Your Wards bite back, and monsters find it hard to lie to you.',
+      actions: [
+        { name: 'Fireball', type: 'strike', do: 'You hurl a fist of fire down the corridor.' },
+        { name: 'Glass Ward', type: 'guard', do: 'A pane of hardened light snaps into place before you.' },
+        { name: 'Mirror Image', type: 'trick', do: 'Three of you step sideways; only one is real.' }
+      ],
+      perk: 'Tells are far more often true.'
+    },
+    rogue: {
+      name: 'Rogue', hp: 24, sig: 'trick',
+      pitch: 'Soft boots and a long knife. Your Tricks cut deepest, and you roll with every hit you fail to dodge.',
+      actions: [
+        { name: 'Lunge Stab', type: 'strike', do: 'You close the gap in one step and drive the knife in.' },
+        { name: 'Smoke Step', type: 'guard', do: 'You drop a smoke vial and fade from where you stood.' },
+        { name: 'Backstab', type: 'trick', do: 'You are suddenly behind it.' }
+      ],
+      perk: 'Take 2 less on every lost round.'
+    }
+  };
+
+  // tellAcc: how often the tell shown matches the stance actually chosen. Wizards add +0.2.
+  const MONSTERS = {
+    sentry: { name: 'Bone Sentry', hp: 16, atk: 5, bias: 'guard', tellAcc: 0.75,
+      intro: 'A skeleton in rusted mail stands at the gate, a kite shield grown into its arm. It has been waiting a very long time.',
+      tells: { strike: 'It lowers the shield and draws back its spear arm.', trick: 'Its jaw clicks. The spear tip wanders, as if undecided.', guard: 'It squares the shield to you and locks its knees.' },
+      hitLine: 'The spear finds you.', dieLine: 'The sentry comes apart in a clatter of yellowed bone.' },
+    mimic: { name: 'Gilded Mimic', hp: 20, atk: 6, bias: 'trick', tellAcc: 0.7,
+      intro: 'A gold-banded chest sits alone on the landing. It is breathing.',
+      tells: { strike: 'The lid flies open and a tongue the size of an oar coils back.', trick: 'The chest goes still and innocent. Too still.', guard: 'The lid slams shut and the brass bands tighten.' },
+      hitLine: 'The tongue wraps your leg and slams you into the stair.', dieLine: 'The mimic shudders, splits down its hinge, and spills real coins across the steps.' },
+    ratking: { name: 'Rat King', hp: 18, atk: 5, bias: 'strike', tellAcc: 0.7,
+      intro: 'Something in the pit is made of forty rats knotted by the tail, moving as one thought.',
+      tells: { strike: 'The knot bunches and every head turns toward you.', trick: 'Rats peel off in three directions at once.', guard: 'The mass tightens into a ball of fur and teeth.' },
+      hitLine: 'Forty mouths find you at once.', dieLine: 'The knot loosens. The rats scatter, ordinary again, into the dark.' },
+    warden: { name: 'Vault Warden', hp: 22, atk: 6, bias: 'guard', tellAcc: 0.7,
+      intro: 'A suit of plate the size of a door stands before the vault, with no one inside it. It takes a step.',
+      tells: { strike: 'Its gauntlet closes into a fist the size of your head.', trick: 'It tilts its helm, and the hollow where a face should be looks past you.', guard: 'It folds both arms across its chest and goes still as a wall.' },
+      hitLine: 'The gauntlet takes you off your feet.', dieLine: 'The plate collapses, empty, ringing on the stone like a dropped bell.' },
+    drowned: { name: 'Drowned Thing', hp: 20, atk: 6, bias: 'trick', tellAcc: 0.6,
+      intro: 'Something floats face-down in the channel. It has been floating toward you for some time.',
+      tells: { strike: 'It rises to its full height, water streaming from the holes where its eyes were.', trick: 'It sinks beneath the surface and the water goes flat.', guard: 'It wraps its arms around itself and bloats.' },
+      hitLine: 'Cold hands close on your throat and pull.', dieLine: 'It goes under and does not come up. The water clears.' },
+    keeper: { name: 'Shrine Keeper', hp: 20, atk: 5, bias: 'guard', tellAcc: 0.7,
+      intro: 'A figure in a grey cowl kneels before the altar. It has been kneeling for three hundred years, and it does not like to be interrupted.',
+      tells: { strike: 'The keeper rises and the air thins.', trick: 'The cowl turns toward you, empty, and whispers something older than words.', guard: 'It bows its head again, and a ring of grey light closes around it.' },
+      hitLine: 'Grey light goes through you like cold through a window.', dieLine: 'The keeper bows, and this time it stays down. The cowl is empty.' },
+    jailer: { name: 'Jailer', hp: 22, atk: 6, bias: 'strike', tellAcc: 0.7,
+      intro: 'A man with a ring of keys and a neck like a stump comes down the ladder. He has a noose over one shoulder. He is whistling.',
+      tells: { strike: 'He spits and swings the cudgel up onto his shoulder.', trick: 'He shakes the keys at you and grins with half a mouth of teeth.', guard: 'He plants the cudgel in the straw and leans on it, waiting.' },
+      hitLine: 'The cudgel lands where you least wanted it.', dieLine: 'The jailer sits down heavily in the straw and does not get up. The keys are yours.' },
+    lich: { name: 'Crowned Lich', hp: 26, atk: 7, bias: 'trick', tellAcc: 0.6,
+      intro: 'On the throne in the crown room, a thing of dust and gold lifts its head. The crown is fused to the skull. It was expecting someone better.',
+      tells: { strike: 'It raises one hand and the dust in the air catches fire.', trick: 'It smiles, and three more of it stand up from the throne.', guard: 'It draws the dark around itself like a cloak.' },
+      hitLine: 'Fire older than the dungeon washes over you.', dieLine: 'The lich comes apart. The crown drops from the skull and rolls to your feet.' },
+    troll: { name: 'Cave Troll', hp: 26, atk: 7, bias: 'strike', tellAcc: 0.7,
+      intro: 'The collapse drops you into a cave that smells of wet dog and old bones. The bones belong to the troll\'s last guests.',
+      tells: { strike: 'The troll roars and both fists come up.', trick: 'It stops, sniffs, and starts to circle.', guard: 'It hunkers down behind its forearms.' },
+      hitLine: 'A fist like a boulder.', dieLine: 'The troll topples, slowly, and the cave shakes.' },
+    captain: { name: 'Smuggler Captain', hp: 22, atk: 6, bias: 'trick', tellAcc: 0.65,
+      intro: 'At the river gate, lamps. A woman with a cutlass and a ledger looks you over. "Toll is your purse or your blood. Pick."',
+      tells: { strike: 'She drops the ledger and comes in low with the cutlass.', trick: 'She smiles and her hand drifts toward her belt.', guard: 'She steps behind a crate and raises the blade across her body.' },
+      hitLine: 'The cutlass opens you up.', dieLine: 'She drops the cutlass and lifts both hands. "Fine. Fine. You pass."' },
+    saint: { name: 'Hollow Saint', hp: 24, atk: 6, bias: 'guard', tellAcc: 0.7,
+      intro: 'Below the shrine, a hollow in the rock where a saint sits as the god left it: hands open, eyes open, nothing behind them. It stands when you enter.',
+      tells: { strike: 'The saint\'s open hands close.', trick: 'The saint is beside you. You did not see it move.', guard: 'The saint spreads its arms and the hollow fills with light.' },
+      hitLine: 'The saint touches your chest and something in you goes quiet.', dieLine: 'The saint kneels, and the hollow is only a hollow again.' },
+    choir: { name: 'Bone Choir', hp: 24, atk: 7, bias: 'strike', tellAcc: 0.6,
+      intro: 'The ossuary walls are stacked skulls. They are singing. Then the song gets up and walks toward you.',
+      tells: { strike: 'The song drops to a single note and the skulls lunge.', trick: 'The song splits into harmonies and comes from everywhere.', guard: 'The skulls knit together into a wall of grinning bone.' },
+      hitLine: 'The note goes through your teeth and into your skull.', dieLine: 'The song ends on a wrong note, and the skulls fall back to their shelves, silent.' },
+    hounds: { name: 'Warden\'s Hounds', hp: 24, atk: 7, bias: 'strike', tellAcc: 0.7,
+      intro: 'The jailer\'s keys open the kennel. You should not have opened the kennel.',
+      tells: { strike: 'Three low shapes come in at once.', trick: 'One hound circles wide while the others wait.', guard: 'They stop, hackles up, and hold the doorway.' },
+      hitLine: 'Teeth, from three directions.', dieLine: 'The last hound whimpers and limps off. The kennel gate is open and the night is behind it.' }
+  };
+
+  // Rooms. `fatal` rooms kill you if you lose. Otherwise a loss sends you down the worse branch at half HP.
+  const ROOMS = {
+    gate: { title: 'The Gatehouse', monster: 'sentry', win: 'stair', lose: 'pit',
+      intro: 'Torchfall begins where the stair ends: a gatehouse of wet black stone, the portcullis long rusted open.' },
+    stair: { title: 'The Treasury Stair', monster: 'mimic', win: 'vaultdoor', lose: 'sewer',
+      intro: 'Past the broken sentry, a spiral stair winds down, the walls scraped with old tallies of gold. The deeper vaults are open to you.' },
+    pit: { title: 'The Oubliette', monster: 'ratking', win: 'shrine', lose: 'jailer',
+      intro: 'The sentry does not finish you. It drags you by the collar and drops you through a grate. You land on straw that moves.' },
+    vaultdoor: { title: 'The Vault Door', monster: 'warden', win: 'crown', lose: 'collapse',
+      intro: 'The mimic\'s landing opens onto a door of black iron taller than three men, and the thing that was built to guard it.' },
+    sewer: { title: 'The Sewer', monster: 'drowned', win: 'rivergate', lose: 'e_drowned', fatal: true,
+      intro: 'The mimic hurls you down the last of the stairs and into a culvert. The water is at your chest and moving, and you are not alone in it.' },
+    shrine: { title: 'The Forgotten Shrine', monster: 'keeper', win: 'hollow', lose: 'ossuary',
+      intro: 'With the rats scattered, you find a door in the pit the jailers never found. Beyond it, a shrine to a god nobody prays to anymore.' },
+    jailer: { title: 'The Jailer\'s Walk', monster: 'jailer', win: 'kennel', lose: 'e_hanged', fatal: true,
+      intro: 'The rats leave you breathing. Up above, a hatch opens and a ladder comes down. The man on it has a rope, and he has been told to use it.' },
+    crown: { title: 'The Crown Room', monster: 'lich', win: 'e_crown', lose: 'e_lich', fatal: true,
+      intro: 'The vault door swings inward onto a hall of gold piled to the ceiling, and a throne at the end of it, and the thing on the throne.' },
+    collapse: { title: 'The Collapse', monster: 'troll', win: 'e_hoard', lose: 'e_crushed', fatal: true,
+      intro: 'The warden\'s last blow puts you through the floor. You fall a long way with a great deal of masonry.' },
+    rivergate: { title: 'The River Gate', monster: 'captain', win: 'e_pay', lose: 'e_sold',
+      intro: 'The culvert opens onto a hidden quay where the dungeon meets the river. Someone is doing business here.' },
+    hollow: { title: 'The Hollow Below', monster: 'saint', win: 'e_blessed', lose: 'e_bound',
+      intro: 'The keeper is gone. Behind the altar, steps go down to the place the shrine was built to hide.' },
+    ossuary: { title: 'The Ossuary', monster: 'choir', win: 'e_bonekey', lose: 'e_choir', fatal: true,
+      intro: 'The keeper drives you back through a wall that was never there, into a room walled with the dead.' },
+    kennel: { title: 'The Kennel', monster: 'hounds', win: 'e_kennelgate', lose: 'e_hounds', fatal: true,
+      intro: 'The jailer\'s keys fit three doors. Behind the third is the smell of dog, and the way out, and what guards it.' },
+
+    // ---------- Endings ----------
+    e_crown: { ending: true, title: 'The Crown Vault', tone: 'hit',
+      text: 'The crown is yours, and the gold, and the throne if you want it. You take the first two and leave the third. You climb four flights with your pockets full and walk out of the gatehouse into a morning that seems to have been waiting for you. The best ending Torchfall has.',
+      byClass: { warrior: 'The crown fits. You do not take it off for a week.', wizard: 'The crown is a lens. Through it you can see the twelve deeper doors you left closed.', rogue: 'You leave the crown. Crowns get noticed. You take the throne cushion, which is stuffed with rubies.' } },
+    e_lich: { ending: true, title: 'Dust on the Throne', tone: 'dead',
+      text: 'The fire takes you standing. When it is done, there is a little more dust in the crown room and the thing on the throne settles back to wait. It was expecting someone better. It will keep expecting.',
+      epitaph: 'Burned before the throne.' },
+    e_hoard: { ending: true, title: 'The Troll\'s Hoard', tone: 'hit',
+      text: 'The troll is dead and its cave is full of what its guests brought with them: swords, purses, a saddle, one surprisingly good lute. There is a crack in the ceiling with daylight in it. You climb out rich, filthy, and alive.',
+      byClass: { warrior: 'You take the best sword. It is yours, from three years ago. You had wondered where it went.', wizard: 'The lute is enchanted. It only plays one song. You will come to hate that song.', rogue: 'You take the saddle. There is a horse at the top of the crack, and it has been waiting a long time for someone to ride it.' } },
+    e_crushed: { ending: true, title: 'Under the Collapse', tone: 'dead',
+      text: 'The troll does not even have to try. The ceiling finishes it, a long slow pour of stone, and the cave goes quiet except for the troll, sniffing.',
+      epitaph: 'Crushed in the deep.' },
+    e_pay: { ending: true, title: 'The Smuggler\'s Pay', tone: 'hit',
+      text: 'The captain pays her debts. You are rowed out of the river gate under a tarp, past the town watch, and set down on the far bank with a purse, a knife, and a word that will get you a berth on any boat that runs the river at night.',
+      byClass: { warrior: 'She offers you a job. You take it for one season. It pays better than dungeons.', wizard: 'The word she gives you is in a language you thought was dead. You make a note.', rogue: 'By midsummer you are running the river gate yourself. She does not mind. She has moved on to bigger rivers.' } },
+    e_sold: { ending: true, title: 'Sold Downriver', tone: 'hurt',
+      text: 'You lose. The captain is a businesswoman: you are worth more alive. You wake in the hold of a barge with eleven others, moving downstream toward a city whose name you do not know and a buyer who has already paid.',
+      byClass: { warrior: 'You are sold to a pit fighter\'s school. You will be out in a year, with a new name and an audience.', wizard: 'The buyer wants a court magician. You are terrible at it, on purpose, and in three months he pays you to leave.', rogue: 'The lock on the hold is a Marrow Street three-pin. You have it open by the second bridge.' } },
+    e_drowned: { ending: true, title: 'The Drowned', tone: 'dead',
+      text: 'The cold hands do not let go. The channel takes you under and carries you somewhere slow and dark, and in time you rise again, face-down, floating toward the next one who falls.',
+      epitaph: 'Gone under in the sewer.' },
+    e_blessed: { ending: true, title: 'The Open Hand', tone: 'hit',
+      text: 'The saint kneels, and in the hollow behind it the god\'s hand is open. You put yours in it. The dungeon lets you go. You wake on the hillside above the gatehouse, healed and fed, with a mark on your palm that opens any lock it touches. No gold. Something better.',
+      byClass: { warrior: 'The mark is on your sword hand. You decide that is fine.', wizard: 'You spend the next year failing to explain the mark to anyone who would believe you.', rogue: 'A mark that opens locks. You are already planning.' } },
+    e_bound: { ending: true, title: 'Marked and Bound', tone: 'hurt',
+      text: 'The saint touches your chest and the quiet spreads. You do not die. You kneel. When your eyes clear you are in a grey cowl before the altar, and you understand that the keeper you destroyed was only the last one to lose here. Someone will come. You will not like being interrupted.',
+      byClass: { warrior: 'Three hundred years is a long time to hold a shield up. You will manage.', wizard: 'The cowl knows more than you did. On balance, it is an improvement.', rogue: 'The god is not watching all the time. You are counting the hours it looks away.' } },
+    e_bonekey: { ending: true, title: 'The Bone Key', tone: 'hit',
+      text: 'When the choir falls silent, one skull rolls to your foot and opens its jaw. Inside is a key cut from a finger bone. It opens the ossuary\'s outer door, and the door after that, and the last door opens onto the graveyard above the town, in rain, at dawn. You are out.',
+      byClass: { warrior: 'You keep the key. Every lock in the world is now a question of whether you want to know.', wizard: 'The key sings, very quietly, when you hold it. You learn the words eventually.', rogue: 'You sell the key for a fortune to someone who should not have it, and sleep fine.' } },
+    e_choir: { ending: true, title: 'A Voice in the Choir', tone: 'dead',
+      text: 'The note finds the place in your skull where you keep yourself and takes it. Your body walks to an empty shelf and lies down. The song has a new voice tonight, and it is not a bad one.',
+      epitaph: 'Shelved among the singing dead.' },
+    e_kennelgate: { ending: true, title: 'The Kennel Gate', tone: 'hit',
+      text: 'The hounds break and the gate stands open on a cold hill under stars. You are torn and limping and you have the jailer\'s keys, which open every cell in Torchfall. You let the prisoners out as you go. By the time the town wakes there are forty of you on the road.',
+      byClass: { warrior: 'Forty people owe you their lives. Half of them can fight. You have an army by spring.', wizard: 'One of the prisoners is a wizard older than you. The two of you will have a great deal to discuss.', rogue: 'Forty people owe you a favour each. You write every name down.' } },
+    e_hounds: { ending: true, title: 'Fed to the Hounds', tone: 'dead',
+      text: 'There is a reason the jailer whistles when he walks past the kennel. The hounds are always hungry and the kennel is always a little too close to the cells. You last longer than most.',
+      epitaph: 'Taken by the hounds.' },
+    e_hanged: { ending: true, title: 'The Jailer\'s Rope', tone: 'dead',
+      text: 'The jailer is better with a rope than he is with a cudgel. The last thing you see is the grate above the oubliette, and the sentry\'s bone face looking down through it, patient as ever.',
+      epitaph: 'Hanged in the oubliette.' }
+  };
+  const ENDING_ORDER = ['e_crown', 'e_blessed', 'e_hoard', 'e_bonekey', 'e_kennelgate', 'e_pay', 'e_sold', 'e_bound', 'e_lich', 'e_crushed', 'e_drowned', 'e_choir', 'e_hounds', 'e_hanged'];
+
+  // ---------- State ----------
+  let S = null;
+  function fresh() {
+    return { stage: 'class', cls: null, hp: 0, max: 0, room: null, mhp: 0, pending: null, route: [], log: [], journey: [] };
+  }
+
+  // ---------- DOM ----------
+  const $ = (id) => document.getElementById(id);
+  const chron = $('chron'), choices = $('choices'), q = $('q'), rule = $('rule');
+
+  function logLine(cls, text, tag) {
+    S.log.push({ cls, text, tag: tag || 'p' });
+    const el = document.createElement(tag || 'p');
+    if (cls) el.className = cls;
+    el.textContent = text;
+    chron.appendChild(el);
+  }
+  function redrawLog() {
+    chron.innerHTML = '';
+    for (const l of S.log) {
+      const el = document.createElement(l.tag);
+      if (l.cls) el.className = l.cls;
+      el.textContent = l.text;
+      chron.appendChild(el);
+    }
+  }
+  function scrollToTray() {
+    requestAnimationFrame(() => {
+      try { chron.scrollTo({ top: chron.scrollHeight, behavior: 'smooth' }); } catch (e) { chron.scrollTop = chron.scrollHeight; }
+    });
+  }
+
+  // Journey stream
+  function journey(kind, text) {
+    S.journey.push({ kind, text });
+    addJourneyItem({ kind, text });
+    const j = $('journey');
+    j.hidden = false;
+    requestAnimationFrame(() => { j.scrollTop = j.scrollHeight; });
+  }
+  function addJourneyItem(it) {
+    const li = document.createElement('li');
+    li.className = it.kind;
+    const m = it.text.match(/^(.*?)(\s·\s.*)?$/);
+    const b = document.createElement('b');
+    b.textContent = m ? m[1] : it.text;
+    li.appendChild(b);
+    if (m && m[2]) li.appendChild(document.createTextNode(m[2]));
+    $('jlist').appendChild(li);
+  }
+  function redrawJourney() {
+    $('jlist').innerHTML = '';
+    (S.journey || []).forEach(addJourneyItem);
+    $('journey').hidden = !(S.journey && S.journey.length);
+  }
+
+  // Full-screen toggle
+  (function () {
+    const fs = $('fs');
+    if (!document.fullscreenEnabled) { fs.hidden = true; return; }
+    fs.addEventListener('click', () => {
+      if (document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
+      else { document.documentElement.requestFullscreen().catch(() => { fs.textContent = 'Full screen unavailable'; }); }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      fs.textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen';
+    });
+  })();
+
+  function setChoices(items, cols) {
+    choices.innerHTML = '';
+    choices.className = 'choices' + (cols === 1 ? ' one' : '');
+    items.forEach((it, i) => {
+      const b = document.createElement('button');
+      b.className = 'ch' + (it.type ? ' ' + it.type : '');
+      b.id = 'choice-' + i;
+      b.innerHTML = '<span class="n"></span>' + (it.type ? '<span class="t ' + it.type + '"></span>' : '') + (it.desc ? '<span class="d"></span>' : '');
+      b.querySelector('.n').textContent = it.name;
+      if (it.type) b.querySelector('.t').textContent = TYPE_LABEL[it.type] + (S.cls && CLASSES[S.cls].sig === it.type ? ' · signature' : '');
+      if (it.desc) b.querySelector('.d').textContent = it.desc;
+      b.addEventListener('click', it.on);
+      choices.appendChild(b);
+    });
+  }
+  function drawVitals() {
+    const v = $('vitals');
+    if (S.stage !== 'fight') { v.hidden = true; return; }
+    v.hidden = false;
+    const c = CLASSES[S.cls], m = MONSTERS[ROOMS[S.room].monster];
+    $('youName').textContent = c.name;
+    $('youNum').textContent = S.hp + ' / ' + S.max;
+    $('youBar').style.width = Math.max(0, S.hp / S.max * 100) + '%';
+    $('foeName').textContent = m.name;
+    $('foeNum').textContent = S.mhp + ' / ' + m.hp;
+    $('foeBar').style.width = Math.max(0, S.mhp / m.hp * 100) + '%';
+  }
+  function drawRoute() {
+    const r = $('route');
+    r.innerHTML = '';
+    S.route.forEach((step) => {
+      const s = document.createElement('span');
+      s.className = step.result || 'here';
+      s.textContent = ROOMS[step.room].title + (step.result === 'won' ? ' ✓' : step.result === 'lost' ? ' ✗' : step.result === 'dead' ? ' ☠' : '');
+      r.appendChild(s);
+    });
+  }
+  function drawRule() {
+    rule.innerHTML = S.stage === 'fight'
+      ? '<b class="s">Strike</b> beats <b class="k">Trick</b> · <b class="k">Trick</b> beats <b class="g">Guard</b> · <b class="g">Guard</b> beats <b class="s">Strike</b> · ' + CLASSES[S.cls].perk
+      : '';
+  }
+
+  // ---------- Flow ----------
+  function showStart() {
+    S = fresh();
+    S.stage = 'start';
+    $('start').hidden = false;
+    $('wrap').hidden = true;
+  }
+  $('begin').addEventListener('click', startClassPick);
+  $('restart').addEventListener('click', showStart);
+
+  function classChoices() {
+    return Object.keys(CLASSES).map((k) => ({ name: CLASSES[k].name, desc: CLASSES[k].pitch, on: () => pickClass(k) }));
+  }
+  function startClassPick() {
+    S = fresh();
+    $('start').hidden = true;
+    $('wrap').hidden = false;
+    chron.innerHTML = '';
+    redrawJourney();
+    logLine('', 'The torch gutters at the top of the stair. Below, the dark is waiting to find out who you are.');
+    q.textContent = 'Who descends into Torchfall?';
+    setChoices(classChoices());
+    drawVitals(); drawRoute(); drawRule();
+  }
+
+  function pickClass(k) {
+    const c = CLASSES[k];
+    S.cls = k; S.hp = c.hp; S.max = c.hp;
+    logLine('you', 'The ' + c.name + ' takes the first step down.');
+    journey('cls', c.name + ' chosen · ' + c.hp + ' HP');
+    enterRoom('gate');
+  }
+
+  function enterRoom(id) {
+    S.room = id;
+    const r = ROOMS[id];
+    if (r.ending) return showEnding(id);
+    S.stage = 'room';
+    S.route.push({ room: id, result: null });
+    logLine('', r.title, 'h2');
+    logLine('', r.intro);
+    logLine('foe', MONSTERS[r.monster].intro);
+    if (r.fatal) logLine('warn', 'No mercy here. Lose this fight and you die.');
+    journey('room', r.title + ' · ' + MONSTERS[r.monster].name + (r.fatal ? ' · deadly' : ''));
+    q.textContent = 'The ' + MONSTERS[r.monster].name.toLowerCase() + ' has seen you.';
+    setChoices([{ name: 'Fight it', desc: 'There is no other way through.', on: startFight }], 1);
+    drawVitals(); drawRoute(); drawRule(); scrollToTray();
+  }
+
+  function startFight() {
+    const m = MONSTERS[ROOMS[S.room].monster];
+    S.stage = 'fight'; S.mhp = m.hp;
+    logLine('sys', 'Combat · ' + m.name + ' · ' + m.hp + ' HP, hits for ' + m.atk);
+    drawVitals(); drawRule();
+    nextRound();
+  }
+
+  function pickStance(m) {
+    const roll = Math.random();
+    if (roll < 0.5) return m.bias;
+    const others = Object.keys(STANCE).filter((t) => t !== m.bias);
+    return others[roll < 0.75 ? 0 : 1];
+  }
+
+  function nextRound() {
+    const m = MONSTERS[ROOMS[S.room].monster];
+    const stance = pickStance(m);
+    const acc = Math.min(0.95, m.tellAcc + (S.cls === 'wizard' ? 0.2 : 0));
+    let shown = stance;
+    if (Math.random() > acc) {
+      const others = Object.keys(STANCE).filter((t) => t !== stance);
+      shown = others[Math.random() < 0.5 ? 0 : 1];
+    }
+    S.pending = stance;
+    logLine('tell', m.tells[shown]);
+    q.textContent = 'What do you do?';
+    setChoices(CLASSES[S.cls].actions.map((a, i) => ({ name: a.name, type: a.type, on: () => act(i) })));
+    scrollToTray();
+  }
+
+  function act(i) {
+    const c = CLASSES[S.cls], a = c.actions[i];
+    const m = MONSTERS[ROOMS[S.room].monster];
+    const mt = S.pending;
+    logLine('you', a.name + '. ' + a.do);
+    logLine('foe', 'The ' + m.name.toLowerCase() + ' chooses ' + STANCE[mt] + ' (' + TYPE_LABEL[mt] + ').');
+
+    let dealt = 0, taken = 0, verdict;
+    if (a.type === mt) {
+      verdict = 'tie';
+      if (S.cls === 'warrior') { dealt = 3; taken = 1; } else { dealt = 2; taken = 2; }
+      logLine('', TYPE_LABEL[a.type] + ' meets ' + TYPE_LABEL[mt] + '. You clash: you deal ' + dealt + ', take ' + taken + '.');
+    } else if (BEATS[a.type] === mt) {
+      verdict = 'win';
+      dealt = a.type === c.sig ? 7 : 4;
+      logLine('hit', TYPE_LABEL[a.type] + ' beats ' + TYPE_LABEL[mt] + '. ' + (a.type === c.sig ? 'Signature blow: ' : 'Clean hit: ') + dealt + ' damage.');
+    } else {
+      verdict = 'lose';
+      taken = m.atk - (S.cls === 'rogue' ? 2 : 0);
+      logLine('hurt', TYPE_LABEL[mt] + ' beats ' + TYPE_LABEL[a.type] + '. ' + m.hitLine + ' You take ' + taken + '.');
+    }
+    S.mhp = Math.max(0, S.mhp - dealt);
+    S.hp = Math.max(0, S.hp - taken);
+    journey(verdict === 'win' ? 'hit' : verdict === 'lose' ? 'hurt' : 'tie',
+      a.name + ' vs ' + STANCE[mt] + ' · ' + (dealt ? '−' + dealt + ' foe' : '') + (dealt && taken ? ', ' : '') + (taken ? '−' + taken + ' you' : ''));
+    drawVitals();
+
+    if (S.mhp <= 0) return endFight(true);
+    if (S.hp <= 0) return endFight(false);
+    nextRound();
+  }
+
+  function endFight(won) {
+    const r = ROOMS[S.room], m = MONSTERS[r.monster];
+    S.stage = 'after';
+    const next = won ? r.win : r.lose;
+    const nx = ROOMS[next];
+    if (won) {
+      S.route[S.route.length - 1].result = 'won';
+      logLine('hit', m.dieLine);
+      const heal = Math.min(S.max - S.hp, 8);
+      S.hp += heal;
+      if (heal > 0) logLine('sys', 'You catch your breath. +' + heal + ' HP (' + S.hp + '/' + S.max + ').');
+      journey('won', m.name + ' defeated · ' + S.hp + '/' + S.max + ' HP');
+    } else if (r.fatal) {
+      S.route[S.route.length - 1].result = 'dead';
+      logLine('hurt', 'The ' + m.name.toLowerCase() + ' does not stop.');
+      journey('dead', 'Slain by the ' + m.name);
+      drawVitals(); drawRoute(); drawRule();
+      return showEnding(next);
+    } else {
+      S.route[S.route.length - 1].result = 'lost';
+      logLine('hurt', 'Your knees go. The floor comes up to meet you.');
+      S.hp = Math.ceil(S.max / 2);
+      logLine('sys', 'You come to later, patched and sore. HP set to ' + S.hp + '/' + S.max + '.');
+      journey('lost', 'Fell to the ' + m.name + ' · woke at ' + S.hp + '/' + S.max + ' HP');
+    }
+    drawVitals(); drawRoute(); drawRule();
+    q.textContent = won ? 'The way forward is open.' : 'The dungeon decides where you go next.';
+    setChoices([{ name: nx.ending ? 'See where this ends' : 'Go on', desc: nx.title, on: () => enterRoom(next) }], 1);
+    scrollToTray();
+  }
+
+  function showEnding(id) {
+    const r = ROOMS[id];
+    const dead = r.tone === 'dead';
+    S.stage = 'end';
+    S.route.push({ room: id, result: dead ? 'dead' : r.tone === 'hit' ? 'won' : 'lost' });
+    logLine(dead ? 'dead' : '', r.title, 'h2');
+    logLine('', r.text);
+    if (dead) {
+      logLine('epitaph', 'You are dead. ' + r.epitaph);
+      journey('dead', r.title + ' · the dungeon keeps you');
+    } else {
+      logLine(r.tone + ' end', r.byClass[S.cls]);
+      journey('end', r.title + ' · ' + (r.tone === 'hit' ? 'you walk out' : 'you live, for now'));
+    }
+    const fights = S.route.filter((s) => s.result && !ROOMS[s.room].ending);
+    const wins = fights.filter((s) => s.result === 'won').length;
+    logLine('sys', 'Ending ' + (ENDING_ORDER.indexOf(id) + 1) + ' of ' + ENDING_ORDER.length + ' · ' + CLASSES[S.cls].name + ' · ' + wins + ' of ' + fights.length + ' fights won');
+    q.textContent = dead ? 'The torch is out.' : 'The torch burns down.';
+    setChoices([{ name: 'Descend again', desc: 'A different class finds a different dungeon.', on: startClassPick }], 1);
+    drawVitals(); drawRoute(); drawRule(); scrollToTray();
+  }
+
+  // ---------- Boot (survives live republishes for open viewers) ----------
+  function restoreTray() {
+    if (S.stage === 'class') { q.textContent = 'Who descends into Torchfall?'; setChoices(classChoices()); }
+    else if (S.stage === 'room') { q.textContent = 'The ' + MONSTERS[ROOMS[S.room].monster].name.toLowerCase() + ' has seen you.'; setChoices([{ name: 'Fight it', desc: 'There is no other way through.', on: startFight }], 1); }
+    else if (S.stage === 'fight') { q.textContent = 'What do you do?'; setChoices(CLASSES[S.cls].actions.map((a, i) => ({ name: a.name, type: a.type, on: () => act(i) }))); }
+    else if (S.stage === 'after') { const r = ROOMS[S.room]; const last = S.route[S.route.length - 1]; const next = last.result === 'won' ? r.win : r.lose; q.textContent = 'Go on.'; setChoices([{ name: ROOMS[next].ending ? 'See where this ends' : 'Go on', desc: ROOMS[next].title, on: () => enterRoom(next) }], 1); }
+    else { q.textContent = 'The torch is out.'; setChoices([{ name: 'Descend again', desc: 'A different class finds a different dungeon.', on: startClassPick }], 1); }
+  }
+  function start(data) {
+    const st = data && data.state;
+    if (st && st.stage && st.stage !== 'start' && (!st.room || ROOMS[st.room])) {
+      S = st;
+      if (!S.journey) S.journey = [];
+      $('start').hidden = true;
+      $('wrap').hidden = false;
+      redrawLog(); redrawJourney(); restoreTray(); drawVitals(); drawRoute(); drawRule();
+    } else {
+      showStart();
+    }
+  }
+  try { window.claude?.hot?.snapshot?.(() => ({ state: S })); } catch (e) {}
+  window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+</body>
+</html>
