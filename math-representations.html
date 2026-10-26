@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Maths Representations</title>
-<meta name="description" content="Interactive maths problem solving with counters, arrays, ten frames, number shapes, rods, base ten, bead strings, number lines, bar models and part-whole models.">
+<meta name="description" content="Interactive maths problem solving with counters, arrays, ten frames, base ten, bead strings, number lines, bar models and part-whole models.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Lexend:wght@400;500;600;700&display=swap">
 <style>
@@ -62,6 +62,7 @@ body:not(.menu-open) .menu{display:none}
 .menu .card{width:min(900px,100%); display:flex; flex-direction:column; gap:16px}
 .menu h1{font-family:var(--f-display); font-weight:800; font-size:clamp(2rem,5vmin,3rem); letter-spacing:-.02em; line-height:1; margin:0; text-wrap:balance}
 .menu .lead{margin:0; color:var(--muted); max-width:70ch; line-height:1.45; font-size:.95rem}
+.menu .lead b{color:var(--ink)}
 .mgrid{display:grid; grid-template-columns:1fr 1fr; gap:14px 28px; align-items:start}
 .mgrid > .mrow:first-child{grid-column:1 / -1}
 .mrow{display:flex; flex-direction:column; gap:6px}
@@ -97,7 +98,6 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
 .step[aria-current="step"] .n{background:var(--bg); color:var(--a)}
 .step.done{color:var(--good); border-color:var(--good)}
 .step.done .n{background:var(--good); color:var(--bg)}
-.free .sentence,.free .steps,.free .feedback{display:none}
 .feedback{min-height:1.4em; text-align:center; font-size:clamp(.95rem,2.2vmin,1.2rem); color:var(--muted); text-wrap:balance}
 .feedback.ok{color:var(--good); font-weight:600}
 .feedback.no{color:var(--bad)}
@@ -193,7 +193,7 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
 <section class="menu" id="menu" aria-label="Start menu">
   <div class="card">
     <h1>Maths Representations</h1>
-    <p class="lead">Each question starts as a blank working-out space. Enter builds it with a model, then checks, then reveals, then moves on.</p>
+    <p class="lead"><b>Press Enter to advance each slide:</b> the question first, then Enter builds the model, Enter checks the answer, Enter reveals it, and Enter moves to the next question. F for full screen.</p>
     <div class="mgrid">
     <div class="mrow"><span class="lbl">Operations</span>
       <div class="seg" role="group" aria-label="Operations">
@@ -218,8 +218,8 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
     </div>
     <div class="start">
       <button class="go" id="startBtn">Start questions</button>
-      <button class="ghost" id="freeStart">Free play (no questions)</button>
       <button class="ghost" id="fsMenuBtn">⛶ Full screen</button>
+      <span class="hintk">Enter advances · F full screen · Esc menu</span>
     </div>
   </div>
 </section>
@@ -285,8 +285,6 @@ const KEY = 'mathsRepresentations.v1';
 const W = 1000, H = 600;
 const SYM = {add:'+', sub:'−', mul:'×', div:'÷'};
 const CTR = {a:'#e04848', b:'#f5c542', x:'#9aa5b1'};
-const SHAPE_COL = ['','#9aa5b1','#f28c8c','#7cc6a4','#f5c451','#6c9ee8','#b48ad8','#f39c5a','#4fb3bf','#d7739f','#5a8a3c'];
-const ROD_COL = ['','#f4f1ea','#e03c31','#7fc97f','#8e5cc2','#f2d43d','#1f7a3d','#2b2b2b','#8b5a2b','#2f6fd1','#f08a24'];
 const WOOD = ['#e9b949','#f3d27a','#c9971f'];
 const shade = (hex,p) => { const n=parseInt(hex.slice(1),16); const r=n>>16,g=n>>8&255,b=n&255; const f=x=>Math.round(p<0?x*(1+p):x+(255-x)*p); return `rgb(${f(r)},${f(g)},${f(b)})`; };
 const SKINS = [
@@ -301,6 +299,7 @@ const SKINS = [
 let S = {ops:{add:true,sub:true,mul:true,div:true}, max:10, range:'20', model:'counters', skin:'auto', solved:0, streak:0, best:0, auto:true, lines:'none'};
 try { const sv = JSON.parse(localStorage.getItem(KEY)); if (sv) Object.assign(S, sv); } catch(e){}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+S.lines = 'none'; // the working-out space always opens blank
 
 /* ---------- settings ---------- */
 document.querySelectorAll('.op').forEach(b => {
@@ -534,73 +533,6 @@ M.tenframes = {
   show(s,p){ const seq = showGroups(p).flatMap(g => g.cells).map(k => ({a:1,b:2,x:3})[k]); s.frames = Math.max(1, Math.ceil(seq.length/10)); s.cells = []; for (let f=0; f<s.frames; f++) s.cells.push(Array.from({length:10}, (_,i) => seq[f*10+i]||0)); }
 };
 
-const U = 46;
-function shapeSVG(n, delay=0){
-  const col = SHAPE_COL[n], st = shade(col,-.28), r = Math.ceil(n/2), odd = n%2; let b = '';
-  if (n===1) b = `<rect x="0" y="0" width="${U}" height="${U}" rx="3" fill="${col}" stroke="${st}" stroke-width="2"/><circle cx="${U/2}" cy="${U/2}" r="${U*.3}" fill="#fff" stroke="${shade(col,-.2)}"/>`;
-  else {
-    const pts = odd ? [[U,0],[2*U,0],[2*U,r*U],[0,r*U],[0,U],[U,U]] : [[0,0],[2*U,0],[2*U,r*U],[0,r*U]];
-    b = `<polygon points="${pts.map(q=>q.join(',')).join(' ')}" fill="${col}" stroke="${st}" stroke-width="2" stroke-linejoin="round"/>`;
-    const cells = []; if (odd){ cells.push([1,0]); for (let y=1;y<r;y++) cells.push([0,y],[1,y]); } else for (let y=0;y<r;y++) cells.push([0,y],[1,y]);
-    cells.forEach(([cx,cy]) => b += `<circle cx="${cx*U+U/2}" cy="${cy*U+U/2}" r="${U*.3}" fill="#fff" stroke="${shade(col,-.2)}"/>`);
-  }
-  return `<g class="pc" style="animation-delay:${delay}ms">${b}</g>`;
-}
-const shapeH = n => Math.ceil(n/2)*U;
-const palette = (act, cols, lo=1, hi=10) => { let h = ''; for (let n=lo;n<=hi;n++) h += btn(act, n, n, null, 'pal').replace('class="pal"', `class="pal" style="background:${cols[n]}"`); return h; };
-
-M.shapes = {
-  label:'Number shapes', blurb:'Tap a number to add that shape, then drag the shapes together to see how numbers combine.',
-  fresh:()=>({items:[], mode:'move', seq:0}),
-  tools:s=>`<div class="tgrp"><span class="tl">Add a shape</span>${palette('add', SHAPE_COL)}</div>
-    <div class="tgrp"><span class="tl">When I tap a shape</span>${modes(s.mode,[['move','Move'],['remove','Remove']])}</div>
-    <div class="tgrp">${btn('tidy','Line up')}</div>`,
-  act(s,a,v){
-    if (a==='mode'){ s.mode = v; return 'tools'; }
-    if (a==='add'){ const i = s.items.length; s.items.push({id:++s.seq, n:+v, x:40+(i%7)*135, y:40+Math.floor(i/7)%2*280}); }
-    if (a==='tidy') s.items.forEach((it,i) => { it.x = 40+(i%7)*135; it.y = 40+Math.floor(i/7)%2*280; });
-    return true;
-  },
-  render(s){
-    newSVG();
-    svg.innerHTML = s.items.map((it,i) => `<g data-id="${it.id}" transform="translate(${it.x} ${it.y})">${shapeSVG(it.n, i*40)}</g>`).join('');
-    enableDrag(moveItem(s), () => { clampItems(s, i=>2*U, i=>shapeH(i.n)); render(); }, id => {
-      if (id===null || s.mode!=='remove') return; pushUndo(); s.items = s.items.filter(x => String(x.id)!==id); render(); });
-  },
-  readout(s){ if (!s.items.length) return '<span>Tap a number to add a shape.</span>'; const t = s.items.reduce((a,i)=>a+i.n,0); return `<span>${s.items.map(i=>`<b>${i.n}</b>`).join(' + ')} = <b class="big">${t}</b></span>`; },
-  show(s,p){ s.items = []; let i = 0; showGroups(p).forEach((g, gi) => { const parts = [...Array(Math.floor(g.n/10)).fill(10), ...(g.n%10 ? [g.n%10] : [])]; parts.forEach(n => { s.items.push({id:++s.seq, n, x:40+(i%7)*135, y:40+Math.floor(i/7)%2*280}); i++; }); i = Math.ceil(i/7)*7; }); }
-};
-
-M.rods = {
-  label:'Number rods', blurb:'Colour rods on a ruler track. Lay rods end to end and read their length off the ruler.',
-  fresh:()=>({items:[], mode:'move', track:20, seq:0}),
-  tools:s=>`<div class="tgrp"><span class="tl">Add a rod</span>${palette('add', ROD_COL)}</div>
-    <div class="tgrp"><span class="tl">When I tap a rod</span>${modes(s.mode,[['move','Move'],['remove','Remove']])}</div>
-    <div class="tgrp"><span class="tl">Track length</span>${modes(s.track,[[10,'10'],[20,'20'],[30,'30'],[50,'50']],'track')}</div>`,
-  act(s,a,v){
-    if (a==='mode'){ s.mode = v; return 'tools'; }
-    if (a==='track'){ s.track = +v; s.items.forEach(it => { it.c = Math.min(it.c, Math.max(0, s.track-it.n)); }); }
-    if (a==='add'){ const n = +v; let r = 0, c = 0; for (r=0; r<6; r++){ const used = s.items.filter(i=>i.r===r).reduce((m,i)=>Math.max(m,i.c+i.n),0); if (used+n<=s.track){ c = used; break; } } if (r===6){ r = 5; c = 0; } s.items.push({id:++s.seq, n, r, c}); }
-    return true;
-  },
-  geo(s){ const px = (W-80)/s.track, rowH = (H-70)/6; return {px, rowH, x0:40, y0:60}; },
-  render(s){
-    newSVG(); const {px,rowH,x0,y0} = this.geo(s); const rh = Math.min(rowH*.7, 60);
-    let h = `<line x1="${x0}" x2="${x0+s.track*px}" y1="${y0-14}" y2="${y0-14}" class="si" stroke-width="2.5"/>`;
-    for (let v=0; v<=s.track; v++){ const big = v%5===0 || s.track<=20; h += `<line x1="${x0+v*px}" x2="${x0+v*px}" y1="${y0-14}" y2="${y0-14-(big?12:6)}" class="si" stroke-width="${big?2.5:1.5}"/>`;
-      if (v%5===0 || s.track<=20) h += `<text x="${x0+v*px}" y="${y0-32}" text-anchor="middle" font-size="${s.track>30?18:22}" class="fi fnt">${v}</text>`; }
-    for (let r=0;r<6;r++) h += `<line x1="${x0}" x2="${x0+s.track*px}" y1="${y0+r*rowH+rh}" y2="${y0+r*rowH+rh}" class="sl" stroke-width="2" stroke-dasharray="4 6"/>`;
-    s.items.forEach((it,i) => { const col = ROD_COL[it.n]; h += `<g data-id="${it.id}" transform="translate(${x0+it.c*px} ${y0+it.r*rowH})"><g class="pc" style="animation-delay:${i*40}ms"><rect x="1" y="1" width="${it.n*px-2}" height="${rh-2}" rx="4" fill="${col}" stroke="${shade(col,-.3)}" stroke-width="2"/><rect x="4" y="4" width="${it.n*px-8}" height="6" rx="2" fill="rgba(255,255,255,.22)"/><text x="${it.n*px/2}" y="${rh/2+8}" text-anchor="middle" font-size="22" font-family="var(--f-display)" font-weight="800" fill="${it.n===7?'#fff':'#1b2a31'}">${it.n}</text></g></g>`; });
-    svg.innerHTML = h;
-    const geo = this.geo(s);
-    enableDrag((id,dx,dy,el) => { const it = s.items.find(i=>String(i.id)===id); if (!it) return; it.fx = (it.fx ?? geo.x0+it.c*geo.px) + dx; it.fy = (it.fy ?? geo.y0+it.r*geo.rowH) + dy; el.setAttribute('transform', `translate(${it.fx} ${it.fy})`); },
-      id => { const it = s.items.find(i=>String(i.id)===id); if (it){ it.c = Math.max(0, Math.min(s.track-it.n, Math.round((it.fx-geo.x0)/geo.px))); it.r = Math.max(0, Math.min(5, Math.round((it.fy-geo.y0)/geo.rowH))); delete it.fx; delete it.fy; } render(); },
-      id => { if (id===null || s.mode!=='remove') return; pushUndo(); s.items = s.items.filter(x => String(x.id)!==id); render(); });
-  },
-  readout(s){ if (!s.items.length) return '<span>Tap a number to add a rod.</span>'; const rows = [...new Set(s.items.map(i=>i.r))].sort(); return rows.map(r => { const rs = s.items.filter(i=>i.r===r).sort((a,b)=>a.c-b.c); const end = Math.max(...rs.map(i=>i.c+i.n)); return `<span>Row ${r+1}: ${rs.map(i=>`<b>${i.n}</b>`).join(' + ')} = <b class="big">${rs.reduce((a,i)=>a+i.n,0)}</b>${end!==rs.reduce((a,i)=>a+i.n,0)?` <small>(ends at ${end})</small>`:''}</span>`; }).join(''); },
-  show(s,p){ const need = Math.max(wholeFor(p), 10); s.track = need<=10 ? 10 : need<=20 ? 20 : need<=30 ? 30 : 50; s.items = []; const G = groupsFor(p); [G.top, G.bot].forEach((gs, r) => { let c = 0; gs.forEach(g => { const parts = [...Array(Math.floor(g.n/10)).fill(10), ...(g.n%10 ? [g.n%10] : [])]; parts.forEach(n => { if (c+n<=s.track){ s.items.push({id:++s.seq, n, r, c}); c += n; } }); }); }); }
-};
-
 const BU = 20;
 function blockSVG(k, delay=0){
   const w = k==='o' ? BU : 10*BU, h = k==='h' ? 10*BU : BU, cols = k==='o' ? 1 : 10, rows = k==='h' ? 10 : 1;
@@ -656,19 +588,20 @@ M.base10 = {
     newSVG();
     let h = `<line x1="0" x2="${W}" y1="${ZMID}" y2="${ZMID}" class="sl" stroke-width="3"/>`;
     for (let i=1;i<s.nparts;i++) h += `<line x1="${i*W/s.nparts}" x2="${i*W/s.nparts}" y1="${ZMID}" y2="${H}" class="sl" stroke-width="3" stroke-dasharray="8 8"/>`;
-    zoneList(s).forEach(z => { const b = zoneBox(s,z), on = z===s.zone; h += `<text x="${b.x0}" y="${b.y0-12}" font-size="20" class="${on?'fa':'fm'} fnu">${zoneLabel(s,z)}${on?' ◂':''}</text><text x="${b.x0+b.w}" y="${b.y0-12}" text-anchor="end" font-size="26" class="fi fnt">${zoneVal(s,z)}</text>`; });
+    zoneList(s).forEach(z => { const b = zoneBox(s,z), on = z===s.zone; h += `<text x="${b.x0}" y="${b.y0-12}" font-size="20" class="${on?'fa':'fm'} fnu">${zoneLabel(s,z)}${on?' ◂':''}</text><text x="${b.x0+b.w}" y="${b.y0-12}" text-anchor="end" font-size="26" class="fi fnt">${s.secret?'?':zoneVal(s,z)}</text>`; });
     h += s.items.map((it,i) => `<g data-id="${it.id}" transform="translate(${it.x} ${it.y})">${blockSVG(it.k, i*6)}</g>`).join('');
     svg.innerHTML = h;
     enableDrag(moveItem(s), () => { clampItems(s, i=>blockW(i.k), i=>blockH(i.k)); render(); }, (id, p) => {
       if (id===null){ const z = p.y < ZMID ? 'w' : String(Math.max(0, Math.min(s.nparts-1, Math.floor(p.x/(W/s.nparts))))); if (z!==s.zone){ s.zone = z; render(); } return; }
       if (s.mode!=='remove') return; pushUndo(); s.items = s.items.filter(x => String(x.id)!==id); render(); });
   },
-  readout(s){ const w = zoneVal(s,'w'), ps = Array.from({length:s.nparts}, (_,i) => zoneVal(s,String(i))), sum = ps.reduce((a,b)=>a+b,0);
+  readout(s){ if (s.secret) return '<span>Count the blocks in each box: hundreds, then tens, then ones. The totals appear when you reveal.</span>';
+    const w = zoneVal(s,'w'), ps = Array.from({length:s.nparts}, (_,i) => zoneVal(s,String(i))), sum = ps.reduce((a,b)=>a+b,0);
     let h = `<span>Whole <b>${w}</b></span><span>Parts ${ps.map(v=>`<b>${v}</b>`).join(' + ')} = <b class="big">${sum}</b></span>`;
     if (w && sum) h += `<span>${w===sum ? '✓ parts match the whole' : w>sum ? `parts are <b>${w-sum}</b> short of the whole` : `parts are <b>${sum-w}</b> more than the whole`}</span>`;
     return h; },
   show(s,p){
-    s.items = []; const parts = partsFor(p); s.nparts = parts.length<=4 ? parts.length : 1; s.zone = '0';
+    s.items = []; s.secret = !done; const parts = partsFor(p); s.nparts = parts.length<=4 ? parts.length : 1; s.zone = '0';
     const build = (n, z) => { const box = zoneBox(s,z), its = []; const H_ = Math.floor(n/100), T_ = Math.floor(n%100/10), O_ = n%10;
       for (let i=0;i<H_;i++) its.push({id:++s.seq,k:'h',x:box.x0,y:box.y0}); for (let i=0;i<T_;i++) its.push({id:++s.seq,k:'t',x:box.x0,y:box.y0}); for (let i=0;i<O_;i++) its.push({id:++s.seq,k:'o',x:box.x0,y:box.y0});
       tidyBlocks(its, box.x0, box.y0, box.w); s.items.push(...its); };
@@ -746,7 +679,7 @@ M.numberline = {
           + `<path d="M${x2} ${base-6} l${-dir*16} -14 M${x2} ${base-6} l${-dir*3} -21" class="${j>0?'sa':'sb'}" stroke-width="5" stroke-linecap="round" fill="none"/>`
           + `<text x="${mid}" y="${base-hgt*.72-16}" text-anchor="middle" font-size="${Math.max(22, Math.min(34, w*.4))}" class="${j>0?'fa':'fb'} fnt">${j>0?'+':'−'}${Math.abs(j)}</text></g>`;
         at += j; });
-      h += `<circle cx="${X(at)}" cy="${base}" r="13" class="fa sp" stroke-width="4"/><text x="${X(at)}" y="${base+100}" text-anchor="middle" font-size="36" class="fa fnt">${at}</text>`;
+      h += `<circle cx="${X(at)}" cy="${base}" r="13" class="fa sp" stroke-width="4"/><text x="${X(at)}" y="${base+100}" text-anchor="middle" font-size="36" class="fa fnt">${s.secret?'?':at}</text>`;
     } else h += `<text x="${W/2}" y="${base-80}" text-anchor="middle" font-size="26" class="fm fnu">Tap a number to start there</text>`;
     svg.innerHTML = h;
     enableDrag(null, null, (id, p) => {
@@ -755,8 +688,8 @@ M.numberline = {
       pushUndo(); if (s.start===null) s.start = v; else { const d = v - this.at(s); if (d) s.jumps.push(d); } render();
     });
   },
-  readout(s){ if (s.start===null) return '<span>No start yet.</span>'; const land = this.at(s); return `<span>Start <b>${s.start}</b></span>${s.jumps.length?`<span>${s.jumps.map(j=>`<b>${j>0?'+':'−'}${Math.abs(j)}</b>`).join(' ')}</span>`:''}<span>Lands on <b class="big">${land}</b></span>`; },
-  show(s,p){ const need = Math.max(wholeFor(p), p.a); s.hi = need<=10 ? 10 : need<=20 ? 20 : need<=50 ? 50 : 100; s.jumps = [];
+  readout(s){ if (s.start===null) return '<span>No start yet.</span>'; const land = this.at(s); if (s.secret) return `<span>Start <b>${s.start}</b></span><span>${s.jumps.length} ${s.jumps.length===1?'jump':'jumps'}: ${s.jumps.map(j=>`<b>${j>0?'+':'−'}${Math.abs(j)}</b>`).join(' ')}</span><span>Where do you land?</span>`; return `<span>Start <b>${s.start}</b></span>${s.jumps.length?`<span>${s.jumps.map(j=>`<b>${j>0?'+':'−'}${Math.abs(j)}</b>`).join(' ')}</span>`:''}<span>Lands on <b class="big">${land}</b></span>`; },
+  show(s,p){ const need = Math.max(wholeFor(p), p.a); s.hi = need<=10 ? 10 : need<=20 ? 20 : need<=50 ? 50 : 100; s.jumps = []; s.secret = !done;
     const bridge = (start, amount, dir) => { const js=[]; let at=start, left=amount; const push=n=>{ js.push(dir*n); at+=dir*n; left-=n; };
       const toTen = dir>0 ? (10-at%10)%10 : at%10; if (toTen && left>=toTen && amount%10 && amount>toTen) push(toTen); while (left>=10) push(10); if (left) push(left); return js; };
     if (p.op==='add'){ s.start = p.a; s.jumps = p.b<=5 ? Array(p.b).fill(1) : bridge(p.a,p.b,1); }
@@ -820,7 +753,7 @@ function showParts(s,p){
   else s.parts = s.parts.map(() => null);
 }
 function revealParts(){
-  Object.values(states).forEach(x => { if (x.scale){ if (x.whole===null) x.whole = x.scale.whole; x.parts = x.parts.map((v,i) => v ?? x.scale.parts[i] ?? null); } });
+  Object.values(states).forEach(x => { if (x.secret) x.secret = false; if (x.scale){ if (x.whole===null) x.whole = x.scale.whole; x.parts = x.parts.map((v,i) => v ?? x.scale.parts[i] ?? null); } });
   if (!boardHidden) render();
 }
 function drawLinks(){
@@ -831,9 +764,9 @@ function drawLinks(){
 }
 
 /* ---------- app state ---------- */
-const ORDER = ['counters','array','tenframes','shapes','rods','base10','beads','numberline','bar','partwhole'];
+const ORDER = ['counters','array','tenframes','base10','beads','numberline','bar','partwhole'];
 if (!M[S.model]) S.model = 'counters';
-let cur = null, states = {}, st = null, tries = 0, done = false, free = false, boardHidden = false, checked = false, lastChecked = null;
+let cur = null, states = {}, st = null, tries = 0, done = false, boardHidden = false, checked = false, lastChecked = null;
 
 function render(){
   const m = M[S.model];
@@ -862,37 +795,33 @@ $('tools').onclick = e => {
 const picker = $('picker');
 ORDER.forEach(k => { const b = document.createElement('button'); b.textContent = M[k].label; b.dataset.m = k; b.onclick = () => { S.model = k; save(); if (boardHidden){ boardHidden = false; setPen(false); } useModel(); }; picker.appendChild(b); });
 function useModel(){
-  picker.querySelectorAll('button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.m===S.model); b.classList.toggle('best', !free && !!cur && b.dataset.m===cur.best); b.title = (!free && cur && b.dataset.m===cur.best) ? 'Best for this question' : ''; });
+  picker.querySelectorAll('button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.m===S.model); b.classList.toggle('best', !!cur && b.dataset.m===cur.best); b.title = (cur && b.dataset.m===cur.best) ? 'Best for this question' : ''; });
   if (!states[S.model]) states[S.model] = M[S.model].fresh();
   st = states[S.model]; undo = []; render();
 }
 $('undoBtn').onclick = () => { if (!boardHidden) undoLast(); };
-$('clearBtn').onclick = () => { if (boardHidden) return; pushUndo(); const keep = st; st = M[S.model].fresh(); if (keep.n) st.n = keep.n; if (keep.track) st.track = keep.track; if (keep.hi) st.hi = keep.hi; states[S.model] = st; render(); };
+$('clearBtn').onclick = () => { if (boardHidden) return; pushUndo(); const keep = st; st = M[S.model].fresh(); if (keep.n) st.n = keep.n; if (keep.hi) st.hi = keep.hi; states[S.model] = st; render(); };
 
 /* which model shows this question most easily, and why */
 function bestModel(p){
-  const R = S.range, bonds = R[0]==='b' || R[0]==='w';
-  if (p.missing) return p.op==='add'
-    ? {m:'partwhole', why:`Part–whole: put ${p.ans} in the whole and ${p.a} in one part, then find the other part.`}
-    : {m:'bar', why:`Bar model: the whole bar is ${p.a}, one part is ${p.ans}. How long is the other part?`};
-  if (p.op==='mul') return p.a*p.b <= 20 && p.b <= 5
-    ? {m:'counters', why:`Counters: make ${p.a} groups of ${p.b} and count them all.`}
+  const R = S.range, small = R==='b10' || R==='w10';
+  if (p.missing) return small
+    ? (p.op==='add' ? {m:'partwhole', why:`Part–whole: ${p.ans} is the whole and ${p.a} is one part. Find the other part.`} : {m:'bar', why:`Bar model: the whole bar is ${p.a}, one part is ${p.ans}. How long is the other part?`})
+    : (p.op==='add' ? {m:'numberline', why:`Number line: start at ${p.a}. How far do you jump to land on ${p.ans}?`} : {m:'numberline', why:`Number line: start at ${p.a} and jump back to ${p.ans}. How far did you jump?`});
+  if (p.op==='mul') return p.ans <= 60
+    ? {m:'numberline', why:`Number line: start at 0 and make ${p.a} jumps of ${p.b}. Where do you land?`}
     : {m:'array', why:`Array: set ${p.a} rows and ${p.b} columns, then count the dots.`};
-  if (p.op==='div') return p.a <= 20
-    ? {m:'counters', why:`Counters: make ${p.a}, then drag them into ${p.b} equal groups.`}
+  if (p.op==='div') return p.a <= 60
+    ? {m:'numberline', why:`Number line: start at 0 and jump ${p.b} at a time until you reach ${p.a}. Count the jumps.`}
     : {m:'array', why:`Array: set ${p.b} rows, then add columns until you reach ${p.a} dots.`};
   if (p.op==='add'){
-    if (bonds && p.ans===100) return {m:'beads', why:`Bead string: push ${p.a} across, then how many more make 100?`};
     if (p.ans <= 10) return {m:'tenframes', why:`Ten frame: fill ${p.a} in red and ${p.b} in yellow.`};
-    if (p.ans <= 20) return {m:'tenframes', why:`Ten frames: fill ${p.a} in red, then ${p.b} in yellow. Watch the first frame fill to 10.`};
-    if (p.b < 10 || p.a < 10) return {m:'numberline', why:`Number line: start at ${p.a} and jump on ${p.b}. Jump to the next ten first.`};
-    return {m:'base10', why:`Base ten: build ${p.a} in Part 1 and ${p.b} in Part 2, then build the whole. Exchange ten ones for a ten.`};
+    if (p.a >= 20 && p.b >= 20) return {m:'base10', why:`Base ten: build ${p.a} in Part 1 and ${p.b} in Part 2, then build the whole. Exchange ten ones for a ten.`};
+    return {m:'numberline', why:`Number line: start at ${p.a} and jump on ${p.b}. Jump to the next ten first.`};
   }
   if (p.a <= 10) return {m:'counters', why:`Counters: make ${p.a}, then cross out ${p.b}.`};
-  if (p.a <= 20) return {m:'tenframes', why:`Ten frames: fill ${p.a}, then cross out ${p.b}. Count what is left.`};
-  if (p.b < 10) return {m:'numberline', why:`Number line: start at ${p.a} and jump back ${p.b}. Jump back to the ten first.`};
-  if (p.op==='sub' && p.b % 10 === 0) return {m:'beads', why:`Bead string: push ${p.a} across, then pull back ${p.b}.`};
-  return {m:'base10', why:`Base ten: build ${p.a} as the whole and ${p.b} as one part. What goes in the other part? Break a ten into ones if you need to.`};
+  if (p.b >= 20 && p.a >= 40) return {m:'base10', why:`Base ten: build ${p.a} as the whole and ${p.b} as one part. What goes in the other part? Break a ten into ones if you need to.`};
+  return {m:'numberline', why:`Number line: start at ${p.a} and jump back ${p.b}. Jump back to the ten first.`};
 }
 $('autoBtn').setAttribute('aria-pressed', S.auto);
 $('autoBtn').onclick = () => { S.auto = !S.auto; $('autoBtn').setAttribute('aria-pressed', S.auto); save(); };
@@ -937,8 +866,7 @@ async function toggleFull(){
 $('fsBtn').onclick = toggleFull; $('fsMenuBtn').onclick = toggleFull;
 document.addEventListener('fullscreenchange', () => { const on = !!document.fullscreenElement; $('fsBtn').setAttribute('aria-pressed', on); $('fsMenuBtn').textContent = on ? '⛶ Exit full screen' : '⛶ Full screen'; });
 addEventListener('keydown', e => { if (e.target.matches('input,select,textarea')) return; if (e.key==='f' || e.key==='F') toggleFull(); });
-$('startBtn').onclick = () => { closeMenu(); if (free){ free = false; document.body.classList.remove('free'); } newProblem(); };
-$('freeStart').onclick = () => { closeMenu(); free = true; document.body.classList.add('free'); boardHidden = false; picker.querySelectorAll('button').forEach(b => b.classList.remove('best')); setFb(''); useModel(); setPen(false); };
+$('startBtn').onclick = () => { closeMenu(); newProblem(); };
 
 /* ---------- question flow ---------- */
 const q = $('q'), fb = $('fb');
@@ -954,7 +882,6 @@ function showQuestion(p){
 const expected = p => p.missing ? p.b : p.ans;
 /* Enter walks through the lesson: show the model, check the answer, reveal it, then the next question */
 function enterStep(){
-  if (free) return;
   if (boardHidden){ $('showBtn').click(); const inp = $('ansIn'); if (inp) inp.focus(); return; }
   if (done){ newProblem(); return; }
   const inp = $('ansIn');
@@ -962,14 +889,14 @@ function enterStep(){
 }
 function setFb(text, cls=''){ fb.textContent = text; fb.className = 'feedback ' + cls; }
 function newProblem(){
-  cur = makeProblem(); tries = 0; done = false; checked = false; lastChecked = null; boardHidden = !free;
+  cur = makeProblem(); tries = 0; done = false; checked = false; lastChecked = null; boardHidden = true;
   states = {}; undo = []; strokes = []; drawInk();
   showQuestion(cur);
   const b = bestModel(cur); cur.best = b.m;
   if (S.auto){ S.model = b.m; save(); }
   setFb(S.auto ? 'Best tool when you need it: ' + b.why : '');
   useModel();
-  if (!free) setTimeout(() => $('ansIn') && $('ansIn').focus(), 50);
+  setTimeout(() => $('ansIn') && $('ansIn').focus(), 50);
 }
 function check(){
   const inp = $('ansIn'); if (!inp || done) return;
@@ -992,7 +919,7 @@ function check(){
 function updateScore(){ $('solved').textContent = S.solved; $('streak').textContent = S.streak; $('best').textContent = S.best; }
 $('checkBtn').onclick = check;
 $('nextBtn').onclick = newProblem;
-$('showBtn').onclick = () => { if (free) return; boardHidden = false; setPen(false); pushUndo(); st = M[S.model].fresh(); M[S.model].show(st, cur); states[S.model] = st; render(); setFb(st.scale ? 'The ' + M[S.model].label.toLowerCase() + ' is drawn to size. The blank box is the number you are finding. Type it in, or press Reveal.' : 'Here is one way to build it with ' + M[S.model].label.toLowerCase() + '. Count it, then type your answer.'); };
+$('showBtn').onclick = () => { boardHidden = false; setPen(false); pushUndo(); st = M[S.model].fresh(); M[S.model].show(st, cur); states[S.model] = st; render(); setFb(st.scale ? 'The ' + M[S.model].label.toLowerCase() + ' is drawn to size. The blank box is the number you are finding. Type it in, or press Reveal.' : st.secret ? 'The blocks are built. Count hundreds, tens and ones in each box, then type your answer.' : 'Here is one way to build it with ' + M[S.model].label.toLowerCase() + '. Count it, then type your answer.'); };
 $('revealBtn').onclick = () => { const inp = $('ansIn'); if (!inp || done) return; cur.revealed = true; inp.value = expected(cur); revealParts(); if (S.streak){ S.streak = 0; save(); updateScore(); } check(); setFb(`The answer is ${expected(cur)}. Build it to see why, then press Enter for the next question.`); updateSteps(); };
 
 addEventListener('keydown', e => {
