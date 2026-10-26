@@ -212,7 +212,7 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
       </div></div>
       <div class="blurb" id="blurb"></div>
       <div class="score"><span>Solved <b id="solved">0</b></span><span>Streak <b id="streak">0</b></span><span>Best <b id="best">0</b></span></div>
-      <div class="blurb">Enter checks your answer · N new question · Ctrl/⌘ Z undo</div>
+      <div class="blurb">Enter: show the model → check the answer → next question · N new question · Ctrl/⌘ Z undo</div>
     </aside>
   </main>
 </div>
@@ -773,7 +773,7 @@ function render(){
   $('blurb').textContent = m.blurb;
   board.classList.toggle('wait', boardHidden);
   if (boardHidden){
-    board.innerHTML = `<div class="waitMsg">Solve it in your head or on paper first.<br>Press <b>Show me</b> to see it built with <b>${m.label.toLowerCase()}</b>, or pick a model on the right to build it yourself.<br><button class="go" id="waitShow">Show me</button></div>`;
+    board.innerHTML = `<div class="waitMsg">Solve it in your head or on paper first.<br>Press <b>Enter</b> or <b>Show me</b> to see it built with <b>${m.label.toLowerCase()}</b>, or pick a model on the right to build it yourself.<br><button class="go" id="waitShow">Show me</button></div>`;
     $('waitShow').onclick = () => $('showBtn').click();
     $('readout').innerHTML = ''; $('tools').innerHTML = ''; return;
   }
@@ -837,10 +837,16 @@ function showQuestion(p){
     ? `<span>${p.a}</span><span class="sym">${SYM[p.op]}</span>${slot}<span class="sym">=</span><span>${p.ans}</span>`
     : `<span>${p.a}</span><span class="sym">${SYM[p.op]}</span><span>${p.b}</span><span class="sym">=</span>${slot}`;
   const inp = $('ansIn');
-  inp.onkeydown = e => { e.stopPropagation(); if (e.key==='Enter'){ e.preventDefault(); done ? newProblem() : check(); } };
+  inp.onkeydown = e => { e.stopPropagation(); if (e.key==='Enter'){ e.preventDefault(); enterStep(); } };
   inp.oninput = () => { inp.classList.remove('no'); };
 }
 const expected = p => p.missing ? p.b : p.ans;
+/* Enter walks through the lesson: show the model, then check the answer, then the next question */
+function enterStep(){
+  if (free) return;
+  if (boardHidden){ $('showBtn').click(); const inp = $('ansIn'); if (inp) inp.focus(); return; }
+  if (done) newProblem(); else check();
+}
 function setFb(text, cls=''){ fb.textContent = text; fb.className = 'feedback ' + cls; }
 function newProblem(){
   cur = makeProblem(); tries = 0; done = false; boardHidden = !free;
@@ -880,7 +886,7 @@ addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
   if ((e.ctrlKey||e.metaKey) && (e.key==='z'||e.key==='Z')){ e.preventDefault(); undoLast(); }
   else if (e.key==='n' || e.key==='N') newProblem();
-  else if (e.key==='Enter' && done) newProblem();
+  else if (e.key==='Enter'){ e.preventDefault(); enterStep(); }
 });
 let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(drawLinks, 100); });
 
