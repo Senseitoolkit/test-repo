@@ -41,10 +41,11 @@ body {
 
 /* Start page: fills the viewport like the game does. Title band, four instruction panels across, Begin below. */
 .start {
-  height: 100%;
+  min-height: 100%;
   box-sizing: border-box;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto 1fr auto;
+  align-content: start;
   gap: 18px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -85,7 +86,7 @@ body {
 .how .s { color: #e8865f; font-weight: 600; }
 .how .g { color: var(--mist); font-weight: 600; }
 .how .k { color: var(--moss); font-weight: 600; }
-.start-foot { display: flex; justify-content: center; }
+.start-foot { display: flex; justify-content: center; padding-top: 6px; }
 .start-foot .begin { width: 100%; max-width: 360px; align-items: center; text-align: center; padding: 16px 18px; }
 .start-foot .begin .n { font-size: 1.7rem; }
 .wrap[hidden] { display: none; }
@@ -278,9 +279,18 @@ button.ch.trick { border-left-color: var(--moss); }
 button.ch .t.strike { color: #e8865f; }
 button.ch .t.guard { color: var(--mist); }
 button.ch .t.trick { color: var(--moss); }
-.rule { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.05em; color: var(--ash); text-align: center; margin: 0; }
+.rule { font-family: var(--f-mono); font-size: 0.72rem; letter-spacing: 0.05em; color: var(--ash); text-align: center; margin: 0; display: flex; flex-direction: column; gap: 4px; align-items: center; }
 .rule b { font-weight: 600; }
-.rule .s { color: #e8865f; } .rule .g { color: var(--mist); } .rule .k { color: var(--moss); }
+.rule .s, .how .chain .s { color: #e8865f; } .rule .g, .how .chain .g { color: var(--mist); } .rule .k, .how .chain .k { color: var(--moss); }
+/* The wheel of moves as a triangle. */
+.wheel { display: block; width: 200px; max-width: 100%; height: auto; margin-inline: auto; }
+.wheel .wn text { font-family: var(--f-display); font-size: 19px; font-weight: 500; }
+.wheel .wn .s { fill: #e8865f; } .wheel .wn .k { fill: var(--moss); } .wheel .wn .g { fill: var(--mist); }
+.wheel .wl text { font-family: var(--f-mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--ash); }
+.rule .wheel { width: 190px; }
+.rule .perk { display: block; }
+.wheelbox { display: block; margin-top: 6px; }
+.how .wheel { width: 210px; margin-inline: 0; }
 </style>
 <style>[hidden]{display:none!important} img{max-width:100%}</style>
 </head>
@@ -297,16 +307,16 @@ button.ch .t.trick { color: var(--moss); }
 <div class="start" id="start">
   <div class="start-head">
     <h1>Text Based Dungeon Crawler</h1>
-    <p class="sub">Eleven dungeons. Eleven beasts at the bottom. Fifty-four ways out, and a good many of them are graves.</p>
+    <p class="sub">Eleven dungeons. Eleven beasts at the bottom. A hundred and twenty-four ways out, and more than half of them are graves.</p>
   </div>
   <ol class="how">
     <li><b>Choose a tale, then a hero.</b> Eleven dungeons, each with its own monsters, boss and prize. Then pick a Warrior, Wizard, or Rogue. Each fights differently.</li>
-    <li><b>Each turn, choose a move.</b> <span class="s">Strike</span> beats <span class="k">Trick</span>. <span class="k">Trick</span> beats <span class="g">Guard</span>. <span class="g">Guard</span> beats <span class="s">Strike</span>.</li>
+    <li><b>Each turn, choose a move.</b> Each one beats the next around the triangle.<span class="wheelbox" id="wheelStart"></span></li>
     <li><b>Read the tell.</b> The monster shows a hint of its next move before you choose. It is usually true. Deeper monsters lie more.</li>
-    <li><b>Win or lose, the story branches.</b> Beat the monster and the path climbs. Fall near the surface and the dungeon drags you somewhere worse. Fall deep and you die.</li>
+    <li><b>Win or lose, the story branches.</b> Beat the monster and the path climbs. Fall near the surface and the dungeon drags you somewhere worse. Fall deep and you die. How you reach the end decides which ending you get.</li>
   </ol>
   <div class="start-foot">
-    <button class="ch begin" id="begin" type="button"><span class="n">Begin</span><span class="d">Light the torch and go down.</span></button>
+    <button class="ch begin" id="begin" type="button"><span class="n">Enter</span><span class="d">Light the torch and go down.</span></button>
   </div>
 </div>
 
@@ -527,22 +537,39 @@ button.ch .t.trick { color: var(--moss); }
 
   // ---------- Stories ----------
   // Each story is its own dungeon: a tree of rooms where every fight branches on win or loss.
-  // tale() builds the shorter dungeons from a compact spec: first fight → high road or low road → the boss.
-  //   a (win → b, lose → c) · b (win → boss, lose → e_blose) · c, deadly (win → boss, lose → e_cdead) · boss, deadly (win → e_loot, lose → e_bossdead)
+  // tale() builds the shorter dungeons from a compact spec. Shape of every tale:
+  //   a: first fight (win → b, lose → c)
+  //   b: high road (win → g, lose → e_blose) · c: low road, deadly (win → d, lose → e_cdead)
+  //   g: the boss's gate (win → boss by the high road, lose → dragged before the boss)
+  //   d: low road, second fight (win → boss, lose → e) · e: last chance, deadly (win → boss, lose → e_edead)
+  //   boss: deadly; the ending depends on the road you took in (high, dragged, low, last) → 4 wins, 4 deaths
   function tale(t) {
-    const r = t.rooms, e = t.ends;
+    const r = t.rooms, e = t.ends, w = e.win, d = e.dead;
+    const end = (tone, x, byClass) => ({ ending: true, tone, title: x.title, text: x.text, byClass: byClass || null, epitaph: x.epitaph });
     return {
       name: t.name, vibe: t.vibe, tagline: t.tagline, heroQ: t.heroQ, boss: t.m.boss.name, loot: t.loot,
       open: t.open, step: t.step, accent: t.accent, foe: t.foe, start: 'a', monsters: t.m,
       rooms: {
         a: { title: r.a.title, intro: r.a.intro, monster: 'a', win: 'b', lose: 'c' },
-        b: { title: r.b.title, intro: r.b.intro, monster: 'b', win: 'boss', lose: 'e_blose' },
-        c: { title: r.c.title, intro: r.c.intro, monster: 'c', win: 'boss', lose: 'e_cdead', fatal: true },
-        boss: { title: r.boss.title, intro: r.boss.intro, monster: 'boss', win: 'e_loot', lose: 'e_bossdead', fatal: true },
-        e_loot: { ending: true, tone: 'hit', title: e.loot.title, text: e.loot.text, byClass: e.loot.byClass },
-        e_blose: { ending: true, tone: 'hurt', title: e.blose.title, text: e.blose.text, byClass: e.blose.byClass },
-        e_cdead: { ending: true, tone: 'dead', title: e.cdead.title, text: e.cdead.text, epitaph: e.cdead.epitaph },
-        e_bossdead: { ending: true, tone: 'dead', title: e.bossdead.title, text: e.bossdead.text, epitaph: e.bossdead.epitaph }
+        b: { title: r.b.title, intro: r.b.intro, monster: 'b', win: 'g', lose: 'e_blose' },
+        c: { title: r.c.title, intro: r.c.intro, monster: 'c', win: 'd', lose: 'e_cdead', fatal: true },
+        g: { title: r.g.title, intro: r.g.intro, monster: 'g', win: 'boss', lose: 'boss' },
+        d: { title: r.d.title, intro: r.d.intro, monster: 'd', win: 'boss', lose: 'e' },
+        e: { title: r.e.title, intro: r.e.intro, monster: 'e', win: 'boss', lose: 'e_edead', fatal: true },
+        boss: { title: r.boss.title, intro: r.boss.intro, monster: 'boss', fatal: true,
+          win: { 'g:won': 'e_win_high', 'g:lost': 'e_win_dragged', 'd:won': 'e_win_low', 'e:won': 'e_win_last' },
+          lose: { 'g:won': 'e_dead_high', 'g:lost': 'e_dead_dragged', 'd:won': 'e_dead_low', 'e:won': 'e_dead_last' } },
+        e_win_high: end('hit', e.loot, e.loot.byClass),
+        e_win_dragged: end('hit', w.dragged),
+        e_win_low: end('hit', w.low),
+        e_win_last: end('hit', w.last),
+        e_blose: end('hurt', e.blose, e.blose.byClass),
+        e_cdead: end('dead', e.cdead),
+        e_edead: end('dead', e.edead),
+        e_dead_high: end('dead', e.bossdead),
+        e_dead_dragged: end('dead', d.dragged),
+        e_dead_low: end('dead', d.low),
+        e_dead_last: end('dead', d.last)
       }
     };
   }
@@ -578,15 +605,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'Old Greymaw', hp: 26, atk: 7, bias: 'strike', tellAcc: 0.6,
           intro: 'At the heart of the moor stands a cairn, and on the cairn stands a man, and then the moon comes out from the cloud and he is not a man. Old Greymaw, who has taken a child from Blackbriar every winter for ninety years.',
           tells: { strike: 'It goes to all fours and the muscle bunches along its back.', trick: 'It circles into the fog, and its eyes go out, and come back somewhere else.', guard: 'It rears up to its full height and spreads its arms, daring you.' },
-          hitLine: 'Claws open you from shoulder to hip.', dieLine: 'Greymaw falls from the cairn, and by the time it hits the heather it is only an old man, and then only a silver collar in the grass.' }
+          hitLine: 'Claws open you from shoulder to hip.', dieLine: 'Greymaw falls from the cairn, and by the time it hits the heather it is only an old man, and then only a silver collar in the grass.' },
+
+        g: { name: 'Pack-Mother', hp: 22, atk: 6, bias: 'strike', tellAcc: 0.65,
+          intro: 'The sunken track to the cairn is held by a she-wolf as big as a pony with a torn ear and six grown wolves behind her. She does not howl. She has been waiting for the huntsman to fail.',
+          tells: { strike: 'She comes straight down the track, low and silent.', trick: 'She yips once, and the six behind her melt into the heather on both sides.', guard: 'She stops in the narrowest part of the track and sets her shoulders.' },
+          hitLine: 'The pack-mother, and then two of the others.', dieLine: 'The pack-mother goes down and the six behind her stop, and look at each other, and let you pass.' },
+        d: { name: 'Moor Hag', hp: 20, atk: 6, bias: 'trick', tellAcc: 0.6,
+          intro: 'Beyond the bog a hut stands on legs of bone. The woman in its doorway is older than the moor and has a cauldron going. "You smell of the beast," she says. "Everyone comes to me smelling of the beast. Let us see what you are made of."',
+          tells: { strike: 'She spits into the cauldron and it boils over toward you.', trick: 'She is beside you, whispering a name that is nearly yours.', guard: 'She draws a circle of ash across the doorway and steps behind it.' },
+          hitLine: 'A word, and a cramp like a fist in your gut.', dieLine: 'The hag laughs until she coughs, and then says, "Go on, then. He is up the hill. Tell him I sent you."' },
+        e: { name: 'Moon-Mad Hound', hp: 22, atk: 7, bias: 'strike', tellAcc: 0.6,
+          intro: 'The hag turns you out onto the kennel stones, where Greymaw keeps his first-bitten: a thing that was a hound once and a man once and is neither now, chained to a stone and chewing the chain. The chain breaks. Lose here and it does not stop.',
+          tells: { strike: 'It drops to all fours and the chain drags behind it.', trick: 'It circles the stone, and the chain goes around, and you lose it in the fog.', guard: 'It climbs the stone and crouches, waiting for you to come close.' },
+          hitLine: 'Jaws that were a man\'s once.', dieLine: 'The hound dies whimpering, and in dying looks grateful, and for a moment looks like a man.' }
       },
       rooms: {
+        g: { title: 'The Hollow Way', intro: 'Past the stones the track sinks between banks of heather, a green road worn by something that walks it every night. Eyes open along both banks.' },
+        d: { title: 'The Hag\'s Hut', intro: 'The bog gives way to peat, and the peat to a hut on legs of bone, lit from inside by something green.' },
+        e: { title: 'The Kennel Stones', intro: 'A ring of stones with chains set into them. Most of the chains are empty. One is not.' },
         a: { title: 'The Sheepfold', intro: 'The road ends at a sheepfold whose gate hangs open. The sheep are gone. Something is eating in the fog.' },
         b: { title: 'The Standing Stones', intro: 'With the wolf dead the moor opens up, and the fog thins to show a ring of standing stones on the rise. Someone is waiting in it.' },
         c: { title: 'The Bog', intro: 'You run the wrong way. The ground goes soft, then wet, then it goes.' },
         boss: { title: 'The Cairn', intro: 'The howling stops. At the center of the moor the fog pulls back from a cairn of white stones, and the moon fills up.' }
       },
       ends: {
+        edead: { title: 'Run to Ground', text: 'The hound runs you across the moor until you fall, and then it is only a hound, and does what hounds do. In the morning the kennel stones have one more chain filled, and the thing in it has your eyes.', epitaph: 'Run down by the moon-mad hound.' },
+        win: {
+          dragged: { title: 'Carried to the Cairn', text: 'The pack carries you to the cairn in their jaws and drops you at the beast\'s feet as a gift, and the gift gets up, and the gift kills it. The pack-mother sees the collar in your hand and lowers her head, and the six do the same. You walk back to Blackbriar with seven wolves at heel, and the village does not bar its doors to you, but it does not open them either.' },
+          low: { title: 'The Hag\'s Price', text: 'You come up out of the bog with the hag\'s word in your ear and kill the beast as she said you would. The collar is yours. So, she reminds you in your dreams, is the debt: a year on the moor in her service, and after that she will let you go, probably. The village pays you to keep her away from them. It is, you decide, a living.' },
+          last: { title: 'Bitten', text: 'You reach the cairn bleeding from the hound\'s last bite and kill the beast anyway, and only afterward notice that the bite is not healing. The silver collar keeps the moon out as long as you wear it. You wear it. You never take it off. The village thinks you are their warden, and you are, in a way, for as long as the clasp holds.' }
+        },
+        dead: {
+          dragged: { title: 'Fed to the Pack', text: 'The pack carried you to the cairn in their jaws, and the beast was gracious enough to let them finish what they started. There is not enough left for the village to bury.', epitaph: 'Dragged to the cairn and devoured.' },
+          low: { title: 'The Hag Was Wrong', text: 'The hag said you were made of the right stuff. She was wrong, or she lied, and the beast finds out which by opening you up. The hag puts what is left in her cauldron and does not apologise.', epitaph: 'Killed at the cairn, cooked in the hut.' },
+          last: { title: 'The Second Hound', text: 'You come to the cairn already bitten and the beast does not even need to kill you. It waits for the moon to finish the hound\'s work, and chains what is left to the kennel stones, and whistles to it like a dog.', epitaph: 'Turned, and chained at the kennel stones.' }
+        },
         loot: { title: 'The Silver Collar',
           text: 'The collar is old silver, worked with thorns. Whoever wears it cannot be bitten, and whoever carries it into Blackbriar will never buy their own ale again. You walk back off the moor at dawn and the first door opens before you knock.',
           byClass: { warrior: 'The village makes you its warden. You hang the collar over your door and the moor stays quiet.', wizard: 'The collar is a binding. You spend years working out what else it could hold.', rogue: 'You sell the collar to a lord with a wolf problem. You do not tell him it only works if he is the one who killed it.' } },
@@ -619,15 +673,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'Count Vardrek', hp: 26, atk: 7, bias: 'trick', tellAcc: 0.6,
           intro: 'The Count is in the gallery, among his portraits, and he is the only one of them who moves. "You have made a mess of my household," he says, and his voice is very kind, and his eyes are very red.',
           tells: { strike: 'He sets down his wineglass. The glass is not wine.', trick: 'He is on the other side of the room. He was not, a moment ago.', guard: 'He draws his cloak across himself and the candles gutter.' },
-          hitLine: 'He drinks, briefly, and you feel colder.', dieLine: 'The Count comes apart like ash in a draft. On the carpet lies a signet ring, warm, with a single drop of red in the stone.' }
+          hitLine: 'He drinks, briefly, and you feel colder.', dieLine: 'The Count comes apart like ash in a draft. On the carpet lies a signet ring, warm, with a single drop of red in the stone.' },
+
+        g: { name: 'The Count\'s Hound', hp: 22, atk: 6, bias: 'strike', tellAcc: 0.65,
+          intro: 'At the foot of the gallery stair lies a wolfhound the size of a calf, with a velvet collar and a stare that knows too much. It rises, and it does not pant, and it has not breathed in a hundred years.',
+          tells: { strike: 'It bares teeth that have been filed to points.', trick: 'It pads into the shadow of the stair and the shadow is suddenly larger.', guard: 'It sits, like a good dog, directly in the doorway, and will not move.' },
+          hitLine: 'The hound, at the throat.', dieLine: 'The hound lies down on the stair with its head on its paws and, for the first time in a century, is only a dead dog.' },
+        d: { name: 'The Cook', hp: 20, atk: 6, bias: 'guard', tellAcc: 0.65,
+          intro: 'The cellar stair comes up in a kitchen where a vast woman in a bloody apron is working a cleaver through something that was recently a guest. "You\'re not on the menu," she says, "yet," and comes around the table.',
+          tells: { strike: 'She raises the cleaver and the lamplight runs down it.', trick: 'She throws a handful of flour and the kitchen goes white.', guard: 'She sets the great table between you and plants her fists on it.' },
+          hitLine: 'The cleaver, flat side, which is a mercy.', dieLine: 'The cook sits down on her stool, wipes the cleaver, and says, "Go on up. He\'s expecting dinner. Give him a surprise."' },
+        e: { name: 'The Groom', hp: 22, atk: 7, bias: 'trick', tellAcc: 0.6,
+          intro: 'The cook has you thrown out to the stables, where the Count\'s horses are kept, and the thing that keeps them: a groom who was a guest once, who has been hungry for forty years, and who is always, always let feed on what the kitchen throws out. Die here and you are what the kitchen threw out.',
+          tells: { strike: 'He comes over the stall door in one movement.', trick: 'He is in the hayloft. He is behind the mare. He is laughing.', guard: 'He crouches in a stall with his back to the wall and his eyes shining.' },
+          hitLine: 'He feeds, and it is not quick.', dieLine: 'The groom drops in the straw and the horses, all together, let out a breath they have been holding for decades.' }
       },
       rooms: {
+        g: { title: 'The Gallery Stair', intro: 'Beyond the ballroom a stair sweeps up toward the gallery. Something is lying across the bottom step, and it has been told to stay.' },
+        d: { title: 'The Kitchen', intro: 'The cellar stair ends at a kitchen as big as a chapel, hot and bright, and something is being prepared.' },
+        e: { title: 'The Stables', intro: 'Cold, straw, horses that will not stop screaming, and a door that has just been barred behind you.' },
         a: { title: 'The Great Door', intro: 'The entrance hall is all mirrors, and you are the only one reflected in them.' },
         b: { title: 'The Ballroom', intro: 'Past the fallen butler, double doors open on a ballroom. The quartet is here, and they are only bones, and they do not stop playing.' },
         c: { title: 'The Cellar', intro: 'The stair is long and the dark is sweet with the smell of old casks.' },
         boss: { title: 'The Gallery', intro: 'A hundred portraits. A hundred years. One host.' }
       },
       ends: {
+        edead: { title: 'Kitchen Scraps', text: 'The groom takes his time, and when he is done the cook sends a boy for the remains, and the Count, at dinner, remarks that the service has improved.', epitaph: 'Fed to the groom in the stables.' },
+        win: {
+          dragged: { title: 'A Surprising Guest', text: 'The hound drags you up the gallery stair by the collar and lays you at the Count\'s feet like a bird, and the Count laughs, and stops laughing. The signet is yours. You own the castle, and the hound, which follows you everywhere now, and sleeps across your door, and has not once decided whether it likes you.' },
+          low: { title: 'The Cook\'s Compliments', text: 'You come up from the cellar smelling of the kitchen, and the Count wrinkles his nose, which is the last thing he does. The signet is yours and so is the castle. The cook stays on. She is an excellent cook. You stop asking what is in the pies.' },
+          last: { title: 'Out of the Stables', text: 'You reach the gallery with straw in your hair and the groom\'s blood on your boots and the Count, who did not think anything came out of the stables, has no time to prepare a speech. The castle is yours. You free the horses first. They do not go far. Neither, you find, do you.' }
+        },
+        dead: {
+          dragged: { title: 'Brought as a Gift', text: 'The hound brings you to the gallery as a gift and the Count accepts you as one. He drinks. The hound waits politely for the bones.', epitaph: 'Drained at the top of the stair.' },
+          low: { title: 'Served Cold', text: 'You come to the gallery straight from the kitchen and the Count, who likes a theme, has you sent back down to it. The cook is unsentimental. The Count dines at nine.', epitaph: 'Returned to the kitchen.' },
+          last: { title: 'Back to the Straw', text: 'You come to the Count half-fed-on already, and he finds you thin and sends you back to the stables to fatten. The groom is delighted to see you. The horses are not surprised.', epitaph: 'Sent back to the groom.' }
+        },
         loot: { title: 'The Sanguine Signet',
           text: 'The signet is the Count\'s seal and the Count\'s power: whoever wears it may command the servants of Vardrek, and the castle, and its considerable accounts. You walk out through the great door into a sunrise the Count never saw, with a ring on your finger and a very old fortune in your name.',
           byClass: { warrior: 'You keep the castle. You keep the quartet. You make them learn new songs.', wizard: 'The ring is a key to the Count\'s library, and the library goes down for nine floors.', rogue: 'You sell the castle to a baron who wants a title and does not ask why the previous owner had no mirrors.' } },
@@ -661,15 +742,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'The Deathless General', hp: 26, atk: 7, bias: 'strike', tellAcc: 0.65,
           intro: 'On the tallest barrow, on a horse that is also dead, sits the general who lost this battle. He has had nine hundred years to think about what he did wrong, and he has decided it was the soldiers.',
           tells: { strike: 'He spurs the dead horse and lowers his lance.', trick: 'He wheels the horse away, and you hear the drums change.', guard: 'He reins in and raises his great shield, waiting for you to come to him.' },
-          hitLine: 'The lance goes through you and out the other side.', dieLine: 'The general falls from the saddle and the horse walks away, finally free. The army lies down in its graves. The banner is yours.' }
+          hitLine: 'The lance goes through you and out the other side.', dieLine: 'The general falls from the saddle and the horse walks away, finally free. The army lies down in its graves. The banner is yours.' },
+
+        g: { name: 'The Honour Guard', hp: 22, atk: 6, bias: 'guard', tellAcc: 0.7,
+          intro: 'Twelve skeletons in gilded mail stand shoulder to shoulder across the path to the general\'s barrow, shields locked, and the shields have not been lowered in nine hundred years. They lower them now, a little, to look at you.',
+          tells: { strike: 'Twelve spears come down together.', trick: 'The line opens in the middle, inviting you in, and closes.', guard: 'Twelve shields lock with a sound like a door.' },
+          hitLine: 'Three spears, from the shield wall.', dieLine: 'The honour guard breaks, one skeleton at a time, until there is a gap in the line exactly as wide as you.' },
+        d: { name: 'The Camp Follower', hp: 20, atk: 6, bias: 'trick', tellAcc: 0.6,
+          intro: 'Behind the ranks, where the baggage train would be, a woman in rags tends a cookfire that has not been lit in nine centuries. She looks up. "Another one for the pot," she says, and the thing under her rags is not a woman.',
+          tells: { strike: 'She rises and the rags fall and there are too many arms.', trick: 'She is gone and the fire is between you and something else.', guard: 'She crouches over the fire and the smoke thickens into a wall.' },
+          hitLine: 'Fingers like roots, through the ribs.', dieLine: 'The camp follower collapses into her own rags and the cookfire goes out, finally, after nine hundred years.' },
+        e: { name: 'The Deserter', hp: 22, atk: 7, bias: 'strike', tellAcc: 0.6,
+          intro: 'The camp follower throws you into a ditch where the army keeps the one soldier who ran. He has had nine hundred years to regret it and he is going to take it out on you. Lose here and you take his place in the ditch.',
+          tells: { strike: 'He screams something that was an oath once and comes over the ditch edge.', trick: 'He drops into the dark of the ditch and the bones shift all along it.', guard: 'He digs in with his back to the ditch wall and his broken shield up.' },
+          hitLine: 'A rusted sword, with nine hundred years of shame behind it.', dieLine: 'The deserter lies down in the ditch at last. He looks, at the end, like he has stopped running.' }
       },
       rooms: {
+        g: { title: 'The Shield Wall', intro: 'The standard has fallen, but the path to the general\'s barrow is still held by the twelve he trusts most.' },
+        d: { title: 'The Baggage Train', intro: 'You climb out of the barrow behind the army, among wagons with no wheels and a fire with no heat.' },
+        e: { title: 'The Deserter\'s Ditch', intro: 'A trench at the edge of the field, full of bones that were put there on purpose, and one set that is still moving.' },
         a: { title: 'The First Mound', intro: 'The drums come from under the ground. The road runs between the mounds and the mounds are opening.' },
         b: { title: 'The Muster Field', intro: 'Beyond the first barrow the hills flatten into a field, and the field is full of the dead, in ranks, facing a standard.' },
         c: { title: 'The Open Barrow', intro: 'The ground gives and you fall into the dark among the bones.' },
         boss: { title: 'The General\'s Barrow', intro: 'The tallest mound on the downs, and the oldest, and the one that was dug by hand by soldiers who did not want to go in.' }
       },
       ends: {
+        edead: { title: 'In the Ditch', text: 'The deserter puts you in the ditch and climbs out of it, and marches back into the ranks, forgiven. Nine hundred years from now someone will fall in and find you still trying to climb out.', epitaph: 'Left in the deserter\'s ditch.' },
+        win: {
+          dragged: { title: 'Brought Before the General', text: 'The honour guard drags you up the barrow in chains to be judged, and the general gets down from his dead horse to do it personally, which is his mistake. The banner is yours. The honour guard looks at the chains, and at you, and takes them off, and kneels, and will not get up until you tell them to.' },
+          low: { title: 'From the Baggage Train', text: 'You reach the general\'s barrow from behind, through the baggage, which no general in nine hundred years has thought to guard. The banner is yours. So is the baggage train, and nine hundred years of an army\'s plunder, which turns out to be most of the kingdom that no longer exists.' },
+          last: { title: 'The Deserter\'s Road', text: 'You come up the barrow out of the ditch with the deserter\'s rusted sword in your hand and the general, who has not been surprised in nine centuries, is surprised. The banner is yours. The first thing you do with it is order the army to fill in the ditch. The second is to let them sleep.' }
+        },
+        dead: {
+          dragged: { title: 'Judged', text: 'The honour guard brings you before the general in chains, and the general reads the charge, which is trespass, and the sentence, which is the ranks. You are a good soldier now. You were not given a choice.', epitaph: 'Sentenced to the ranks.' },
+          low: { title: 'Among the Baggage', text: 'The general does not waste a lance on something that came out of the baggage train. He has you put back in it, with the other spoils, and the wagons with no wheels roll on.', epitaph: 'Stowed with the plunder.' },
+          last: { title: 'Back to the Ditch', text: 'The general recognises the deserter\'s sword in your hand and takes it very personally. He has you thrown into the ditch to take the deserter\'s place, and the deserter, forgiven, is the one who throws you.', epitaph: 'Thrown into the ditch.' }
+        },
         loot: { title: 'The Banner of the Unsleeping',
           text: 'The banner is a rag on a spear, and whoever holds it commands the dead of the downs: three hundred soldiers who cannot be killed again and have been waiting nine centuries for a better general. You walk off the downs at dawn. They follow, quietly, at a respectful distance.',
           byClass: { warrior: 'Three hundred soldiers. You find a war that deserves them.', wizard: 'The banner is the oldest binding you have ever held. You spend a decade learning its name.', rogue: 'You order them to go home. They do. The downs are quiet for the first time in nine hundred years, and the farmers pay you well for it.' } },
@@ -703,15 +811,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'King Gobbletooth', hp: 24, atk: 7, bias: 'trick', tellAcc: 0.6,
           intro: 'The throne room is a cave full of everything shiny in the county, and on top of the pile sits the king: small, old, wearing the mayor\'s chain, the church bell as a crown is behind him, and four hundred spoons are stuck in the walls. "MINE," he explains.',
           tells: { strike: 'He leaps off the pile with a spoon in each fist.', trick: 'He pulls a lever. Something above you creaks.', guard: 'He burrows backwards into the treasure until only his eyes show.' },
-          hitLine: 'A spoon, a bell, a sack of coins, in that order.', dieLine: 'The king rolls down his pile and lands at your feet, and the whole cave of goblins goes very quiet, and then, one by one, they start to bow.' }
+          hitLine: 'A spoon, a bell, a sack of coins, in that order.', dieLine: 'The king rolls down his pile and lands at your feet, and the whole cave of goblins goes very quiet, and then, one by one, they start to bow.' },
+
+        g: { name: 'The Royal Guard', hp: 22, atk: 6, bias: 'trick', tellAcc: 0.6,
+          intro: 'The last tunnel before the shiny room is held by the king\'s own guard: eleven goblins in a single very long coat, stacked, with a halberd made of a scythe tied to a broom. The top goblin salutes. The bottom goblin bites your ankle.',
+          tells: { strike: 'The coat leans forward and the scythe-broom comes down.', trick: 'The coat splits into eleven and they go everywhere.', guard: 'The coat squats into a sort of pile and holds the tunnel.' },
+          hitLine: 'The scythe-broom, and the ankle-biter again.', dieLine: 'The coat collapses and eleven goblins run in eleven directions, leaving the halberd, which is yours now, for what it is worth.' },
+        d: { name: 'The Grub-Mother', hp: 20, atk: 6, bias: 'guard', tellAcc: 0.65,
+          intro: 'The side-tunnel opens into the nursery, where a goblin the size of a cart sits in a nest of straw and bones, surrounded by two hundred hatchlings who have just learned the word "lunch".',
+          tells: { strike: 'She heaves herself up and the nest shakes.', trick: 'She shrieks and the hatchlings pour toward you like gravel.', guard: 'She settles over the nest like a hen and glares.' },
+          hitLine: 'Two hundred small bites and one enormous slap.', dieLine: 'The grub-mother sits back down, exhausted, and the hatchlings go quiet, and one of them offers you a spoon.' },
+        e: { name: 'The Pit Champion', hp: 22, atk: 7, bias: 'strike', tellAcc: 0.65,
+          intro: 'The grub-mother has you thrown in the fighting pit, where the goblins keep an ogre they found in a well. It has a bucket on its head and a bad memory and it is not sure you are not its mother. It is sure it is hungry. Lose here and the pit keeps you.',
+          tells: { strike: 'It lifts both fists and the bucket slides over one eye.', trick: 'It wanders off and comes back from a direction the pit does not have.', guard: 'It sits down with its back to the pit wall and swats.' },
+          hitLine: 'An ogre\'s fist, with a bucket-ring to it.', dieLine: 'The ogre sits down, confused, and falls asleep. The goblins throw a rope down the pit, out of respect.' }
       },
       rooms: {
+        g: { title: 'The Coat Tunnel', intro: 'Past Snagga\'s door the tunnel is lined with stolen candlesticks and a red carpet made of six carpets, and at the end of it something is standing to attention.' },
+        d: { title: 'The Nursery', intro: 'The side-tunnel widens into warmth and straw and a sound like two hundred kettles.' },
+        e: { title: 'The Fighting Pit', intro: 'A pit dug under the warrens for entertainment, with the whole tribe watching from the rim and eating things.' },
         a: { title: 'The Tunnel Bend', intro: 'The tunnel is mud and roots and a smell like a wet dog that has been eating onions.' },
         b: { title: 'The Big Door', intro: 'Past the sentry, the tunnel widens into a hall of torches made from candlesticks, and a door that is being held, not hung.' },
         c: { title: 'The Side-Tunnel', intro: 'The gong is still ringing in your ears when the tunnel ahead fills with hair and teeth.' },
         boss: { title: 'The Shiny Room', intro: 'The tunnel opens out and everything glitters. Everything.' }
       },
       ends: {
+        edead: { title: 'Pit Food', text: 'The ogre is not sure what you are, so it eats you to find out. The goblins on the rim applaud. The bucket slips. Nobody learns anything.', epitaph: 'Eaten by the pit champion.' },
+        win: {
+          dragged: { title: 'Carried In Like Loot', text: 'The royal guard carries you into the shiny room over its heads, as treasure, and sets you on the pile, and the king climbs down to look at you, and that is the last thing the king climbs down to look at. The tribe decides this counts. The royal guard, all eleven, sulk about it in the coat for a week and then get over it.' },
+          low: { title: 'Mother of the Warrens', text: 'You come out of the nursery with two hundred hatchlings following you, and when you beat the king the hatchlings are the first to bow, which settles it. You are king. You are also, as far as two hundred goblins are concerned, mum. The hoard is yours. The spoons go back to the village. The hatchlings keep three.' },
+          last: { title: 'Up Out of the Pit', text: 'You climb the rope out of the pit with the ogre\'s bucket on your head, for luck, and the king laughs so hard he falls off the pile and lands at your feet, and it goes badly for him from there. The tribe is yours. The ogre becomes your throne. It does not mind. It is not sure what a throne is.' }
+        },
+        dead: {
+          dragged: { title: 'Part of the Pile', text: 'The royal guard sets you on the pile and the king, who has never had a shiny thing that moved before, keeps you. You are polished weekly. You are not fed.', epitaph: 'Kept as treasure.' },
+          low: { title: 'Back to the Nursery', text: 'The king has you sent back to the grub-mother. The hatchlings are growing. They have learned the word "lunch" and they are about to learn the word "finally".', epitaph: 'Given to the hatchlings.' },
+          last: { title: 'Rematch', text: 'The king has you thrown back in the pit, this time with a bucket of your own, for fairness. The ogre is very pleased to see you. The ogre wins.', epitaph: 'Thrown back to the ogre.' }
+        },
         loot: { title: 'King of the Warrens',
           text: 'Goblin law is simple: whoever beats the king is the king. You now own forty miles of tunnels, four hundred spoons, a church bell, and three thousand goblins who think you hung the moon. The village gets its bell back. You keep the spoons.',
           byClass: { warrior: 'You train the goblins. It goes badly. You train them harder. By autumn you have the worst army in the world, and the largest.', wizard: 'The hoard includes nine wizard\'s rings the goblins thought were pretty. Eight of them are cursed. The ninth is why you came.', rogue: 'You teach the goblins to steal properly. Within a year the county has no locks left and you have most of the county.' } },
@@ -745,15 +880,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'Maledorne', hp: 26, atk: 7, bias: 'trick', tellAcc: 0.55,
           intro: 'The top of the spire is a room with no ceiling and a sky with too many stars. Maledorne sits at a desk, reading. He does not look up. "I have your name," he says, "in chapter four. Shall we see if the ending holds?"',
           tells: { strike: 'He turns a page and the stars above you go out, one by one, in a line pointed at your heart.', trick: 'He closes the book. The room rearranges.', guard: 'He lifts one hand, lazily, and a wall of written words rises between you.' },
-          hitLine: 'A word you have never heard goes through you like a nail.', dieLine: 'Maledorne looks up at last, and looks surprised, and looks at nothing. The book lies open on the desk at an empty page with your name at the top.' }
+          hitLine: 'A word you have never heard goes through you like a nail.', dieLine: 'Maledorne looks up at last, and looks surprised, and looks at nothing. The book lies open on the desk at an empty page with your name at the top.' },
+
+        g: { name: 'The Librarian', hp: 22, atk: 6, bias: 'guard', tellAcc: 0.65,
+          intro: 'The last door before the top is a library with no floor, shelves going down forever, and a thing with too many hands shelving books that scream. "You are not on the list," it says, and all the hands stop at once.',
+          tells: { strike: 'Every hand takes a book and every book opens at once, toward you.', trick: 'It steps off the edge and the shelves rearrange, and it is above you.', guard: 'It pulls a shelf across the doorway like a drawbridge.' },
+          hitLine: 'A book, open, pressed against your face, and what was written in it.', dieLine: 'The librarian lets go of the shelves and falls, past page after page, and is still falling.' },
+        d: { name: 'The Familiar', hp: 20, atk: 6, bias: 'trick', tellAcc: 0.55,
+          intro: 'Out of the mirror chamber a stair climbs into the warlock\'s private rooms, where something shaped like a cat is washing itself on the bed. It has thumbs. It has the warlock\'s eyes. "He let you up?" it says. "He must be very bored."',
+          tells: { strike: 'It arches and its shadow has claws the length of swords.', trick: 'It is on the windowsill and the bed and the mantel, grooming.', guard: 'It curls up tight in the center of the rug, and the rug is a circle, and the circle is lit.' },
+          hitLine: 'Claws, and a cold that goes to the bone.', dieLine: 'The familiar yawns, lies down, and does not get up, and the warlock\'s eyes close in its face.' },
+        e: { name: 'The Unmade', hp: 22, atk: 7, bias: 'trick', tellAcc: 0.55,
+          intro: 'The familiar bats you into the oubliette where the warlock keeps his failed experiments. They are not quite separate from each other any more. They are very glad to see you. Lose here and you are added.',
+          tells: { strike: 'A limb that is three limbs reaches out of the mass.', trick: 'The mass is on the ceiling, and dripping, and the drips have faces.', guard: 'It draws itself up into a wall of what used to be apprentices.' },
+          hitLine: 'A mouth that has been several mouths.', dieLine: 'The unmade comes apart into pieces that lie still, and one of the pieces says "thank you," and means it.' }
       },
       rooms: {
+        g: { title: 'The Bottomless Library', intro: 'Past the apprentice\'s circle the stair opens onto a room of shelves with no floor beneath them, and someone is keeping them in order.' },
+        d: { title: 'The Warlock\'s Rooms', intro: 'The mirror chamber has a back door, and the back door opens on a bedroom, and someone is on the bed.' },
+        e: { title: 'The Oubliette of Failures', intro: 'A dark pit under the spire, warm, and breathing, and full.' },
         a: { title: 'The First Landing', intro: 'The door closes behind you with a sound like swallowing. The stair goes up in a spiral that makes your eyes water.' },
         b: { title: 'The Glass Stair', intro: 'Past the imp\'s chain the stair turns to black glass, and the glass shows you walking down while you walk up.' },
         c: { title: 'The Mirror Chamber', intro: 'You fall for longer than the spire is tall.' },
         boss: { title: 'The Roofless Room', intro: 'The last stair ends in a room open to a sky that is not yours.' }
       },
       ends: {
+        edead: { title: 'Added', text: 'The unmade takes you in, and after a while you cannot tell which parts were yours, and after a longer while you stop trying, and the warlock, cleaning out the pit a century later, notes you in the margin as a partial success.', epitaph: 'Absorbed into the unmade.' },
+        win: {
+          dragged: { title: 'Returned Overdue', text: 'The librarian shelves you in the roofless room like a book, under M for Maledorne, and the warlock turns a page and you fall out of it. He is surprised. He is not surprised for long. The grimoire is yours, and so is the library, which has no floor and no end and will take the rest of your life to read, which is fine.' },
+          low: { title: 'Through the Bedroom', text: 'You come up into the roofless room through the warlock\'s own bedroom, which no visitor has done, and he is so offended that he forgets the first name and reaches for the second, and that is enough. The grimoire is yours. The familiar is dead. Its collar, you find, was the ninth name all along.' },
+          last: { title: 'Out of the Pit', text: 'You climb out of the oubliette with the unmade\'s thanks still in your ears, and the warlock, who put them there, does not have a chapter for that. The grimoire is yours. You use the first name to put the pit\'s pieces back the way they were. Most of them walk out. Some of them stay, and keep house, and are good company.' }
+        },
+        dead: {
+          dragged: { title: 'Shelved', text: 'The librarian shelves you with the others and Maledorne looks up long enough to say "later," and does not get to you for three hundred years, and when he does, you are a short book.', epitaph: 'Shelved in the bottomless library.' },
+          low: { title: 'A Cat\'s Toy', text: 'The warlock is tired, and lets the familiar have you. The familiar is not dead after all; it is never dead. It takes you down to the rug, and the rug is a circle, and the circle is lit for a very long time.', epitaph: 'Given to the familiar.' },
+          last: { title: 'Back to the Pit', text: 'The warlock looks at you, still stinking of the oubliette, and sighs, and says the word that sends you back down. The unmade is overjoyed. It has missed you.', epitaph: 'Returned to the unmade.' }
+        },
         loot: { title: 'The Grimoire of Nine Names',
           text: 'The book has nine names in it, and each name is a thing that must do what you say once, if you dare to say it. The spire lets you walk down. It is faster going down. Outside, the stars are the right number again, and you have a book that could unmake any one of them.',
           byClass: { warrior: 'You use the first name to call down a sword. You never need the other eight.', wizard: 'You read all nine. You understand four. The other five understand you.', rogue: 'Nine names. Nine favors. You spend one on a lock, one on a judge, and sell the rest to people who will regret buying them.' } },
@@ -787,15 +949,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'Jarl Ymirsson', hp: 28, atk: 7, bias: 'strike', tellAcc: 0.7,
           intro: 'The hall at the top of the pass is roofed with a whole ship. The jarl rises from a throne of pine logs, and rises, and rises. "Small one," he says, in a voice like a glacier moving. "You came all this way to die warm. I can give you that."',
           tells: { strike: 'He lifts the axe. The axe is a pine tree with an edge on it.', trick: 'He kicks the fire pit and the hall fills with smoke and sparks.', guard: 'He plants the axe head-down and leans on it, grinning, inviting you in.' },
-          hitLine: 'The axe takes you off your feet and across the hall.', dieLine: 'The jarl sits down against his own throne, laughs once, and dies with his eyes open on the ship above him. His ring slides off his finger and rolls to a stop at your boots.' }
+          hitLine: 'The axe takes you off your feet and across the hall.', dieLine: 'The jarl sits down against his own throne, laughs once, and dies with his eyes open on the ship above him. His ring slides off his finger and rolls to a stop at your boots.' },
+
+        g: { name: 'The Housecarl', hp: 22, atk: 6, bias: 'guard', tellAcc: 0.7,
+          intro: 'The door of the ship-roofed hall is held by a man who is only half a giant and all of a soldier, in a bearskin, with an axe he was given at nine years old and has not put down since. "The jarl is eating," he says. "You can wait. Or you can be dessert."',
+          tells: { strike: 'He spits, and sets his feet, and the axe comes up.', trick: 'He kicks snow in a great fan and is somewhere in it.', guard: 'He fills the doorway with his shoulders and the bearskin bristles.' },
+          hitLine: 'The housecarl\'s axe, two-handed.', dieLine: 'The housecarl sits down in the snow against the door and says, "He\'ll like you," and dies grinning.' },
+        d: { name: 'The Wolf-Priest', hp: 20, atk: 6, bias: 'trick', tellAcc: 0.6,
+          intro: 'The path from the slope winds to a shrine of antlers where a man in a wolfskin keeps the jarl\'s gods fed. He has a knife of ice. He has been waiting for the mountain to send him something to feed them with.',
+          tells: { strike: 'He raises the ice-knife to the sky and the sky darkens.', trick: 'He howls, and the antlers shift, and the shrine is a different shape.', guard: 'He kneels inside the antler ring and the air there goes hard as glass.' },
+          hitLine: 'The ice-knife, and a cold that spreads from the cut.', dieLine: 'The wolf-priest lies down among the antlers and the gods, unfed, go quiet.' },
+        e: { name: 'The Winter Bear', hp: 24, atk: 7, bias: 'strike', tellAcc: 0.65,
+          intro: 'The wolf-priest leaves you for the gods, and the god that comes is a bear, white and old and starved, that the jarl keeps chained at the shrine for the priest to feed. The chain is long. Lose here and the gods eat.',
+          tells: { strike: 'It rears, and it does not stop rearing for a long time.', trick: 'It drops to all fours and goes around the shrine the long way.', guard: 'It plants itself over the priest\'s body and will not be moved.' },
+          hitLine: 'A paw like a falling tree.', dieLine: 'The winter bear lies down in the snow, and the snow goes red around it, and the chain goes slack for the first time in years.' }
       },
       rooms: {
+        g: { title: 'The Hall Door', intro: 'Beyond the gorge the path climbs to a door made of a ship\'s keel, and the man in front of it is not a giant, but he is close.' },
+        d: { title: 'The Antler Shrine', intro: 'The path from the avalanche slope leads to a ring of antlers set in the snow, and a fire, and a man who was expecting you.' },
+        e: { title: 'The God\'s Chain', intro: 'Behind the shrine a chain runs out into the white. Something is coming in along it.' },
         a: { title: 'The Lower Slope', intro: 'The snow is to your knees and the wind has teeth. Something is moving up the slope ahead.' },
         b: { title: 'The Gorge Bridge', intro: 'The path narrows to a bridge of ice and rope over a gorge with no visible bottom. Someone is sitting in the middle of it.' },
         c: { title: 'The Open Face', intro: 'There is no path here. There is only the slope, and the slope is listening.' },
         boss: { title: 'The Ship-Roofed Hall', intro: 'The pass ends at a hall built of whole trees, roofed with a ship\'s hull, lit by a fire that could roast an ox whole. It has.' }
       },
       ends: {
+        edead: { title: 'Fed to the Gods', text: 'The bear is the god, and the god is hungry, and the wolf-priest says the words over you while it eats. In the spring, the jarl will say, the gods were well pleased.', epitaph: 'Fed to the winter bear.' },
+        win: {
+          dragged: { title: 'Dessert', text: 'The housecarl drags you into the hall by one leg and throws you on the table in front of the jarl, who is eating, and picks you up to look at you, and that is close enough. The ring is yours. The hall is yours. The housecarl, who is still alive, swears to you on the spot, because that is what housecarls do, and because he has never seen anything so funny.' },
+          low: { title: 'The Priest\'s Knife', text: 'You come up to the hall with the wolf-priest\'s ice-knife in your belt, and the jarl sees it, and knows what it means, and the fight goes out of him a little before it goes out of him entirely. The ring is yours. So is the shrine. You do not feed the gods. The gods, it turns out, do not mind.' },
+          last: { title: 'The Bear\'s Road', text: 'You reach the hall with the winter bear\'s blood frozen on you and the jarl, who chained that bear himself when it was a cub, stands very still for a moment before he picks up the axe. It is a short fight. The ring is yours. The chain is yours. You take it down, and hang it over the hall door, and nothing is chained at Frosthold again.' }
+        },
+        dead: {
+          dragged: { title: 'On the Table', text: 'The housecarl lays you on the jarl\'s table and the jarl, who has eaten, eats a little more, out of courtesy. The housecarl gets the bones. The dogs get the housecarl\'s leavings. The pass stays closed.', epitaph: 'Eaten at the jarl\'s table.' },
+          low: { title: 'The Gods\' Due', text: 'The jarl beats you and, seeing the priest\'s knife in your belt, is religious about it. He walks you back to the shrine himself and feeds you to the gods with his own hands.', epitaph: 'Given to the shrine.' },
+          last: { title: 'A Cub for the Chain', text: 'The jarl beats you and sees the bear\'s blood and understands he needs a new god. He chains you where the bear was. The wolf-priest, who is not dead after all, brings you something to eat every few days, and says the words.', epitaph: 'Chained in the bear\'s place.' }
+        },
         loot: { title: 'The Giant\'s Ring',
           text: 'The ring is too big for any finger. Worn as a belt it gives the strength of the one who wore it, and the cold cannot touch you, and the pass is open. The first caravan in nine winters comes through in the spring, and they pay the toll to you, and the toll is a cup of ale and a song.',
           byClass: { warrior: 'With the ring on you can lift the jarl\'s axe. You keep both.', wizard: 'The ring is older than the jarl. It remembers the hands that made it, and you can almost hear them.', rogue: 'The jarl\'s hall holds nine winters of stolen caravans. You open a trading post with the stock.' } },
@@ -829,15 +1018,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'Vorthax the Red', hp: 28, atk: 7, bias: 'strike', tellAcc: 0.65,
           intro: 'The crater is a bowl of gold a hundred paces across, and the gold moves, and one eye the size of a wagon wheel opens in it. "Another one," says Vorthax, in a voice like a furnace door. "Did they send you with an offer, or just with a sword?"',
           tells: { strike: 'The great chest fills and the gold around it begins to melt.', trick: 'A wing comes down between you like a curtain and the crater goes dark.', guard: 'The dragon coils around its hoard and lays its head on its forelegs, watching, bored.' },
-          hitLine: 'The fire takes the air out of the crater and you with it.', dieLine: 'Vorthax exhales for the last time, and the exhale goes on a long while, and then there is only the hoard, and the quiet, and you.' }
+          hitLine: 'The fire takes the air out of the crater and you with it.', dieLine: 'Vorthax exhales for the last time, and the exhale goes on a long while, and then there is only the hoard, and the quiet, and you.' },
+
+        g: { name: 'The Knight Who Stayed', hp: 22, atk: 6, bias: 'guard', tellAcc: 0.7,
+          intro: 'At the lip of the crater stands a knight in blackened plate who came up the mountain forty years ago and never went down. "It offered me a share," he says. "It offers everyone a share. Mine is the door." He draws a sword that has been in the fire and come out harder.',
+          tells: { strike: 'He raises the blackened sword and the heat shimmers off it.', trick: 'He steps into the smoke rolling over the lip and is gone.', guard: 'He sets his shield, which is half a dragon\'s scale, and waits.' },
+          hitLine: 'A sword that has forgotten it was ever cool.', dieLine: 'The knight kneels, and takes off his helm, and looks for the first time in forty years at the sky, and is glad.' },
+        d: { name: 'The Kobold Shaman', hp: 20, atk: 6, bias: 'trick', tellAcc: 0.6,
+          intro: 'The lava tube comes up in the kobold warren, where their shaman, in a headdress of dragon-teeth, is painting the walls with your face. "Dragon said you\'d come," it says. "Dragon says lots. Shaman decides."',
+          tells: { strike: 'It shakes a rattle of knucklebones and the tunnel fills with sparks.', trick: 'It blows ash in your eyes and the warren is suddenly full of kobolds, or paintings of kobolds.', guard: 'It draws a ring of ash around itself and hisses.' },
+          hitLine: 'A spark that goes in under the skin and keeps burning.', dieLine: 'The shaman drops the rattle and says, "Fine. Dragon decides," and the warren goes very quiet.' },
+        e: { name: 'The Wyrmling', hp: 24, atk: 7, bias: 'strike', tellAcc: 0.65,
+          intro: 'The shaman has you dropped into the hatchery, where Vorthax\'s youngest is curled on a clutch of eggs and has not eaten since it hatched. It is the size of a bull. It is very, very hungry. Lose here and it is fed.',
+          tells: { strike: 'Its throat glows and it opens its jaws.', trick: 'It flaps once, clumsily, and lands somewhere behind the eggs.', guard: 'It curls over the clutch and its scales lock like shutters.' },
+          hitLine: 'Its first fire, and its first bite.', dieLine: 'The wyrmling lays its head down on the eggs and dies, and the eggs, for a moment, go dark.' }
       },
       rooms: {
+        g: { title: 'The Crater Lip', intro: 'Past the bridge, the path climbs to the rim of the crater, and someone has been standing at the top of it for a very long time.' },
+        d: { title: 'The Kobold Warren', intro: 'The tube bends upward into a warren of scratched tunnels, and every wall has a picture on it, and every picture is you.' },
+        e: { title: 'The Hatchery', intro: 'A hot cave full of eggs the size of barrels, and something small and bright keeping them warm.' },
         a: { title: 'The Cinder Slope', intro: 'The slope is black glass and ash. Little eyes watch you from the rocks.' },
         b: { title: 'The Lava Bridge', intro: 'Past the kobold\'s boulder the mountain opens, and a bridge of cooled stone crosses a river of fire. Something is sitting on it, warming itself.' },
         c: { title: 'The Lava Tube', intro: 'The ground drops and the air turns to heat.' },
         boss: { title: 'The Crater', intro: 'The peak is hollow, and the hollow is full, and what fills it is gold, and what sleeps on the gold is waking.' }
       },
       ends: {
+        edead: { title: 'First Meal', text: 'The wyrmling eats, and grows, and in a hundred years when it is red and vast and bored it will tell the story of its first meal to anything that climbs the mountain, and it will not remember your name, because it never asked.', epitaph: 'Eaten by the wyrmling.' },
+        win: {
+          dragged: { title: 'Thrown to the Hoard', text: 'The knight throws you over the crater lip and you land on the gold, and the dragon lifts its head to see what fell, and that is the moment. The hoard is yours. The knight comes down the slope afterward with his helm under his arm, and does not ask for his share, and you give him one anyway.' },
+          low: { title: 'The Shaman Decides', text: 'You come up into the crater through the kobold tunnels with the shaman\'s paintings still wet on your hands, and the dragon sees the paint and understands, too late, that the kobolds have picked a side. The hoard is yours. So are the kobolds, who are useless and loyal and will paint your face on everything you own.' },
+          last: { title: 'Out of the Hatchery', text: 'You climb out of the hatchery smelling of eggshell and the dragon\'s own blood, and Vorthax knows what that smell means before you reach the gold. It is not a fair fight. It is not meant to be. The hoard is yours. You leave the eggs. In a hundred years something red and vast will climb the mountain looking for you, and by then you will be very old and very rich and ready.' }
+        },
+        dead: {
+          dragged: { title: 'What Fell', text: 'The knight throws you over the lip and the dragon, lifting its head to see what fell, is unimpressed. One breath. The knight goes back to his door. The gold is a little deeper.', epitaph: 'Thrown into the crater.' },
+          low: { title: 'Painted Over', text: 'The dragon does not need to breathe on something the kobolds sent it. It flicks you back down the tunnel with one claw, and the shaman, who decided wrong, paints over your face on every wall and starts on the next one.', epitaph: 'Sent back to the warren.' },
+          last: { title: 'Returned to the Nest', text: 'Vorthax smells its child\'s blood on you and does not kill you quickly. It carries you back to the hatchery and lays you among the eggs, and when they hatch, you are warm, and you are there.', epitaph: 'Laid among the eggs.' }
+        },
         loot: { title: 'The Hoard of Vorthax',
           text: 'The hoard is three kings\' ransoms, four centuries of tribute, and a thousand years of whatever the dragon fancied. It is far too much to carry. You carry what you can, and come back for the rest, and come back again, and by the third trip the valley has started calling you a dragon.',
           byClass: { warrior: 'You find your great-grandfather\'s sword in the hoard. You find your great-grandfather, too.', wizard: 'Dragons hoard more than gold. The spellbooks alone fill a tower.', rogue: 'You tell no one. You build a very small, very quiet house on the crater rim and live the rest of your life as the most modest person in the kingdom.' } },
@@ -871,15 +1087,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'The Drowned Oracle', hp: 26, atk: 7, bias: 'trick', tellAcc: 0.55,
           intro: 'The sanctum is dry, impossibly, and lit green from below. On the altar sits the Oracle: a woman, or a thing shaped like one, with pearls where her eyes should be. "Ask," she says, and her voice is the sound of the tide going out. "Or fight. Everyone fights."',
           tells: { strike: 'The pearls in her eyes go dark and the floor begins to shake.', trick: 'She speaks a word and you are facing the wrong way.', guard: 'She folds her hands and the green light thickens into a shell around her.' },
-          hitLine: 'The word she says takes something you will not get back.', dieLine: 'The Oracle bows her head. The pearls fall from her eyes into your hand, and the sanctum, very gently, begins to fill with water.' }
+          hitLine: 'The word she says takes something you will not get back.', dieLine: 'The Oracle bows her head. The pearls fall from her eyes into your hand, and the sanctum, very gently, begins to fill with water.' },
+
+        g: { name: 'The Choir of the Drowned', hp: 22, atk: 6, bias: 'guard', tellAcc: 0.65,
+          intro: 'Before the sanctum door, a dozen figures in weed-green robes stand in a half ring, chins lifted, singing a single held note that makes the water tremble. They do not look at you. The note changes, and the water comes at you like a wall.',
+          tells: { strike: 'The note climbs, and the water rises with it.', trick: 'The choir falls silent, and the hall is suddenly full of echoes.', guard: 'They link arms and the note goes deep and the water goes hard.' },
+          hitLine: 'A wall of water, and the stone behind you.', dieLine: 'The choir falters, one voice, then another, and the hall is quiet, and the door is open.' },
+        d: { name: 'The Reliquary Crab', hp: 20, atk: 6, bias: 'guard', tellAcc: 0.65,
+          intro: 'The crypt stair comes up into the reliquary, where the temple\'s treasures are kept, and the thing that keeps them is a crab the size of a cart wearing the altar as a shell. It is covered in votive gold. It is not giving any of it up.',
+          tells: { strike: 'A claw the size of a door comes up out of the water.', trick: 'It sidles into the dark between the pillars and the gold stops glinting.', guard: 'It pulls into the altar-shell and locks, and the gold hides.' },
+          hitLine: 'The claw, closing.', dieLine: 'The crab settles and goes still, and the gold on its back slides into the water, and the way up is clear.' },
+        e: { name: 'The Eel-Mother', hp: 24, atk: 7, bias: 'trick', tellAcc: 0.55,
+          intro: 'The crab drives you into the cistern where the temple keeps its eels, and the eel-mother, who is as long as the cistern and has been fed on acolytes for a thousand years, has heard the splash. Lose here and she is fed again.',
+          tells: { strike: 'A head the size of a boat comes up out of the black.', trick: 'A ripple, far off, and then nothing, and then the water beside you moves.', guard: 'She coils in the center of the cistern and the water piles over her.' },
+          hitLine: 'Teeth in a ring, closing.', dieLine: 'The eel-mother rolls, once, belly up, and the cistern slowly fills with small eels, mourning.' }
       },
       rooms: {
+        g: { title: 'The Choir Hall', intro: 'Beyond the nave the temple narrows to a hall of pillars, waist-deep and singing, and the singing is coming from the people standing in it.' },
+        d: { title: 'The Reliquary', intro: 'Above the crypt, a vault of gold and bone where the temple keeps what it loves, and the thing it keeps it in.' },
+        e: { title: 'The Cistern', intro: 'A round black pool under the reliquary, bottomless, and not empty.' },
         a: { title: 'The Drowned Gate', intro: 'The gate is barnacled stone, and the water in it is only knee-deep, and something is kneeling in it.' },
         b: { title: 'The Nave', intro: 'Past the gate the temple opens into a long hall, green-lit and singing, where the water is deeper and something is walking toward you through it.' },
         c: { title: 'The Crypt', intro: 'The stair goes down into black water and the black water goes down further than the stair.' },
         boss: { title: 'The Sanctum', intro: 'The last door opens on a dry room at the bottom of the sea, and the sea is waiting outside it, listening.' }
       },
       ends: {
+        edead: { title: 'Fed to the Eels', text: 'The eel-mother is slow and the cistern is deep and the small eels get there first. In a year the Oracle will mention, to the next one, that the eels were particularly well fed.', epitaph: 'Taken by the eel-mother.' },
+        win: {
+          dragged: { title: 'Sung Before the Oracle', text: 'The choir carries you into the sanctum on a wave of their own voices and lays you before the altar as an offering, and the Oracle leans down to accept you, and you were not as drowned as they thought. The pearls are yours. The choir, with no Oracle to sing to, sings to you, and will not stop, and you grow to like it.' },
+          low: { title: 'The Reliquary Road', text: 'You come up into the sanctum with the reliquary\'s gold still clinging to you, and the Oracle sees the altar-shell\'s dust on your hands and asks, before anything else, what you have done, and you show her. The pearls are yours. So is the reliquary, and a thousand years of a drowned god\'s gifts, which float.' },
+          last: { title: 'Out of the Cistern', text: 'You climb out of the cistern with the eel-mother\'s teeth still in your leg and the Oracle, who fed her, does not have a question ready for that. The pearls are yours. You ask the sea the first question on the way out, which is how to get home, and it tells you, and you go.' }
+        },
+        dead: {
+          dragged: { title: 'An Offering Accepted', text: 'The choir lays you before the altar and the Oracle accepts you, and the price of the question you never asked is everything you were. The choir gains a voice. The pearls shine.', epitaph: 'Accepted by the Oracle.' },
+          low: { title: 'Returned to the Reliquary', text: 'The Oracle defeats you and, finding the altar\'s dust on your hands, has you put back in the reliquary where you belong now, among the treasures, in the dark, and the crab, which is not dead after all, settles over you.', epitaph: 'Kept in the reliquary.' },
+          last: { title: 'Back to the Cistern', text: 'The Oracle looks at the bite in your leg and says, gently, that the eel-mother must be hungry, and the water in the sanctum rises, and carries you back down to her.', epitaph: 'Given to the cistern.' }
+        },
         loot: { title: 'The Pearl of the Deep',
           text: 'Two pearls, the Oracle\'s eyes. Hold one and the sea will answer any question you ask it, truthfully, once. Hold both and it will answer twice. You climb out of the temple as the tide comes in, and the village is waiting on the cliffs, and none of them asks what you asked.',
           byClass: { warrior: 'You ask the sea where your brother drowned. It tells you. You ask it to give him back. It does not answer that one.', wizard: 'You ask the sea what it is. It takes the sea nine days to answer and you write down all of it.', rogue: 'You ask the sea where the richest wreck lies. Then you ask it the second question, which is how to get there and back.' } },
@@ -913,15 +1156,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'The Brass Archon', hp: 26, atk: 7, bias: 'guard', tellAcc: 0.65,
           intro: 'The control room is a cathedral of gauges, and in the center of it, on a throne of pipes, sits the first engine: the one that learned, the one that taught the rest. It has no face. A hundred dials turn toward you. "INPUT DETECTED," it says. "CLASSIFYING."',
           tells: { strike: 'A thousand pistons fire in sequence and a hammer the size of a cart swings around.', trick: 'The gauges spin and the floor of the control room starts to rotate.', guard: 'Plates close over its throne like the petals of an iron flower.' },
-          hitLine: 'The hammer. The world rings like a bell.', dieLine: 'The dials all drop to zero at once. The Archon says "ACKNOWLEDGED," and stops, and in the silence you can hear every chimney in the foundry going out.' }
+          hitLine: 'The hammer. The world rings like a bell.', dieLine: 'The dials all drop to zero at once. The Archon says "ACKNOWLEDGED," and stops, and in the silence you can hear every chimney in the foundry going out.' },
+
+        g: { name: 'The Foreman', hp: 22, atk: 6, bias: 'guard', tellAcc: 0.7,
+          intro: 'The door of the control room is held by the machine that used to hold the engineers to their shifts: a brass torso on a crane arm, with a whistle for a mouth and a ledger for a chest, and a hundred years of overtime to work off. It blows the whistle. The belts stop. "LATE," it says.',
+          tells: { strike: 'The crane arm swings back and the whole gantry creaks.', trick: 'The whistle screams and every belt in the hall lurches a different way.', guard: 'The ledger-chest closes over its works and it hangs there, humming.' },
+          hitLine: 'The crane arm, like a dropped bridge.', dieLine: 'The foreman\'s whistle dies to a wheeze, and the ledger falls open on the floor, and the last entry is yours.' },
+        d: { name: 'The Boilerman', hp: 20, atk: 6, bias: 'strike', tellAcc: 0.65,
+          intro: 'The scrap pit\'s ladder comes up in the boiler room, where the thing that feeds the boilers is still feeding them: an engineer, or what the foundry made of one, with a furnace door for a face and shovels for hands. It has not stopped shovelling in forty years. It shovels you.',
+          tells: { strike: 'The furnace-face opens and the shovels come up together.', trick: 'It opens a valve and the room goes white with steam.', guard: 'It stands in front of the boiler and spreads the shovels.' },
+          hitLine: 'A shovel of coals, and then the shovel.', dieLine: 'The boilerman sits down on its coal heap, and the furnace door swings open, and inside there is only a very tired light, going out.' },
+        e: { name: 'The Press', hp: 24, atk: 7, bias: 'strike', tellAcc: 0.6,
+          intro: 'The boilerman drops you on the belt and the belt goes one place, which is the stamping press, which has learned to wait. It is the size of a house. It has a face now, because it wanted one. Lose here and you are stamped.',
+          tells: { strike: 'The press head rises, slowly, all the way up.', trick: 'The belt reverses, and reverses again, and you are not where you were.', guard: 'The press settles its head on the bed and will not lift it.' },
+          hitLine: 'The press, not all the way. Not yet.', dieLine: 'The press shudders, and its drive chain parts, and it comes down for the last time on nothing, and the face it made for itself cracks.' }
       },
       rooms: {
+        g: { title: 'The Gantry', intro: 'Past the dead golem a gantry crosses the forge hall to the control room door, and something on a crane arm swings out to meet you.' },
+        d: { title: 'The Boiler Room', intro: 'The ladder out of the scrap pit ends in heat and hiss and a steady, endless scrape of shovel on coal.' },
+        e: { title: 'The Stamping Floor', intro: 'A belt, a bed, a press, and a sound you felt in your teeth from the gate.' },
         a: { title: 'The Iron Door', intro: 'The heat hits like a hand. Belts turn overhead with nothing on them. A clock is ticking somewhere, and it is walking.' },
         b: { title: 'The Forge Hall', intro: 'Past the stopped sentinel the hall opens up around a furnace the size of a church, and the thing that feeds it has heard you.' },
         c: { title: 'The Scrap Pit', intro: 'A long slide in the dark and a landing on something that clicks.' },
         boss: { title: 'The Control Room', intro: 'Every pipe in the foundry runs to this room. Every gauge. Every wire. Every thought.' }
       },
       ends: {
+        edead: { title: 'Stamped', text: 'The press comes down and you are a plate, and the plate goes down the belt to the Archon, and the Archon reads what is stamped on it and files it under RAW MATERIAL, PROCESSED.', epitaph: 'Stamped flat on the belt.' },
+        win: {
+          dragged: { title: 'Clocked In', text: 'The foreman carries you into the control room by the crane arm and docks you in front of the Archon as LATE, and the Archon turns its dials to you, and that is the error it did not account for. The heart gear is yours. The foreman, reassigned, blows its whistle at the start of every shift you ever work, and you work very few.' },
+          low: { title: 'Up Through the Boilers', text: 'You reach the control room by the boiler stairs with coal on your face, which the Archon\'s inputs do not classify, and the half-second it spends classifying is the half-second you need. The heart gear is yours. The boilers, with no one to feed them, go cold for the first time in a century, and the whole foundry sighs.' },
+          last: { title: 'Off the Belt', text: 'You come off the stamping belt alive, which the Archon has no record of, and climb the belt into the control room while it is still reading the report. The heart gear is yours. The first thing you have the foundry build is a door for the press, and a lock for the door, and you keep the key.' }
+        },
+        dead: {
+          dragged: { title: 'Docked', text: 'The foreman docks you LATE before the Archon and the Archon applies the penalty, which is the furnace, and the foreman records it in the ledger, and the shift goes on.', epitaph: 'Penalised to the furnace.' },
+          low: { title: 'Back to the Boilers', text: 'The Archon classifies you as fuel and sends you back down the stairs to the boilerman, who is pleased, in its way, to have something that burns longer than coal.', epitaph: 'Shovelled into the boilers.' },
+          last: { title: 'Second Pass', text: 'The Archon finds the stamping incomplete and returns you to the belt with a note. The press has been waiting. The press is thorough.', epitaph: 'Returned to the press.' }
+        },
         loot: { title: 'The Heart Gear',
           text: 'In the Archon\'s chest is the gear it was built around: a brass wheel no bigger than a plate, which thinks. Hold it and any machine will answer to you. The foundry is yours, every engine and every chimney, and when the engineers come back from the town to see why the smoke has stopped, they find you in the control room, and they ask you, very politely, what you would like them to build.',
           byClass: { warrior: 'You have them build you a suit of brass. You are never knocked off your feet again.', wizard: 'A gear that thinks. You and it talk for years. It is better company than most wizards.', rogue: 'Every lock in the world is a machine. The gear agrees.' } },
@@ -955,15 +1225,42 @@ button.ch .t.trick { color: var(--moss); }
         boss: { name: 'The Ringmaster', hp: 26, atk: 7, bias: 'trick', tellAcc: 0.55,
           intro: 'The big top is empty but for the ringmaster in the center ring, in his red coat and tall hat, with his whip coiled. "Ladies and gentlemen," he says to no one, "the main event." The music starts. There is no band.',
           tells: { strike: 'The whip uncoils, and it is far longer than it was.', trick: 'He tips his hat and the lights go out, and the music comes from behind you.', guard: 'He spreads his arms wide, inviting applause, and the air before him goes hard as glass.' },
-          hitLine: 'The whip, and the laughter that follows it.', dieLine: 'The ringmaster takes off his hat at last, and there is nothing under it, and the coat falls empty to the sawdust. In the hat is a single ticket, and it reads: ADMIT ONE. OUT.' }
+          hitLine: 'The whip, and the laughter that follows it.', dieLine: 'The ringmaster takes off his hat at last, and there is nothing under it, and the coat falls empty to the sawdust. In the hat is a single ticket, and it reads: ADMIT ONE. OUT.' },
+
+        g: { name: 'The Fortune Teller', hp: 22, atk: 6, bias: 'trick', tellAcc: 0.55,
+          intro: 'The way to the big top passes through a tent lit by one candle, where a woman with coins on her eyes is laying out cards. All of them are you. "You are going to lose," she says, pleasantly, and turns over the last one, and it is on fire.',
+          tells: { strike: 'She turns over the Tower and the tent pole cracks.', trick: 'She shuffles, and the tent is somewhere else, and so is she.', guard: 'She lays the cards in a ring around herself and the candle flares.' },
+          hitLine: 'A card, drawn, and what it said.', dieLine: 'The fortune teller looks at the last card, which is blank, and says "oh," and the coins fall from her eyes.' },
+        d: { name: 'The Lion Tamer', hp: 20, atk: 6, bias: 'strike', tellAcc: 0.65,
+          intro: 'The hall of mirrors has a back way out into the menagerie, where a man in a red coat with a whip and a chair keeps a cage of things that are not lions, and he has you confused with his next act.',
+          tells: { strike: 'The whip uncoils and the chair comes up.', trick: 'He opens a cage and does not say which one.', guard: 'He plants the chair legs toward you and crouches behind it.' },
+          hitLine: 'The whip, and a cage door swinging.', dieLine: 'The lion tamer drops the chair, and the things in the cages, all at once, stop watching him and start watching you.' },
+        e: { name: 'The Stitched Man', hp: 24, atk: 7, bias: 'strike', tellAcc: 0.6,
+          intro: 'The tamer has you thrown into the freak tent, where the carnival keeps the act that nobody comes back from: a man sewn from the parts of the people who lost, who is always looking for one more piece. Lose here and you are the piece.',
+          tells: { strike: 'It raises a fist that was four fists once.', trick: 'It unravels at the seams and is on both sides of you.', guard: 'It hunches in the middle of the tent and all its stitches tighten.' },
+          hitLine: 'A hand that remembers having been many hands.', dieLine: 'The stitched man comes apart at every seam, and every piece lies still, and some of them look relieved.' }
       },
       rooms: {
+        g: { title: 'The Fortune Tent', intro: 'Between the strongman\'s tent and the big top, a small black tent with one candle in it, and someone inside has already dealt your hand.' },
+        d: { title: 'The Menagerie', intro: 'Out of the mirrors and into a row of cages under lantern light, and most of the cages are open.' },
+        e: { title: 'The Freak Tent', intro: 'A tent at the back of the lot that the barker never mentions, with a sign that says ONE NIGHT ONLY, and it means you.' },
         a: { title: 'The Midway', intro: 'Lanterns, music, games with prizes that watch you. The crowd is thin and does not blink.' },
         b: { title: 'The Big Tent', intro: 'Past the juggler the midway narrows to a single striped tent, and the sign says STRONGEST MAN ALIVE, and someone has crossed out ALIVE.' },
         c: { title: 'The Hall of Mirrors', intro: 'You fall through canvas into a corridor of glass where the only light is you.' },
         boss: { title: 'The Center Ring', intro: 'The big top. Sawdust. One spotlight. One ring. One man in it, bowing to an empty house.' }
       },
       ends: {
+        edead: { title: 'One More Piece', text: 'The stitched man takes what he needs and the carnival sews it on, and the next town sees a new act, and some of the act is you, and it waves.', epitaph: 'Sewn into the stitched man.' },
+        win: {
+          dragged: { title: 'Dealt to the Ringmaster', text: 'The fortune teller has you carried into the center ring with the last card pinned to your chest, which says LOSE, and the ringmaster reads it and bows, and turns around, and you are standing up. The ticket is yours. The fortune teller, who has never been wrong, follows you out of the carnival to find out how, and never does, and is happy.' },
+          low: { title: 'The Menagerie Road', text: 'You come into the big top through the menagerie with the cages open behind you, and the things in them come too, and the ringmaster has the audience he always wanted and it is on your side. The ticket is yours. The things from the cages are, apparently, yours as well. Most of them are good company. One of them is a lion.' },
+          last: { title: 'Out of the Freak Tent', text: 'You walk into the center ring out of the tent nobody walks out of, and the ringmaster, who sewed the stitched man himself, has no act for that. The ticket is yours. You tear it in half and give one half to each of the pieces in the freak tent, and all of them get out.' }
+        },
+        dead: {
+          dragged: { title: 'As Foretold', text: 'The fortune teller was right. She is always right. The ringmaster reads the card pinned to your chest and does what it says, and the audience of empty seats agrees that it was very well done.', epitaph: 'Lost, as the cards said.' },
+          low: { title: 'Back in the Cage', text: 'The ringmaster beats you and sees the cage-dust on your hands and knows where you belong. The lion tamer, who is not dead, is delighted to have a new act. You are a very popular exhibit.', epitaph: 'Caged in the menagerie.' },
+          last: { title: 'Returned for Repairs', text: 'The ringmaster beats you and looks at the stitching on your coat, and sighs, and has you sent back to the freak tent, where the stitched man is being put back together, and is one piece short.', epitaph: 'Sent back to the stitched man.' }
+        },
         loot: { title: 'The Ticket Out',
           text: 'The ticket is good for one exit from anywhere: a locked room, a bad bargain, a grave. Tear it and you are out. You walk off the fallow field as the carnival folds up behind you like a paper lantern, and in the morning there is nothing there but trampled grass and, in every house in the village, a child back in their own bed.',
           byClass: { warrior: 'You never use the ticket. Knowing you have it is enough to make you reckless, and reckless suits you.', wizard: 'The ticket is a door written on paper. You spend the rest of your life trying to write another.', rogue: 'You get caught, eventually, as everyone in your trade does. The judge reads the sentence. You tear the ticket.' } },
@@ -979,6 +1276,14 @@ button.ch .t.trick { color: var(--moss); }
   const R = () => STORIES[S.story].rooms;
   const M = () => STORIES[S.story].monsters;
   const endingOrder = () => Object.keys(R()).filter((k) => R()[k].ending);
+  // Where a fight leads. A string is a room; an object picks by the room before this one and how it went ("g:won").
+  function nextRoom(r, won) {
+    const n = won ? r.win : r.lose;
+    if (typeof n === 'string') return n;
+    const prev = S.route.length >= 2 ? S.route[S.route.length - 2] : null;
+    const key = prev ? prev.room + ':' + prev.result : '';
+    return n[key] || n[Object.keys(n)[0]];
+  }
 
   // ---------- State ----------
   let S = null;
@@ -1091,10 +1396,20 @@ button.ch .t.trick { color: var(--moss); }
       r.appendChild(s);
     });
   }
+  // The wheel of moves as a triangle: each arrow points from the move to the move it beats.
+  function wheelSvg(id) {
+    const m = 'arr-' + id;
+    return '<svg class="wheel" viewBox="0 0 220 168" role="img" aria-label="Strike beats Trick, Trick beats Guard, Guard beats Strike">' +
+      '<defs><marker id="' + m + '" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ash)"/></marker></defs>' +
+      '<g fill="none" stroke="var(--ash)" stroke-width="1.6" marker-end="url(#' + m + ')">' +
+      '<path d="M126 36 L168 122"/><path d="M150 146 L70 146"/><path d="M52 122 L94 36"/></g>' +
+      '<g class="wl" text-anchor="middle"><text x="165" y="76">beats</text><text x="110" y="139">beats</text><text x="55" y="76">beats</text></g>' +
+      '<g class="wn" text-anchor="middle"><text class="s" x="110" y="26">Strike</text><text class="k" x="182" y="152">Trick</text><text class="g" x="38" y="152">Guard</text></g>' +
+      '</svg>';
+  }
   function drawRule() {
-    rule.innerHTML = S.stage === 'fight'
-      ? '<b class="s">Strike</b> beats <b class="k">Trick</b> · <b class="k">Trick</b> beats <b class="g">Guard</b> · <b class="g">Guard</b> beats <b class="s">Strike</b> · ' + CLASSES[S.cls].perk
-      : '';
+    rule.innerHTML = S.stage === 'fight' ? wheelSvg('tray') + '<span class="perk"></span>' : '';
+    if (S.stage === 'fight') rule.querySelector('.perk').textContent = CLASSES[S.cls].perk;
   }
 
   // ---------- Flow ----------
@@ -1252,7 +1567,7 @@ button.ch .t.trick { color: var(--moss); }
   function endFight(won) {
     const r = R()[S.room], m = M()[r.monster];
     S.stage = 'after';
-    const next = won ? r.win : r.lose;
+    const next = nextRoom(r, won);
     const nx = R()[next];
     if (won) {
       S.route[S.route.length - 1].result = 'won';
@@ -1272,6 +1587,7 @@ button.ch .t.trick { color: var(--moss); }
       logLine('hurt', 'Your knees go. The floor comes up to meet you.');
       S.hp = Math.ceil(S.max / 2);
       logLine('sys', 'You come to later, patched and sore. HP set to ' + S.hp + '/' + S.max + '.');
+      if (!nx.ending) logLine('hurt', 'You are not left where you fell.');
       journey('lost', 'Fell to the ' + m.name + ' · woke at ' + S.hp + '/' + S.max + ' HP');
     }
     drawVitals(); drawRoute(); drawRule();
@@ -1314,7 +1630,7 @@ button.ch .t.trick { color: var(--moss); }
     if (S.stage === 'class') { q.textContent = STORIES[S.story].heroQ; setChoices(classChoices()); }
     else if (S.stage === 'room') { q.textContent = 'The ' + M()[R()[S.room].monster].name.toLowerCase() + ' has seen you.'; setChoices([{ name: 'Fight it', desc: 'There is no other way through.', on: startFight }], 1); }
     else if (S.stage === 'fight') { q.textContent = 'What do you do?'; setChoices(CLASSES[S.cls].actions.map((a, i) => ({ name: a.name, type: a.type, on: () => act(i) }))); }
-    else if (S.stage === 'after') { const r = R()[S.room]; const last = S.route[S.route.length - 1]; const next = last.result === 'won' ? r.win : r.lose; q.textContent = 'Go on.'; setChoices([{ name: R()[next].ending ? 'See where this ends' : 'Go on', desc: R()[next].title, on: () => enterRoom(next) }], 1); }
+    else if (S.stage === 'after') { const r = R()[S.room]; const last = S.route[S.route.length - 1]; const next = nextRoom(r, last.result === 'won'); q.textContent = 'Go on.'; setChoices([{ name: R()[next].ending ? 'See where this ends' : 'Go on', desc: R()[next].title, on: () => enterRoom(next) }], 1); }
     else { q.textContent = 'The torch is out.'; setChoices(endChoices(), 1); }
   }
   function start(data) {
@@ -1330,6 +1646,7 @@ button.ch .t.trick { color: var(--moss); }
       showStart();
     }
   }
+  $('wheelStart').innerHTML = wheelSvg('start');
   try { window.claude?.hot?.snapshot?.(() => ({ state: S })); } catch (e) {}
   window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 })();
