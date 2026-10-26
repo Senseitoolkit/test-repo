@@ -81,6 +81,10 @@ main{min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:
 .feedback.ok{color:var(--good); font-weight:600}
 .feedback.no{color:var(--bad)}
 .board{min-height:0; position:relative; background:var(--panel); border:2px solid var(--line); border-radius:18px; overflow:hidden}
+.board.wait{display:grid; place-items:center; border-style:dashed}
+.waitMsg{text-align:center; color:var(--muted); font-size:clamp(1rem,2.6vmin,1.4rem); max-width:32ch; text-wrap:balance; padding:16px}
+.waitMsg b{color:var(--ink)}
+.waitMsg .go{margin-top:14px; display:inline-block}
 .board svg{width:100%; height:100%; display:block; touch-action:none; user-select:none; -webkit-user-select:none}
 .board [data-id]{cursor:grab}
 .board .tap{cursor:pointer}
@@ -530,7 +534,7 @@ M.rods = {
   show(s,p){ const need = Math.max(wholeFor(p), 10); s.track = need<=10 ? 10 : need<=20 ? 20 : need<=30 ? 30 : 50; s.items = []; const G = groupsFor(p); [G.top, G.bot].forEach((gs, r) => { let c = 0; gs.forEach(g => { const parts = [...Array(Math.floor(g.n/10)).fill(10), ...(g.n%10 ? [g.n%10] : [])]; parts.forEach(n => { if (c+n<=s.track){ s.items.push({id:++s.seq, n, r, c}); c += n; } }); }); }); }
 };
 
-const BU = 22;
+const BU = 20;
 function blockSVG(k, delay=0){
   const w = k==='o' ? BU : 10*BU, h = k==='h' ? 10*BU : BU, cols = k==='o' ? 1 : 10, rows = k==='h' ? 10 : 1;
   let s = `<rect x="0" y="0" width="${w}" height="${h}" fill="${WOOD[0]}" stroke="${WOOD[2]}" stroke-width="1.5"/>`;
@@ -539,44 +543,71 @@ function blockSVG(k, delay=0){
   return `<g class="pc" style="animation-delay:${delay}ms">${s}</g>`;
 }
 const blockW = k => k==='o' ? BU : 10*BU, blockH = k => k==='h' ? 10*BU : BU;
-function tidyBlocks(items, y0=20, x0=20){
+/* tidy a set of blocks into the box at (x0,y0) that is maxW wide */
+function tidyBlocks(items, x0, y0, maxW){
   const H_ = items.filter(i=>i.k==='h'), T_ = items.filter(i=>i.k==='t'), O_ = items.filter(i=>i.k==='o');
-  H_.forEach((it,i) => { it.x = x0 + (i%3)*(10*BU+16); it.y = y0 + Math.floor(i/3)*(10*BU+16); });
-  const ty = y0 + (H_.length ? Math.ceil(H_.length/3)*(10*BU+16) : 0);
-  T_.forEach((it,i) => { it.x = x0 + Math.floor(i/10)*(10*BU+30); it.y = ty + (i%10)*(BU+8); });
-  const ox = x0 + (T_.length ? Math.ceil(T_.length/10)*(10*BU+30) : 0) + 20;
-  O_.forEach((it,i) => { it.x = ox + (i%5)*(BU+8) + (Math.floor(i%10/5))*12; it.y = ty + Math.floor(i/10)*(BU+8) + (i%10>=5 ? 0 : 0); });
+  const hp = Math.max(1, Math.floor((maxW+14)/(10*BU+14)));
+  H_.forEach((it,i) => { it.x = x0 + (i%hp)*(10*BU+14); it.y = y0 + Math.floor(i/hp)*(10*BU+14); });
+  const ty = y0 + (H_.length ? Math.ceil(H_.length/hp)*(10*BU+14) : 0);
+  T_.forEach((it,i) => { it.x = x0 + Math.floor(i/10)*(10*BU+24); it.y = ty + (i%10)*(BU+6); });
+  const ox = x0 + (T_.length ? Math.ceil(T_.length/10)*(10*BU+24) : 0);
+  O_.forEach((it,i) => { it.x = ox + (i%10)*(BU+6) + (i%10>=5 ? 10 : 0); it.y = ty + Math.floor(i/10)*(BU+6); });
 }
+/* zones: the top half is the whole; the bottom half is split into part columns */
+const ZTOP = 34, ZMID = H/2;
+function zoneBox(s, z){ if (z==='w') return {x0:16, y0:ZTOP, w:W-32, h:ZMID-ZTOP-10}; const cw = W/s.nparts, i = +z; return {x0:i*cw+16, y0:ZMID+ZTOP, w:cw-32, h:H-ZMID-ZTOP-10}; }
+function zoneOf(s, it){ const cx = it.x + blockW(it.k)/2, cy = it.y + blockH(it.k)/2; if (cy < ZMID) return 'w'; return String(Math.max(0, Math.min(s.nparts-1, Math.floor(cx/(W/s.nparts))))); }
+const zoneLabel = (s,z) => z==='w' ? 'Whole' : s.nparts===1 ? 'Parts' : 'Part ' + (+z+1);
+const zoneVal = (s,z) => s.items.filter(i => zoneOf(s,i)===z).reduce((t,i) => t + (i.k==='h'?100:i.k==='t'?10:1), 0);
+const zoneList = s => ['w', ...Array.from({length:s.nparts}, (_,i)=>String(i))];
+function tidyZone(s, z){ const box = zoneBox(s,z); tidyBlocks(s.items.filter(i => zoneOf(s,i)===z), box.x0, box.y0, box.w); }
 M.base10 = {
-  label:'Base ten', blurb:'Hundreds, tens and ones. Build a number, then exchange ten ones for a ten (or break a ten apart).',
-  fresh:()=>({items:[], mode:'move', seq:0}),
-  tools:s=>`<div class="tgrp"><span class="tl">Add a block</span>${btn('add','Hundred','h')}${btn('add','Ten','t')}${btn('add','One','o')}</div>
-    <div class="tgrp"><span class="tl">Exchange</span>${btn('ex','10 ones → 1 ten')}${btn('brk','1 ten → 10 ones')}${btn('ex100','10 tens → 1 hundred')}</div>
+  label:'Base ten', blurb:'Build the whole at the top and the parts underneath. Drag blocks between boxes; exchange ten ones for a ten when a box gets crowded.',
+  fresh:()=>({items:[], mode:'move', zone:'w', nparts:2, seq:0}),
+  tools:s=>`<div class="tgrp"><span class="tl">Put blocks in</span>${modes(s.zone, zoneList(s).map(z => [z, zoneLabel(s,z)]), 'zone')}${btn('nparts','− part',-1)}${btn('nparts','+ part',1)}</div>
+    <div class="tgrp"><span class="tl">Add a block</span>${btn('add','Hundred','h')}${btn('add','Ten','t')}${btn('add','One','o')}</div>
+    <div class="tgrp"><span class="tl">Exchange in that box</span>${btn('ex','10 ones → 1 ten')}${btn('brk','1 ten → 10 ones')}${btn('ex100','10 tens → 1 hundred')}</div>
     <div class="tgrp"><span class="tl">When I tap a block</span>${modes(s.mode,[['move','Move'],['remove','Remove']])}</div>
-    <div class="tgrp">${btn('tidy','Tidy up')}</div>`,
+    <div class="tgrp">${btn('tidy','Tidy up')}${btn('copyw','Copy the parts into the whole')}</div>`,
   act(s,a,v){
     if (a==='mode'){ s.mode = v; return 'tools'; }
-    const count = k => s.items.filter(i=>i.k===k).length;
-    const removeN = (k,n) => { for (let i=0;i<n;i++){ const j = s.items.map(x=>x.k).lastIndexOf(k); s.items.splice(j,1); } };
-    if (a==='add'){ const i = count(v); s.items.push({id:++s.seq, k:v, x: v==='o' ? 560+(i%10)*(BU+8) : 20, y: v==='h' ? 20 : v==='t' ? 300+(i%8)*(BU+8) : 400+Math.floor(i/10)*(BU+8)}); }
-    if (a==='ex'){ if (count('o')<10) return false; removeN('o',10); s.items.push({id:++s.seq,k:'t',x:20,y:300}); tidyBlocks(s.items); }
-    if (a==='brk'){ if (!count('t')) return false; removeN('t',1); for (let i=0;i<10;i++) s.items.push({id:++s.seq,k:'o',x:560,y:400}); tidyBlocks(s.items); }
-    if (a==='ex100'){ if (count('t')<10) return false; removeN('t',10); s.items.push({id:++s.seq,k:'h',x:20,y:20}); tidyBlocks(s.items); }
-    if (a==='tidy') tidyBlocks(s.items);
+    if (a==='zone'){ s.zone = v; return 'tools'; }
+    if (a==='nparts'){ s.nparts = Math.max(1, Math.min(4, s.nparts+ +v)); if (s.zone!=='w' && +s.zone>=s.nparts) s.zone = String(s.nparts-1); zoneList(s).forEach(z => tidyZone(s,z)); return true; }
+    const inZone = k => s.items.filter(i => zoneOf(s,i)===s.zone && i.k===k);
+    const removeN = (k,n) => { inZone(k).slice(-n).forEach(x => s.items.splice(s.items.indexOf(x),1)); };
+    const box = zoneBox(s, s.zone);
+    const addK = (k,n=1) => { for (let i=0;i<n;i++) s.items.push({id:++s.seq, k, x:box.x0, y:box.y0}); tidyZone(s, s.zone); };
+    if (a==='add') addK(v);
+    if (a==='ex'){ if (inZone('o').length<10) return false; removeN('o',10); addK('t'); }
+    if (a==='brk'){ if (!inZone('t').length) return false; removeN('t',1); addK('o',10); }
+    if (a==='ex100'){ if (inZone('t').length<10) return false; removeN('t',10); addK('h'); }
+    if (a==='tidy') zoneList(s).forEach(z => tidyZone(s,z));
+    if (a==='copyw'){ s.items = s.items.filter(i => zoneOf(s,i)!=='w'); const wb = zoneBox(s,'w'); s.items.filter(i => zoneOf(s,i)!=='w').forEach(i => s.items.push({id:++s.seq, k:i.k, x:wb.x0, y:wb.y0})); tidyZone(s,'w'); }
     return true;
   },
   render(s){
     newSVG();
-    svg.innerHTML = s.items.map((it,i) => `<g data-id="${it.id}" transform="translate(${it.x} ${it.y})">${blockSVG(it.k, i*25)}</g>`).join('');
-    enableDrag(moveItem(s), () => { clampItems(s, i=>blockW(i.k), i=>blockH(i.k)); render(); }, id => {
-      if (id===null || s.mode!=='remove') return; pushUndo(); s.items = s.items.filter(x => String(x.id)!==id); render(); });
+    let h = `<line x1="0" x2="${W}" y1="${ZMID}" y2="${ZMID}" class="sl" stroke-width="3"/>`;
+    for (let i=1;i<s.nparts;i++) h += `<line x1="${i*W/s.nparts}" x2="${i*W/s.nparts}" y1="${ZMID}" y2="${H}" class="sl" stroke-width="3" stroke-dasharray="8 8"/>`;
+    zoneList(s).forEach(z => { const b = zoneBox(s,z), on = z===s.zone; h += `<text x="${b.x0}" y="${b.y0-12}" font-size="20" class="${on?'fa':'fm'} fnu">${zoneLabel(s,z)}${on?' ◂':''}</text><text x="${b.x0+b.w}" y="${b.y0-12}" text-anchor="end" font-size="26" class="fi fnt">${zoneVal(s,z)}</text>`; });
+    h += s.items.map((it,i) => `<g data-id="${it.id}" transform="translate(${it.x} ${it.y})">${blockSVG(it.k, i*6)}</g>`).join('');
+    svg.innerHTML = h;
+    enableDrag(moveItem(s), () => { clampItems(s, i=>blockW(i.k), i=>blockH(i.k)); render(); }, (id, p) => {
+      if (id===null){ const z = p.y < ZMID ? 'w' : String(Math.max(0, Math.min(s.nparts-1, Math.floor(p.x/(W/s.nparts))))); if (z!==s.zone){ s.zone = z; render(); } return; }
+      if (s.mode!=='remove') return; pushUndo(); s.items = s.items.filter(x => String(x.id)!==id); render(); });
   },
-  readout(s){ const c = k => s.items.filter(i=>i.k===k).length; return `<span><b>${c('h')}</b> hundreds</span><span><b>${c('t')}</b> tens</span><span><b>${c('o')}</b> ones</span><span>= <b class="big">${c('h')*100+c('t')*10+c('o')}</b></span>`; },
-  show(s,p){ s.items = []; const G = groupsFor(p); const rows = (p.op==='add'||p.op==='mul') ? G.top : [G.top[0]]; const y0 = 20; let x0 = 20;
-    rows.forEach((g, gi) => { const its = []; const H_ = Math.floor(g.n/100), T_ = Math.floor(g.n%100/10), O_ = g.n%10;
-      for (let i=0;i<H_;i++) its.push({id:++s.seq,k:'h',x:0,y:0}); for (let i=0;i<T_;i++) its.push({id:++s.seq,k:'t',x:0,y:0}); for (let i=0;i<O_;i++) its.push({id:++s.seq,k:'o',x:0,y:0});
-      tidyBlocks(its, y0, x0); s.items.push(...its); x0 += 10*BU + 40 + (O_ ? 5*(BU+8)+40 : 0) + (H_ ? 10*BU : 0); if (x0 > W-250) x0 = 20; });
-    if (rows.length>2 || p.op==='mul') tidyBlocks(s.items); }
+  readout(s){ const w = zoneVal(s,'w'), ps = Array.from({length:s.nparts}, (_,i) => zoneVal(s,String(i))), sum = ps.reduce((a,b)=>a+b,0);
+    let h = `<span>Whole <b>${w}</b></span><span>Parts ${ps.map(v=>`<b>${v}</b>`).join(' + ')} = <b class="big">${sum}</b></span>`;
+    if (w && sum) h += `<span>${w===sum ? '✓ parts match the whole' : w>sum ? `parts are <b>${w-sum}</b> short of the whole` : `parts are <b>${sum-w}</b> more than the whole`}</span>`;
+    return h; },
+  show(s,p){
+    s.items = []; const parts = partsFor(p); s.nparts = parts.length<=4 ? parts.length : 1; s.zone = '0';
+    const build = (n, z) => { const box = zoneBox(s,z), its = []; const H_ = Math.floor(n/100), T_ = Math.floor(n%100/10), O_ = n%10;
+      for (let i=0;i<H_;i++) its.push({id:++s.seq,k:'h',x:box.x0,y:box.y0}); for (let i=0;i<T_;i++) its.push({id:++s.seq,k:'t',x:box.x0,y:box.y0}); for (let i=0;i<O_;i++) its.push({id:++s.seq,k:'o',x:box.x0,y:box.y0});
+      tidyBlocks(its, box.x0, box.y0, box.w); s.items.push(...its); };
+    build(wholeFor(p), 'w');
+    if (s.nparts===parts.length) parts.forEach((n,i) => build(n, String(i))); else build(parts.reduce((a,b)=>a+b,0), '0');
+  }
 };
 
 M.beads = {
@@ -675,7 +706,9 @@ function bindParts(s){
   board.querySelectorAll('.rm').forEach(b => b.onclick = () => { pushUndo(); s.parts.splice(+b.dataset.i,1); render(); });
   board.querySelectorAll('input').forEach(inp => inp.onkeydown = e => { e.stopPropagation(); if (e.key==='Enter') inp.blur(); });
 }
-const partsReadout = s => { const known = s.parts.filter(v=>v!==null), sum = known.reduce((a,v)=>a+v,0); let h = `<span>Parts ${s.parts.map(v=>`<b>${v===null?'?':v}</b>`).join(' + ')} = <b class="big">${sum}</b>${known.length<s.parts.length?' so far':''}</span>`;
+const partsReadout = s => {
+  if (s.scale && (s.whole===null || s.parts.some(v=>v===null))) return `<span>Whole <b>${s.whole===null?'?':s.whole}</b></span><span>Parts ${s.parts.map(v=>`<b>${v===null?'?':v}</b>`).join(' + ')}</span><span>Fill in the blank to check.</span>`;
+  const known = s.parts.filter(v=>v!==null), sum = known.reduce((a,v)=>a+v,0); let h = `<span>Parts ${s.parts.map(v=>`<b>${v===null?'?':v}</b>`).join(' + ')} = <b class="big">${sum}</b>${known.length<s.parts.length?' so far':''}</span>`;
   if (s.whole!==null){ const d = s.whole-sum; h += `<span>Whole <b>${s.whole}</b>${d===0&&known.length===s.parts.length?' ✓ parts match':d>0?`, <b>${d}</b> still missing`:d<0?`, parts are <b>${-d}</b> too many`:''}</span>`; } return h; };
 const partTools = s => `<div class="tgrp">${btn('addpart','+ Part')}${btn('fillwhole','Whole = parts added up')}${btn('fillpart','Missing part = whole − parts')}</div><div class="blurb">Type a number in any box. Leave a box empty to show it is unknown.</div>`;
 function partAct(s,a){
@@ -688,13 +721,15 @@ M.bar = {
   label:'Bar model', blurb:'A whole bar on top, part bars below. The bars are drawn to scale as you type.',
   fresh:()=>({whole:null, parts:[null,null]}), tools:partTools, act(s,a){ return partAct(s,a); },
   render(s){
-    const sum = s.parts.reduce((t,v)=>t+(v||0),0), total = Math.max(s.whole||0, sum, 1), gap = s.whole!==null && s.whole>sum ? s.whole-sum : 0;
+    const sz = i => s.parts[i] ?? (s.scale ? s.scale.parts[i] : null) ?? 0;
+    const sum = s.parts.reduce((t,v,i)=>t+sz(i),0), wholeSz = s.whole ?? (s.scale ? s.scale.whole : null) ?? 0, total = Math.max(wholeSz, sum, 1);
+    const allKnown = s.parts.every(v=>v!==null), gap = allKnown && s.whole!==null && s.whole>sum ? s.whole-sum : 0;
     board.innerHTML = `<div class="bm"><div class="bm-row"><div class="bm-lab">Whole</div><div class="barline"><div class="box whole"><input type="number" inputmode="numeric" data-whole="1" value="${s.whole??''}" placeholder="?" aria-label="Whole"></div></div></div>
-      <div class="bm-row"><div class="bm-lab">Parts</div><div class="barline">${s.parts.map((v,i)=>`<div class="box${i%2?' alt':''}" style="flex-grow:${Math.max(v||0, total*.06)}"><input type="number" inputmode="numeric" data-part="${i}" value="${v??''}" placeholder="?" aria-label="Part ${i+1}">${s.parts.length>1?`<button class="rm" data-i="${i}" aria-label="Remove part">×</button>`:''}</div>`).join('')}${gap?`<div class="box gap" style="flex-grow:${gap}"><span>${gap}?</span></div>`:''}</div></div></div>`;
+      <div class="bm-row"><div class="bm-lab">Parts</div><div class="barline">${s.parts.map((v,i)=>`<div class="box${i%2?' alt':''}" style="flex-grow:${Math.max(sz(i), total*.06)}"><input type="number" inputmode="numeric" data-part="${i}" value="${v??''}" placeholder="?" aria-label="Part ${i+1}">${s.parts.length>1?`<button class="rm" data-i="${i}" aria-label="Remove part">×</button>`:''}</div>`).join('')}${gap?`<div class="box gap" style="flex-grow:${gap}"><span>${gap}?</span></div>`:''}</div></div></div>`;
     bindParts(s);
   },
   readout:partsReadout,
-  show(s,p){ s.whole = wholeFor(p); s.parts = partsFor(p); }
+  show:showParts
 };
 M.partwhole = {
   label:'Part–whole', blurb:'A whole circle on top with its parts underneath. Fill in what you know and find what is missing.',
@@ -705,8 +740,22 @@ M.partwhole = {
     bindParts(s); requestAnimationFrame(drawLinks);
   },
   readout:partsReadout,
-  show(s,p){ s.whole = wholeFor(p); s.parts = partsFor(p); }
+  show:showParts
 };
+/* the model is drawn to the true size, but the number being asked for stays blank until it is typed or revealed */
+function showParts(s,p){
+  s.scale = {whole: wholeFor(p), parts: partsFor(p)};
+  s.whole = s.scale.whole; s.parts = s.scale.parts.slice();
+  if (done) return;
+  if (p.missing) s.parts[1] = null;
+  else if (p.op==='add' || p.op==='mul') s.whole = null;
+  else if (p.op==='sub') s.parts[0] = null;
+  else s.parts = s.parts.map(() => null);
+}
+function revealParts(){
+  Object.values(states).forEach(x => { if (x.scale){ if (x.whole===null) x.whole = x.scale.whole; x.parts = x.parts.map((v,i) => v ?? x.scale.parts[i] ?? null); } });
+  if (!boardHidden) render();
+}
 function drawLinks(){
   const pw = board.querySelector('.pw'); if (!pw) return;
   const lk = pw.querySelector('svg.links'), R = pw.getBoundingClientRect(), w = pw.querySelector('.circ.whole').getBoundingClientRect();
@@ -717,14 +766,20 @@ function drawLinks(){
 /* ---------- app state ---------- */
 const ORDER = ['counters','array','tenframes','shapes','rods','base10','beads','numberline','bar','partwhole'];
 if (!M[S.model]) S.model = 'counters';
-let cur = null, states = {}, st = null, tries = 0, done = false, free = false;
+let cur = null, states = {}, st = null, tries = 0, done = false, free = false, boardHidden = false;
 
 function render(){
   const m = M[S.model];
+  $('blurb').textContent = m.blurb;
+  board.classList.toggle('wait', boardHidden);
+  if (boardHidden){
+    board.innerHTML = `<div class="waitMsg">Solve it in your head or on paper first.<br>Press <b>Show me</b> to see it built with <b>${m.label.toLowerCase()}</b>, or pick a model on the right to build it yourself.<br><button class="go" id="waitShow">Show me</button></div>`;
+    $('waitShow').onclick = () => $('showBtn').click();
+    $('readout').innerHTML = ''; $('tools').innerHTML = ''; return;
+  }
   m.render(st);
   $('readout').innerHTML = m.readout(st);
   $('tools').innerHTML = m.tools(st);
-  $('blurb').textContent = m.blurb;
 }
 $('tools').onclick = e => {
   const b = e.target.closest('button[data-act]'); if (!b) return;
@@ -737,14 +792,14 @@ $('tools').onclick = e => {
   render();
 };
 const picker = $('picker');
-ORDER.forEach(k => { const b = document.createElement('button'); b.textContent = M[k].label; b.dataset.m = k; b.onclick = () => { S.model = k; save(); useModel(); }; picker.appendChild(b); });
+ORDER.forEach(k => { const b = document.createElement('button'); b.textContent = M[k].label; b.dataset.m = k; b.onclick = () => { S.model = k; save(); boardHidden = false; useModel(); }; picker.appendChild(b); });
 function useModel(){
   picker.querySelectorAll('button').forEach(b => { b.setAttribute('aria-pressed', b.dataset.m===S.model); b.classList.toggle('best', !free && !!cur && b.dataset.m===cur.best); b.title = (!free && cur && b.dataset.m===cur.best) ? 'Best for this question' : ''; });
   if (!states[S.model]) states[S.model] = M[S.model].fresh();
   st = states[S.model]; undo = []; render();
 }
-$('undoBtn').onclick = undoLast;
-$('clearBtn').onclick = () => { pushUndo(); const keep = st; st = M[S.model].fresh(); if (keep.n) st.n = keep.n; if (keep.track) st.track = keep.track; if (keep.hi) st.hi = keep.hi; states[S.model] = st; render(); };
+$('undoBtn').onclick = () => { if (!boardHidden) undoLast(); };
+$('clearBtn').onclick = () => { if (boardHidden) return; pushUndo(); const keep = st; st = M[S.model].fresh(); if (keep.n) st.n = keep.n; if (keep.track) st.track = keep.track; if (keep.hi) st.hi = keep.hi; states[S.model] = st; render(); };
 
 /* which model shows this question most easily, and why */
 function bestModel(p){
@@ -763,13 +818,13 @@ function bestModel(p){
     if (p.ans <= 10) return {m:'tenframes', why:`Ten frame: fill ${p.a} in red and ${p.b} in yellow.`};
     if (p.ans <= 20) return {m:'tenframes', why:`Ten frames: fill ${p.a} in red, then ${p.b} in yellow. Watch the first frame fill to 10.`};
     if (p.b < 10 || p.a < 10) return {m:'numberline', why:`Number line: start at ${p.a} and jump on ${p.b}. Jump to the next ten first.`};
-    return {m:'base10', why:`Base ten: build ${p.a} and ${p.b}, then exchange ten ones for a ten.`};
+    return {m:'base10', why:`Base ten: build ${p.a} in Part 1 and ${p.b} in Part 2, then build the whole. Exchange ten ones for a ten.`};
   }
   if (p.a <= 10) return {m:'counters', why:`Counters: make ${p.a}, then cross out ${p.b}.`};
   if (p.a <= 20) return {m:'tenframes', why:`Ten frames: fill ${p.a}, then cross out ${p.b}. Count what is left.`};
   if (p.b < 10) return {m:'numberline', why:`Number line: start at ${p.a} and jump back ${p.b}. Jump back to the ten first.`};
   if (p.op==='sub' && p.b % 10 === 0) return {m:'beads', why:`Bead string: push ${p.a} across, then pull back ${p.b}.`};
-  return {m:'base10', why:`Base ten: build ${p.a}, then take away ${p.b}. Break a ten into ones if you need to.`};
+  return {m:'base10', why:`Base ten: build ${p.a} as the whole and ${p.b} as one part. What goes in the other part? Break a ten into ones if you need to.`};
 }
 $('autoBtn').setAttribute('aria-pressed', S.auto);
 $('autoBtn').onclick = () => { S.auto = !S.auto; $('autoBtn').setAttribute('aria-pressed', S.auto); save(); if (S.auto && cur && !free){ const b = bestModel(cur); S.model = b.m; save(); useModel(); setFb('Best tool: ' + b.why); } };
@@ -788,12 +843,12 @@ function showQuestion(p){
 const expected = p => p.missing ? p.b : p.ans;
 function setFb(text, cls=''){ fb.textContent = text; fb.className = 'feedback ' + cls; }
 function newProblem(){
-  cur = makeProblem(); tries = 0; done = false;
+  cur = makeProblem(); tries = 0; done = false; boardHidden = !free;
   states = {}; undo = [];
   showQuestion(cur);
   const b = bestModel(cur); cur.best = b.m;
   if (S.auto){ S.model = b.m; save(); }
-  setFb(S.auto ? 'Best tool: ' + b.why : '');
+  setFb(S.auto ? 'Best tool when you need it: ' + b.why : '');
   useModel();
   if (!free) setTimeout(() => $('ansIn') && $('ansIn').focus(), 50);
 }
@@ -801,7 +856,7 @@ function check(){
   const inp = $('ansIn'); if (!inp || done) return;
   if (inp.value==='') { setFb('Type your answer in the dashed box, or build it on the board first.'); inp.focus(); return; }
   if (+inp.value === expected(cur)){
-    done = true; inp.classList.add('ok'); inp.readOnly = true;
+    done = true; inp.classList.add('ok'); inp.readOnly = true; revealParts();
     if (!cur.revealed){ S.solved++; S.streak++; S.best = Math.max(S.best, S.streak); save(); updateScore(); }
     const praise = ['Correct!','Yes!','Nice work.','That is it.','Spot on.'][rnd(0,4)];
     setFb(`${praise} ${cur.a} ${SYM[cur.op]} ${cur.b} = ${cur.ans}. Press Enter or New question to keep going.`, 'ok');
@@ -817,9 +872,9 @@ function check(){
 function updateScore(){ $('solved').textContent = S.solved; $('streak').textContent = S.streak; $('best').textContent = S.best; }
 $('checkBtn').onclick = check;
 $('newBtn').onclick = newProblem;
-$('showBtn').onclick = () => { if (free) return; pushUndo(); st = M[S.model].fresh(); M[S.model].show(st, cur); states[S.model] = st; render(); setFb('Here is one way to build it with ' + M[S.model].label.toLowerCase() + '. Count it, then type your answer.'); };
-$('revealBtn').onclick = () => { const inp = $('ansIn'); if (!inp || done) return; cur.revealed = true; inp.value = expected(cur); if (S.streak){ S.streak = 0; save(); updateScore(); } check(); setFb(`The answer is ${expected(cur)}. Can you build it to see why? Then press New question.`); };
-$('freeBtn').onclick = () => { free = !free; picker.querySelectorAll('button').forEach(b => b.classList.remove('best')); document.body.classList.toggle('free', free); $('freeBtn').setAttribute('aria-pressed', free); setFb(free ? 'Free play: build anything you like. Press Free play again to get questions back.' : ''); if (!free) newProblem(); };
+$('showBtn').onclick = () => { if (free) return; boardHidden = false; pushUndo(); st = M[S.model].fresh(); M[S.model].show(st, cur); states[S.model] = st; render(); setFb(st.scale ? 'The ' + M[S.model].label.toLowerCase() + ' is drawn to size. The blank box is the number you are finding. Type it in, or press Reveal.' : 'Here is one way to build it with ' + M[S.model].label.toLowerCase() + '. Count it, then type your answer.'); };
+$('revealBtn').onclick = () => { const inp = $('ansIn'); if (!inp || done) return; cur.revealed = true; inp.value = expected(cur); revealParts(); if (S.streak){ S.streak = 0; save(); updateScore(); } check(); setFb(`The answer is ${expected(cur)}. Can you build it to see why? Then press New question.`); };
+$('freeBtn').onclick = () => { free = !free; boardHidden = false; if (free) useModel(); picker.querySelectorAll('button').forEach(b => b.classList.remove('best')); document.body.classList.toggle('free', free); $('freeBtn').setAttribute('aria-pressed', free); setFb(free ? 'Free play: build anything you like. Press Free play again to get questions back.' : ''); if (!free) newProblem(); };
 
 addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
