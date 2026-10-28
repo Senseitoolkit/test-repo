@@ -395,6 +395,21 @@ ol.seq li.empty{background:var(--card);border:2px dashed var(--line);color:var(-
   .ctrl{width:62px;height:54px}
   .hint{display:none}
 }
+ruby{ruby-align:center}
+rt{font-size:.52em;font-weight:400;opacity:.8;line-height:1.15;letter-spacing:0;font-family:var(--body);user-select:none}
+.step rt{font-size:.6em}
+.dsec{font-family:var(--display);font-size:1.05rem;margin:16px 0 6px;color:var(--police);border-bottom:2px dashed var(--line);padding-bottom:4px}
+.dsec span{color:var(--muted);font-size:.85rem;font-weight:400}
+.dict{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.drow{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:12px;padding:8px 10px;line-height:1.5}
+.drow:active{transform:translateY(2px)}
+.dja{font-weight:700;font-size:1.02rem}
+.dja small{display:block;font-weight:400;font-size:.8rem;color:var(--muted)}
+.den b{color:var(--police);font-size:.96rem}
+.den small{display:block;font-weight:400;font-size:.78rem;color:var(--muted);line-height:1.35}
+.den2{font-family:var(--body);font-size:.9rem;color:var(--muted);font-weight:400}
+#dq{flex:1;min-width:150px}
+@media (max-width:620px){.drow{grid-template-columns:1fr;gap:2px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -408,6 +423,8 @@ ol.seq li.empty{background:var(--card);border:2px dashed var(--line);color:var(-
     </div>
     <div class="spacer"></div>
     <button class="pill" id="voiceBtn" aria-pressed="true">声 オン</button>
+    <button class="pill" id="furiBtn" aria-pressed="true">ふりがな: オン</button>
+    <button class="pill" id="dictBtn">辞書 EN</button>
     <button class="pill" id="fsBtn" aria-label="がめん いっぱい">⛶ がめん いっぱい</button>
     <button class="pill" id="meBtn">じぶん</button>
     <button class="pill" id="mapBtn">町の 地図</button>
@@ -463,9 +480,9 @@ ol.seq li.empty{background:var(--card);border:2px dashed var(--line);color:var(-
 <script>
 // ---------- state ----------
 const STORE='job-explorer-v1';
-const S={voice:true,badges:[],words:[],reactions:{},interests:{},best:{}};
+const S={voice:true,furi:true,badges:[],words:[],reactions:{},interests:{},best:{}};
 // every launch starts a fresh game: no scores, badges or words. Only device settings (voice, speed, camera view) are remembered.
-try{const saved=JSON.parse(localStorage.getItem(STORE)||'{}');['voice','rate','cam'].forEach(k=>{if(k in saved)S[k]=saved[k]})}catch(e){}
+try{const saved=JSON.parse(localStorage.getItem(STORE)||'{}');['voice','rate','cam','furi'].forEach(k=>{if(k in saved)S[k]=saved[k]})}catch(e){}
 function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
 
 const WORDS={
@@ -668,19 +685,19 @@ const JOBS=[
   intro:["しょうぼうしょへ ようこそ！ たいちょうの<b>メイ</b>です。","しょうぼうしは 火を けし、人を <b>きゅうじょ</b>し、火の 安全を 教えます。いつも <b>チーム</b>で うごきます。","<b>けいほう</b>が 鳴ったら、すぐに したくします。さあ、ふくを 着よう！"],
   words:[['けいほう','あぶないことを 知らせる 大きな 音。','🚨','けいほう'],['きゅうじょ','あぶない ところから 人を 助けること。','🛟','きゅうじょ'],['チーム','力を 合わせて はたらく なかま。','👥','チーム'],['しょうかせん','道ばたに ある、ホースに 水を おくる せつび。','💧','しょうかせん'],['しょうかき','小さな 火を けす どうぐ。','🧯','しょうかき'],['ひなん','あぶない ばしょから すばやく 安全に 出ること。','🏃','ひなん']],
   tasks:[
-   {type:'pick',label:'したく',title:'すばやく ふくを 着よう',lead:'けいほうが 鳴っている！ しょうぼうしに ひつような 5つを えらんでね。',tag:'safety',items:[['🪖','ヘルメット',1,'頭を 守ります。'],['🩴','ビーチサンダル',0,'すべって あぶない。ブーツで 足を 守ります。'],['🧤','てぶくろ',1,'手を ねつから 守ります。'],['🎩','シルクハット',0,'おしゃれだけど、ヘルメットの ほうが 安全。'],['🥾','ブーツ',1,'じょうぶな ブーツが 足を 守ります。'],['🍦','アイス',0,'とけちゃう！ あとで ね。'],['🧯','しょうかき',1,'小さな 火を けします。'],['🪁','たこ',0,'風の 日は たのしいけど、今は だめ。'],['📻','むせん',1,'チームは むせんで 話します。'],['🎮','ゲーム',0,'出どうの 時に ゲームは だめ。']],win:'したく かんりょう！ しょうぼうしは 1分ほどで 用いが できます。'},
+   {type:'pick',label:'したく',title:'すばやく ふくを 着よう',lead:'けいほうが 鳴っている！ しょうぼうしに ひつような 5つを えらんでね。',tag:'safety',items:[['🪖','ヘルメット',1,'頭を 守ります。'],['🩴','ビーチサンダル',0,'すべって あぶない。ブーツで 足を 守ります。'],['🧤','てぶくろ',1,'手を ねつから 守ります。'],['🎩','シルクハット',0,'おしゃれだけど、ヘルメットの ほうが 安全。'],['🥾','ブーツ',1,'じょうぶな ブーツが 足を 守ります。'],['🍦','アイス',0,'とけちゃう！ あとで ね。'],['🧯','しょうかき',1,'小さな 火を けします。'],['🪁','たこ',0,'風の 日は たのしいけど、今は だめ。'],['📻','むせん',1,'チームは むせんで 話します。'],['🎮','ゲーム',0,'出どうの 時に ゲームは だめ。']],win:'したく かんりょう！ しょうぼうしは 1分ほどで じゅんびが できます。'},
    {type:'tap',label:'消火',title:'火を けそう',lead:'火を タップして 水を かけよう。ネコに 気を つけて！',tag:'safety',good:['🔥','火'],goodDone:'💨',bad:['🐈','ネコ'],badMsg:'ネコに 水を かけないで！ 火を けしてから きゅうじょします。',goal:12,win:'火は ぜんぶ 消えた！ チームが みんなを 守りました。'},
    {type:'order',label:'くんれん',title:'ひなんくんれんを 教えよう',lead:'学校に 来ています。ひなんの じゅんばんに タップしてね。',tag:'people',steps:[['🚨','けいほうを 聞く'],['🎒','もちものは おいていく'],['🚶','おちついて 出口へ 歩く'],['🌳','あつまる ばしょで クラスと 待つ'],['🙋','先生が 人数を 数える']],win:'クラスは やりかたを おぼえました。れんしゅうが 本当の 火事から 命を 守ります。'}],
   problem:{text:'くんれん中、男の子が クマの ぬいぐるみを 取りに もどろうと しました。<b>何と 言う？</b>',opts:[['「外に いようね。おもちゃは また 買えるけど、君は 一人だけだよ。」',1,'正しいです。しょうぼうしは 物より 人が 大切だと 教えます。'],['「いいよ、でも 早くね！」',0,'中に もどるのは あぶないです。安全に なるまで みんな 外に います。'],['何も 言わない',0,'しょうぼうしは みんなを 守るために はっきり 声を かけます。']]},
   summary:'ふくを 着て、ネコに 水を かけずに 火を けし、学校に ひなんくんれんを 教えたね。',
-  duty:'しょうぼうしは いつも 用いを し、チームで はたらき、あぶない時も おちつき、安全な すごしかたを 教えます。'},
+  duty:'しょうぼうしは いつも じゅんびを し、チームで はたらき、あぶない時も おちつき、安全な すごしかたを 教えます。'},
 
  {id:'nurse',name:'かんごし',place:'びょういん',icon:'🏥',body:'#f3f6fb',roof:'#7f93b5',
   mentor:{name:'トマスさん',skin:'#c98b5e',hair:'#2a1a10',hat:'none',shirt:'#4fb3a8'},
   intro:["こんにちは！ かんごしの<b>トマス</b>です。","かんごしは <b>かんじゃ</b>さんの せわを します。ぐあいを しらべ、よくなる 手だすけを して、こわい時は <b>そばに いて</b> あげます。","わたしの ワゴンを じゅんびしよう。"],
   words:[['かんじゃ','お医者さんや かんごしに みてもらう 人。','🤒','かんじゃ'],['体温','体の あつさの こと。','🌡️','たいおん'],['ほうたい','きず口を きれいに 守る もの。','🩹','ほうたい'],['けんさ','体が 元気か たしかめる こと。','🩺','けんさ'],['そばにいる','安心できるように よりそう こと。','🤗','そばにいる'],['ばいきん','びょうきを おこす とても 小さな 生きもの。','🦠','ばいきん']],
   tasks:[
-   {type:'pick',label:'ワゴン',title:'かんごしの ワゴンを じゅんびしよう',lead:'かんじゃさんの せわに ひつような 5つを えらんでね。',tag:'people',items:[['🩺','ちょうしんき',1,'心ぞうや はいきゅうの 音を 聞きます。'],['🎳','ボウリングの 玉',0,'重すぎるし、やくに 立ちません！'],['🌡️','体温計',1,'体温を はかります。'],['🪀','ヨーヨー',0,'たのしいけど しごとでは つかいません。'],['🩹','ほうたい',1,'きず口を おおいます。'],['🎻','バイオリン',0,'それは ミュージシャンの ものかな！'],['🧤','てぶくろ',1,'ばいきんを ふせぎます。'],['🍔','ハンバーガー',0,'おひるは あとで。'],['📋','クリップボード',1,'かんじゃさんの ようすを 書きます。'],['🛹','スケートボード',0,'ろうかで すべるのは だめ！']],win:'じゅんび かんりょう！ かんごしは どんな時も 用いが できています。'},
+   {type:'pick',label:'ワゴン',title:'かんごしの ワゴンを じゅんびしよう',lead:'かんじゃさんの せわに ひつような 5つを えらんでね。',tag:'people',items:[['🩺','ちょうしんき',1,'心ぞうや はいきゅうの 音を 聞きます。'],['🎳','ボウリングの 玉',0,'重すぎるし、やくに 立ちません！'],['🌡️','体温計',1,'体温を はかります。'],['🪀','ヨーヨー',0,'たのしいけど しごとでは つかいません。'],['🩹','ほうたい',1,'きず口を おおいます。'],['🎻','バイオリン',0,'それは ミュージシャンの ものかな！'],['🧤','てぶくろ',1,'ばいきんを ふせぎます。'],['🍔','ハンバーガー',0,'おひるは あとで。'],['📋','クリップボード',1,'かんじゃさんの ようすを 書きます。'],['🛹','スケートボード',0,'ろうかで すべるのは だめ！']],win:'じゅんび かんりょう！ かんごしは どんな時も じゅんびが できています。'},
    {type:'order',label:'てあて',title:'小さな きずを きれいに しよう',lead:'かんじゃさんの 手に 小さな きずが あります。正しい じゅんに タップしてね。',tag:'people',steps:[['🧼','手を あらう'],['🧤','てぶくろを つける'],['💧','きずを やさしく 洗う'],['🩹','ほうたいで おおう'],['📋','カルテに 書く']],win:'きれいに なったね。ていねいな じゅんばんが ばいきんを ふせぎます。'},
    {type:'sort',label:'じゅんばん',title:'先に 助けるのは だれ？',lead:'かんごしは 急ぐ人から 助けます。これを トリアージと いいます。',tag:'solving',bins:[['🚨','すぐに'],['⏳','少し 待てる']],items:[['😮‍💨','いきが 苦しい',0,'いきが 苦しいのは 大へん。すぐに 助けます。'],['🩹','小さな すりきず',1,'小さな きずは 少し 待てます。'],['🤕','ころんで 頭を 打った',0,'頭の けがは すぐに しらべます。'],['🙂','お水が ほしい',1,'それは 少し 待てます。'],['🤧','鼻水が 出る',1,'鼻水は 少し 待てます。'],['🥵','とても 高い ねつ',0,'高い ねつは 早く みます。']],win:'よい じゅんばん。いちばん 大へんな 人から 助けられたね。'}],
   problem:{text:'小さな 女の子が けんさを こわがって 泣きだしました。<b>どうする？</b>',opts:[['やさしく せつめいして、ちょうしんきを さわらせて あげる',1,'そうだね。せつめいして さわらせると 安心します。それが そばに いる ということ。'],['「泣かないで」と 言う',0,'それでは 安心できません。まず やさしさから。'],['何も 言わず 早く すませる',0,'とつぜんだと もっと こわいです。やることを 先に 話しましょう。']]},
@@ -1233,7 +1250,7 @@ function gear(){
     if(it[2]){b.classList.add('ok');got++;fb.className='note good';fb.textContent=`そうだね！ ${it[1]}: ${it[3]}`;say(`そうだね！ ${it[1]}。 ${it[3]}`)}
     else{b.classList.remove('no');void b.offsetWidth;b.classList.add('no');fb.className='note soft';fb.textContent=`${it[1]}？ ${it[3]}`;say(`${it[1]}？ ${it[3]}`)}
     $('#m').textContent=`入れた: ${got} / 5`;
-    if(got===5){$('#nxrow').innerHTML='<button class="btn" id="nx">みまわりに 出る</button>';$('#nx').onclick=trafficIntro;fb.textContent='じゅんび かんりょう！ よい けいさつかんは いつも 用いが できています。';say('じゅんび かんりょう！ よい けいさつかんは いつも 用いが できています。')}
+    if(got===5){$('#nxrow').innerHTML='<button class="btn" id="nx">みまわりに 出る</button>';$('#nx').onclick=trafficIntro;fb.textContent='じゅんび かんりょう！ よい けいさつかんは いつも じゅんびが できています。';say('じゅんび かんりょう！ よい けいさつかんは いつも じゅんびが できています。')}
   });
 }
 
@@ -1260,7 +1277,8 @@ function crosswalk(){
   const keyH=e=>{if(e.key===' '&&!$('#scene').hidden&&running){e.preventDefault();setSig(!stop)}};addEventListener('keydown',keyH);
   const colors=['#e8553e','#3a7bd5','#f2b632','#7a59c9','#2aa876','#ef7aa7'];
   const people=['🧒','👵','👨‍👧','🧑‍🦯','👩‍🦽','🧑'];
-  function note(t,cls){if(fb.textContent!==t){fb.textContent=t;fb.className='note '+(cls||'')}msgT=2.5}
+  let lastNote='';
+  function note(t,cls){if(lastNote!==t){lastNote=t;fb.textContent=t;fb.className='note '+(cls||'')}msgT=2.5}
   function step(now){
     if(!running||!document.body.contains(c)){removeEventListener('keydown',keyH);return}
     const dt=Math.min(.05,(now-lt)/1000);lt=now;
@@ -2866,6 +2884,122 @@ function routeBriefing(job){curJob=job;curMentor=job.mentor;openScene();$('#jobT
   mentorLines([...job.intro,"トラックには 5この はいたつが つんで あります。光の はしらを たどって 一つずつ まわってね。おわったら ここで 会いましょう！"],()=>{closeScene();W3D.startRoute()},{title:'はいたつコースの せつめい',scene:job.id,btn:'コースに 出る'})}
 function finishRoute(){const job=JOB.delivery;curJob=job;curMentor=job.mentor;openScene();$('.card').style.setProperty('--jobc',job.roof);$('#jobTag').textContent=job.name;setStep(2,['はじめに','コース','ふりかえり']);
   const ks=job.words.map(w=>w[0]);ks.forEach(learn);jobDebrief(job)}
+
+const FURI={"書く":["か", 1],"書き":["か", 1],"書か":["か", 1],"書け":["か", 1],"書こ":["か", 1],"書い":["か", 1],"書":"しょ","話す":["はな", 1],"話し":["はな", 1],"話せ":["はな", 1],"話さ":["はな", 1],"話そ":["はな", 1],"話":"はなし","何が":["なに", 1],"何を":["なに", 1],"何の":["なに", 1],"何に":["なに", 1],"何で":["なに", 1],"何と":["なに", 1],"何か":["なに", 1],"何":"なん","正かい":["せい", 1],"正":"ただ","作もつ":["さく", 1],"作":"つく","出どう":["しゅつ", 1],"出":"で","上がわ":["うえ", 1],"上がり":["あ", 1],"上がる":["あ", 1],"上がっ":["あ", 1],"上げ":["あ", 1],"上":"うえ","下がわ":["した", 1],"下げ":["さ", 1],"下":"した","生き":["い", 1],"生ま":["う", 1],"生":"せい","大き":["おお", 1],"大すき":["だい", 1],"大へん":["たい", 1],"大":"おお","少し":["すこ", 1],"少な":["すく", 1],"楽し":["たの", 1],"楽に":["らく", 1],"楽":"たの","数え":["かぞ", 1],"数":"かず","活か":["い", 1],"二つ":["ふた", 1],"二だん":["に", 1],"二":"に","三つ":["みっ", 1],"三":"さん","五つ":["いつ", 1],"五":"ご","一ぴき":["いっ", 1],"一つ":["ひと", 1],"一":"ひと","食パン":["しょく", 1],"食":"た","けんちく家":["か", 1, 4],"家ぞく":["か", 1],"家":"いえ","お金":["かね", 1, 1],"金ぞく":["きん", 1],"金":"かね","お父さん":["とう", 1, 1],"父":"ちち","お母さん":["かあ", 1, 1],"母":"はは","しんぶん紙":["し", 1, 4],"つつみ紙":["がみ", 1, 3],"紙":"かみ","おち葉":["ば", 1, 2],"葉":"は","自てん車":"じてんしゃ","車せん":["しゃ", 1],"車":"くるま","音ぷ":["おん", 1],"音":"おと","目てき":["もく", 1],"目":"め","電きゅう":["でん", 1],"電":"でん","首わ":["くび", 1],"首":"くび","空どう":["くう", 1],"空":"そら","べんきょう中":["ちゅう", 1, 5],"しゅう中":["ちゅう", 1, 3],"中":"なか","2日":"ふつか","じゅう曹":["そう", 1, 3],"曹":"そう","大人":"おとな","人":"ひと","見":"み","安全":"あんぜん","読":"よ","入":"い","守":"まも","町":"まち","助":"たす","力":"ちから","聞":"き","本":"ほん","新":"あたら","手":"て","回":"まわ","来":"く","近":"ちか","声":"こえ","客":"きゃく","子":"こ","物":"もの","合":"あ","一度":"いちど","教":"おし","大切":"たいせつ","考":"かんが","小":"ちい","通":"とお","先生":"せんせい","言":"い","水":"みず","荷物":"にもつ","答":"こた","店":"みせ","育":"そだ","道":"みち","前":"まえ","電気":"でんき","動画":"どうが","強":"つよ","木":"き","本当":"ほんとう","公園":"こうえん","時":"とき","切":"き","行":"い","知":"し","町長":"ちょうちょう","火":"ひ","大工":"だいく","絵":"え","図書館":"としょかん","歩":"ある","計画":"けいかく","取":"と","今日":"きょう","屋":"や","待":"ま","立":"た","正直":"しょうじき","先":"さき","自分":"じぶん","科学者":"かがくしゃ","森":"もり","手紙":"てがみ","売":"う","場":"ば","学校":"がっこう","持":"も","科学":"かがく","算数":"さんすう","早":"はや","日":"ひ","毎日":"まいにち","池":"いけ","町役場":"まちやくば","時間":"じかん","気":"き","重":"おも","世話":"せわ","同":"おな","農家":"のうか","赤":"あか","地図":"ちず","元気":"げんき","子犬":"こいぬ","悪":"わる","犬":"いぬ","草":"くさ","工事":"こうじ","土":"つち","学":"まな","足":"あし","歌":"うた","住所":"じゅうしょ","返":"かえ","運転":"うんてん","地":"ち","湖":"みずうみ","手助":"てだす","決":"き","今":"いま","体":"からだ","高":"たか","花":"はな","色":"いろ","図面":"ずめん","多":"おお","木通":"きどお","古":"ふる","手当":"てあて","文章":"ぶんしょう","走":"はし","虫":"むし","買":"か","一人":"ひとり","安心":"あんしん","思":"おも","止":"と","音楽":"おんがく","野生動物":"やせいどうぶつ","店員":"てんいん","西":"にし","川":"かわ","会":"あ","日光":"にっこう","友":"とも","雨":"あめ","光":"ひか","名前":"なまえ","白":"しろ","者":"しゃ","一票":"いっぴょう","男":"おとこ","頭":"あたま","医者":"いしゃ","心":"こころ","石":"いし","役":"やく","帰":"かえ","曲":"きょく","時間通":"じかんどお","電話":"でんわ","春":"はる","秋":"あき","茶色":"ちゃいろ","青":"あお","黄色":"きいろ","一日":"いちにち","回数":"かいすう","円":"えん","北":"きた","南":"みなみ","東":"ひがし","泣":"な","一回":"いっかい","身":"み","遠":"とお","上手":"じょうず","住":"す","農場":"のうじょう","山道":"やまみち","草木":"くさき","大声":"おおごえ","品":"しな","上着":"うわぎ","文":"ぶん","住民":"じゅうみん","受":"う","体力":"たいりょく","感":"かん","一番":"いちばん","女":"おんな","教室":"きょうしつ","皿":"さら","鳴":"な","着":"き","消":"き","火事":"かじ","外":"そと","体温":"たいおん","口":"くち","急":"いそ","世界":"せかい","長":"なが","水平":"すいへい","建":"た","何度":"なんど","天気":"てんき","切手":"きって","朝":"あさ","台":"だい","左右":"さゆう","星":"ほし","日本語":"にほんご","一人一人":"ひとりひとり","風":"かぜ","苦":"くる","鼻水":"はなみず","鳥":"とり","小鳥":"ことり","細":"ほそ","空気":"くうき","流":"なが","毎回":"まいかい","二度":"にど","今夜":"こんや","耳":"みみ","夏":"なつ","市場":"いちば","火山":"かざん","門":"もん","歩道":"ほどう","品出":"しなだ","出発":"しゅっぱつ","二人":"ふたり","当":"あ","回中":"かいちゅう","昼":"ひる","半分":"はんぶん","運転手":"うんてんしゅ","会社":"かいしゃ","歯":"は","見守":"みまも","小屋":"こや","何時間":"なんじかん","女性":"じょせい","男性":"だんせい","六":"ろく","七":"なな","何本":"なんぼん","一歩":"いっぽ","表":"ひょう","消火":"しょうか","出口":"でぐち","人数":"にんずう","命":"いのち","君":"きみ","玉":"たま","体温計":"たいおんけい","洗":"あら","打":"う","事":"こと","一本":"いっぽん","感電":"かんでん","豆電":"まめでん","輪":"わ","土台":"どだい","明":"あか","王":"おう","落":"お","十回":"じゅっかい","運動":"うんどう","室内":"しつない","息":"いき","作品":"さくひん","使":"つか","場面":"ばめん","冬":"ふゆ","農":"のう","一年":"いちねん","借":"か","本物":"ほんもの","顔":"かお","草原":"そうげん","野生":"やせい","文字":"もじ","数字":"すうじ","何日":"なんにち","店長":"てんちょう","開店":"かいてん","雲":"くも","土地":"とち","乗":"の","機":"き","休":"やす","暗":"くら","黒":"くろ","時間切":"じかんぎ","算":"ざん","中央通":"ちゅうおうどお","一丁目":"いっちょうめ","二丁目":"にちょうめ","谷":"たに","国":"くに","一員":"いちいん","人生":"じんせい","間":"あいだ","年":"ねん","水道":"すいどう","水道管":"すいどうかん","宇":"う","時計":"とけい","十字":"じゅうじ","金色":"きんいろ","写真":"しゃしん","上下":"じょうげ","見回":"みまわ","毎朝":"まいあさ","用紙":"ようし","記者":"きしゃ","向":"む","勝":"か","役立":"やくだ","板":"いた","一曲":"いっきょく","牛":"うし","見分":"みわ","辞書":"じしょ","辞典":"じてん","度":"ど","番":"ばん","名":"な","分":"わ","自":"じ","動物":"どうぶつ","動物病院":"どうぶつびょういん","病院":"びょういん","分ける":["わ", 1]};
+const FURI_N={"人": "にん", "分": "ふん", "回": "かい", "日": "にち", "本": "ほん", "台": "だい", "円": "えん", "年": "ねん", "度": "ど", "曲": "きょく", "番": "ばん"};
+const DICT=[{t:"ボタンと がめん",e:"Buttons & screens",w:[["入る", "はいる", "Enter", "Go in at a door"], ["町に もどる", "まちに もどる", "Back to town", ""], ["つぎへ", "", "Next", ""], ["おわり", "", "Finish", ""], ["もう一回", "もういっかい", "Play again", ""], ["もう一度 聞く", "もういちど きく", "Hear again", ""], ["ほかの ゲーム", "", "More games", ""], ["声", "こえ", "voice", "The game reads everything aloud"], ["声を けす", "こえを けす", "Mute", ""], ["がめん いっぱい", "", "Full screen", ""], ["じぶん", "", "Me", "Change how you look"], ["町の 地図", "まちの ちず", "Town map", ""], ["おしごとパスポート", "", "Career Passport", "Your badges and words"], ["ことば辞典", "ことばじてん", "Dictionary", "This page"], ["ふりがな", "", "Furigana", "The small kana above the kanji"], ["さいしょから", "", "New player", "Clears the game"], ["やりなおす", "", "Start over", ""], ["ヒント", "", "Hint", ""], ["聞く", "きく", "Hear it", ""], ["読んで もらう", "よんで もらう", "Read it to me", ""], ["さがす", "", "Search", ""], ["できた", "", "Done", ""], ["はい", "", "Yes", ""], ["つづける", "", "Keep playing", ""], ["じゅんび できた", "", "I am ready", ""], ["上へ・下へ", "うえへ・したへ", "Up / Down", ""], ["スタート", "", "Start", ""]]},
+{t:"ゲームの ことば",e:"Playing the game",w:[["タップする", "", "to tap", "Touch it with your finger"], ["えらぶ", "", "to choose", ""], ["分ける", "わける", "to sort", ""], ["じゅんばん", "", "order", "Which one comes first"], ["しつもん", "", "question", ""], ["答え", "こたえ", "answer", ""], ["もんだい", "", "problem", "A question to work out"], ["正しい", "ただしい", "correct", ""], ["おしい", "", "not quite", ""], ["そうだね", "", "that is right", ""], ["かんぺき", "", "perfect", ""], ["よく できたね", "", "well done", ""], ["ほし", "", "star", "You earn up to three"], ["バッジ", "", "badge", "You earn one for each job"], ["ことば", "", "word", ""], ["いみ", "", "meaning", ""], ["文", "ぶん", "sentence", ""], ["もじ", "", "letter, character", ""], ["数", "かず", "number", ""], ["算数", "さんすう", "maths", ""], ["かきとり", "", "spelling", ""], ["読みとり", "よみとり", "reading", ""], ["ゲーム", "", "game", ""], ["しごと", "", "job, work", ""], ["一日", "いちにち", "a day at work", "One shift"], ["はじめに", "", "briefing", "The talk before work"], ["ふりかえり", "", "debrief", "Looking back at the day"], ["のこり", "", "left", "How much is left"], ["時間切れ", "じかんぎれ", "time is up", ""], ["さいこう きろく", "", "best score", ""], ["れんぞく", "", "in a row", ""], ["えらんだ", "", "picked", ""], ["そろった", "", "matched", ""], ["安全", "あんぜん", "safe, safety", ""], ["しらべる", "", "to research", "Read about the job first"], ["もうしこみ書", "もうしこみしょ", "application form", ""], ["めんせつ", "", "interview", ""], ["さいよう", "", "hired", ""], ["とくい", "", "skill", "Something you learn to do well"], ["せいかく", "", "trait", "How you act and treat people"]]},
+{t:"おしごとの 名前",e:"Jobs and places",w:[["けいさつかん", "", "Police Officer", "けいさつしょ = Police Station"], ["先生", "", "Teacher", "学校 = School"], ["パン屋さん", "", "Baker", "パン屋 = Bakery"], ["コックさん", "", "Chef", "レストラン = Restaurant"], ["しょうぼうし", "", "Firefighter", "しょうぼうしょ = Fire Station"], ["かんごし", "", "Nurse", "びょういん = Hospital"], ["じゅうい", "", "Vet", "動物びょういん = Animal Clinic"], ["科学者", "", "Scientist", "科学ラボ = Science Lab"], ["でんきやさん", "", "Electrician", "でんきの店 = Power Shop"], ["大工さん", "", "Builder", "工事げんば = Build Yard"], ["ミュージシャン", "", "Musician", "音楽ホール = Music Hall"], ["動画クリエイター", "", "Video Creator", "動画スタジオ = Video Studio"], ["農家の人", "", "Farmer", "農場 = Farm"], ["図書館の人", "", "Librarian", "図書館 = Library"], ["パークレンジャー", "", "Park Ranger", "レンジャーステーション = Ranger Station"], ["ゆうびんやさん", "", "Mail Carrier", "ゆうびんきょく = Post Office"], ["スーパーの店員さん", "", "Grocer", "スーパー = Grocery Store"], ["リサイクルの人", "", "Recycling Worker", "リサイクルセンター = Recycling Center"], ["はいたつドライバー", "", "Delivery Driver", "はいたつセンター = Delivery Depot"]]},
+{t:"けいさつかんの ことば",e:"Police Officer words",w:[["みまわり", "みまわり", "patrol", "Walking or driving around a neighborhood to keep it safe."], ["バッジ", "バッジ", "badge", "Shows people you are a police officer they can trust."], ["むせん", "むせん", "radio", "Lets officers talk with the station and each other."], ["てがかり", "てがかり", "clue", "A piece of information that helps solve a problem."], ["ほうこく書", "ほうこくしょ", "report", "A written record of what happened."], ["見た人", "みたひと", "witness", "A person who saw what happened."]]},
+{t:"先生の ことば",e:"Teacher words",w:[["じゅぎょう", "じゅぎょう", "lesson", "A plan for teaching something new."], ["教室", "きょうしつ", "classroom", "The room where a class learns together."], ["よてい", "よてい", "schedule", "The plan for when things happen in the day."], ["しゅくだい", "しゅくだい", "homework", "Practice work students do at home."], ["おうえん", "おうえん", "encourage", "To help someone believe they can do it."], ["せつめい", "せつめい", "explain", "To make an idea clear so others understand."]]},
+{t:"パン屋さんの ことば",e:"Baker words",w:[["レシピ", "レシピ", "recipe", "Steps and ingredients for making food."], ["はかる", "はかる", "measure", "To find out exactly how much or how big something is."], ["きじ", "きじ", "dough", "A soft mix of flour and water that becomes bread."], ["こねる", "こねる", "knead", "To press and fold dough with your hands."], ["オーブン", "オーブン", "oven", "A hot box that bakes food."], ["やきたて", "やきたて", "fresh", "Just made, not old."]]},
+{t:"コックさんの ことば",e:"Chef words",w:[["ちゅうもん", "ちゅうもん", "order", "What a customer asks for."], ["ざいりょう", "ざいりょう", "ingredient", "One food you use to make a dish."], ["したごしらえ", "したごしらえ", "prep", "Getting food ready before you cook it."], ["アレルギー", "アレルギー", "allergy", "When a food makes someone\\'s body sick."], ["だす", "だす", "serve", "To bring food to the people eating it."], ["もちば", "もちば", "station", "A chef\\'s own work area in the kitchen."]]},
+{t:"しょうぼうしの ことば",e:"Firefighter words",w:[["けいほう", "けいほう", "alarm", "A loud sound that warns people of danger."], ["きゅうじょ", "きゅうじょ", "rescue", "To save someone from danger."], ["チーム", "チーム", "crew", "A team that works together."], ["しょうかせん", "しょうかせん", "hydrant", "A pipe on the street that gives water for fire hoses."], ["しょうかき", "しょうかき", "extinguisher", "A tool that sprays to put out small fires."], ["ひなん", "ひなん", "evacuate", "To leave a place quickly and safely."]]},
+{t:"かんごしの ことば",e:"Nurse words",w:[["かんじゃ", "かんじゃ", "patient", "A person getting care from a nurse or doctor."], ["体温", "たいおん", "temperature", "How hot or cold your body is."], ["ほうたい", "ほうたい", "bandage", "A cover that keeps a cut clean."], ["けんさ", "けんさ", "checkup", "A visit to make sure your body is healthy."], ["そばにいる", "そばにいる", "comfort", "To help someone feel calm and cared for."], ["ばいきん", "ばいきん", "germs", "Tiny living things that can make you sick."]]},
+{t:"じゅういの ことば",e:"Vet words",w:[["じゅうい", "じゅうい", "veterinarian", "A doctor for animals, also called a vet."], ["しょうじょう", "しょうじょう", "symptom", "A sign that something is wrong with a body."], ["ちりょう", "ちりょう", "treatment", "What you do to help someone get better."], ["ちょうしんき", "ちょうしんき", "stethoscope", "A tool to listen to hearts and lungs."], ["元気", "げんき", "healthy", "When a body is well and strong."], ["かいぬし", "かいぬし", "owner", "The person who takes care of a pet."]]},
+{t:"科学者の ことば",e:"Scientist words",w:[["よそう", "よそう", "hypothesis", "A smart guess you can test."], ["じっけん", "じっけん", "experiment", "A test to find out if a guess is right."], ["かんさつ", "かんさつ", "observe", "To watch carefully and notice details."], ["データ", "データ", "data", "Facts and numbers you collect."], ["けっか", "けっか", "result", "What happened at the end of an experiment."], ["ゴーグル", "ゴーグル", "goggles", "Glasses that protect your eyes in the lab."]]},
+{t:"でんきやさんの ことば",e:"Electrician words",w:[["電気", "でんき", "electricity", "Energy that makes lights and machines work."], ["かいろ", "かいろ", "circuit", "A loop that electricity travels around."], ["でんせん", "でんせん", "wire", "A thin metal line that carries electricity."], ["スイッチ", "スイッチ", "switch", "A button that turns electricity on or off."], ["コンセント", "コンセント", "outlet", "The place in the wall where you plug things in."], ["安全", "あんぜん", "safety", "Staying out of danger."]]},
+{t:"大工さんの ことば",e:"Builder words",w:[["図面", "ずめん", "blueprint", "A drawing that shows how to build something."], ["はかる", "はかる", "measure", "To find out exactly how much or how big something is."], ["水平", "すいへい", "level", "When something is flat and even."], ["どだい", "どだい", "foundation", "The strong base under a building."], ["ヘルメット", "ヘルメット", "hard hat", "A strong hat that protects your head."], ["クレーン", "クレーン", "crane", "A tall machine that lifts heavy things."]]},
+{t:"ミュージシャンの ことば",e:"Musician words",w:[["メロディー", "メロディー", "melody", "The tune of a song you can hum."], ["リズム", "リズム", "rhythm", "The pattern of beats in music."], ["れんしゅう", "れんしゅう", "practice", "Doing something again and again to get better."], ["リハーサル", "リハーサル", "rehearsal", "A practice before a show."], ["お客さん", "おきゃくさん", "audience", "The people who watch and listen to a show."], ["テンポ", "テンポ", "tempo", "How fast or slow music goes."]]},
+{t:"動画クリエイターの ことば",e:"Video Creator words",w:[["だいほん", "だいほん", "script", "The written words you plan to say."], ["へんしゅう", "へんしゅう", "edit", "To cut and fix a video so it is clear."], ["サムネイル", "サムネイル", "thumbnail", "The small picture people see before they click a video."], ["かんそう", "かんそう", "feedback", "Comments about what worked and what to improve."], ["ひみつ", "ひみつ", "private", "Information you keep to yourself and trusted adults."], ["お客さん", "おきゃくさん", "audience", "The people who watch and listen to a show."]]},
+{t:"農家の人の ことば",e:"Farmer words",w:[["たね", "たね", "seed", "A tiny part of a plant that grows into a new plant."], ["土", "つち", "soil", "The dirt that plants grow in."], ["作もつ", "さくもつ", "crop", "A plant grown for food."], ["しゅうかく", "しゅうかく", "harvest", "To pick crops when they are ready."], ["きせつ", "きせつ", "season", "A time of year, like spring or fall."], ["トラクター", "トラクター", "tractor", "A strong farm machine that pulls heavy things."]]},
+{t:"図書館の人の ことば",e:"Librarian words",w:[["かりる", "かりる", "borrow", "To take something and give it back later."], ["ものがたり", "ものがたり", "fiction", "Made-up stories from someone\\'s imagination."], ["じつよう書", "じつようしょ", "nonfiction", "Books with true facts about real things."], ["さくしゃ", "さくしゃ", "author", "The person who writes a book."], ["かしだしカード", "かしだしカード", "library card", "A card that lets you borrow books."], ["返す日", "かえすひ", "due date", "The day you need to bring a borrowed book back."]]},
+{t:"パークレンジャーの ことば",e:"Park Ranger words",w:[["野生動物", "やせいどうぶつ", "wildlife", "Wild animals that live in nature."], ["すみか", "すみか", "habitat", "The natural home where an animal lives."], ["山道", "やまみち", "trail", "A path through nature for walking."], ["ごみ", "ごみ", "litter", "Trash left on the ground where it doesn\\'t belong."], ["守る", "まもる", "protect", "To keep something safe from harm."], ["そうがんきょう", "そうがんきょう", "binoculars", "A tool that makes faraway things look close."]]},
+{t:"ゆうびんやさんの ことば",e:"Mail Carrier words",w:[["住所", "じゅうしょ", "address", "The words and numbers that tell where a place is."], ["荷物", "にもつ", "package", "A box sent through the mail."], ["切手", "きって", "stamp", "A small sticker that pays to send mail."], ["とどける", "とどける", "deliver", "To bring something to the right place."], ["コース", "コース", "route", "The path you follow to get somewhere."], ["ふうとう", "ふうとう", "envelope", "A paper cover for a letter."]]},
+{t:"スーパーの店員さんの ことば",e:"Grocer words",w:[["うりば", "うりば", "aisle", "A row in a store with shelves on both sides."], ["ねだん", "ねだん", "price", "How much something costs."], ["品出し", "しなだし", "stock", "To fill the shelves with things to sell."], ["やさい売り場", "やさいうりば", "produce", "Fresh fruits and vegetables."], ["レシート", "レシート", "receipt", "A paper that shows what you bought."], ["お客さん", "おきゃくさん", "customer", "A person who buys things at a store."]]},
+{t:"リサイクルの人の ことば",e:"Recycling Worker words",w:[["リサイクル", "リサイクル", "recycle", "To turn old things into new things."], ["たいひ", "たいひ", "compost", "Food scraps and leaves that turn into rich soil."], ["分ける", "わける", "sort", "To put things into groups."], ["うめ立て", "うめたて", "landfill", "A place where trash is buried."], ["また つかう", "またつかう", "reuse", "To use something again instead of throwing it away."], ["しげん", "しげん", "resources", "Things from nature that we use, like water, wood and metal."]]},
+{t:"はいたつドライバーの ことば",e:"Delivery Driver words",w:[["はいたつ", "はいたつ", "delivery", "Bringing something to the person who needs it."], ["そうこ", "そうこ", "warehouse", "A big building where things are stored before they are sent out."], ["読み取り機", "よみとりき", "scanner", "A tool that reads the barcode on a package."], ["サイン", "サイン", "signature", "Your name written to show you got something."], ["時間通り", "じかんどおり", "on time", "Arriving when you said you would."], ["こわれもの", "こわれもの", "fragile", "Easy to break, so handle it with care."]]},
+{t:"町の ことば",e:"The town and its people",w:[["ちいき", "ちいき", "community", "People who live, work and help each other in one place."], ["住民", "じゅうみん", "citizen", "A member of a town or country."], ["ボランティア", "ボランティア", "volunteer", "Someone who helps others for free."], ["ごきんじょ", "ごきんじょ", "neighbor", "Someone who lives near you."], ["チームワーク", "チームワーク", "teamwork", "Working together to reach a goal."], ["かせぐ", "かせぐ", "earn", "To get money for doing work."], ["ちょきん", "ちょきん", "save", "To keep money to use later."], ["もくひょう", "もくひょう", "goal", "Something you work hard to reach."], ["とくい", "とくい", "skill", "Something you have learned to do well."], ["しごと人生", "しごとじんせい", "career", "The work a person does for many years."], ["めんせつ", "めんせつ", "interview", "A meeting where someone asks questions, like for a job."], ["れんしゅう", "れんしゅう", "practice", "Doing something again and again to get better."], ["町長", "ちょうちょう", "mayor", "The leader of the town"], ["ぎかい", "", "town council", ""], ["とうひょう", "", "vote", ""], ["やりがい", "", "purpose", ""], ["工事", "こうじ", "construction", ""], ["きぎょうか", "", "entrepreneur", "Someone who starts a business"], ["けんちく家", "けんちくか", "architect", ""], ["ぎじゅつ者", "ぎじゅつしゃ", "engineer", ""], ["きねんひ", "", "monument", ""], ["はし", "", "bridge", ""], ["しょうこ", "", "evidence", ""], ["言いつたえ", "いいつたえ", "legend", ""], ["でんぱ", "", "signal", ""], ["野生動物", "やせいどうぶつ", "wildlife", ""], ["すみか", "", "habitat", ""], ["リサイクル", "", "recycle", ""], ["たいひ", "", "compost", ""], ["おうだんほどう", "", "crosswalk", ""]]},
+{t:"とくいな こと",e:"Skills on a job application",w:[["あみもの", "", "Knitting", ""], ["およぐ", "", "Swimming", ""], ["お話を 書く", "", "Writing stories", ""], ["きゅうきゅう手当", "", "First aid", ""], ["しぜんを 知る", "", "Knowing nature", ""], ["しゅうり", "", "Fixing", ""], ["じゅんばんを 守る", "", "Following steps", ""], ["せいりする", "", "Organizing", ""], ["せつめいする", "", "Explaining", ""], ["にわいじり", "", "Gardening", ""], ["はかる", "", "Measuring", ""], ["ものを 作る", "", "Building", ""], ["ものを 売る", "", "Selling", ""], ["もんだいを とく", "", "Problem solving", ""], ["やさいを 育てる", "", "Gardening", ""], ["よく 聞く", "", "Listening", ""], ["よく 見る", "", "Observing", ""], ["りょうり", "", "Cooking", ""], ["りょうりする", "", "Cooking", ""], ["れんしゅう", "", "Practicing", ""], ["エンジンの しゅうり", "", "Fixing engines", ""], ["ジャグリング", "", "Juggling", ""], ["タイピング", "", "Typing", ""], ["ダンス", "", "Dancing", ""], ["チームワーク", "", "Teamwork", ""], ["ネットの 安全", "", "Online safety", ""], ["パンを やく", "", "Baking", ""], ["プログラミング", "", "Coding", ""], ["人と 話す", "", "Talking with people", ""], ["人を 助ける", "", "Helping others", ""], ["住所を 読む", "", "Reading addresses", ""], ["体力", "", "Fitness", ""], ["分けて ならべる", "", "Sorting", ""], ["分ける", "", "Sorting", ""], ["動物の 世話", "", "Caring for animals", ""], ["動画の へんしゅう", "", "Video editing", ""], ["地図を 読む", "", "Map reading", ""], ["安全に 持ち上げる", "", "Lifting safely", ""], ["安全の きまり", "", "Safety rules", ""], ["教える", "", "Teaching", ""], ["文を 書く", "", "Writing", ""], ["木のぼり", "", "Climbing", ""], ["歌う", "", "Singing", ""], ["科学", "", "Science", ""], ["算数", "", "Math", ""], ["絵を かく", "", "Painting", ""], ["計画を たてる", "", "Planning", ""], ["話を 聞く", "", "Listening", ""], ["読む", "", "Reading", ""], ["運転", "", "Driving", ""], ["遠くまで 歩く", "", "Walking far", ""], ["音楽", "", "Music", ""], ["食べ物の 安全", "", "Food safety", ""]]},
+{t:"せいかく",e:"Traits on a job application",w:[["あぶないことが すき", "", "Daring", ""], ["おしゃれずき", "", "Fancy", ""], ["おちついている", "", "Calm", ""], ["おどけもの", "", "Silly", ""], ["きびしい", "", "Strict", ""], ["げいじゅつてき", "", "Artistic", ""], ["しゅう中できる", "", "Focused", ""], ["しんぼう強い", "", "Patient", ""], ["せいりじょうず", "", "Organized", ""], ["せきにん感が ある", "", "Responsible", ""], ["せっかち", "", "Quick", ""], ["そうぞうてき", "", "Creative", ""], ["そっとできる", "", "Gentle", ""], ["たよりに なる", "", "Reliable", ""], ["ていねい", "", "Careful", ""], ["とても しずか", "", "Quiet", ""], ["どうどうとしている", "", "Confident", ""], ["はたらきもの", "", "Hard-working", ""], ["ぼんやりやさん", "", "Dreamy", ""], ["やさしい", "", "Kind", ""], ["ゆうかん", "", "Brave", ""], ["よく 気がつく", "", "Helpful", ""], ["人なつっこい", "", "Friendly", ""], ["力が 強い", "", "Strong", ""], ["声が 大きい", "", "Loud", ""], ["手ばやい", "", "Quick", ""], ["朝が 早い", "", "Early riser", ""], ["正直", "", "Honest", ""], ["知りたがり", "", "Curious", ""]]}];
+
+// ---------- ふりがな: かんじの 上に よみを つける ----------
+// FURI は「ことば → よみ」の ひょう。値が [よみ, もじ数, とばす数] の時は、その ぶんだけ ルビを つけます。
+let FURI_MAX=0;for(const k in FURI){if(k.length>FURI_MAX)FURI_MAX=k.length}
+const HAS_KANJI=/[一-龯々]/,IS_DIGIT=/[0-9０-９]/;
+function rubyFrag(str){
+  const frag=document.createDocumentFragment();let buf='',i=0;
+  const flush=()=>{if(buf){frag.appendChild(document.createTextNode(buf));buf=''}};
+  while(i<str.length){
+    let key=null;
+    for(let L=Math.min(FURI_MAX,str.length-i);L>0;L--){
+      const k=str.substr(i,L);
+      if(FURI[k]!==undefined&&HAS_KANJI.test(k)){key=k;break}
+    }
+    if(key){
+      const v=FURI[key];let read,span,skip;
+      if(Array.isArray(v)){read=v[0];span=v[1];skip=v[2]||0}else{read=v;span=key.length;skip=0}
+      const base=key.substr(skip,span);
+      if(base.length===1&&FURI_N[base]&&IS_DIGIT.test(str[i-1]||''))read=FURI_N[base];
+      buf+=key.slice(0,skip);flush();
+      const r=document.createElement('ruby');r.appendChild(document.createTextNode(base));
+      const rt=document.createElement('rt');rt.textContent=read;r.appendChild(rt);
+      frag.appendChild(r);i+=skip+span;
+    }else{buf+=str[i];i++}
+  }
+  flush();return frag;
+}
+function rubify(root){
+  if(!S.furi||!root||!root.ownerDocument&&root!==document.body)return;
+  const el=root.nodeType===1?root:root.parentNode;if(!el)return;
+  const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT,{acceptNode(n){
+    const p=n.parentNode;if(!p||p.nodeType!==1)return NodeFilter.FILTER_REJECT;
+    const t=p.nodeName;
+    if(t==='RUBY'||t==='RT'||t==='SCRIPT'||t==='STYLE'||t==='CANVAS'||t==='INPUT'||t==='TEXTAREA')return NodeFilter.FILTER_REJECT;
+    if(p.closest&&p.closest('.no-furi'))return NodeFilter.FILTER_REJECT;
+    return HAS_KANJI.test(n.nodeValue)?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT}});
+  const list=[];while(walker.nextNode())list.push(walker.currentNode);
+  list.forEach(n=>{if(n.parentNode)n.parentNode.replaceChild(rubyFrag(n.nodeValue),n)});
+}
+function unruby(root){
+  if(!root||!root.querySelectorAll)return;
+  root.querySelectorAll('ruby').forEach(r=>{const rt=r.querySelector('rt');if(rt)rt.remove();
+    r.parentNode&&r.parentNode.replaceChild(document.createTextNode(r.textContent),r)});
+  if(root.normalize)root.normalize();
+}
+let furiBusy=false,furiMO=null;
+function startFuri(){
+  if(furiMO)return;
+  furiMO=new MutationObserver(recs=>{
+    if(!S.furi||furiBusy)return;furiBusy=true;
+    const seen=new Set();
+    for(const r of recs){const t=r.type==='characterData'?r.target.parentNode:r.target;
+      if(t&&t.nodeType===1&&!seen.has(t)){seen.add(t);rubify(t)}}
+    furiMO.takeRecords();furiBusy=false});
+  furiMO.observe(document.body,{childList:true,subtree:true,characterData:true});
+}
+function syncFuri(){
+  const b=$('#furiBtn');if(b){b.setAttribute('aria-pressed',S.furi);b.textContent=S.furi?'ふりがな: オン':'ふりがな: オフ'}
+  furiBusy=true;
+  if(S.furi){startFuri();rubify(document.body);if(furiMO)furiMO.takeRecords()}
+  else{if(furiMO){furiMO.disconnect();furiMO=null}unruby(document.body)}
+  furiBusy=false;
+}
+$('#furiBtn').onclick=()=>{S.furi=!S.furi;save();syncFuri();toast(S.furi?'ふりがなを つけました。':'ふりがなを けしました。')};
+
+// ---------- ことば辞典 (Japanese → English) ----------
+function dictScreen(q){
+  q=(q||'').trim().toLowerCase();
+  openScene();$('#steps').innerHTML='';$('#jobTag').textContent='ことば辞典';$('.card').style.setProperty('--jobc','#1f4fa3');
+  const hit=r=>!q||(r[0]+' '+r[1]+' '+r[2]+' '+r[3]).toLowerCase().indexOf(q)>=0;
+  let shown=0,total=0;
+  const secs=DICT.map(s=>{total+=s.w.length;const rows=s.w.filter(hit);shown+=rows.length;
+    if(!rows.length)return '';
+    return `<h3 class="dsec">${s.t} <span>${s.e}</span></h3><div class="dict">${rows.map(r=>
+      `<button class="drow" data-s="${esc(r[0])}"><span class="dja">${esc(r[0])}${(!S.furi&&r[1]&&r[1]!==r[0])?`<small>${esc(r[1])}</small>`:''}</span><span class="den"><b>${esc(r[2])}</b>${r[3]?`<small>${esc(r[3])}</small>`:''}</span></button>`).join('')}</div>`}).join('');
+  body.innerHTML=`<h2>ことば辞典 <span class="den2">Japanese → English</span></h2>
+    <p class="lead">ゲームに 出てくる ことばを ぜんぶ あつめました。カードを タップすると 声で 読みます。</p>
+    <div class="row"><input id="dq" class="sel" placeholder="さがす / search" value="${esc(q)}" autocomplete="off"><span class="meter">${shown} / ${total}</span></div>
+    ${secs||'<div class="note soft">見つかりませんでした。 Nothing found.</div>'}
+    <div class="row"><button class="btn" id="nx">町に もどる</button></div>`;
+  const inp=$('#dq');
+  inp.oninput=()=>{const v=inp.value;clearTimeout(inp._t);inp._t=setTimeout(()=>{dictScreen(v);
+    const i2=$('#dq');if(i2){i2.focus();try{i2.setSelectionRange(v.length,v.length)}catch(e){}}},250)};
+  body.querySelectorAll('.drow').forEach(b=>b.onclick=()=>say(b.dataset.s));
+  $('#nx').onclick=closeScene;
+}
+$('#dictBtn').onclick=()=>dictScreen('');
+
 // ---------- full screen ----------
 const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
 function goFull(){const el=document.documentElement,req=el.requestFullscreen||el.webkitRequestFullscreen;if(!req||fsEl())return;
@@ -2956,7 +3090,7 @@ $('#mapBtn').onclick=()=>{
   body.querySelectorAll('[data-go]').forEach(t=>t.onclick=()=>goTo(t.dataset.go));
 };
 addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#scene').hidden)closeScene()});
-function boot(){if(!start3D())start2D();if(!S.look)openBuilder();else setTimeout(()=>toast(`おかえり${S.name?'、'+S.name+'さん':''}！ どれかの ドアまで 歩くと しごとが たいけんできます。${W3D.on?' ロボットの ゼロが 町の どこかに かくれて いるよ！':''}`),400)}
+function boot(){if(!start3D())start2D();syncFuri();if(!S.look)openBuilder();else setTimeout(()=>toast(`おかえり${S.name?'、'+S.name+'さん':''}！ どれかの ドアまで 歩くと しごとが たいけんできます。${W3D.on?' ロボットの ゼロが 町の どこかに かくれて いるよ！':''}`),400)}
 // load one consistent icon set (Noto) for every emoji the game draws, before the 3D textures are painted
 const EMOJI=(()=>{try{return [...new Set([...document.scripts].map(x=>x.textContent).join('').match(/\p{Extended_Pictographic}/gu)||[])].join('')}catch(e){return ''}})();
 Promise.race([Promise.all([document.fonts?document.fonts.ready:0,document.fonts&&EMOJI?document.fonts.load('48px "Noto Color Emoji"',EMOJI):0,document.fonts?document.fonts.load('700 48px "Zen Maru Gothic"','あア亜町先生'):0]).catch(()=>{}),new Promise(r=>setTimeout(r,3500))]).then(boot);
