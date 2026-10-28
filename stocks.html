@@ -1,0 +1,1071 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ticker Town</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a game board — scoreboard header, stock rack | chart floor | order desk, with a fixed control bar at the bottom */
+:root{
+  --bg:#e9edf4; --panel:#ffffff; --panel-2:#f4f6fa; --ink:#14203a; --muted:#5a6683; --line:#d4dbe7;
+  --accent:#ec6418; --accent-ink:#ffffff; --accent-soft:#fde3d3;
+  --up:#118a57; --down:#cf3434; --up-soft:#dcf2e7; --down-soft:#fbe1e1;
+  --ma1:#2d6ae0; --ma2:#a43fd0; --chip:#e1e6f0;
+  --f-display:'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --f-body:'Figtree', 'Segoe UI', system-ui, sans-serif;
+  --f-mono:'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0d1322; --panel:#151e33; --panel-2:#1a2540; --ink:#e8edf7; --muted:#97a3c0; --line:#283453;
+  --accent:#ff8a3d; --accent-ink:#1d0c02; --accent-soft:#3d2414;
+  --up:#3ccb8f; --down:#ff6f6f; --up-soft:#173a2e; --down-soft:#3f1d24;
+  --ma1:#76a7ff; --ma2:#d790f2; --chip:#212c47; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0d1322; --panel:#151e33; --panel-2:#1a2540; --ink:#e8edf7; --muted:#97a3c0; --line:#283453;
+  --accent:#ff8a3d; --accent-ink:#1d0c02; --accent-soft:#3d2414;
+  --up:#3ccb8f; --down:#ff6f6f; --up-soft:#173a2e; --down-soft:#3f1d24;
+  --ma1:#76a7ff; --ma2:#d790f2; --chip:#212c47; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+html,body{margin:0}
+img{max-width:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  padding-block:14px 104px}
+.wrap{max-width:1380px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,[data-t]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)}
+.label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* Header / scoreboard */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;justify-content:space-between}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand h1{font-size:30px;font-weight:800}
+.brand h1 span{color:var(--accent)}
+.brand p{margin:0;color:var(--muted);font-size:14px}
+.board{display:grid;grid-template-columns:repeat(6,auto);gap:4px 22px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.board .stat{display:flex;flex-direction:column;min-width:0}
+.board .val{font-family:var(--f-mono);font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.board .big{font-size:22px}
+@media (max-width:900px){.board{grid-template-columns:repeat(3,minmax(0,1fr));width:100%}}
+.daybar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.progress{flex:1;min-width:140px;height:6px;border-radius:3px;background:var(--chip);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.regime{font-weight:700;font-size:13px;padding:3px 10px;border-radius:99px;cursor:pointer;border:0}
+.regime.bull{background:var(--up-soft);color:var(--up)} .regime.bear{background:var(--down-soft);color:var(--down)} .regime.flat{background:var(--chip);color:var(--muted)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{background:none;border:0;padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+
+/* Trade grid */
+.trade{display:grid;grid-template-columns:270px minmax(0,1fr) 340px;gap:14px;align-items:start}
+@media (max-width:1180px){.trade{grid-template-columns:250px minmax(0,1fr)} .desk{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}}
+@media (max-width:760px){.trade{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px;min-width:0}
+.panel h3{font-size:17px;margin-bottom:8px}
+.desk{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+.rack{display:flex;flex-direction:column;gap:6px}
+@media (max-width:760px){.rack{flex-direction:row;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}.rack .stk{min-width:190px;scroll-snap-align:start}}
+.stk{display:grid;grid-template-columns:1fr auto;gap:2px 8px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px}
+.stk:hover{border-color:var(--muted)}
+.stk.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.stk .sym{font-family:var(--f-mono);font-weight:600;font-size:14px}
+.stk .sect{font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+.stk .nm{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.stk .px{font-family:var(--f-mono);font-size:14px;font-variant-numeric:tabular-nums}
+.stk .chg{font-family:var(--f-mono);font-size:12.5px;text-align:right}
+.stk svg{width:100%;height:24px;display:block}
+.tr{font-size:11.5px;font-weight:700;padding:1px 7px;border-radius:99px;justify-self:end;align-self:center;white-space:nowrap}
+.tr.up{background:var(--up-soft)} .tr.down{background:var(--down-soft)} .tr.side{background:var(--chip);color:var(--muted)}
+.own{font-size:11px;font-weight:700;color:var(--accent)}
+
+/* Chart floor */
+.floor{display:flex;flex-direction:column;gap:12px}
+.shead{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:flex-end;justify-content:space-between}
+.shead h2{font-size:26px;font-weight:800}
+.shead .sub{color:var(--muted);font-size:14px}
+.bigpx{font-family:var(--f-mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.traits{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.traits li{font-size:12.5px;background:var(--panel-2);border:1px solid var(--line);padding:3px 9px;border-radius:99px}
+.chartbar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;font-size:12.5px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:var(--panel);border:0;padding:4px 10px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.chartbox{position:relative;height:340px}
+@media (max-width:760px){.chartbox{height:270px}}
+#chart{display:block;touch-action:pan-y}
+#readout{position:absolute;left:8px;top:6px;font-family:var(--f-mono);font-size:11.5px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 7px;pointer-events:none;white-space:nowrap}
+.coach{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.coach .verdict{font-family:var(--f-display);font-weight:700;font-size:18px}
+.coach p{margin:0;font-size:14px;max-width:72ch}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.fact{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+.fact .v{font-family:var(--f-mono);font-size:14px;font-weight:600}
+
+/* Terms */
+[data-t]{border-bottom:1.5px dotted var(--accent);cursor:help;font-weight:inherit}
+[data-t]:hover{color:var(--accent)}
+
+/* Order desk */
+.ticket{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:3px;flex:1;min-width:80px}
+.field label{font-size:12px;color:var(--muted);font-weight:600}
+input[type=number]{width:100%;font:inherit;font-family:var(--f-mono);padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink)}
+.chips{display:flex;gap:5px;flex-wrap:wrap}
+.chipbtn{background:var(--chip);border:0;border-radius:6px;padding:4px 9px;font-size:12px;font-weight:600}
+.btn{border:0;border-radius:8px;padding:10px 14px;font-weight:700;font-size:15px}
+.btn.buy{background:var(--up);color:var(--panel);flex:1}
+.btn.sell{background:var(--down);color:var(--panel);flex:1}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+.auto{border:1px dashed var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.check{display:flex;gap:7px;align-items:center;font-size:13.5px;font-weight:600}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+.preview{font-size:13px;background:var(--panel-2);border-radius:6px;padding:7px 9px}
+
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:right;padding:4px 6px;font-weight:600;border-bottom:1px solid var(--line)}
+td{padding:6px;text-align:right;border-bottom:1px solid var(--line);font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td button{font-size:11.5px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);font-family:var(--f-body);font-weight:600}
+.empty{font-size:13.5px;color:var(--muted);padding:6px 0}
+
+.calls{display:flex;gap:8px}
+.calls .btn{flex:1;font-size:13.5px;padding:8px}
+.callup{background:var(--up-soft);color:var(--up)} .calldown{background:var(--down-soft);color:var(--down)}
+.calllist{display:flex;flex-direction:column;gap:4px;font-size:13px}
+
+.feed{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;padding-right:4px}
+.item{display:grid;grid-template-columns:auto 1fr;gap:2px 9px;font-size:13.5px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.item .d{font-family:var(--f-mono);font-size:11px;color:var(--muted);padding-top:2px}
+.item .h{font-weight:600}
+.item .w{grid-column:2;font-size:12.5px;color:var(--muted)}
+.tag{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:1px 6px;border-radius:4px;margin-right:6px;vertical-align:1px;background:var(--chip);color:var(--muted)}
+.tag.trade,.tag.auto{background:var(--accent-soft);color:var(--accent)}
+.tag.pattern{background:var(--chip);color:var(--ma2)}
+.rackcol{display:flex;flex-direction:column;gap:8px;min-width:0}
+.scan{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 11px;display:flex;flex-direction:column;gap:7px}
+.scan .seg{display:flex}.scan .seg button{flex:1;padding:4px 4px;font-size:12px}
+.breadth{display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--chip)}
+.breadth i{display:block;height:100%}
+.pats{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin:6px 0 10px}
+.pat{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel-2);display:flex;flex-direction:column;gap:4px;min-width:0}
+.pat svg{width:100%;height:64px;display:block}
+.pat b{font-family:var(--f-display);font-size:15px}
+.pat span{font-size:12.5px;color:var(--muted)}
+.tag.good{background:var(--up-soft);color:var(--up)} .tag.bad{background:var(--down-soft);color:var(--down)}
+
+/* Control bar */
+.controls{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--panel);border-top:1px solid var(--line);
+  padding:10px max(16px, env(safe-area-inset-right, 0px)) calc(10px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px))}
+.controls .in{max-width:1380px;margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.controls .msg{flex:1;min-width:0;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:560px){.controls .msg{display:none}.controls .in{justify-content:space-between}}
+
+/* Guide & glossary */
+.doc{display:grid;grid-template-columns:220px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.doc{grid-template-columns:minmax(0,1fr)}.toc{display:none}}
+.toc{position:sticky;top:12px;display:flex;flex-direction:column;gap:2px;font-size:14px}
+.toc a{color:var(--muted);text-decoration:none;padding:4px 8px;border-radius:6px}
+.toc a:hover{background:var(--chip);color:var(--ink)}
+.chapters{display:flex;flex-direction:column;gap:14px}
+.chapter{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px}
+.chapter h2{font-size:22px;margin-bottom:10px;display:flex;gap:10px;align-items:baseline}
+.chapter h2 .n{font-family:var(--f-mono);font-size:13px;color:var(--accent)}
+.chapter p,.chapter li{max-width:68ch}
+.chapter p{margin:0 0 10px}
+.chapter ul,.chapter ol{margin:0 0 10px;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.callout{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;margin:8px 0 10px}
+.figure{overflow-x:auto;margin:6px 0 12px}
+.figure svg{display:block;max-width:100%;height:auto}
+.terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.term{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.term h3{font-size:16px;margin-bottom:4px}
+.term p{margin:0;font-size:14px}
+.term .ex{color:var(--muted);font-size:13px;margin-top:5px}
+.search{width:100%;max-width:380px;font:inherit;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+
+/* Popover, toast, modal */
+#pop{position:fixed;z-index:40;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom, 0px));width:min(440px, calc(100% - 32px));background:var(--ink);color:var(--bg);border-radius:12px;padding:14px 16px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+#pop h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+#pop p{margin:0;font-size:14px}
+#pop .x{position:absolute;right:8px;top:6px;background:none;border:0;color:var(--bg);font-size:20px;line-height:1;padding:4px}
+#toast{position:fixed;z-index:41;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top, 0px));background:var(--accent);color:var(--accent-ink);font-weight:700;padding:9px 16px;border-radius:99px;font-size:14px;max-width:calc(100% - 32px);text-align:center}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(8,12,24,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal .card{background:var(--panel);color:var(--ink);border-radius:14px;padding:22px;max-width:520px;width:100%;max-height:90vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+.modal h2{font-size:28px}
+.grade{font-family:var(--f-display);font-weight:800;font-size:64px;line-height:1;color:var(--accent)}
+.results{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Ticker<span>Town</span></h1>
+      <p>A practice stock market. Fake money, real lessons.</p>
+    </div>
+    <div class="board" id="board"></div>
+  </header>
+  <div class="daybar">
+    <span class="label" id="dayLabel">Day 1 of 120</span>
+    <div class="progress"><i id="prog"></i></div>
+    <button class="regime" id="regime" data-t-regime></button>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tb-trade" aria-selected="true" data-tab="trade">Trading floor</button>
+    <button role="tab" id="tb-guide" aria-selected="false" data-tab="guide">Trend study guide</button>
+    <button role="tab" id="tb-terms" aria-selected="false" data-tab="terms">Glossary</button>
+  </nav>
+
+  <!-- TRADE -->
+  <section id="tab-trade" class="trade">
+    <div class="rackcol"><div class="scan" id="scan"></div><div class="rack" id="rack"></div></div>
+
+    <div class="floor">
+      <div class="panel floor">
+        <div class="shead">
+          <div>
+            <h2 id="sName"></h2>
+            <div class="sub" id="sSub"></div>
+          </div>
+          <div>
+            <div class="bigpx" id="sPx"></div>
+            <div class="mono" style="text-align:right" id="sChg"></div>
+          </div>
+        </div>
+        <ul class="traits" id="sTraits"></ul>
+        <div class="chartbar">
+          <div class="legend">
+            <span><i style="background:var(--ma1)"></i><span data-t="ma">MA5</span> fast average</span>
+            <span><i style="background:var(--ma2)"></i><span data-t="ma">MA20</span> slow average</span>
+            <span><i style="background:var(--muted);height:0;border-top:2px dashed var(--muted)"></i><span data-t="support">Support</span> / <span data-t="resistance">resistance</span></span>
+            <span><span data-t="candle">Candles</span> + <span data-t="volume">volume</span></span>
+          </div>
+          <div class="seg" id="range">
+            <button data-r="30">30d</button><button data-r="60" class="on">60d</button><button data-r="120">120d</button>
+          </div>
+        </div>
+        <div class="chartbox"><canvas id="chart" aria-label="Price chart"></canvas><div id="readout" hidden></div></div>
+      </div>
+
+      <div class="coach" id="coach"></div>
+    </div>
+
+    <aside class="desk">
+      <div class="panel ticket">
+        <h3>Order ticket</h3>
+        <div class="row" style="justify-content:space-between">
+          <span><span class="mono" id="tSym"></span> at <span class="mono" id="tPx"></span></span>
+          <span class="note" id="tOwn"></span>
+        </div>
+        <div class="field">
+          <label for="qty">Shares</label>
+          <input type="number" id="qty" min="1" step="1" value="10">
+        </div>
+        <div class="chips">
+          <button class="chipbtn" data-frac=".1">10% of cash</button>
+          <button class="chipbtn" data-frac=".2">20%</button>
+          <button class="chipbtn" data-frac="1">All cash</button>
+          <button class="chipbtn" data-frac="own">All I own</button>
+        </div>
+        <p class="note" id="tCost"></p>
+        <div class="row">
+          <button class="btn buy" id="buyBtn">Buy</button>
+          <button class="btn sell" id="sellBtn">Sell</button>
+        </div>
+        <div class="auto">
+          <label class="check"><input type="checkbox" id="autoOn" checked> Add <span data-t="autosell">auto-sell points</span> when I buy</label>
+          <div class="row">
+            <div class="field"><label for="stopPct"><span data-t="stoploss">Stop-loss</span> % below</label><input type="number" id="stopPct" value="8" min="0" max="90" step="1"></div>
+            <div class="field"><label for="takePct"><span data-t="takeprofit">Take-profit</span> % above</label><input type="number" id="takePct" value="16" min="0" max="500" step="1"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="trailOn"> Make the stop <span data-t="trailing">trailing</span></label>
+          <div class="preview" id="autoPrev"></div>
+          <button class="btn ghost" id="updAuto" hidden>Set these points on my shares</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Call the trend</h3>
+        <p class="note" style="margin-bottom:8px">Guess where <span id="cSym" class="mono"></span> closes in 5 days. No money at stake, just practice reading charts.</p>
+        <div class="calls">
+          <button class="btn callup" id="callUp">Higher in 5 days</button>
+          <button class="btn calldown" id="callDown">Lower in 5 days</button>
+        </div>
+        <div class="calllist" id="callList" style="margin-top:8px"></div>
+      </div>
+
+      <div class="panel">
+        <h3>My positions</h3>
+        <div class="tablewrap" id="positions"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Market news</h3>
+        <div class="feed" id="feed"></div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- GUIDE -->
+  <section id="tab-guide" class="doc" hidden>
+    <nav class="toc" id="toc"></nav>
+    <div class="chapters" id="chapters"></div>
+  </section>
+
+  <!-- GLOSSARY -->
+  <section id="tab-terms" hidden style="display:flex;flex-direction:column;gap:12px">
+    <input class="search" id="tq" type="search" placeholder="Search terms, like “stop” or “trend”">
+    <div class="terms" id="termGrid"></div>
+  </section>
+</div>
+
+<div class="controls">
+  <div class="in">
+    <button class="btn primary" id="nextBtn">Next day</button>
+    <button class="btn ghost" id="playBtn">Auto-play</button>
+    <div class="seg" id="speed"><button data-s="1100" class="on">1×</button><button data-s="500">2×</button><button data-s="220">4×</button></div>
+    <div class="msg" id="msg"></div>
+    <button class="btn ghost" id="newBtn">New game</button>
+  </div>
+</div>
+
+<div id="pop" hidden><button class="x" aria-label="Close">×</button><h4></h4><p></p></div>
+<div id="toast" hidden></div>
+<div class="modal" id="modal" hidden><div class="card" id="modalCard"></div></div>
+
+<script>
+(()=>{
+const START_CASH=10000, GAME_DAYS=120, HIST=60, KEY='tickertown-v1';
+let S, playTimer=null, speed=1100, hoverI=null;
+const $=s=>document.querySelector(s);
+
+/* ---------- random ---------- */
+function rng(){let t=S.seed=(S.seed+0x6D2B79F5)>>>0;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}
+function gauss(){let u=0;while(!u)u=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*rng())}
+const rand=(a,b)=>a+rng()*(b-a), randi=(a,b)=>Math.floor(rand(a,b+1)), pick=a=>a[Math.floor(rng()*a.length)];
+const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+
+/* ---------- companies ---------- */
+const DEFS=[
+ {sym:'WHLM',name:'Whole Market Index Fund',sector:'Index fund',p:100,vol:.004,beta:1,drift:0,div:0,bv:9e6,etf:1,
+  about:'Owns a small slice of every company on this board, so it moves with the whole market. Buying it and holding is the benchmark to beat.',
+  traits:['Smooth ride','Follows the whole market','No single-company surprises']},
+ {sym:'SHLD',name:'Bear Shield Inverse Fund',sector:'Inverse fund',p:50,vol:.004,beta:-1,drift:0,div:0,bv:4e6,etf:1,inv:1,
+  about:'Built to move the opposite way of the whole market each day. When the market falls 1%, it rises about 1%. A simple way to profit from a falling market without short selling.',
+  traits:['Bet on falling prices','Rises when the market drops','Loses in bull markets','Slowly leaks value if held long']},
+ {sym:'NMBS',name:'Nimbus Cloud',sector:'Big Tech',p:185,vol:.019,beta:1.3,drift:.0005,div:0,bv:3.2e6,
+  about:'A large cloud software company. Investors pay up for future growth, so it swings harder than the market in both directions.',
+  traits:['Growth stock','Rises fastest in bull markets','Drops when interest rates rise','Big earnings-day moves']},
+ {sym:'BLPW',name:'Brightline Power',sector:'Utility',p:48,vol:.008,beta:.4,drift:.0002,div:.009,bv:1.4e6,
+  about:'Sells electricity to homes. Demand barely changes, so the stock moves slowly and pays you a regular dividend.',
+  traits:['Defensive','Slow and steady','Pays dividends every 30 days','Dislikes rising rates']},
+ {sym:'PNTY',name:'Pantry Foods',sector:'Consumer Staples',p:72,vol:.009,beta:.5,drift:.0002,div:.006,bv:1.8e6,
+  about:'Makes cereal, soup and snacks. People buy groceries in good times and bad, so it holds up well when the market falls.',
+  traits:['Defensive','Holds up in bear markets','Small dividend','Low excitement']},
+ {sym:'RDGL',name:'Ridgeline Oil',sector:'Energy',p:64,vol:.017,beta:.8,drift:0,div:.004,bv:2.4e6,
+  about:'Drills and sells oil. Its price follows crude oil, which jumps on supply news and slumps when there is too much oil.',
+  traits:['Cyclical','Follows oil prices','Sharp moves on supply news']},
+ {sym:'HRBR',name:'Harbor Bank',sector:'Financials',p:41,vol:.014,beta:1.15,drift:.0001,div:.003,bv:2.9e6,
+  about:'A big lender. Banks earn more when interest rates rise, but suffer when people fear a recession and stop borrowing.',
+  traits:['Cyclical','Likes higher interest rates','Hurt by recession fears']},
+ {sym:'CRTW',name:'Cartwheel Stores',sector:'Retail',p:35,vol:.016,beta:1.05,drift:0,div:0,bv:2.1e6,season:1,
+  about:'A chain of department stores. Sales depend on how confident shoppers feel, and the holiday season (days 70 to 95) matters most.',
+  traits:['Seasonal','Holiday boost around day 70','Hurt by high fuel prices']},
+ {sym:'HLXB',name:'Helix Biotherapeutics',sector:'Biotech',p:22,vol:.024,beta:.85,drift:-.0004,div:0,bv:1.6e6,binary:1,
+  about:'A small drug developer with one big drug in trials. It drifts for weeks, then one trial result can move it 30% or more in a day.',
+  traits:['High risk','Huge jumps on trial news','Can gap past a stop-loss']},
+ {sym:'RKTP',name:'Rocket Pets',sector:'Meme stock',p:4.2,vol:.048,beta:1.6,drift:-.0018,div:0,bv:8e6,meme:1,
+  about:'An online pet shop that loses money. Its price is driven by social-media hype: sudden spikes, then long slow fades.',
+  traits:['Very high risk','Hype spikes then fades','Many latecomers lose money']},
+];
+const D=Object.fromEntries(DEFS.map(d=>[d.sym,d]));
+
+const MACRO=[
+ {h:'Central bank raises interest rates',why:'Borrowing gets pricier. Banks earn more on loans, while growth stocks and utilities usually fall.',m:-.008,fx:{HRBR:.03,NMBS:-.04,BLPW:-.025,CRTW:-.015,RKTP:-.06}},
+ {h:'Central bank cuts interest rates',why:'Cheaper borrowing tends to lift growth stocks and utilities. Banks earn a bit less.',m:.01,fx:{NMBS:.04,BLPW:.02,HRBR:-.015,CRTW:.02,RKTP:.07}},
+ {h:'Pipeline outage sends oil prices soaring',why:'Less oil supply means higher prices. Energy companies earn more; stores pay more for shipping.',m:-.003,fx:{RDGL:.07,CRTW:-.025}},
+ {h:'Oil glut: crude prices tumble',why:'Too much oil pushes prices down, which squeezes energy company profits.',m:0,fx:{RDGL:-.07,CRTW:.015}},
+ {h:'Recession fears grow after weak factory data',why:'When people expect a slowdown, cyclical stocks fall most. Defensive stocks like food and utilities hold up.',m:-.022,fx:{HRBR:-.03,CRTW:-.03,RDGL:-.025,PNTY:.012,BLPW:.012},regime:'bear'},
+ {h:'Jobs report beats expectations',why:'More people working means more spending. Banks and stores tend to benefit.',m:.013,fx:{HRBR:.02,CRTW:.02},regime:'bull'},
+ {h:'Inflation runs hotter than expected',why:'Investors now expect higher interest rates, which hurts growth stocks most.',m:-.012,fx:{NMBS:-.03,BLPW:-.012,RDGL:.015}},
+ {h:'Consumer confidence hits a two-year high',why:'Confident shoppers spend more, which helps retailers.',m:.006,fx:{CRTW:.035}},
+ {h:'Tech conference wows investors with new AI products',why:'Excitement about future sales lifts tech stocks, often more than the actual news deserves.',m:.004,fx:{NMBS:.05,RKTP:.05}},
+];
+MACRO.push(
+ {h:'Stock market plunges as panic selling spreads',why:'In a crash almost everything falls together and stop-losses can gap. Only the inverse fund rises. Crashes often bounce, then fall again.',m:-.045,fx:{},regime:'bear',crash:1,rare:1},
+ {h:'Market enters a correction as investors turn cautious',why:'A correction is a slide of about 10% over a few weeks. Prices will drift lower for a while, even for good companies.',m:-.01,fx:{},shock:{dr:-.0045,a:8,b:14,end:{tag:'info',h:'The market correction appears to be over',why:'Selling pressure has faded. Watch for golden crosses to confirm new uptrends.'}}},
+ {h:'Relief rally: buyers return after weeks of worry',why:'After a scare, prices can rise quickly for days as sellers run out. Not every relief rally lasts.',m:.01,fx:{},shock:{dr:.004,a:6,b:10,end:{tag:'info',h:'The relief rally is losing steam',why:'Rallies driven by relief often slow down once the worry is gone.'}}},
+ {h:'Tech sell-off: investors dump growth stocks',why:'When investors get nervous they sell the most expensive stocks first. This is called sector rotation.',m:-.006,fx:{NMBS:-.05,RKTP:-.07,BLPW:.01,PNTY:.01},pats:{NMBS:'selloff',RKTP:'selloff'}},
+ {h:'Shoppers cut back as prices climb',why:'Weaker spending can start a long slide for retailers.',m:-.005,fx:{CRTW:-.04},pats:{CRTW:'bleed'}},
+ {h:'Bank stocks slide on bad-loan worries',why:'If borrowers can’t repay, banks lose money. Bank stocks can trend down for weeks on this fear.',m:-.006,fx:{HRBR:-.05},pats:{HRBR:'down'}},
+ {h:'Investors rotate into safe stocks',why:'Money moves out of risky stocks and into utilities and food companies. Defensive stocks rise while growth stocks drift down.',m:-.004,fx:{BLPW:.02,PNTY:.02,NMBS:-.02},pats:{BLPW:'up',PNTY:'up',NMBS:'down'}}
+);
+const REG={bull:{dr:.0011,v:.008,name:'Bull market'},bear:{dr:-.0019,v:.012,name:'Bear market'},flat:{dr:-.0002,v:.006,name:'Sideways market'}};
+
+/* Trend patterns: each segment is [strength, minDays, maxDays]. Weights depend on market mood. */
+const PATS={
+ up:{name:'Steady uptrend',seg:[[1,18,32]],w:{bull:4,flat:1.5,bear:.6},dir:1,recap:'Higher highs and higher lows, with MA5 above a rising MA20. Riding it with a trailing stop is the classic play.'},
+ down:{name:'Steady downtrend',seg:[[-1,18,32]],w:{bull:.8,flat:1.6,bear:3.5},dir:-1,recap:'Lower highs and lower lows, with MA5 below a falling MA20. Holders without a stop-loss lost the most.'},
+ range:{name:'Sideways range',seg:[[0,12,28]],w:{bull:1.5,flat:3.5,bear:1.5},dir:0,norecap:1,recap:'Price bounces between support and resistance with no clear direction. Patience pays until it breaks out or breaks down.'},
+ rally:{name:'Strong rally',seg:[[2.2,7,12]],w:{bull:1.5,flat:.8,bear:.4},dir:1,recap:'A fast, steep climb, usually on heavy volume. Rallies this steep often pause or pull back afterward.'},
+ selloff:{name:'Sell-off',seg:[[-3,5,9]],w:{bull:.5,flat:.9,bear:2},dir:-1,recap:'A sharp drop over a few days with heavy volume. Buying during a sell-off is catching a falling knife.'},
+ bleed:{name:'Slow bleed',seg:[[-.6,28,42]],w:{bull:.8,flat:1.5,bear:2},dir:-1,recap:'A gentle decline that is easy to ignore. Small daily losses add up; a stop-loss catches it for you.'},
+ bubble:{name:'Bubble and pop',seg:[[2,10,15],[-3,6,10]],w:{bull:.8,flat:.4,bear:.2},dir:0,recap:'Prices raced up on excitement, then collapsed. The late buyers took the biggest losses.'},
+ deadcat:{name:'Dead cat bounce',seg:[[-2.6,5,8],[1.4,3,5],[-2,6,10]],w:{bull:.3,flat:.8,bear:1.8},dir:-1,recap:'A drop, a short bounce that looked like a recovery, then another drop. The bounce fooled dip buyers.'},
+ vshape:{name:'V-shaped recovery',seg:[[-2.6,5,8],[2.4,6,9]],w:{bull:1,flat:.8,bear:.6},dir:0,recap:'A sharp drop followed by an equally sharp rebound. Panic sellers at the bottom missed the recovery.'},
+ breakdown:{name:'Breakdown',seg:[[0,10,15],[-2.6,5,8]],w:{bull:.5,flat:1.2,bear:1.6},dir:-1,recap:'Price went sideways, then broke below support and fell. Support breaking is a classic exit signal.'},
+ breakout:{name:'Breakout',seg:[[0,10,15],[2.4,5,8]],w:{bull:1.6,flat:1.2,bear:.4},dir:1,recap:'Price went sideways, then broke above resistance and climbed. Breakouts on heavy volume are the ones to trust.'},
+ staircase:{name:'Staircase down',seg:[[-1.8,4,6],[1,3,4],[-1.8,4,6],[1,3,4],[-1.8,4,6]],w:{bull:.3,flat:.8,bear:1.6},dir:-1,recap:'Down, small bounce, down again, with each bounce peaking lower. Lower highs are a downtrend’s fingerprint.'},
+ fade:{name:'Hype fade',seg:[[-1.5,12,22]],dir:-1,recap:'After a hype spike, the price drifted lower day after day as buyers lost interest.'},
+ pedUp:{name:'Post-earnings drift up',seg:[[1.1,5,12]],dir:1,norecap:1},
+ pedDown:{name:'Post-earnings drift down',seg:[[-1.3,6,14]],dir:-1,norecap:1},
+};
+const CO_NEWS={
+ NMBS:[{h:'Nimbus Cloud loses a major customer to a rival',fx:-.06,pat:'deadcat'},{h:'Regulators open an antitrust probe into Nimbus Cloud',fx:-.04,pat:'bleed'},{h:'Nimbus Cloud lands a huge government contract',fx:.05,pat:'rally'}],
+ BLPW:[{h:'Brightline Power cuts its dividend',fx:-.07,pat:'bleed',why:'Dividend cuts hit defensive stocks hard, because the steady payout is the main reason people own them.'},{h:'Storm damage forces costly grid repairs',fx:-.03,pat:'down'},{h:'Regulators approve higher electricity rates',fx:.025,pat:'up'}],
+ PNTY:[{h:'Pantry Foods recalls a cereal line',fx:-.05,pat:'vshape',why:'Recalls are scary headlines, but for a big food company they are often a short-term hit. Watch whether it recovers.'},{h:'Ingredient costs surge, squeezing Pantry’s profits',fx:-.03,pat:'bleed'},{h:'Pantry Foods launches a hit snack',fx:.03,pat:'up'}],
+ RDGL:[{h:'Oil price war breaks out between producers',fx:-.08,pat:'selloff'},{h:'Ridgeline discovers a large new oil field',fx:.06,pat:'rally'}],
+ HRBR:[{h:'Harbor Bank sets aside cash for bad loans',fx:-.05,pat:'down'},{h:'Rumors of a bank run spread online',fx:-.09,pat:'deadcat',why:'Fear spreads fast with banks. Watch for a bounce that fails: a dead cat bounce.'},{h:'Harbor Bank raises its dividend',fx:.03,pat:'up'}],
+ CRTW:[{h:'Cartwheel warns of weak sales ahead',fx:-.08,pat:'bleed'},{h:'Cartwheel announces 60 store closures',fx:-.04,pat:'staircase'},{h:'Cartwheel’s online sales double',fx:.06,pat:'breakout'}],
+ HLXB:[{h:'Helix sells new shares to raise cash',fx:-.12,pat:'bleed',why:'Selling new shares is called dilution: each existing share now owns a smaller slice of the company.'},{h:'Helix delays its trial results by months',fx:-.08,pat:'staircase'}],
+ RKTP:[{h:'Rocket Pets reports another big quarterly loss',fx:-.1,pat:'selloff'},{h:'Rocket Pets warns it may run out of cash',fx:-.15,pat:'staircase'}],
+};
+
+/* ---------- glossary ---------- */
+const T={
+ stock:['Stock','A small piece of ownership in a company. If the company becomes more valuable, so does your piece.','Own 1 share of a company with 1,000 shares and you own 0.1% of it.'],
+ ticker:['Ticker symbol','A short code for a stock, used on exchanges. Nimbus Cloud trades as NMBS.',''],
+ sector:['Sector','A group of companies in the same kind of business, like energy or tech. Stocks in a sector often move together.',''],
+ bull:['Bull market','A long stretch where prices mostly rise. Bulls charge upward with their horns.','Most stocks drift up; pullbacks are usually bought.'],
+ bear:['Bear market','A long stretch where prices mostly fall, usually 20% or more from the top. Bears swipe downward.','Defensive stocks like utilities and food tend to fall less.'],
+ flat:['Sideways market','A market with no clear direction. Prices bounce in a range.','Range trading and patience work better than chasing.'],
+ volatility:['Volatility','How much and how fast a price swings. High volatility means bigger gains and bigger losses.','Rocket Pets can move 10% in a day; Brightline Power rarely moves 2%.'],
+ beta:['Beta','How strongly a stock reacts to the overall market. Beta 1.3 means it tends to move about 1.3 times as much as the market.',''],
+ dividend:['Dividend','Cash a company pays to its shareholders, usually from steady profits. Common for utilities and food companies.','In this game, holders get paid every 30 days.'],
+ earnings:['Earnings report','A company’s scorecard of sales and profit, released every few months. The price jumps or drops depending on whether it beat or missed what analysts expected.','Expect bigger moves on earnings day.'],
+ candle:['Candlestick','One bar = one day. The thick body runs from the open price to the close. The thin wicks show the day’s high and low. Green closed higher than it opened; red closed lower.',''],
+ ma:['Moving average (MA)','The average closing price over the last few days, drawn as a smooth line. MA5 reacts fast; MA20 is slower and shows the bigger trend.','When MA5 is above a rising MA20, the trend is up.'],
+ golden:['Golden cross','When the fast average crosses above the slow average. Often read as the start of an uptrend.',''],
+ death:['Death cross','When the fast average crosses below the slow average. Often read as the start of a downtrend.',''],
+ support:['Support','A price floor where buyers have stepped in before. Here it is the lowest low of the last 20 days.','A stop-loss just under support is a common choice.'],
+ resistance:['Resistance','A price ceiling where sellers have shown up before. Here it is the highest high of the last 20 days.','A break above resistance on high volume is called a breakout.'],
+ breakout:['Breakout','When price pushes through resistance (or below support). Strong volume makes a breakout more believable.',''],
+ volume:['Volume','How many shares traded that day. Big moves on big volume carry more meaning than moves on quiet days.',''],
+ trend:['Trend','The general direction of price over time. Uptrends make higher highs and higher lows; downtrends make lower highs and lower lows.','“The trend is your friend” is an old trading saying.'],
+ stoploss:['Stop-loss','An automatic sell order that triggers if the price falls to a level you choose. It caps how much you can lose.','Buy at $100 with an 8% stop: it sells near $92.'],
+ takeprofit:['Take-profit','An automatic sell order that triggers when the price rises to your target, locking in the gain.','Buy at $100 with a 16% target: it sells at $116.'],
+ autosell:['Auto-sell points','Prices you set in advance where your shares sell by themselves: a stop-loss below and a take-profit above. They take emotion out of selling.',''],
+ trailing:['Trailing stop','A stop-loss that moves up as the price rises but never moves down. It protects gains while letting a winner keep running.','Stop 8% below the highest close since you bought.'],
+ gap:['Gap','When a stock opens far from yesterday’s close, often after news. A stop-loss cannot sell in the gap, so it sells at the opening price instead.','Biotech trial news often gaps right past stops.'],
+ rr:['Reward-to-risk','How much you aim to make compared with how much you risk. Risking 8% to make 16% is 2 to 1.','At 2 to 1 you can be wrong more than half the time and still come out ahead.'],
+ size:['Position size','How much money you put into one trade. Smaller positions mean one bad trade cannot sink you.','A common rule: risk no more than 1–2% of your account per trade.'],
+ diversify:['Diversification','Spreading money across different companies and sectors so one disaster does not wipe you out.',''],
+ etf:['Index fund (ETF)','A fund that holds many stocks at once and follows the whole market. Most professional investors fail to beat one over the long run.',''],
+ pl:['Profit and loss (P/L)','Unrealized P/L is on paper while you still hold. Realized P/L is locked in once you sell.',''],
+ market:['Market order','Buy or sell right away at the current price. Every trade in this game is a market order at today’s closing price.',''],
+ meme:['Meme stock','A stock driven by online hype rather than the company’s profits. Spikes are fast; crashes and fades are common.',''],
+ defensive:['Defensive stock','A company whose sales stay steady in any economy, like utilities and groceries. Lower risk, lower excitement.',''],
+ cyclical:['Cyclical stock','A company whose profits rise and fall with the economy, like banks, oil and retail.',''],
+ growth:['Growth stock','A company expected to grow fast. Investors pay a high price today for profits tomorrow, so it is extra sensitive to interest rates.',''],
+ fomo:['FOMO','Fear of missing out. Buying something only because it already shot up. A classic way to buy at the top.',''],
+ dip:['Buy the dip','Buying after a short drop inside an uptrend. Works in uptrends; in downtrends the dip often keeps dipping.',''],
+ knife:['Falling knife','A stock in a steep drop. Trying to buy the exact bottom is risky; many wait for the trend to turn first.',''],
+ short:['Short selling','Betting a price will fall by borrowing shares and selling them, hoping to buy back cheaper. Losses can be unlimited. Not used in this game.',''],
+ selloff:['Sell-off','A sharp, fast drop over a few days, usually with heavy volume as many holders rush to sell.',''],
+ bleed:['Slow bleed','A gentle downtrend that lasts weeks. Each day’s loss is small, so holders often ignore it until the total hurts.',''],
+ deadcat:['Dead cat bounce','A short rebound in the middle of a fall that fools people into thinking the bottom is in. Then the drop continues.','The saying: even a dead cat bounces if it falls far enough.'],
+ vshape:['V-shaped recovery','A sharp fall followed by an equally sharp rebound. Panic sellers at the bottom miss the recovery.',''],
+ bubble:['Bubble','Prices racing far above what a company is worth because of excitement. Bubbles usually end with a fast pop.',''],
+ correction:['Correction','A market drop of about 10% from a recent high, usually over a few weeks. Common and normal.',''],
+ crash:['Crash','A sudden, very large drop across the whole market in a day or a few days, usually driven by panic.',''],
+ breakdown:['Breakdown','When price falls through support. Often the start of a new leg down and a common reason to sell.',''],
+ lowerhighs:['Lower highs, lower lows','The fingerprint of a downtrend: each bounce peaks lower than the last, and each dip goes deeper.',''],
+ inverse:['Inverse fund','A fund built to move opposite to the market each day, so it rises when the market falls. Held for long periods it slowly loses value, so it suits short-term bets.','In this game: SHLD.'],
+ dilution:['Dilution','When a company sells new shares, each existing share owns a smaller slice, so the price usually drops.',''],
+ breadth:['Market breadth','How many stocks are rising versus falling. A market where most stocks fall is weaker than the index alone might show.',''],
+ rotation:['Sector rotation','Money moving from one kind of stock to another, like from tech into utilities when investors get nervous.',''],
+ regime:['Market mood','Whether the overall market is in a bull, bear or sideways phase. It shifts every month or two in this game.',''],
+};
+
+/* ---------- game setup & simulation ---------- */
+function newGame(){
+  S={v:2,filter:'all',ms:null,seed:(Date.now()^Math.floor(Math.random()*4294967295))>>>0,day:-HIST,cash:START_CASH,pos:{},trades:[],news:[],calls:[],cs:{right:0,total:0,streak:0,best:0},
+     stopsHit:0,takesHit:0,divs:0,sel:'NMBS',range:60,over:false,regime:null,stocks:{},etfStart:0};
+  S.regime={type:pick(['bull','flat','bear']),left:randi(20,45)};
+  for(const d of DEFS) S.stocks[d.sym]={c:[],pat:null,earn:randi(6,40),div:randi(5,29)};
+  while(S.day<0) step(false);
+  S.etfStart=price('WHLM');
+  S.news=[];
+  addNews({tag:'info',h:'Opening bell! You have $10,000 of practice money.',why:'Pick a stock on the left, read its chart and the coach notes, then buy. Press Next day to move time forward.'});
+  addNews({tag:'info',h:`The market starts in a ${REG[S.regime.type].name.toLowerCase()}.`,why:regimeWhy(S.regime.type)});
+}
+function regimeWhy(t){return t==='bull'?'Most stocks drift upward. High-beta stocks like tech tend to do best.':t==='bear'?'Most stocks drift down. Defensive stocks (utilities, food) usually fall the least. Cash is a position too.':'No clear direction. Prices chop around in ranges.'}
+function addNews(n){S.news.unshift({day:Math.max(0,S.day),...n}); if(S.news.length>60) S.news.length=60}
+
+function weightedPick(o){let t=0;for(const k in o)t+=o[k];let x=rng()*t;for(const k in o){x-=o[k];if(x<=0)return k}return Object.keys(o)[0]}
+function setPat(s,key,prev){const sg=PATS[key].seg[0];s.pat={k:key,i:0,left:randi(sg[1],sg[2]),str:sg[0]*rand(.85,1.15),p0:prev}}
+function choosePat(d){const reg=S.regime.type,w={};for(const k in PATS){const P=PATS[k];if(!P.w)continue;let x=P.w[reg];
+  if(d.meme&&(k==='bubble'||k==='selloff'))x*=2.5; if(d.div&&d.beta<.6&&(k==='bubble'||k==='selloff'||k==='deadcat'))x*=.4; w[k]=x}return weightedPick(w)}
+function advancePat(s,d,live,prev){
+  const p=s.pat;
+  if(p&&p.i<PATS[p.k].seg.length-1){p.i++;const sg=PATS[p.k].seg[p.i];p.left=randi(sg[1],sg[2]);p.str=sg[0]*rand(.85,1.15);return}
+  if(p&&live&&!PATS[p.k].norecap&&p.p0){const ch=prev/p.p0-1; if(Math.abs(ch)>.04) addNews({tag:'pattern',h:`Pattern recap: ${d.sym} just finished a ${PATS[p.k].name.toLowerCase()} (${pct(ch,0)})`,why:PATS[p.k].recap});}
+  setPat(s,choosePat(d),prev);
+}
+function step(live){
+  const R=S.regime;
+  if(--R.left<=0){
+    const opts={bull:['flat','bear','bull'],bear:['flat','bull','bear'],flat:['bull','bear']}[R.type];
+    const nt=pick(opts); if(nt!==R.type&&live) addNews({tag:nt==='bull'?'good':nt==='bear'?'bad':'info',h:`The market mood shifts: now a ${REG[nt].name.toLowerCase()}.`,why:regimeWhy(nt)});
+    R.type=nt; R.left=randi(25,55);
+  }
+  const rp=REG[R.type];
+  let m=rp.dr+rp.v*gauss();
+  if(S.ms){m+=S.ms.dr; if(--S.ms.left<=0){ if(live) addNews(S.ms.end); S.ms=null; }}
+  const fx={}, big={}, forced={};
+  if(rng()<.055){
+    let e=pick(MACRO); if(e.rare&&rng()<.6) e=pick(MACRO.filter(x=>!x.rare));
+    if(!(e.shock&&S.ms)){
+      m+=e.m; for(const k in e.fx) fx[k]=(fx[k]||0)+e.fx[k];
+      if(e.pats) Object.assign(forced,e.pats);
+      if(e.crash){ for(const d of DEFS) if(!d.etf&&rng()<.7) forced[d.sym]=rng()<.5?'deadcat':'selloff'; for(const d of DEFS) if(!d.etf) big[d.sym]=1; }
+      if(e.shock) S.ms={dr:e.shock.dr,left:randi(e.shock.a,e.shock.b),end:e.shock.end};
+      if(e.regime&&rng()<(e.crash?.9:.35)&&R.type!==e.regime){R.type=e.regime;R.left=randi(25,50)}
+      if(live) addNews({tag:e.m<0?'macro':'macro',h:e.h,why:e.why});
+    }
+  }
+  const rets={};
+  for(const d of DEFS){ if(d.etf) continue;
+    const s=S.stocks[d.sym], prev=s.c.length?s.c[s.c.length-1].c:d.p;
+    if(forced[d.sym]) setPat(s,forced[d.sym],prev);
+    if(!s.pat||s.pat.left<=0) advancePat(s,d,live,prev);
+    s.pat.left--;
+    let r=d.drift+d.beta*m+s.pat.str*d.vol*.25+d.vol*gauss()+(fx[d.sym]||0);
+    if(d.season&&S.day>=70&&S.day<=95){ r+=.0035; if(S.day===70&&live) addNews({tag:'good',h:'Holiday shopping season begins',why:'Retailers often trend up as shoppers spend. Seasonal patterns are real, but everyone knows about them, so they are rarely a sure thing.'}); }
+    const cn=CO_NEWS[d.sym];
+    if(cn&&rng()<.006){ const e=pick(cn); r+=e.fx; big[d.sym]=1; setPat(s,e.pat,prev);
+      if(live) addNews({tag:e.fx>=0?'good':'bad',h:`${e.h} (${pct(e.fx,0)})`,why:e.why||(e.fx<0?'Bad company news often starts a trend lower that lasts longer than one day. Watch whether the price holds support.':'Good news can start a new uptrend, especially if volume stays high.')}); }
+    if(--s.earn<=0){
+      s.earn=randi(38,48);
+      const beat=rng()<.52, size=rand(.03,.09)*(d.vol/.015);
+      r+=beat?size:-size; big[d.sym]=1; setPat(s,beat?'pedUp':'pedDown',prev);
+      if(live) addNews({tag:beat?'good':'bad',h:`${d.name} ${beat?'beats':'misses'} earnings estimates (${pct(beat?size:-size,0)})`,why:beat?'Profits came in better than analysts expected. Prices often keep drifting the same way for days after: this is called post-earnings drift.':'Profits disappointed. A miss often starts a slide that lasts a week or two.'});
+    }
+    if(d.binary&&rng()<.012){
+      const pass=rng()<.5, size=pass?rand(.22,.4):-rand(.28,.45); r+=size; big[d.sym]=1; setPat(s,pass?'pedUp':'bleed',prev);
+      if(live) addNews({tag:pass?'good':'bad',h:`Helix drug trial ${pass?'succeeds':'fails'}: stock ${pass?'soars':'plunges'} ${pct(size,0)}`,why:'Small biotech companies often depend on one result. The price can open far from yesterday’s close, skipping past stop-losses. This is why position size matters.'});
+    }
+    if(d.meme&&rng()<.02){ const size=rand(.25,.6); r+=size; big[d.sym]=1; setPat(s,'fade',prev);
+      if(live) addNews({tag:'good',h:`Rocket Pets goes viral online, rockets ${pct(size,0)}`,why:'Nothing changed about the business. Hype spikes like this usually fade over the next weeks. Buying after the spike is classic FOMO.'}); }
+    rets[d.sym]=Math.max(-.7,r);
+  }
+  rets.WHLM=avg(Object.values(rets).map(r=>Math.max(-.15,Math.min(.15,r))))+.001*gauss();
+  rets.SHLD=-rets.WHLM-.0003;
+  for(const d of DEFS){
+    const s=S.stocks[d.sym], prev=s.c.length?s.c[s.c.length-1].c:d.p, r=rets[d.sym];
+    const close=Math.max(.25,prev*Math.exp(r));
+    const openR=(big[d.sym]?r*rand(.75,.95):r*rand(0,.35))+gauss()*d.vol*.2;
+    const open=Math.max(.25,prev*Math.exp(openR));
+    const hi=Math.max(open,close)*(1+Math.abs(gauss())*d.vol*.45);
+    const lo=Math.min(open,close)*(1-Math.abs(gauss())*d.vol*.45);
+    const v=d.bv*(1+Math.abs(r)/(d.etf?.008:d.vol)*.45)*rand(.7,1.3)*(big[d.sym]?2.5:1);
+    s.c.push({d:S.day,o:open,h:hi,l:lo,c:close,v});
+    if(s.c.length>HIST+GAME_DAYS+5) s.c.shift();
+  }
+  S.day++;
+}
+
+/* ---------- helpers ---------- */
+function fmt(n){return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function fmt0(n){return (n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{maximumFractionDigits:0})}
+function pct(x,dp=1){return (x>=0?'+':'')+(x*100).toFixed(dp)+'%'}
+const cls=x=>x>=0?'up':'down';
+const lastC=sym=>{const c=S.stocks[sym].c;return c[c.length-1]};
+const price=sym=>lastC(sym).c;
+const dayChg=sym=>{const c=S.stocks[sym].c;return c[c.length-1].c/c[c.length-2].c-1};
+const holdVal=()=>Object.keys(S.pos).reduce((a,k)=>a+S.pos[k].sh*price(k),0);
+const total=()=>S.cash+holdVal();
+const today=()=>S.day-1;
+function volFmt(v){return v>=1e6?(v/1e6).toFixed(1)+'M':(v/1e3).toFixed(0)+'K'}
+
+function trendRead(sym){
+  const c=S.stocks[sym].c, cl=c.map(x=>x.c), n=cl.length;
+  const sma=(k,end)=>avg(cl.slice(end-k,end));
+  const ma5=sma(5,n), ma20=sma(20,n), ma20p=sma(20,n-5), ma5p=sma(5,n-3), ma20p3=sma(20,n-3);
+  const slope=ma20/ma20p-1;
+  const z=slope/((D[sym].etf?.008:D[sym].vol)*5*.25);
+  let dir='side'; if(ma5>ma20&&z>.45&&slope>.003) dir='up'; else if(ma5<ma20&&z<-.45&&slope<-.003) dir='down';
+  const strong=dir!=='side'&&Math.abs(z)>2.1;
+  const last20=c.slice(-21,-1);
+  const sup=Math.min(...last20.map(x=>x.l)), res=Math.max(...last20.map(x=>x.h));
+  const cross= ma5p<=ma20p3&&ma5>ma20?'golden': ma5p>=ma20p3&&ma5<ma20?'death':null;
+  const vr=avg(c.slice(-3).map(x=>x.v))/avg(c.slice(-20).map(x=>x.v));
+  const hl=c.slice(-20), h1=Math.max(...hl.slice(0,10).map(x=>x.h)), h2=Math.max(...hl.slice(10).map(x=>x.h)), l1=Math.min(...hl.slice(0,10).map(x=>x.l)), l2=Math.min(...hl.slice(10).map(x=>x.l));
+  return {dir,strong,key:strong?(dir==='up'?'sup':'sdown'):dir,ma5,ma20,slope,sup,res,cross,vr,hh:h2>h1,hl:l2>l1,px:cl[n-1]};
+}
+const TR={sup:['up','⇈ Strong up'],up:['up','↑ Up'],side:['side','→ Sideways'],down:['down','↓ Down'],sdown:['down','⇊ Strong down']};
+
+/* ---------- actions ---------- */
+function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
+function autoCfg(){return {sp:Math.max(0,+$('#stopPct').value||0)/100,tp:Math.max(0,+$('#takePct').value||0)/100,trail:$('#trailOn').checked}}
+function applyAuto(sym){
+  const p=S.pos[sym]; if(!p) return; const {sp,tp,trail}=autoCfg(), base=price(sym);
+  p.stop=sp>0?base*(1-sp):null; p.take=tp>0?base*(1+tp):null; p.trail=trail&&sp>0?sp:null;
+}
+function buy(sym,qty){
+  if(S.over) return;
+  qty=Math.floor(qty); if(!(qty>0)) return toast('Enter how many shares to buy.');
+  const px=price(sym), cost=qty*px;
+  if(cost>S.cash+1e-6) return toast(`Not enough cash. You can afford ${Math.floor(S.cash/px)} shares.`);
+  S.cash-=cost;
+  const p=S.pos[sym]||(S.pos[sym]={sh:0,avg:0,stop:null,take:null,trail:null,day:today()});
+  p.avg=(p.avg*p.sh+cost)/(p.sh+qty); p.sh+=qty;
+  if($('#autoOn').checked) applyAuto(sym);
+  S.trades.push({day:today(),sym,side:'buy',qty,px});
+  const share=cost/total();
+  addNews({tag:'trade',h:`You bought ${qty} ${sym} at ${fmt(px)} (${fmt(cost)})`,why:(p.stop||p.take?`Auto-sell points: ${p.stop?'stop '+fmt(p.stop):''}${p.stop&&p.take?', ':''}${p.take?'target '+fmt(p.take):''}${p.trail?' (trailing)':''}. `:'No auto-sell points set, so you will need to decide when to sell. ')+(share>.3?'This is a big slice of your money in one stock. Diversifying lowers risk.':'')});
+  toast(`Bought ${qty} ${sym}`); save(); render();
+}
+function sell(sym,qty,px,reason){
+  const p=S.pos[sym]; if(!p) return toast(`You don’t own any ${sym}.`);
+  qty=Math.min(Math.floor(qty),p.sh); if(!(qty>0)) return toast('Enter how many shares to sell.');
+  px=px??price(sym);
+  const pl=(px-p.avg)*qty;
+  S.cash+=qty*px; p.sh-=qty;
+  S.trades.push({day:today(),sym,side:'sell',qty,px,pl,reason:reason||'manual'});
+  if(p.sh<=0) delete S.pos[sym];
+  return pl;
+}
+function manualSell(sym,qty){
+  if(S.over) return;
+  const q=Math.min(Math.floor(qty),S.pos[sym]?.sh||0);
+  const pl=sell(sym,qty); if(pl===undefined) return;
+  addNews({tag:pl>=0?'good':'bad',h:`You sold ${q} ${sym} at ${fmt(price(sym))}: ${pl>=0?'profit':'loss'} ${fmt(Math.abs(pl))}`,why:'That profit or loss is now realized: locked in as cash.'});
+  toast(`Sold ${sym}: ${pl>=0?'+':'-'}${fmt(Math.abs(pl))}`); save(); render();
+}
+function makeCall(dir){
+  if(S.over) return;
+  const sym=S.sel;
+  if(S.calls.some(c=>c.sym===sym&&!c.done)) return toast(`You already have an open call on ${sym}.`);
+  S.calls.unshift({sym,dir,start:today(),end:today()+5,px:price(sym),done:false});
+  S.calls=S.calls.slice(0,12); toast(`Called ${sym} ${dir==='up'?'higher':'lower'} by Day ${today()+6}`); save(); render();
+}
+
+function nextDay(){
+  if(S.over) return;
+  step(true);
+  const t=today();
+  // auto-sell checks
+  for(const sym of Object.keys(S.pos)){
+    const p=S.pos[sym], k=lastC(sym); let px=null, why='';
+    if(p.stop&&k.o<=p.stop){px=k.o;why=`It opened at ${fmt(k.o)}, already below your stop of ${fmt(p.stop)}, so it sold at the open. This is gap risk.`}
+    else if(p.stop&&k.l<=p.stop){px=p.stop;why='The stop-loss did its job: it capped the loss without you watching.'}
+    if(px!==null){const pl=sell(sym,p.sh,px,'stop');S.stopsHit++;addNews({tag:'auto',h:`Stop-loss sold your ${sym} at ${fmt(px)} (${pl>=0?'+':'-'}${fmt(Math.abs(pl))})`,why:pl>=0?'Your trailing stop locked in a profit after the price pulled back.':why});continue}
+    if(p.take&&k.o>=p.take){px=k.o;why=`It opened above your target at ${fmt(k.o)}, so you sold for even more than planned.`}
+    else if(p.take&&k.h>=p.take){px=p.take;why='Your take-profit locked in the gain. Selling at a plan beats hoping for more.'}
+    if(px!==null){const pl=sell(sym,p.sh,px,'take');S.takesHit++;addNews({tag:'auto',h:`Take-profit sold your ${sym} at ${fmt(px)} (+${fmt(Math.abs(pl))})`,why});continue}
+    if(p.trail){const ns=k.c*(1-p.trail); if(ns>p.stop) p.stop=ns;}
+  }
+  // dividends
+  for(const d of DEFS){ if(!d.div) continue; const s=S.stocks[d.sym];
+    if(--s.div<=0){ s.div=30; const p=S.pos[d.sym];
+      if(p){const amt=p.sh*price(d.sym)*d.div; S.cash+=amt; S.divs+=amt; addNews({tag:'good',h:`${d.name} paid you a ${fmt(amt)} dividend`,why:'Dividends are cash paid just for holding the stock. Steady companies like utilities pay them regularly.'});}
+    }
+  }
+  // trend calls
+  for(const c of S.calls){ if(c.done||t<c.end) continue; c.done=true; c.endPx=price(c.sym);
+    c.right=(c.dir==='up')===(c.endPx>c.px); S.cs.total++;
+    if(c.right){S.cs.right++;S.cs.streak++;S.cs.best=Math.max(S.cs.best,S.cs.streak)} else S.cs.streak=0;
+    addNews({tag:c.right?'good':'bad',h:`Trend call on ${c.sym}: ${c.right?'correct':'missed'} (${fmt(c.px)} → ${fmt(c.endPx)})`,why:c.right?'Nice read. Check which clues lined up so you can spot them again.':'Short-term moves are noisy. Even good reads miss often, which is why stop-losses exist.'});
+  }
+  if(S.day>=GAME_DAYS){S.over=true;stopPlay();}
+  save(); render();
+  if(S.over) showEnd();
+}
+
+/* ---------- persistence ---------- */
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+
+/* ---------- rendering ---------- */
+function render(){
+  renderBoard(); renderRack(); renderFloor(); renderDesk(); drawChart();
+}
+function renderBoard(){
+  const tv=total(), ret=tv/START_CASH-1, mret=price('WHLM')/S.etfStart-1, hv=holdVal();
+  const acc=S.cs.total?Math.round(S.cs.right/S.cs.total*100)+'%':'–';
+  $('#board').innerHTML=`
+   <div class="stat"><span class="label">Total value</span><span class="val big">${fmt(tv)}</span></div>
+   <div class="stat"><span class="label">Cash</span><span class="val">${fmt0(S.cash)}</span></div>
+   <div class="stat"><span class="label">Invested</span><span class="val">${fmt0(hv)}</span></div>
+   <div class="stat"><span class="label">Your return</span><span class="val ${cls(ret)}">${pct(ret)}</span></div>
+   <div class="stat"><span class="label"><span data-t="etf">Market</span> return</span><span class="val ${cls(mret)}">${pct(mret)}</span></div>
+   <div class="stat"><span class="label">Trend calls</span><span class="val">${S.cs.right}/${S.cs.total} <span class="muted" style="font-size:13px">${acc}</span></span></div>`;
+  const d=Math.min(S.day,GAME_DAYS);
+  $('#dayLabel').textContent=S.over?`Game over · Day ${GAME_DAYS}`:`Day ${d+1} of ${GAME_DAYS}`;
+  $('#prog').style.width=(d/GAME_DAYS*100)+'%';
+  const rg=$('#regime'); rg.className='regime '+S.regime.type; rg.textContent=REG[S.regime.type].name; rg.dataset.t=S.regime.type;
+  const msgs=['Tip: tap any dotted-underlined word to learn what it means.','Tip: set a stop-loss on every buy so one bad day can’t hurt too much.','Tip: compare your return with the market. Beating it is hard!','Tip: watch the news feed. It explains why prices moved.','Tip: defensive stocks fall less in bear markets.'];
+  $('#msg').textContent=S.over?'Game over. Start a new game to play again with a different market.':msgs[Math.max(0,S.day)%msgs.length];
+  $('#nextBtn').disabled=S.over; $('#playBtn').disabled=S.over;
+}
+function spark(sym){
+  const c=S.stocks[sym].c.slice(-30).map(x=>x.c), lo=Math.min(...c), hi=Math.max(...c), w=100,h=24;
+  const pts=c.map((v,i)=>`${(i/(c.length-1)*w).toFixed(1)},${(h-2-(v-lo)/(hi-lo||1)*(h-4)).toFixed(1)}`).join(' ');
+  const up=c[c.length-1]>=c[0];
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--${up?'up':'down'})" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function renderRack(){
+  const reads=Object.fromEntries(DEFS.map(d=>[d.sym,trendRead(d.sym)]));
+  const stocks=DEFS.filter(d=>!d.etf), cnt={up:0,side:0,down:0}; stocks.forEach(d=>cnt[reads[d.sym].dir]++);
+  const f=S.filter||'all', n=stocks.length;
+  $('#scan').innerHTML=`<div class="row" style="justify-content:space-between"><span class="label">Trend scanner</span><span class="note"><span data-t="breadth">Breadth</span>: ${cnt.up} up · ${cnt.down} down</span></div>
+    <div class="breadth" aria-hidden="true"><i style="width:${cnt.up/n*100}%;background:var(--up)"></i><i style="width:${cnt.side/n*100}%;background:var(--line)"></i><i style="width:${cnt.down/n*100}%;background:var(--down)"></i></div>
+    <div class="seg">${[['all','All'],['up','↑ '+cnt.up],['side','→ '+cnt.side],['down','↓ '+cnt.down]].map(([k,l])=>`<button data-filter="${k}" class="${f===k?'on':''}" aria-pressed="${f===k}">${l}</button>`).join('')}</div>`;
+  const list=DEFS.filter(d=>f==='all'||reads[d.sym].dir===f||d.sym===S.sel);
+  $('#rack').innerHTML=list.map(d=>{
+    const ch=dayChg(d.sym), tr=TR[reads[d.sym].key], own=S.pos[d.sym];
+    return `<button class="stk ${S.sel===d.sym?'sel':''}" data-sym="${d.sym}" aria-pressed="${S.sel===d.sym}">
+      <span class="sym">${d.sym}${own?' <span class="own">● owned</span>':''}</span><span class="sect">${d.sector}</span>
+      <span class="nm">${d.name}</span><span class="tr ${tr[0]}">${tr[1]}</span>
+      <span class="px">${fmt(price(d.sym))}</span><span class="chg ${cls(ch)}">${pct(ch)}</span>
+      <span style="grid-column:1/-1">${spark(d.sym)}</span></button>`}).join('');
+}
+function cnt0(){return DEFS.filter(d=>!d.etf&&trendRead(d.sym).dir==='down').length}
+function renderFloor(){
+  const d=D[S.sel], ch=dayChg(S.sel), s=S.stocks[S.sel], r=trendRead(S.sel), k=lastC(S.sel);
+  $('#sName').textContent=d.name;
+  $('#sSub').innerHTML=`<span class="mono">${d.sym}</span> · <span data-t="sector">${d.sector}</span> · <span data-t="beta">beta</span> ${d.beta}${d.div?` · <span data-t="dividend">dividend</span> ${(d.div*100).toFixed(1)}% every 30 days`:''}`;
+  $('#sPx').textContent=fmt(k.c);
+  $('#sChg').innerHTML=`<span class="${cls(ch)}">${pct(ch,2)} today</span>`;
+  $('#sTraits').innerHTML=d.traits.map(t=>`<li>${t}</li>`).join('');
+  // coach
+  const pos=S.pos[S.sel];
+  let verdict, body=[];
+  const slopeTxt=`${pct(r.slope,1)} over 5 days`;
+  if(r.dir==='up'){verdict=`<span class="up">${r.strong?'Strong uptrend':'Uptrend'}</span>`;
+    body.push(`The fast average (MA5 ${fmt(r.ma5)}) is above the slow average (MA20 ${fmt(r.ma20)}), and MA20 is rising ${slopeTxt}.${r.hh&&r.hl?' Price is also making higher highs and higher lows.':''}`);
+    body.push(`A common beginner plan: <span data-t="dip">buy the dip</span> toward MA20, put a <span data-t="stoploss">stop-loss</span> just under <span data-t="support">support</span> (${fmt(r.sup)}), and aim for <span data-t="resistance">resistance</span> (${fmt(r.res)}) or higher.`);
+    if(r.strong) body.push(`This climb is steep. Steep moves often pause or pull back, so jumping in late is risky. A <span data-t="trailing">trailing stop</span> lets you ride it while protecting gains.`);}
+  else if(r.dir==='down'){verdict=`<span class="down">${r.strong?'Strong downtrend':'Downtrend'}</span>`;
+    body.push(`MA5 (${fmt(r.ma5)}) is below MA20 (${fmt(r.ma20)}), and MA20 is falling ${slopeTxt}.${!r.hh&&!r.hl?' Price is making lower highs and lower lows.':''}`);
+    body.push(`Buying now is trying to catch a <span data-t="knife">falling knife</span>. Many traders wait for MA5 to cross back above MA20 (a <span data-t="golden">golden cross</span>) before buying.`);
+    if(r.strong) body.push(`The drop is steep, which looks like a <span data-t="selloff">sell-off</span>. Watch out for a <span data-t="deadcat">dead cat bounce</span>: a short rebound that fails.`);
+    body.push(d.inv?`For this fund a falling chart means the market has been rising.`:`Ways to play a downtrend: stay out, sell shares you own, or make a “Lower in 5 days” call.${cnt0()>=4?' Many stocks are falling right now, so the <span data-t="inverse">inverse fund</span> SHLD, which rises when the market falls, is another option.':''}`);}
+  else {verdict=`<span class="muted">Sideways</span>`;
+    body.push(`The averages are tangled and MA20 is flat (${slopeTxt}). No clear trend.`);
+    body.push(`Price is bouncing between support ${fmt(r.sup)} and resistance ${fmt(r.res)}. Watch for a <span data-t="breakout">breakout</span> above resistance on high <span data-t="volume">volume</span>.`);}
+  const extra=[];
+  if(r.cross==='golden') extra.push(`Fresh <span data-t="golden">golden cross</span> in the last 3 days: MA5 just moved above MA20.`);
+  if(r.cross==='death') extra.push(`Fresh <span data-t="death">death cross</span> in the last 3 days: MA5 just fell below MA20.`);
+  if(r.px>r.res*0.995) extra.push(`Price is pressing on resistance${r.vr>1.4?' with heavy volume, which makes a breakout more believable':''}.`);
+  else if(r.px<r.sup*1.02) extra.push(`Price is near support. If it breaks below ${fmt(r.sup)}, sellers are in charge.`);
+  if(!d.etf&&s.earn<=5) extra.push(`<b><span data-t="earnings">Earnings</span> in ${s.earn} day${s.earn===1?'':'s'}.</b> Expect a big move either way.`);
+  if(d.meme&&dayChg(S.sel)>.15) extra.push(`Big hype spike today. Rocket Pets spikes usually fade. Chasing it is <span data-t="fomo">FOMO</span>.`);
+  if(d.inv) extra.push(`SHLD moves opposite to the market. It works for short bets when the market is falling, but it loses a little every day, so it is a poor long-term hold.`);
+  if(S.ms&&S.ms.dr<0) extra.push(`A market <span data-t="correction">correction</span> is under way: most stocks are being pulled lower for now.`);
+  if(d.binary) extra.push(`Biotech can <span data-t="gap">gap</span> past a stop-loss on trial news. Keep this position small.`);
+  if(pos){const pl=(k.c-pos.avg)/pos.avg; extra.push(`You own ${pos.sh} shares, ${pct(pl)} from your average cost of ${fmt(pos.avg)}.${!pos.stop?' <b>No stop-loss set.</b>':''}`)}
+  if(S.regime.type==='bear'&&d.beta>1) extra.push(`In a <span data-t="bear">bear market</span>, high-beta stocks like this usually fall faster than the market.`);
+  $('#coach').innerHTML=`<span class="label">Coach’s chart read</span><div class="verdict">${verdict} <span class="muted" style="font-size:14px;font-weight:500">for ${d.sym}</span></div>
+    ${body.map(b=>`<p>${b}</p>`).join('')}${extra.length?`<p>${extra.join(' ')}</p>`:''}
+    <div class="facts">
+      <div class="fact"><span class="label">Support</span><div class="v">${fmt(r.sup)}</div></div>
+      <div class="fact"><span class="label">Resistance</span><div class="v">${fmt(r.res)}</div></div>
+      <div class="fact"><span class="label">Volume today</span><div class="v">${volFmt(k.v)} <span class="muted" style="font-size:12px">${r.vr.toFixed(1)}× avg</span></div></div>
+      <div class="fact"><span class="label">Next earnings</span><div class="v">${d.etf?'n/a':'in '+s.earn+'d'}</div></div>
+    </div>
+    <p class="note">${d.about}</p>`;
+}
+function renderDesk(){
+  const sym=S.sel, px=price(sym), p=S.pos[sym];
+  $('#tSym').textContent=sym; $('#tPx').textContent=fmt(px); $('#cSym').textContent=sym;
+  $('#tOwn').textContent=p?`You own ${p.sh}`:'You own 0';
+  const q=Math.floor(+$('#qty').value||0), cost=q*px, tv=total();
+  $('#tCost').innerHTML=q>0?`${q} × ${fmt(px)} = <b class="mono">${fmt(cost)}</b>, about ${Math.round(cost/tv*100)}% of your account. ${cost/tv>.25?'<span class="down">That is a big bet on one stock.</span>':'Many beginners keep each stock under 20%.'}`:'Enter a number of shares.';
+  const {sp,tp,trail}=autoCfg();
+  const stop=px*(1-sp), take=px*(1+tp), rr=sp>0?tp/sp:0;
+  $('#autoPrev').innerHTML=(sp>0||tp>0)?`Sells by itself if ${sym} ${sp>0?`falls to <b class="mono down">${fmt(stop)}</b>`:''}${sp>0&&tp>0?' or ':''}${tp>0?`rises to <b class="mono up">${fmt(take)}</b>`:''}.${sp>0&&tp>0?` <span data-t="rr">Reward-to-risk</span> ${rr.toFixed(1)} to 1${rr<1.5?' <span class="down">(low: aim for 2 to 1)</span>':''}.`:''}${trail?' The stop rises as the price climbs.':''}${q>0&&sp>0?` Max planned loss on ${q} shares: <b class="mono">${fmt(q*px*sp)}</b>.`:''}`:'No auto-sell points. You will have to sell by hand.';
+  $('#updAuto').hidden=!p;
+  $('#buyBtn').disabled=S.over; $('#sellBtn').disabled=S.over||!p;
+  // calls
+  const cl=S.calls.slice(0,6);
+  $('#callList').innerHTML=cl.length?cl.map(c=>c.done?`<div>${c.right?'<span class="up">✓</span>':'<span class="down">✗</span>'} <span class="mono">${c.sym}</span> ${c.dir==='up'?'higher':'lower'}: ${fmt(c.px)} → ${fmt(c.endPx)}</div>`
+    :`<div><span class="muted">…</span> <span class="mono">${c.sym}</span> ${c.dir==='up'?'higher':'lower'} than ${fmt(c.px)}, result on Day ${c.end+1} <span class="${cls((price(c.sym)-c.px)*(c.dir==='up'?1:-1))}">(now ${fmt(price(c.sym))})</span></div>`).join('')+(S.cs.total?`<div class="note">Streak ${S.cs.streak} · best ${S.cs.best}</div>`:''):'';
+  // positions
+  const keys=Object.keys(S.pos);
+  $('#positions').innerHTML=keys.length?`<table><thead><tr><th>Stock</th><th>Shares</th><th>Avg cost</th><th>Value</th><th><span data-t="pl">P/L</span></th><th>Stop / target</th><th></th></tr></thead><tbody>${keys.map(k=>{
+    const q=S.pos[k], v=q.sh*price(k), pl=v-q.sh*q.avg, plp=price(k)/q.avg-1;
+    return `<tr><td><button data-pick="${k}" style="border:0;background:none;padding:0;font-family:var(--f-mono);font-weight:600;font-size:13px">${k}</button></td><td>${q.sh}</td><td>${fmt(q.avg)}</td><td>${fmt0(v)}</td><td class="${cls(pl)}">${pl>=0?'+':''}${fmt0(pl)}<br><span style="font-size:11px">${pct(plp)}</span></td><td>${q.stop?`<span class="down">${fmt(q.stop)}</span>`:'<span class="muted">none</span>'}<br>${q.take?`<span class="up">${fmt(q.take)}</span>`:'<span class="muted">none</span>'}</td><td><button data-sellall="${k}">Sell all</button></td></tr>`}).join('')}</tbody></table>`
+    :`<div class="empty">No stocks yet. Pick one on the left and buy a few shares.</div>`;
+  // news
+  $('#feed').innerHTML=S.news.slice(0,40).map(n=>`<div class="item"><span class="d">D${n.day+1}</span><div><span class="tag ${n.tag}">${{macro:'Economy',pattern:'Pattern',trade:'Your trade',auto:'Auto-sell',good:'News',bad:'News',info:'Info'}[n.tag]||'News'}</span><span class="h">${n.h}</span></div>${n.why?`<div class="w">${n.why}</div>`:''}</div>`).join('');
+}
+
+/* ---------- chart ---------- */
+function niceStep(range,count){const raw=range/count,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;return (f<1.5?1:f<3?2:f<7?5:10)*p}
+function drawChart(){
+  const cv=$('#chart'), box=cv.parentElement, W=box.clientWidth, H=box.clientHeight; if(!W||!H) return;
+  const dpr=window.devicePixelRatio||1; cv.width=W*dpr; cv.height=H*dpr; cv.style.width=W+'px'; cv.style.height=H+'px';
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,W,H);
+  const cs=getComputedStyle(document.documentElement), C=k=>cs.getPropertyValue(k).trim();
+  const sym=S.sel, all=S.stocks[sym].c, n=Math.min(S.range,all.length), off=all.length-n, data=all.slice(off), cl=all.map(x=>x.c);
+  const sma=(k,i)=>i+1<k?null:avg(cl.slice(i-k+1,i+1));
+  const m5=data.map((_,j)=>sma(5,off+j)), m20=data.map((_,j)=>sma(20,off+j));
+  const tr=trendRead(sym), p=S.pos[sym];
+  let lo=Math.min(...data.map(x=>x.l)), hi=Math.max(...data.map(x=>x.h));
+  const ex=[tr.sup,tr.res]; if(p){ex.push(p.avg); if(p.stop)ex.push(p.stop); if(p.take)ex.push(p.take);}
+  for(const e of ex){lo=Math.min(lo,e);hi=Math.max(hi,e)}
+  const pad=(hi-lo)*.06||1; lo-=pad; hi+=pad;
+  const L=4,R=62,T=8,PB=H*.75,VT=PB+12,VB=H-18;
+  const cw=(W-L-R)/n, X=i=>L+cw*(i+.5), Y=v=>T+(hi-v)/(hi-lo)*(PB-T);
+  const mono=`11px ${C('--f-mono')}`;
+  g.font=mono; g.textBaseline='middle';
+  // grid
+  const st=niceStep(hi-lo,4);
+  g.strokeStyle=C('--line'); g.fillStyle=C('--muted'); g.lineWidth=1;
+  for(let v=Math.ceil(lo/st)*st; v<=hi; v+=st){const y=Math.round(Y(v))+.5; g.beginPath(); g.moveTo(L,y); g.lineTo(W-R,y); g.stroke(); g.textAlign='left'; g.fillText(v>=100?v.toFixed(0):v.toFixed(st<1?2:1),W-R+6,y)}
+  // x labels
+  g.textAlign='center'; g.textBaseline='alphabetic';
+  const every=Math.ceil(n/5);
+  for(let i=n-1;i>=0;i-=every){g.fillText('D'+(data[i].d+1),Math.min(Math.max(X(i),18),W-R-14),H-4)}
+  // game start line
+  const z=data.findIndex(x=>x.d===0);
+  if(z>0){const x=Math.round(X(z)-cw/2)+.5; g.setLineDash([2,3]); g.strokeStyle=C('--muted'); g.beginPath(); g.moveTo(x,T); g.lineTo(x,VB); g.stroke(); g.setLineDash([]); g.textAlign='left'; g.textBaseline='top'; g.fillText('game starts',x+4,T)}
+  // volume
+  const vmax=Math.max(...data.map(x=>x.v)); g.globalAlpha=.35;
+  data.forEach((k,i)=>{g.fillStyle=C(k.c>=k.o?'--up':'--down'); const h=(k.v/vmax)*(VB-VT); g.fillRect(X(i)-Math.max(1,cw*.32),VB-h,Math.max(1,cw*.64),h)});
+  g.globalAlpha=1;
+  // S/R
+  const hline=(v,color,label,dash)=>{const y=Math.round(Y(v))+.5; g.strokeStyle=color; g.setLineDash(dash); g.lineWidth=1.2; g.beginPath(); g.moveTo(L,y); g.lineTo(W-R,y); g.stroke(); g.setLineDash([]);
+    g.font=`600 10.5px ${C('--f-body')}`; const tw=g.measureText(label).width; g.fillStyle=C('--panel'); g.fillRect(W-R-tw-10,y-8,tw+8,15); g.fillStyle=color; g.textAlign='right'; g.textBaseline='middle'; g.fillText(label,W-R-6,y); g.font=mono;};
+  hline(tr.sup,C('--muted'),'Support',[5,4]); hline(tr.res,C('--muted'),'Resistance',[5,4]);
+  if(p){hline(p.avg,C('--accent'),'Your avg cost',[1,3]); if(p.stop) hline(p.stop,C('--down'),p.trail?'Trailing stop':'Stop-loss',[6,3]); if(p.take) hline(p.take,C('--up'),'Take-profit',[6,3]);}
+  // candles
+  const bw=Math.max(1.5,cw*.62);
+  data.forEach((k,i)=>{const col=C(k.c>=k.o?'--up':'--down'); g.strokeStyle=col; g.fillStyle=col; g.lineWidth=1;
+    const x=Math.round(X(i))+.5; g.beginPath(); g.moveTo(x,Y(k.h)); g.lineTo(x,Y(k.l)); g.stroke();
+    const y1=Y(Math.max(k.o,k.c)), y2=Y(Math.min(k.o,k.c)); g.fillRect(X(i)-bw/2,y1,bw,Math.max(1,y2-y1));});
+  // MAs
+  const line=(arr,color,w)=>{g.strokeStyle=color; g.lineWidth=w; g.beginPath(); let s=false; arr.forEach((v,i)=>{if(v==null)return; s?g.lineTo(X(i),Y(v)):(g.moveTo(X(i),Y(v)),s=true)}); g.stroke()};
+  line(m20,C('--ma2'),2); line(m5,C('--ma1'),1.6);
+  // trade markers
+  for(const t of S.trades){ if(t.sym!==sym) continue; const i=data.findIndex(x=>x.d===t.day); if(i<0) continue; const k=data[i], x=X(i);
+    g.fillStyle=C(t.side==='buy'?'--up':'--down'); g.strokeStyle=C('--panel'); g.lineWidth=1.5; g.beginPath();
+    if(t.side==='buy'){const y=Y(k.l)+6; g.moveTo(x,y); g.lineTo(x-6,y+9); g.lineTo(x+6,y+9);} else {const y=Y(k.h)-6; g.moveTo(x,y); g.lineTo(x-6,y-9); g.lineTo(x+6,y-9);}
+    g.closePath(); g.fill(); g.stroke();}
+  // last price tag
+  const lp=data[n-1].c, ly=Y(lp); g.fillStyle=C('--ink'); g.fillRect(W-R+2,ly-8,R-4,16); g.fillStyle=C('--bg'); g.textAlign='left'; g.textBaseline='middle'; g.font=`600 11px ${C('--f-mono')}`; g.fillText(lp>=100?lp.toFixed(1):lp.toFixed(2),W-R+6,ly);
+  // hover
+  const ro=$('#readout');
+  if(hoverI!=null&&hoverI>=0&&hoverI<n){const k=data[hoverI], x=Math.round(X(hoverI))+.5; g.strokeStyle=C('--muted'); g.lineWidth=1; g.setLineDash([2,2]); g.beginPath(); g.moveTo(x,T); g.lineTo(x,VB); g.stroke(); g.setLineDash([]);
+    ro.hidden=false; ro.innerHTML=`D${k.d+1} · O ${k.o.toFixed(2)} H ${k.h.toFixed(2)} L ${k.l.toFixed(2)} C <span class="${k.c>=k.o?'up':'down'}">${k.c.toFixed(2)}</span> · Vol ${volFmt(k.v)}`;}
+  else ro.hidden=true;
+  drawChart.geo={L,R,cw,n};
+}
+
+/* ---------- guide ---------- */
+const PAT_ORDER=['up','rally','breakout','vshape','range','bubble','down','bleed','selloff','breakdown','deadcat','staircase','fade'];
+function patSVG(k){
+  let x=0,y=0; const pts=[[0,0]];
+  PATS[k].seg.forEach(([st,a,b])=>{const n=Math.round((a+b)/2);for(let i=0;i<n;i++){x++;y+=st+Math.sin(x*1.9)*.9+Math.sin(x*.7)*.4;pts.push([x,y])}});
+  const ys=pts.map(p=>p[1]); let lo=Math.min(...ys),hi=Math.max(...ys); if(hi-lo<12){const m=(hi+lo)/2;lo=m-6;hi=m+6}
+  const W=200,H=64, line=pts.map(([a,b])=>`${(4+a/x*(W-8)).toFixed(1)},${(H-4-(b-lo)/(hi-lo)*(H-8)).toFixed(1)}`).join(' ');
+  const col=PATS[k].dir>0?'--up':PATS[k].dir<0?'--down':'--ink';
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${line}" fill="none" stroke="var(${col})" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`;
+}
+const term=(k,txt)=>`<span data-t="${k}" tabindex="0" role="button">${txt||T[k][0]}</span>`;
+function candleSVG(){
+  return `<svg viewBox="0 0 420 180" width="420" role="img" aria-label="Two candlesticks labeled open, close, high and low">
+  <g font-family="var(--f-body)" font-size="12" fill="var(--muted)">
+   <line x1="110" y1="20" x2="110" y2="160" stroke="var(--up)" stroke-width="2"/><rect x="90" y="50" width="40" height="80" fill="var(--up)"/>
+   <text x="140" y="24">High</text><text x="140" y="54">Close (ended here)</text><text x="140" y="134">Open (started here)</text><text x="140" y="162">Low</text>
+   <line x1="310" y1="20" x2="310" y2="160" stroke="var(--down)" stroke-width="2"/><rect x="290" y="50" width="40" height="80" fill="var(--down)"/>
+   <text x="340" y="54">Open</text><text x="340" y="134">Close</text>
+   <text x="70" y="178" fill="var(--up)" font-weight="700">Up day</text><text x="268" y="178" fill="var(--down)" font-weight="700">Down day</text>
+  </g></svg>`;
+}
+function trendSVG(){
+  return `<svg viewBox="0 0 440 170" width="440" role="img" aria-label="An uptrend with higher highs and higher lows, crossing moving averages">
+  <g font-family="var(--f-body)" font-size="11.5">
+   <line x1="10" y1="140" x2="430" y2="140" stroke="var(--line)"/>
+   <polyline points="10,120 60,90 90,110 150,65 180,88 240,45 270,68 330,25 360,48 420,15" fill="none" stroke="var(--ink)" stroke-width="2"/>
+   <polyline points="10,125 90,108 180,86 270,64 360,46 420,34" fill="none" stroke="var(--ma2)" stroke-width="2.5"/>
+   <circle cx="60" cy="90" r="4" fill="var(--up)"/><circle cx="150" cy="65" r="4" fill="var(--up)"/><circle cx="240" cy="45" r="4" fill="var(--up)"/><circle cx="330" cy="25" r="4" fill="var(--up)"/>
+   <circle cx="90" cy="110" r="4" fill="var(--accent)"/><circle cx="180" cy="88" r="4" fill="var(--accent)"/><circle cx="270" cy="68" r="4" fill="var(--accent)"/><circle cx="360" cy="48" r="4" fill="var(--accent)"/>
+   <text x="12" y="158" fill="var(--up)" font-weight="700">● higher highs</text><text x="120" y="158" fill="var(--accent)" font-weight="700">● higher lows</text><text x="225" y="158" fill="var(--ma2)" font-weight="700">— rising MA20</text>
+  </g></svg>`;
+}
+function srSVG(){
+  return `<svg viewBox="0 0 440 160" width="440" role="img" aria-label="Price bouncing between support and resistance, then breaking out">
+  <g font-family="var(--f-body)" font-size="11.5">
+   <line x1="10" y1="45" x2="330" y2="45" stroke="var(--down)" stroke-dasharray="6 4"/><text x="12" y="38" fill="var(--down)" font-weight="700">Resistance: sellers show up here</text>
+   <line x1="10" y1="115" x2="330" y2="115" stroke="var(--up)" stroke-dasharray="6 4"/><text x="12" y="132" fill="var(--up)" font-weight="700">Support: buyers show up here</text>
+   <polyline points="10,100 50,50 90,112 140,48 190,113 240,50 285,108 330,46 370,20 420,12" fill="none" stroke="var(--ink)" stroke-width="2"/>
+   <text x="335" y="80" fill="var(--accent)" font-weight="700">Breakout!</text>
+   <rect x="320" y="140" width="10" height="16" fill="var(--muted)" opacity=".4"/><rect x="345" y="128" width="10" height="28" fill="var(--accent)"/><rect x="370" y="132" width="10" height="24" fill="var(--accent)"/>
+   <text x="390" y="152" fill="var(--muted)">volume jumps</text>
+  </g></svg>`;
+}
+const CH=[
+ ['basics','What you are trading',`<p>A ${term('stock')} is a slice of a company. Its price changes every day because buyers and sellers keep changing what they think it is worth. News, profits, interest rates and plain mood all push it around.</p>
+  <p>In Ticker Town every company is made up, but each one behaves like a real type of stock. Each game builds a fresh random market, so you cannot memorize answers. You have to read the clues.</p>
+  <div class="callout">Your goal: grow $10,000 over 120 trading days, and try to beat the ${term('etf','index fund')} (WHLM). Most real professionals fail to beat it, so even matching it is a good result.</div>`],
+ ['candles','Read a candlestick',`<p>Each bar on the chart is one day, drawn as a ${term('candle','candlestick')}.</p><div class="figure">${candleSVG()}</div>
+  <ul><li>Long green bodies mean buyers were in control all day.</li><li>Long wicks mean the price tried to go somewhere and got pushed back.</li><li>A candle far above or below the previous one is a ${term('gap')}, usually caused by news.</li></ul>`],
+ ['trend','Spot the trend',`<p>A ${term('trend')} is the general direction. Three simple checks, all shown on the chart and in the coach box:</p>
+  <div class="figure">${trendSVG()}</div>
+  <ol><li><b>Highs and lows.</b> An uptrend makes higher highs and higher lows. A downtrend makes lower highs and lower lows.</li>
+  <li><b>Moving averages.</b> When the fast ${term('ma','MA5')} is above the slow MA20, and MA20 is pointing up, the trend is up.</li>
+  <li><b>Crosses.</b> MA5 crossing above MA20 is a ${term('golden')}; crossing below is a ${term('death')}. They often mark the start of a new trend, but they also give false signals in sideways markets.</li></ol>
+  <div class="callout">Simple rule many beginners use: only buy when the coach says <b class="up">Uptrend</b>. It will not catch every winner, but it avoids a lot of falling knives.</div>`],
+ ['patterns','Trend patterns to recognize',`<p>Every stock in the game moves through named patterns, rising and falling. They are hidden while they happen, just like in real markets. When one finishes, the news feed posts a <b>Pattern recap</b> so you can check your read.</p>
+  <div class="pats">${PAT_ORDER.map(k=>`<div class="pat"><b class="${PATS[k].dir>0?'up':PATS[k].dir<0?'down':''}">${PATS[k].name}</b>${patSVG(k)}<span>${PATS[k].recap}</span></div>`).join('')}</div>
+  <div class="callout">Most downtrend patterns share one clue: ${term('lowerhighs','lower highs')}. Each bounce stops below the last peak. When you see that, be careful about buying.</div>`],
+ ['falling','When prices fall',`<p>Prices fall about as often as they rise. Downtrends tend to be faster and scarier: a ${term('selloff')} can undo weeks of gains in a few days, and a full ${term('crash')} pulls almost everything down at once.</p>
+  <p><b>Warning signs:</b> MA5 below a falling MA20, a ${term('death')}, price breaking support (a ${term('breakdown')}), big red candles on heavy volume, and weak ${term('breadth')}: most stocks on the scanner pointing down.</p>
+  <ol><li><b>Protect.</b> A stop-loss sells for you before a small loss grows.</li>
+  <li><b>Wait.</b> Cash is a position. Let the falling knife hit the floor and wait for a golden cross.</li>
+  <li><b>Rotate.</b> In bad times money moves into defensive stocks. This is ${term('rotation','sector rotation')}.</li>
+  <li><b>Bet on the fall.</b> The ${term('inverse','inverse fund')} SHLD rises when the market drops. Real traders also use ${term('short','short selling')}, which is riskier and not part of this game.</li>
+  <li><b>Practice.</b> Use “Lower in 5 days” trend calls to train your eye.</li></ol>
+  <div class="callout"><b>Why losses hurt more than they look.</b> Lose 20% and you need +25% to get back to even. Lose 50% and you need +100%. That is why cutting losses early matters more than finding the perfect winner.</div>`],
+ ['levels','Support, resistance and volume',`<p>${term('support','Support')} is a floor where buyers stepped in before. ${term('resistance','Resistance')} is a ceiling where sellers showed up. Prices often bounce between them.</p>
+  <div class="figure">${srSVG()}</div>
+  <p>When price pushes through resistance, that is a ${term('breakout')}. Check the ${term('volume')} bars underneath: a breakout on big volume means lots of traders agree. A breakout on tiny volume often fails and falls back.</p>`],
+ ['types','Know the stock’s personality',`<p>Different kinds of companies move in different ways. Matching the stock to the market mood is half the game.</p>
+  <div class="tablewrap"><table><thead><tr><th>Stock</th><th style="text-align:left">Type</th><th>Beta</th><th style="text-align:left">Usually moves when…</th></tr></thead><tbody>
+  ${DEFS.map(d=>`<tr><td>${d.sym}</td><td style="text-align:left;font-family:var(--f-body)">${d.sector}</td><td>${d.beta}</td><td style="text-align:left;font-family:var(--f-body);white-space:normal;min-width:220px">${d.traits.slice(1).join('; ')}</td></tr>`).join('')}</tbody></table></div>
+  <ul style="margin-top:10px"><li>${term('bull','Bull market')}: ${term('growth','growth')} and high-beta stocks usually lead.</li><li>${term('bear','Bear market')}: ${term('defensive','defensive')} stocks fall less. Holding cash is also allowed.</li><li>${term('cyclical','Cyclical')} stocks (oil, banks, retail) follow the economy and news headlines.</li></ul>`],
+ ['autosell','Auto-sell points',`<p>The hardest part of trading is knowing when to sell. Set it before you buy, while you are calm.</p>
+  <ul><li>${term('stoploss')}: sell automatically if the price falls to a level you pick. Limits the damage.</li>
+  <li>${term('takeprofit')}: sell automatically when it hits your target. Locks in the gain.</li>
+  <li>${term('trailing','Trailing stop')}: a stop that follows the price up. Good for riding long trends.</li></ul>
+  <div class="callout"><b>Worked example.</b> Buy 20 shares at $50 ($1,000). Stop-loss 8% below = $46. Take-profit 16% above = $58.<br>Worst case: lose 20 × $4 = $80. Best case: gain 20 × $8 = $160. That is a ${term('rr','2 to 1 reward-to-risk')}. Win just 4 out of 10 trades like this and you still come out ahead.</div>
+  <p>Where to place the stop: just under ${term('support')} is a popular spot, because if support breaks the trend is probably over. Wild stocks (biotech, meme) need wider stops, or smaller positions. Remember that news can ${term('gap')} straight past your stop.</p>`],
+ ['size','How much to bet',`<p>${term('size','Position size')} matters more than picking winners. One giant losing bet can erase ten good trades.</p>
+  <ul><li>Risk about 1–2% of your account per trade. With $10,000 and an 8% stop, a $1,500–2,500 position risks $120–200.</li>
+  <li>Keep any single stock under about 20% of your money.</li>
+  <li>${term('diversify','Diversify')} across sectors so one bad headline cannot sink you.</li></ul>`],
+ ['mistakes','Classic beginner mistakes',`<ul><li><b>Chasing hype.</b> Buying Rocket Pets after a 50% spike is ${term('fomo')}. Spikes usually fade.</li>
+  <li><b>No stop-loss.</b> “It will come back” is how small losses become big ones.</li>
+  <li><b>Averaging down in a downtrend.</b> Buying more of a falling stock to lower your average cost. Sometimes it works; often it just doubles the loss.</li>
+  <li><b>Selling winners too early, holding losers too long.</b> Auto-sell points fix both.</li>
+  <li><b>Betting big before earnings or trial news.</b> That is a coin flip, not a trend.</li>
+  <li><b>Trading every day.</b> Waiting for a clear setup is a skill.</li></ul>`],
+ ['checklist','Checklist before every trade',`<ol><li>What is the market mood: bull, bear or sideways?</li><li>Does this stock’s personality fit that mood?</li><li>Is the coach reading <b class="up">Uptrend</b>? Is MA5 above a rising MA20?</li><li>Where are support and resistance? Is there room to rise before resistance?</li><li>Is earnings or big news coming in the next few days?</li><li>Where is my stop-loss and my take-profit? Is reward-to-risk at least 2 to 1?</li><li>Is this position under 20% of my money?</li></ol>
+  <p class="note">Ticker Town is a game with invented companies and simplified rules. It is for learning the vocabulary and habits, not a prediction of real markets and not financial advice.</p>`],
+];
+function renderGuide(){
+  $('#toc').innerHTML=CH.map(c=>`<a href="#g-${c[0]}" data-jump="g-${c[0]}">${c[1]}</a>`).join('');
+  $('#chapters').innerHTML=CH.map((c,i)=>`<article class="chapter" id="g-${c[0]}"><h2><span class="n">${String(i+1).padStart(2,'0')}</span>${c[1]}</h2>${c[2]}</article>`).join('');
+}
+function renderTerms(q=''){
+  q=q.toLowerCase().trim();
+  const list=Object.entries(T).filter(([k,v])=>!q||(v.join(' ').toLowerCase().includes(q))).sort((a,b)=>a[1][0].localeCompare(b[1][0]));
+  $('#termGrid').innerHTML=list.length?list.map(([k,v])=>`<div class="term"><h3>${v[0]}</h3><p>${v[1]}</p>${v[2]?`<p class="ex">${v[2]}</p>`:''}</div>`).join(''):'<p class="muted">No terms match that search.</p>';
+}
+
+/* ---------- end screen ---------- */
+function showEnd(){
+  const tv=total(), ret=tv/START_CASH-1, mret=price('WHLM')/S.etfStart-1, diff=ret-mret;
+  const sells=S.trades.filter(t=>t.side==='sell'), wins=sells.filter(t=>t.pl>0).length;
+  const best=sells.reduce((a,t)=>!a||t.pl>a.pl?t:a,null), worst=sells.reduce((a,t)=>!a||t.pl<a.pl?t:a,null);
+  const grade=diff>.1?'A+':diff>.04?'A':diff>0?'B':diff>-.04?'C':ret>0?'D':'F';
+  const lesson=diff>0?'You beat the index fund. Ask yourself which part was skill and which was luck: try another market and see if it repeats.':
+    S.trades.length===0?'You never traded. Holding cash is safe but earns nothing. Try a few small trades with stop-losses next time.':
+    'The index fund won this time, which happens to most real investors too. Look back at your biggest loss: was there a stop-loss on it?';
+  $('#modalCard').innerHTML=`<span class="label">120 trading days complete</span><h2>Final bell</h2>
+   <div class="row" style="gap:18px"><div class="grade">${grade}</div><div><div class="mono" style="font-size:24px;font-weight:600">${fmt(tv)}</div><div>You <span class="${cls(ret)}">${pct(ret)}</span> · Market <span class="${cls(mret)}">${pct(mret)}</span></div></div></div>
+   <div class="results">
+    <div class="fact"><span class="label">Trades closed</span><div class="v">${sells.length} (${sells.length?Math.round(wins/sells.length*100):0}% winners)</div></div>
+    <div class="fact"><span class="label">Auto-sells</span><div class="v">${S.stopsHit} stops · ${S.takesHit} targets</div></div>
+    <div class="fact"><span class="label">Best trade</span><div class="v">${best?best.sym+' '+(best.pl>=0?'+':'')+fmt0(best.pl):'–'}</div></div>
+    <div class="fact"><span class="label">Worst trade</span><div class="v">${worst?worst.sym+' '+(worst.pl>=0?'+':'')+fmt0(worst.pl):'–'}</div></div>
+    <div class="fact"><span class="label">Dividends</span><div class="v">${fmt(S.divs)}</div></div>
+    <div class="fact"><span class="label">Trend calls</span><div class="v">${S.cs.right}/${S.cs.total}</div></div>
+   </div>
+   <p style="margin:0">${lesson}</p>
+   <div class="row"><button class="btn primary" id="again">Play a new market</button><button class="btn ghost" id="closeModal">Look at the charts</button></div>`;
+  $('#modal').hidden=false;
+}
+
+/* ---------- events ---------- */
+function stopPlay(){clearInterval(playTimer);playTimer=null;$('#playBtn').textContent='Auto-play'}
+function startPlay(){if(S.over)return;stopPlay();playTimer=setInterval(nextDay,speed);$('#playBtn').textContent='Pause'}
+function showTerm(k,el){const t=T[k]; if(!t) return; const p=$('#pop'); p.querySelector('h4').textContent=t[0]; p.querySelector('p').innerHTML=t[1]+(t[2]?`<br><span style="opacity:.75">${t[2]}</span>`:''); p.hidden=false}
+function bind(){
+  document.addEventListener('click',e=>{
+    const t=e.target.closest('[data-t]'); if(t){e.preventDefault();showTerm(t.dataset.t,t);return}
+    const sb=e.target.closest('.stk'); if(sb){S.sel=sb.dataset.sym;hoverI=null;save();render();return}
+    const fl=e.target.closest('[data-filter]'); if(fl){S.filter=fl.dataset.filter;save();renderRack();return}
+    const pk=e.target.closest('[data-pick]'); if(pk){S.sel=pk.dataset.pick;render();return}
+    const sa=e.target.closest('[data-sellall]'); if(sa){manualSell(sa.dataset.sellall,S.pos[sa.dataset.sellall].sh);return}
+    const fr=e.target.closest('[data-frac]'); if(fr){const px=price(S.sel); $('#qty').value=fr.dataset.frac==='own'?(S.pos[S.sel]?.sh||0):Math.floor(S.cash*(+fr.dataset.frac)/px); renderDesk(); return}
+    const tb=e.target.closest('[data-tab]'); if(tb){document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-selected',b===tb));['trade','guide','terms'].forEach(n=>$('#tab-'+n).hidden=n!==tb.dataset.tab); if(tb.dataset.tab==='trade') drawChart(); return}
+    const jp=e.target.closest('[data-jump]'); if(jp){e.preventDefault();document.getElementById(jp.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'});return}
+    const rg=e.target.closest('#range button'); if(rg){S.range=+rg.dataset.r;document.querySelectorAll('#range button').forEach(b=>b.classList.toggle('on',b===rg));drawChart();return}
+    const sp=e.target.closest('#speed button'); if(sp){speed=+sp.dataset.s;document.querySelectorAll('#speed button').forEach(b=>b.classList.toggle('on',b===sp)); if(playTimer) startPlay(); return}
+    if(e.target.closest('#pop .x')){$('#pop').hidden=true;return}
+    if(e.target.id==='again'){$('#modal').hidden=true;newGame();save();render();return}
+    if(e.target.id==='closeModal'||e.target.id==='modal'){$('#modal').hidden=true;return}
+    if(!e.target.closest('#pop')) $('#pop').hidden=true;
+  });
+  document.addEventListener('keydown',e=>{const t=e.target.closest?.('[data-t]'); if(t&&(e.key==='Enter'||e.key===' ')){e.preventDefault();showTerm(t.dataset.t)} if(e.key==='Escape'){$('#pop').hidden=true}});
+  $('#buyBtn').onclick=()=>buy(S.sel,+$('#qty').value);
+  $('#sellBtn').onclick=()=>manualSell(S.sel,+$('#qty').value);
+  $('#updAuto').onclick=()=>{applyAuto(S.sel);const p=S.pos[S.sel];toast('Auto-sell points updated');addNews({tag:'trade',h:`New auto-sell points on ${S.sel}: ${p.stop?'stop '+fmt(p.stop):'no stop'}, ${p.take?'target '+fmt(p.take):'no target'}`,why:'Measured from today’s price.'});save();render()};
+  ['#qty','#stopPct','#takePct','#trailOn','#autoOn'].forEach(s=>$(s).addEventListener('input',renderDesk));
+  $('#callUp').onclick=()=>makeCall('up'); $('#callDown').onclick=()=>makeCall('down');
+  $('#nextBtn').onclick=()=>{stopPlay();nextDay()};
+  $('#playBtn').onclick=()=>playTimer?stopPlay():startPlay();
+  let confirmNew=false;
+  $('#newBtn').onclick=()=>{ if(!confirmNew&&!S.over){confirmNew=true;$('#newBtn').textContent='Tap again to restart';setTimeout(()=>{confirmNew=false;$('#newBtn').textContent='New game'},3000);return}
+    confirmNew=false;$('#newBtn').textContent='New game';stopPlay();newGame();save();render();toast('New random market created')};
+  $('#tq').addEventListener('input',e=>renderTerms(e.target.value));
+  const cv=$('#chart');
+  cv.addEventListener('pointermove',e=>{const g=drawChart.geo; if(!g) return; const r=cv.getBoundingClientRect(); const i=Math.floor((e.clientX-r.left-g.L)/g.cw); hoverI=(i>=0&&i<g.n)?i:null; drawChart()});
+  cv.addEventListener('pointerleave',()=>{hoverI=null;drawChart()});
+  new ResizeObserver(()=>drawChart()).observe($('.chartbox'));
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',drawChart);
+  new MutationObserver(drawChart).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+}
+
+function start(data){
+  let loaded=data&&data.S;
+  if(!loaded){try{const j=localStorage.getItem(KEY); if(j) loaded=JSON.parse(j)}catch(e){}}
+  if(loaded&&loaded.v===2&&loaded.stocks&&loaded.stocks.WHLM) S=loaded; else newGame();
+  try{window.claude?.hot?.snapshot?.(()=>({S}))}catch(e){}
+  document.querySelectorAll('#range button').forEach(b=>b.classList.toggle('on',+b.dataset.r===S.range));
+  renderGuide(); renderTerms(); bind(); render();
+  if(S.over) showEnd();
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
