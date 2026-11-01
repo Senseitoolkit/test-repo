@@ -1,0 +1,1428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forty-Niner's Gamble</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: an 8-bit frontier town. Pixel desert scene as the marquee, wanted-poster panels, a plank-wood status bar. One committed daytime-desert look in every theme. */
+:root{
+  --bg:#e7c48a; --bg-dot:#dcb577; --paper:#f7e6bf; --sunk:#ead095; --ink:#2b1a0e; --muted:#6b4a2b; --line:#c49a5e;
+  --edge:#3b2314; --shadow:#8a5a2b;
+  --gold:#9c5d00; --gold-hi:#f0b429; --gold-soft:#fbe08a;
+  --river:#1f6f8b; --river-soft:#bfe3e8;
+  --gain:#2f7a1f; --loss:#b3261e;
+  --wood:#6b3f1f; --wood-dk:#4a2914; --wood-ink:#fbecc7;
+  --c-shovel:#d98e04; --c-pan:#1f8ba3; --c-flour:#7d4fb0; --c-boots:#8b4a22;
+  --display:"Pixelify Sans", "Trebuchet MS", sans-serif;
+  --title:"Press Start 2P", "Courier New", monospace;
+  --body:"Pixelify Sans", "Trebuchet MS", sans-serif;
+  --mono:"Pixelify Sans", "Courier New", monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{background:var(--bg);background-image:radial-gradient(var(--bg-dot) 1.2px,transparent 1.3px);background-size:8px 8px;color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.45;}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:#f2a65a}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,h4{text-wrap:balance;margin:0}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:4px dashed var(--river);outline-offset:3px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.eyebrow{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);line-height:1.6}
+.pix{image-rendering:pixelated;shape-rendering:crispEdges}
+
+/* Marquee */
+.mast{position:relative;background:#f2a65a;border-bottom:6px solid var(--edge)}
+#scene{display:block;width:100%;height:clamp(150px,22vw,250px);image-rendering:pixelated}
+.mast .wrap{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding-block:16px 0;pointer-events:none}
+.brand{pointer-events:auto}
+.brand h1{font-family:var(--title);font-weight:400;font-size:32px;line-height:1.15;color:#fff3d1;text-shadow:3px 3px 0 var(--edge),-2px -2px 0 var(--edge),2px -2px 0 var(--edge),-2px 2px 0 var(--edge)}
+.brand h1 span{color:var(--gold-hi)}
+.brand p{display:inline-block;margin-top:10px;font-size:15px;max-width:56ch;background:rgba(43,26,14,.82);color:#fbecc7;padding:4px 8px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;pointer-events:auto;margin-bottom:-6px}
+.tabs button{font-family:var(--display);font-weight:700;font-size:18px;background:var(--wood);color:var(--wood-ink);border:4px solid var(--edge);border-bottom:0;padding:10px 12px 9px;}
+.tabs button[aria-selected="true"]{background:var(--paper);color:var(--ink)}
+.tabs button:hover{background:var(--wood-dk)}
+.tabs button[aria-selected="true"]:hover{background:var(--paper)}
+@media (max-width:560px){ .brand p{display:none} .tabs button{font-size:8px;padding:8px 7px} }
+
+/* Status strip: plank wood */
+.status{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--wood);background-image:repeating-linear-gradient(0deg,transparent 0 14px,var(--wood-dk) 14px 16px);color:var(--wood-ink);border-bottom:4px solid var(--edge)}
+.status .wrap{display:flex;flex-wrap:wrap;gap:6px 24px;padding-block:9px;align-items:center}
+.stat{display:flex;gap:8px;align-items:center}
+.stat .k{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.04em;opacity:.85}
+.stat .v{font-family:var(--mono);font-weight:600;font-size:19px}
+.stat .v.gold{color:var(--gold-hi)}
+.fever{display:inline-flex;gap:3px;vertical-align:middle}
+.fever i{width:10px;height:14px;background:var(--wood-dk);box-shadow:inset 0 0 0 2px #2a170b}
+.fever i.on{background:var(--gold-hi)}
+.fever i.hot{background:#ff5a36;animation:flick .5s steps(2) infinite}
+@keyframes flick{50%{background:#ffb02e}}
+.sound{margin-left:auto;font-family:var(--display);font-weight:700;font-size:15px;background:var(--wood-dk);color:var(--wood-ink);border:3px solid var(--edge);padding:6px 8px}
+
+main{padding-block:24px 60px}
+.play-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:920px){.play-grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--paper);border:4px solid var(--edge);box-shadow:6px 6px 0 var(--shadow);padding:18px}
+.panel h3{font-family:var(--display);font-weight:700;font-size:19px;line-height:1.5;margin-bottom:12px}
+.stack{display:flex;flex-direction:column;gap:22px;min-width:0}
+
+/* Bulletin = wanted poster / newspaper */
+.bulletin{border:4px solid var(--edge);background:var(--paper);box-shadow:6px 6px 0 var(--shadow);padding:20px 22px;position:relative}
+.bulletin::before{content:"EXTRA! EXTRA!";position:absolute;top:-14px;right:16px;font-family:var(--display);font-weight:700;font-size:16px;background:var(--loss);color:#fff3d1;padding:6px 8px;border:3px solid var(--edge)}
+.bulletin h2{font-family:var(--title);font-weight:400;font-size:16px;line-height:1.45;margin:10px 0 12px}
+.bulletin .body{max-width:62ch}
+.rumor{margin-top:14px;padding-top:12px;border-top:4px dotted var(--line);font-size:16px;color:var(--muted)}
+.rumor b{color:var(--ink)}
+.notice{margin-top:12px;padding:10px 12px;background:#f6c3a8;border:3px solid var(--loss);font-size:16px}
+.facts{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:12px;font-size:15px;color:var(--muted)}
+.facts b{color:var(--ink);font-family:var(--mono);font-weight:700}
+
+/* Choices */
+.choose-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:24px 0 14px}
+.choose-head h3{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.5}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);cursor:pointer}
+.toggle input{accent-color:var(--wood);width:18px;height:18px}
+.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:700px){.choices{grid-template-columns:minmax(0,1fr)}}
+.choice{text-align:left;background:var(--paper);border:4px solid var(--edge);box-shadow:5px 5px 0 var(--shadow);padding:14px;display:flex;flex-direction:column;gap:8px;transition:transform .08s steps(2), box-shadow .08s steps(2)}
+.choice:hover:not(:disabled){transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--shadow);background:#fff0cc}
+.choice:active:not(:disabled){transform:translate(4px,4px);box-shadow:1px 1px 0 var(--shadow)}
+.choice:disabled{opacity:.55;cursor:not-allowed}
+.choice .ic{width:48px;height:48px;display:block}
+.choice .ic svg{width:100%;height:100%}
+.choice h4{font-family:var(--display);font-weight:700;font-size:18px;line-height:1.5}
+.choice ul{margin:0;padding-left:0;list-style:none;font-size:15px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.choice li::before{content:"\25B8 ";color:var(--gold)}
+.choice .est{margin-top:auto;padding-top:8px;border-top:3px dotted var(--line);font-size:14px;color:var(--muted)}
+.choice .est b{font-family:var(--mono);font-size:19px;color:var(--ink)}
+.choice .go{font-family:var(--display);font-weight:700;font-size:16px;color:var(--wood);animation:blink 1.1s steps(2) infinite}
+@keyframes blink{50%{opacity:.35}}
+
+/* Mining */
+.sites{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:14px}
+@media (max-width:700px){.sites{grid-template-columns:minmax(0,1fr)}}
+.site{text-align:left;background:var(--paper);border:4px solid var(--edge);box-shadow:5px 5px 0 var(--shadow);padding:14px;display:flex;flex-direction:column;gap:6px}
+.site:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--shadow);background:#fff0cc}
+.site:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--shadow)}
+.site b{font-family:var(--display);font-weight:700;font-size:18px;line-height:1.5}
+.tag{display:inline-block;font-family:var(--display);font-weight:700;font-size:14px;padding:4px 6px;background:var(--sunk);color:var(--muted);border:2px solid var(--edge);align-self:flex-start}
+.tag.hype{background:var(--gold-hi);color:var(--edge);animation:blink 0.8s steps(2) infinite}
+.site p{font-size:15px;color:var(--muted)}
+.site .range{font-family:var(--mono);font-size:15px;color:var(--ink);font-weight:600}
+.dig{display:flex;flex-direction:column;align-items:center;gap:12px;padding:40px 10px;text-align:center}
+.dig svg{width:144px;height:96px;animation:swirl .3s steps(2) infinite alternate}
+.dig b{font-family:var(--display);font-weight:700;font-size:19px}
+@keyframes swirl{from{transform:rotate(-8deg) translateX(-4px)}to{transform:rotate(8deg) translateX(4px)}}
+@media (prefers-reduced-motion:reduce){.dig svg,.choice .go,.tag.hype,.fever i.hot,.flash{animation:none}.choice,.site{transition:none}}
+
+/* Trade */
+.trade-info{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:15px;margin:4px 0 14px;color:var(--muted);align-items:center}
+.trade-info b{color:var(--ink);font-family:var(--mono)}
+.scroll-x{overflow-x:auto}
+table.market{width:100%;border-collapse:collapse;font-size:15px;min-width:640px}
+.market th{font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);text-align:left;font-weight:400;padding:6px 8px;border-bottom:4px solid var(--edge);line-height:1.6}
+.market td{padding:10px 8px;border-bottom:3px dotted var(--line);vertical-align:middle}
+.market .good b{display:block;font-weight:700}
+.market .good small{color:var(--muted)}
+.swatch{display:inline-block;width:10px;height:10px;margin-right:6px;outline:2px solid var(--edge)}
+.sd{display:grid;grid-template-columns:56px 1fr;gap:3px 6px;font-size:13px;color:var(--muted);min-width:120px;align-items:center}
+.bar{height:10px;background:var(--sunk);overflow:hidden;outline:2px solid var(--edge)}
+.bar i{display:block;height:100%;background-image:repeating-linear-gradient(90deg,transparent 0 6px,rgba(0,0,0,.18) 6px 8px)}
+.bar .d{background-color:var(--gold-hi)}
+.bar .s{background-color:var(--river)}
+.price{font-family:var(--mono);font-weight:600;font-size:16px}
+.price small{display:block;color:var(--muted);font-size:12.5px;font-weight:400}
+.stepper{display:inline-flex;align-items:center;border:3px solid var(--edge);background:var(--paper)}
+.stepper button{background:var(--wood);color:var(--wood-ink);border:0;width:30px;height:30px;font-family:var(--display);font-weight:700;font-size:18px}
+.stepper button:hover:not(:disabled){background:var(--wood-dk)}
+.stepper button:disabled{opacity:.35;cursor:not-allowed}
+.stepper span{min-width:34px;text-align:center;font-family:var(--mono);font-weight:700}
+.stepper button.five{width:38px;font-size:14px;border-left:2px solid var(--edge)}
+.totals{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+@media (max-width:600px){.totals{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tot{background:var(--sunk);border:3px solid var(--edge);padding:10px 12px}
+.tot .k{font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);line-height:1.6}
+.tot .v{font-family:var(--mono);font-size:22px;font-weight:700}
+.pos{color:var(--gain)} .neg{color:var(--loss)}
+.hint{font-size:15px;color:var(--muted);margin-top:12px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;align-items:center}
+.btn{font-family:var(--display);font-weight:700;font-size:18px;line-height:1.4;border:4px solid var(--edge);background:var(--wood);color:var(--wood-ink);padding:11px 14px;box-shadow:4px 4px 0 var(--shadow)}
+.btn:hover{background:var(--wood-dk)}
+.btn:active:not(:disabled){transform:translate(4px,4px);box-shadow:0 0 0 var(--shadow)}
+.btn.ghost{background:var(--paper);color:var(--ink)}
+.btn.ghost:hover{background:var(--sunk)}
+.btn.goldb{background:var(--gold-hi);color:var(--edge)}
+.btn.goldb:hover{background:#ffc94a}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* Report */
+.report h2{font-family:var(--title);font-weight:400;font-size:16px;line-height:1.45;margin:8px 0 10px}
+.report.win h2{color:var(--gold)}
+.flash{animation:flash .25s steps(2) 4}
+@keyframes flash{50%{background:#fff7d6}}
+.lines{display:grid;grid-template-columns:1fr auto;gap:4px 16px;max-width:440px;margin-top:12px;font-size:16px}
+.lines .num{text-align:right;font-weight:600}
+.lines .sum{border-top:4px solid var(--edge);padding-top:4px;font-weight:700}
+.compare{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.cmp{display:grid;grid-template-columns:150px 1fr 90px;gap:10px;align-items:center;font-size:15px}
+@media (max-width:520px){.cmp{grid-template-columns:96px 1fr 76px}}
+.cmp .track{height:18px;background:var(--sunk);position:relative;overflow:hidden;outline:3px solid var(--edge)}
+.cmp .track i{position:absolute;top:0;bottom:0;background-image:repeating-linear-gradient(90deg,transparent 0 6px,rgba(0,0,0,.18) 6px 8px)}
+.cmp .zero{position:absolute;top:0;bottom:0;width:3px;background:var(--edge);z-index:1}
+.cmp .num{font-weight:700}
+.verdict{margin-top:16px;padding:12px 14px;font-size:16px;border:3px solid var(--edge)}
+.verdict.good{background:#cfe8b5}
+.verdict.bad{background:#f6c3a8}
+.lesson{margin-top:14px;padding:12px 14px;background:var(--river-soft);border:3px solid var(--edge);font-size:16px}
+.lesson b{color:var(--river)}
+
+/* Charts */
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-family:var(--mono);font-size:12px}
+.chart .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 4}
+.chart .base{stroke:var(--edge);stroke-width:2;stroke-dasharray:6 4}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px;color:var(--muted);margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;display:inline-block;outline:2px solid var(--edge)}
+
+/* Ledger */
+table.ledger{width:100%;border-collapse:collapse;font-size:15px;min-width:430px}
+.ledger th{text-align:left;font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);padding:4px 6px;border-bottom:4px solid var(--edge);font-weight:400;line-height:1.6}
+.ledger td{padding:6px;border-bottom:2px dotted var(--line);font-family:var(--mono);font-weight:600}
+.ledger td:first-child,.ledger td:nth-child(2){font-weight:400}
+.ledger .empty td{color:var(--muted);text-align:center;padding:16px}
+.chip{display:inline-block;font-family:var(--display);font-weight:700;font-size:14px;padding:3px 5px;border:2px solid var(--edge)}
+.chip.mine{background:var(--gold-hi);color:var(--edge)}
+.chip.trade{background:var(--river-soft);color:var(--river)}
+.chip.work{background:var(--sunk);color:var(--muted)}
+
+details.how{background:var(--paper);border:4px solid var(--edge);box-shadow:6px 6px 0 var(--shadow);margin-bottom:24px}
+details.how summary{padding:12px 16px;font-family:var(--display);font-weight:700;font-size:19px;cursor:pointer}
+details.how .in{padding:0 16px 16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;font-size:15.5px}
+details.how .in b{display:block;margin-bottom:4px;font-family:var(--display);font-weight:700;font-size:16px;line-height:1.5;color:var(--wood)}
+.codebar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:15px;color:var(--muted);margin-top:4px}
+.codebar input{font-family:var(--mono);font-weight:700;font-size:16px;text-transform:uppercase;padding:8px 10px;border:3px solid var(--edge);background:var(--paper);color:var(--ink);width:150px}
+
+/* End */
+.end h2{font-family:var(--title);font-weight:400;font-size:16px;line-height:1.4;margin:10px 0;color:var(--gold)}
+.endstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0}
+
+/* Reference pages */
+.ref{max-width:980px}
+.ref h2{font-family:var(--title);font-weight:400;font-size:16px;line-height:1.4;margin-bottom:12px}
+.ref .lede{color:var(--muted);max-width:66ch;margin-bottom:22px}
+.ref > *{min-width:0}
+.timeline{list-style:none;margin:0;padding:0;border-left:6px solid var(--edge);display:flex;flex-direction:column;gap:18px}
+.timeline li{padding-left:20px;position:relative;max-width:68ch}
+.timeline li::before{content:"";position:absolute;left:-14px;top:3px;width:14px;height:14px;background:var(--gold-hi);border:4px solid var(--edge)}
+.timeline .when{font-family:var(--display);font-weight:700;font-size:16px;color:var(--gold)}
+.timeline b{display:block;font-size:17.5px;margin:2px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.card{background:var(--paper);border:4px solid var(--edge);box-shadow:5px 5px 0 var(--shadow);padding:16px}
+.card h4{margin:0 0 4px;font-size:18px}
+.card .role{font-family:var(--display);font-weight:700;font-size:14px;color:var(--gold);margin-bottom:8px;line-height:1.6}
+.card p{font-size:15.5px;color:var(--muted)}
+.section{margin-top:36px}
+.section > h3{font-family:var(--display);font-weight:700;font-size:21px;line-height:1.5;margin-bottom:14px}
+.pricecmp{width:100%;border-collapse:collapse;font-size:16px;max-width:560px;background:var(--paper);border:4px solid var(--edge)}
+.pricecmp td,.pricecmp th{padding:8px 10px;border-bottom:2px dotted var(--line);text-align:left}
+.pricecmp th{font-family:var(--display);font-weight:700;font-size:14px;color:var(--muted);font-weight:400;border-bottom:4px solid var(--edge)}
+.vocab-tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:18px}
+.vocab-tools input[type=search]{font-family:var(--body);font-size:16px;padding:9px 11px;border:3px solid var(--edge);background:var(--paper);color:var(--ink);min-width:0;width:260px;max-width:100%}
+.terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.term{background:var(--paper);border:4px solid var(--edge);box-shadow:4px 4px 0 var(--shadow);padding:14px;text-align:left;display:flex;flex-direction:column;gap:4px}
+.term .w{font-weight:700;font-size:18px}
+.term .cat{font-family:var(--display);font-weight:700;font-size:14px}
+.term .cat.econ{color:var(--river)} .term .cat.rush{color:var(--gold)}
+.term .def{font-size:15.5px;color:var(--muted)}
+.term .ex{font-size:14.5px;color:var(--ink);font-style:italic}
+.quiz .def,.quiz .ex{filter:blur(6px);user-select:none}
+.quiz .term.show .def,.quiz .term.show .ex{filter:none;user-select:auto}
+.quiz .term{cursor:pointer}
+
+.tools-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+@media (max-width:860px){.tools-grid{grid-template-columns:minmax(0,1fr)}}
+.tools-grid .wide{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:4px;font-size:15px;color:var(--muted)}
+.field input[type=range]{accent-color:var(--wood)}
+.field input[type=number],.field input[type=text],.ocrow input[type=text],.ocrow input[type=number]{font-family:var(--mono);font-size:16px;padding:7px 9px;border:3px solid var(--edge) !important;border-radius:0 !important;background:var(--paper);color:var(--ink);width:100%}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.row > *{flex:1 1 120px;min-width:0}
+.sdlab{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:700px){.sdlab{grid-template-columns:minmax(0,1fr)}}
+.sdlab svg{width:100%;height:auto}
+.sdlab text{fill:var(--muted);font-family:var(--mono);font-size:13px}
+.readout{font-size:16px;background:var(--sunk);border:3px solid var(--edge);padding:10px 12px;margin-top:10px}
+.readout b{font-family:var(--mono)}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.presets button{font-family:var(--display);font-weight:700;font-size:14px;line-height:1.5;background:var(--paper);border:3px solid var(--edge);padding:7px 8px;box-shadow:3px 3px 0 var(--shadow)}
+.presets button:hover,.presets button[aria-pressed="true"]{background:var(--gold-hi)}
+.presets button:active{transform:translate(3px,3px);box-shadow:none}
+ol.qs{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:16px;max-width:70ch}
+.ocrow{display:grid;grid-template-columns:24px minmax(0,1fr) 110px;gap:8px;align-items:center;margin-bottom:8px}
+pre.ticket{white-space:pre-wrap;background:var(--sunk);border:3px solid var(--edge);padding:12px;font-family:"Courier New",monospace;font-size:13px;margin:10px 0 0}
+.small{font-size:14.5px;color:var(--muted)}
+/* View modes */
+body.simple .more{display:none!important}
+body:not(.simple) .lite{display:none!important}
+.modes{display:inline-flex;border:3px solid var(--edge);margin-left:auto}
+.modes button{font-family:var(--display);font-weight:700;font-size:15px;background:var(--wood-dk);color:var(--wood-ink);border:0;padding:6px 8px}
+.modes button[aria-pressed="true"]{background:var(--gold-hi);color:var(--edge)}
+.modes + .sound{margin-left:0}
+.key{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1.05;color:var(--ink)}
+.keysub{font-size:15px;color:var(--muted);margin-top:-4px}
+.badge{display:inline-block;font-family:var(--display);font-weight:700;font-size:14px;padding:3px 5px;border:2px solid var(--edge);margin-left:6px;vertical-align:middle}
+.badge.hot{background:#ff7a45;color:#2b1a0e}
+.badge.glut{background:var(--river-soft);color:var(--river)}
+.bignet{margin-top:10px;font-size:18px}
+.bignet b{font-family:var(--mono);font-size:40px;line-height:1;display:block}
+.steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:0 16px 16px;font-size:16px}
+@media (max-width:640px){.steps3{grid-template-columns:minmax(0,1fr)}}
+.steps3 div{display:flex;gap:10px;align-items:flex-start}
+.steps3 i{font-style:normal;font-family:var(--display);font-weight:700;font-size:20px;background:var(--gold-hi);border:3px solid var(--edge);padding:5px 7px;flex:none}
+
+body.simple .bulletin .lead{font-size:18px}
+
+/* Crisp title sizes: the blocky font stays sharp only at multiples of 8px */
+.brand h1,.bulletin h2,.report h2,.end h2,.ref h2{-webkit-font-smoothing:none;font-smooth:never;line-height:1.5}
+.end h2,.ref h2{font-size:24px}
+@media (max-width:900px){.brand h1{font-size:24px}.end h2,.ref h2{font-size:16px}}
+@media (max-width:560px){.brand h1{font-size:16px}}
+.eyebrow{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.05em;text-transform:uppercase}
+.choice h4,.site b{font-size:18px}
+.panel h3,.choose-head h3,.section > h3{font-size:19px}
+.stat .k{text-transform:uppercase;letter-spacing:.05em;font-size:13px}
+.tabs button{font-size:15px}
+@media (max-width:560px){.tabs button{font-size:13px;padding:7px 8px}}
+</style>
+
+</head>
+<body>
+<header class="mast">
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <div class="brand">
+      <h1>Forty-Niner's <span>Gamble</span></h1>
+      <p>California, 1848&ndash;1850. Dig for gold, sell shovels to the people who dig, or take a steady wage. Every choice costs you the other two.</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-view="play" aria-selected="true">Play</button>
+      <button role="tab" data-view="history" aria-selected="false">History</button>
+      <button role="tab" data-view="vocab" aria-selected="false">Vocabulary</button>
+      <button role="tab" data-view="tools" aria-selected="false">Classroom Tools</button>
+    </nav>
+  </div>
+</header>
+
+<div class="status" aria-live="polite">
+  <div class="wrap" id="status"></div>
+</div>
+
+<main class="wrap">
+  <section id="view-play">
+    <details class="how" id="how">
+      <summary>How to play</summary>
+      <div class="steps3 lite">
+        <div><i>1</i><span><b>Pick a road</b> each season: dig for gold, sell supplies, or work for pay.</span></div>
+        <div><i>2</i><span><b>See what you gave up.</b> The best road you skipped is your opportunity cost.</span></div>
+        <div><i>3</i><span><b>Be richest in 1850.</b> Want every number? Switch to <b>Detailed</b> in the bar above.</span></div>
+      </div>
+      <div class="in more">
+        <div><b>12 seasons, 3 roads</b>Each season, from Spring 1848 to Winter 1850, pick one: prospect for gold, trade supplies, or work for wages. You can only do one.</div>
+        <div><b>Opportunity cost</b>After each season the ledger shows what the best road you <em>didn't</em> take would likely have paid. That's your opportunity cost.</div>
+        <div><b>Supply &amp; demand</b>Camp prices rise when newcomers pour in (demand) and fall when ships unload crates (supply). Selling lots at once adds supply and pushes your own price down.</div>
+        <div><b>Hype</b>Rumors raise gold fever. Fever brings miners, which makes goods scarce and claims crowded. Some rumors are true. Some are hoaxes.</div>
+        <div><b>Goal</b>End 1850 with the highest net worth: cash plus goods in your warehouse. You start with $300.</div>
+      </div>
+    </details>
+    <div class="play-grid">
+      <div class="stack"><div id="stage"></div>
+        <div class="codebar">
+          <label for="code">Class code</label>
+          <input id="code" type="text" maxlength="16" autocomplete="off">
+          <button class="btn ghost" id="newgame">Start new game with this code</button>
+          <button class="btn ghost" id="randomgame">Random code</button>
+          <span class="small">Same code = same events and prices for the whole class.</span>
+        </div>
+      </div>
+      <aside class="stack">
+        <div class="panel chart"><h3>Your fortune</h3><div id="worthChart"></div>
+          <div class="legend"><span><i style="background:var(--gold-hi)"></i>Prospected</span><span><i style="background:var(--river)"></i>Traded</span><span><i style="background:var(--muted)"></i>Worked for wages</span></div></div>
+        <div class="panel chart more"><h3>Camp prices vs. normal</h3><div id="priceChart"></div>
+          <div class="legend" id="priceLegend"></div>
+          <p class="small" style="margin-top:6px">1&times; is the normal price back East. Above the line, goods are scarce. Below it, there's a glut.</p></div>
+        <div class="panel"><h3>Ledger</h3><div class="scroll-x"><table class="ledger"><thead><tr><th>Season</th><th>Choice</th><th>Result</th><th class="more">Next best</th><th>Gave up</th><th class="more">Worth</th></tr></thead><tbody id="ledger"></tbody></table></div>
+          <p class="small lite" style="margin-top:8px">"Gave up" is your opportunity cost: what the best road you skipped would likely have paid.</p><p class="small more" style="margin-top:8px">"Next best" is the advisor's estimate of the best road you didn't take. "Gave up" is that amount: your opportunity cost.</p></div>
+      </aside>
+    </div>
+  </section>
+
+  <section id="view-history" class="ref" hidden></section>
+  <section id="view-vocab" class="ref" hidden></section>
+  <section id="view-tools" class="ref" style="max-width:1100px" hidden></section>
+</main>
+
+<script>
+// ===== Forty-Niner's Gamble: simulation engine =====
+const SEASONS = ["Spring 1848","Summer 1848","Fall 1848","Winter 1848","Spring 1849","Summer 1849","Fall 1849","Winter 1849","Spring 1850","Summer 1850","Fall 1850","Winter 1850"];
+const MINERS  = [800, 4000, 7000, 10000, 18000, 35000, 60000, 85000, 95000, 105000, 112000, 118000];
+const HYPE    = [0.1, 0.45, 0.6, 1.0, 1.4, 1.5, 1.35, 1.05, 0.75, 0.9, 0.55, 0.4];
+const WEATHER = [1, 1.1, 1, 0.7, 1, 1.1, 1, 0.7, 1, 1.1, 1, 0.7];
+const LAG = 2; // ships from the East Coast take ~6 months (2 seasons)
+
+const GOODS = {
+  shovel: { name: "Shovels", one: "crate of 10 shovels", short: "crate", base: 20, nNew: 1.0, nOld: 0.10, s0: 0.6, k: 0.5, el: 1.2, lo: 0.3, hi: 18 },
+  pan:    { name: "Gold pans", one: "crate of 20 pans", short: "crate", base: 12, nNew: 1.0, nOld: 0.08, s0: 0.6, k: 0.5, el: 1.2, lo: 0.3, hi: 20 },
+  flour:  { name: "Flour", one: "barrel of flour", short: "barrel", base: 10, nNew: 0.3, nOld: 0.35, s0: 0.5, k: 0.42, el: 0.9,  lo: 0.4, hi: 7 },
+  boots:  { name: "Boots", one: "crate of 6 boots", short: "crate", base: 18, nNew: 0.6, nOld: 0.2,  s0: 0.5, k: 0.45, el: 1.1,  lo: 0.3, hi: 10 }
+};
+const GOOD_KEYS = Object.keys(GOODS);
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function hashStr(s){let h=2166136261;for(const c of s.toUpperCase()){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return h>>>0;}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+// Historical event for each season (fixed), plus one random "camp rumor".
+const HISTORY_EVENTS = [
+  { title: "A strange find at Sutter's Mill", body: "James Marshall spotted flakes of gold in the mill race at Coloma on January 24. John Sutter tried to keep it quiet. Few people in San Francisco believe the rumor yet.", lesson: "Being early is cheap. Few miners means rich riverbeds, and supplies still sell near normal prices.", fx: {} },
+  { title: "Brannan shouts “Gold!” in the streets", body: "Merchant Sam Brannan bought up the shovels and pans he could find, then walked through San Francisco holding a bottle of gold dust. The town emptied toward the rivers.", lesson: "Brannan created demand for the very goods he already owned. Hype raised the price of his stock.", fx: { demand: { shovel: 1.5, pan: 1.5 } } },
+  { title: "Sailors desert their ships", body: "Whole crews walk off ships in San Francisco Bay to go mining. Workers are so scarce that town wages jump.", lesson: "When everyone chases gold, labor becomes scarce, and scarce things cost more. Wages rise too.", fx: { wage: 1.4 } },
+  { title: "President Polk confirms the gold", body: "On December 5, 1848, President Polk tells Congress that the reports from California are true. Newspapers in the East go wild.", lesson: "News is a demand shock. Expect a wave of newcomers next season, all needing tools.", fx: { hype: 0.15 } },
+  { title: "The steamship California arrives", body: "The first steamship of the rush docks at San Francisco on February 28, 1849, packed with gold seekers. Thousands more are on the way around Cape Horn.", lesson: "Newcomers arrive without tools. Demand for shovels and pans climbs fast.", fx: {} },
+  { title: "Gold fever peaks", body: "Ships from New York, Boston, Chile, and China crowd the harbor. Camps spring up along every river in the foothills.", lesson: "At the peak of hype, prices are highest, and merchants back East are loading ships to cash in.", fx: {} },
+  { title: "Wagon trains cross the Sierra", body: "Overland emigrants pour down the California Trail after months on the road. Many arrive broke and hungry.", lesson: "Hungry newcomers raise flour demand. But the claims are getting crowded and each miner finds less.", fx: { demand: { flour: 1.25 } } },
+  { title: "Fire in San Francisco", body: "On December 24, 1849, a great fire sweeps through San Francisco. Warehouses full of goods burn.", lesson: "Holding inventory is a risk. A quarter of any goods you were storing burned.", fx: { fire: 0.25 } },
+  { title: "A harbor full of goods", body: "The ships merchants sent months ago all arrive at once. Crates pile up on the docks. Some goods sell for less than the freight cost to ship them.", lesson: "This is a glut: supply ran far ahead of demand. High prices last year told everyone to ship goods, and now they all arrived together.", fx: { supply: { shovel: 1.5, pan: 1.5, boots: 1.4, flour: 1.2 } } },
+  { title: "Rumors of Gold Lake", body: "A man claims he saw a lake whose shores were covered in gold nuggets. Hundreds of miners rush into the mountains to find it.", lesson: "This was a real hoax in 1850. The Rumored Ledge looks amazing this season, but the hype is not backed by real gold.", fx: { hype: 0.25, goldLake: true } },
+  { title: "California becomes a state", body: "On September 9, 1850, California joins the Union as the 31st state. A new Foreign Miners' Tax (April 1850) has already driven many Mexican, Chilean, and Chinese miners from the diggings.", lesson: "Rules and taxes change who can profit. The easy surface gold is mostly gone.", fx: {} },
+  { title: "The end of easy gold", body: "Lone miners with pans struggle. Companies with water cannons, dams, and deep shafts begin to take over. Many forty-niners head home or settle as farmers and shopkeepers.", lesson: "Booms end. Whoever had cash when prices fell could buy cheap. Final season: make it count!", fx: {} }
+];
+
+const RUMORS = [
+  { title: "Strike on the Yuba", body: "A rider swears a party pulled 50 ounces from the Yuba River in a week.", fx: { hype: 0.15, rich: 1.1 } },
+  { title: "Flood waters rise", body: "Heavy rain swells the rivers and washes out riverbed claims.", fx: { rich: 0.7 } },
+  { title: "A ship full of boots", body: "A clipper docks with crates of boots from Boston.", fx: { supply: { boots: 1.8 } } },
+  { title: "Oregon flour arrives", body: "A big wheat harvest in Oregon sends flour ships south.", fx: { supply: { flour: 1.7 } } },
+  { title: "Teamsters raise their rates", body: "Mule drivers double what they charge to haul goods to the camps.", fx: { trip: 2 } },
+  { title: "A neighbor's nugget", body: "Someone nearby digs up a five-pound nugget. Everyone wants a shovel.", fx: { hype: 0.2, demand: { shovel: 1.3 } } },
+  { title: "Iron goods run short", body: "The last tool shipment was lost at sea off Cape Horn.", fx: { supply: { shovel: 0.7, pan: 0.7 } } },
+  { title: "A quiet season", body: "No big news this season. Miners dig, merchants haul, and the rivers run.", fx: {} }
+];
+
+function buildWorld(code){
+  const rnd = mulberry32(hashStr(code || "SUTTER"));
+  const seasons = [];
+  const D = {}, S = {}, M = {};
+  GOOD_KEYS.forEach(g => { D[g]=[]; S[g]=[]; M[g]=[]; });
+  let usedRumors = [];
+  for (let t = 0; t < 12; t++) {
+    const hist = HISTORY_EVENTS[t];
+    let ri; do { ri = Math.floor(rnd()*RUMORS.length); } while (usedRumors.includes(ri) && usedRumors.length < RUMORS.length);
+    usedRumors.push(ri); if (usedRumors.length > 4) usedRumors.shift();
+    const rumor = RUMORS[ri];
+    const fx = mergeFx(hist.fx, rumor.fx);
+    const noise = 0.9 + rnd()*0.2;
+    const miners = Math.round(MINERS[t] * noise);
+    const prev = t === 0 ? 0 : seasons[t-1].miners;
+    const newcomers = Math.max(300, miners - prev);
+    const hype = clamp(HYPE[t] + (fx.hype||0), 0, 2);
+    const s = { t, label: SEASONS[t], hist, rumor, fx, miners, newcomers, hype, goods: {} };
+    GOOD_KEYS.forEach(g => {
+      const G = GOODS[g];
+      let d = (G.nNew*newcomers + G.nOld*miners)/1000 * (1 + 0.25*hype) * ((fx.demand&&fx.demand[g])||1);
+      let sup = G.s0;
+      // Merchants back East only ship what they believe in: orders scale with how much they'd heard (hype) seasons ago
+      if (t >= LAG) sup += G.k * D[g][t-LAG] * Math.sqrt(Math.min(M[g][t-LAG], 12)) * belief(t-LAG);
+      if (t >= LAG+1) sup += 0.45 * G.k * D[g][t-LAG-1] * Math.sqrt(Math.min(M[g][t-LAG-1], 12)) * belief(t-LAG-1);
+      sup *= ((fx.supply&&fx.supply[g])||1) * (0.92 + rnd()*0.16);
+      const mult = clamp(Math.pow(d/sup, G.el), G.lo, G.hi);
+      D[g].push(d); S[g].push(sup); M[g].push(mult);
+      const camp = G.base * mult;
+      const sf = G.base * Math.max(0.55, 1 + 0.22*(mult-1)) * (0.95 + rnd()*0.1);
+      s.goods[g] = { demand: d, supply: sup, mult, camp: round2(camp), sf: round2(Math.min(sf, camp*0.92 + G.base*0.15)) };
+    });
+    // Mining richness per season ($ of gold an average miner pulls from a decent claim)
+    s.rich = 2600 * Math.pow(6000/(6000+miners), 0.62) * WEATHER[t] * (fx.rich||1);
+    s.wageDay = (2.5 + 9*hype) * (fx.wage||1);
+    s.wage = Math.round(s.wageDay * 60);
+    s.trip = Math.round((15 + 40*hype) * (fx.trip||1));
+    s.goldLake = !!fx.goldLake;
+    s.fire = fx.fire || 0;
+    seasons.push(s);
+  }
+  return seasons;
+}
+function belief(t){ return Math.min(2.2, Math.pow(HYPE[t], 1.6)); }
+function mergeFx(a,b){
+  const out = { ...a };
+  for (const k in b) {
+    if (k==="demand"||k==="supply") { out[k] = { ...(a[k]||{}) }; for (const g in b[k]) out[k][g] = (out[k][g]||1)*b[k][g]; }
+    else if (k==="hype") out.hype = (a.hype||0)+b.hype;
+    else if (k==="rich"||k==="trip"||k==="wage") out[k] = (a[k]||1)*b[k];
+    else out[k] = b[k];
+  }
+  return out;
+}
+const round2 = v => Math.round(v*100)/100;
+
+// Mining sites: each returns a multiplier of richness
+const SITES = {
+  river: { name: "Riverbed placer", tag: "Steady", desc: "Pan the gravel bars. Small, reliable finds.",
+    roll: (r) => 0.6 + r()*0.6, ev: 0.9, range: [0.6, 1.2] },
+  dry: { name: "Dry diggings", tag: "Medium risk", desc: "Dig the old stream channels. Some seasons good, some bad.",
+    roll: (r) => r()*2.1, ev: 1.05, range: [0, 2.1] },
+  ledge: { name: "Rumored ledge", tag: "Long shot", desc: "Chase the story everyone's talking about. Usually a bust. Sometimes a fortune.",
+    roll: (r, lake) => { const x = r(); if (lake) return x < 0.03 ? 6 : 0.08; if (x < 0.05) return 10; if (x < 0.27) return 2.4; return 0.12; },
+    ev: 1.12, range: [0.12, 10] }
+};
+
+function siteEV(siteKey, season){
+  if (siteKey === "ledge" && season.goldLake) return 0.03*6 + 0.97*0.08;
+  return SITES[siteKey].ev;
+}
+
+// Estimated best trade profit given cash, capacity, inventory. Greedy by unit with price impact.
+const SELL_IMPACT = 0.022, BUY_IMPACT = 0.01;
+function bestTrade(season, cash, cap, inv){
+  // Buy in San Francisco with cash on hand, haul up to `cap` crates, sell at camp.
+  // Result is the change in net worth (warehouse goods valued at SF prices).
+  let budget = cash - season.trip;
+  if (budget < 0) return { profit: -Infinity };
+  const h = {}, b = {};
+  GOOD_KEYS.forEach(g => { h[g]=0; b[g]=0; });
+  let gain = 0;
+  for (let load = 0; load < cap; load++) {
+    let best = null, bg = 0.5;
+    for (const g of GOOD_KEYS) {
+      const G = season.goods[g];
+      const sp = G.camp * Math.pow(1-SELL_IMPACT, h[g]+b[g]);
+      if (h[g] < (inv[g]||0) && sp - G.sf > bg) { bg = sp - G.sf; best = { g, held: true }; }
+      const bp = G.sf * Math.pow(1+BUY_IMPACT, b[g]);
+      if (bp <= budget && sp - bp > bg) { bg = sp - bp; best = { g, held: false, bp }; }
+    }
+    if (!best) break;
+    gain += bg;
+    if (best.held) h[best.g]++; else { b[best.g]++; budget -= best.bp; }
+  }
+  return { profit: gain - season.trip };
+}
+
+
+
+/* ===== 8-bit art: sprites, scene, sound ===== */
+const PAL = { k:"#3b2314", s:"#a9b2b6", d:"#6b7378", w:"#9fd8e6", g:"#f0b429", y:"#b37400", b:"#b8742f", B:"#6b3f1f", h:"#fff3b0", r:"#c0392b", c:"#3f7d20", C:"#2c5a16", t:"#e7b48a", n:"#2b1a0e", u:"#3a5f9e", e:"#f7e6bf" };
+const SPR = {
+  pan: [
+    "................",
+    "................",
+    "kkkkkkkkkkkkkkkk",
+    "ksswwwwwwwwwwssk",
+    ".kswwgwwwhwwwsk.",
+    ".ksswwwgwwgwssk.",
+    "..kddssssssddk..",
+    "...kkkkkkkkkk...",
+    "................"],
+  crate: [
+    "kkkkkkkkkkkkkkkk",
+    "kbbbbbbbbbbbbbbk",
+    "kbBbbbbbbbbbbBbk",
+    "kbbBbbbbbbbbBbbk",
+    "kbbbBbbbbbbBbbbk",
+    "kkkkkkkkkkkkkkkk",
+    "kbbbbbBbbBbbbbbk",
+    "kbbbbbbBBbbbbbbk",
+    "kbbbbbbBBbbbbbbk",
+    "kbbbbbBbbBbbbbbk",
+    "kkkkkkkkkkkkkkkk",
+    "kbbbBbbbbbbBbbbk",
+    "kbbBbbbbbbbbBbbk",
+    "kbBbbbbbbbbbbBbk",
+    "kbbbbbbbbbbbbbbk",
+    "kkkkkkkkkkkkkkkk"],
+  coins: [
+    "................",
+    "....kkkkkkkk....",
+    "...kghhggggggk..",
+    "...kyyyyyyyyyk..",
+    "....kkkkkkkkk...",
+    "..kkkkkkkk......",
+    ".kghgggggggk....",
+    ".kyyyyyyyyyk....",
+    "..kkkkkkkkkkkk..",
+    "...kghggggggggk.",
+    "...kyyyyyyyyyyk.",
+    "..kkkkkkkkkkkk..",
+    ".kghgggggggggk..",
+    ".kyyyyyyyyyyyk..",
+    "..kkkkkkkkkkk...",
+    "................"],
+  // crouching prospector holding a pan (12x14)
+  miner: [
+    "...kkkkk....",
+    "..kBBBBBk...",
+    ".kkkkkkkkk..",
+    "...ktttk....",
+    "...ktnt.....",
+    "....ttt.....",
+    "...krrrrk...",
+    "..krrrrrrk..",
+    ".ttkrrrrkt..",
+    "kssss.uuuu..",
+    ".kwgk.uuuuu.",
+    "..kk..uu.uu.",
+    "......nn.nn.",
+    "............"]
+};
+function pixelSVG(map, label){
+  const h = map.length, w = map[0].length; let r = "";
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++){ const c = map[y][x]; if (c !== "." && PAL[c]) r += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${PAL[c]}"/>`; }
+  return `<svg class="pix" viewBox="0 0 ${w} ${h}" ${label?`role="img" aria-label="${label}"`:'aria-hidden="true"'} shape-rendering="crispEdges">${r}</svg>`;
+}
+
+/* ---- Sound: tiny square-wave chiptune ---- */
+let AC = null, SOUND = true;
+try { SOUND = localStorage.getItem("fng-sound") !== "off"; } catch(e){}
+function sfx(kind){
+  if (!SOUND) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    const seq = { click:[[660,.04]], coin:[[988,.07],[1319,.14]], bust:[[392,.1],[294,.1],[196,.22]], strike:[[523,.07],[659,.07],[784,.07],[1047,.07],[1319,.25]], step:[[440,.05],[587,.08]] }[kind] || [];
+    let t = AC.currentTime + 0.01;
+    seq.forEach(([f,d])=>{
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = kind==="bust" ? "sawtooth" : "square"; o.frequency.value = f;
+      g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0008, t+d);
+      o.connect(g).connect(AC.destination); o.start(t); o.stop(t+d+0.02); t += d*0.9;
+    });
+  } catch(e){}
+}
+function setSound(on){ SOUND = on; try{ localStorage.setItem("fng-sound", on?"on":"off"); }catch(e){} }
+
+/* ---- Animated desert scene ---- */
+function startScene(getSeason){
+  const cv = document.getElementById("scene"); if (!cv) return;
+  const ctx = cv.getContext("2d");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let W = 0, H = 0, frame = 0, mtn = [], mesa = [], stars = [], weed = -20;
+  function rnd(i){ const x = Math.sin(i*127.1+311.7)*43758.5453; return x - Math.floor(x); }
+  function size(){
+    const r = cv.getBoundingClientRect(); const p = r.width > 700 ? 4 : 3;
+    W = Math.max(80, Math.ceil(r.width/p)); H = Math.max(40, Math.ceil(r.height/p));
+    cv.width = W; cv.height = H;
+    mtn = []; let y = H*0.38; for (let x=0;x<W;x++){ y += (rnd(x)-0.5)*2.6 + (H*0.36 - y)*0.06; mtn.push(Math.round(y)); }
+    mesa = []; let m = H*0.6; for (let x=0;x<W;x++){ const step = rnd(x*3.3) > 0.93 ? (rnd(x+9)>0.5?3:-3) : 0; m = Math.max(H*0.5, Math.min(H*0.68, m+step)); mesa.push(Math.round(m)); }
+  }
+  function px(x,y,c){ ctx.fillStyle=c; ctx.fillRect(x|0,y|0,1,1); }
+  function rect(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x|0,y|0,w|0,h|0); }
+  function sprite(map,x,y){ for(let j=0;j<map.length;j++) for(let i=0;i<map[j].length;i++){ const c=map[j][i]; if(c!=="."&&PAL[c]) px(x+i,y+j,PAL[c]); } }
+  function draw(){
+    const t = getSeason ? getSeason() : 0;
+    const winter = t % 4 === 3, fall = t % 4 === 2;
+    const sky = winter ? ["#7f9bb5","#97b1c6","#b5c8d6","#d6dfe3"] : fall ? ["#e8834f","#f2a65a","#f7c47e","#fbdca0"] : ["#5aa6dd","#7dbbe6","#a7d2ee","#d4ebf3"];
+    const bands = [0, H*0.18, H*0.3, H*0.42];
+    for (let i=0;i<4;i++){ rect(0,bands[i],W,H,sky[i]); }
+    for (let i=1;i<4;i++){ const y = Math.round(bands[i]); for(let x=(y%2);x<W;x+=2) px(x,y-1,sky[i]); }
+    // sun
+    const sx = Math.round(W*0.83), sy = Math.round(H*0.18), sr = 6;
+    for (let y=-sr;y<=sr;y++) for (let x=-sr;x<=sr;x++) if (x*x+y*y <= sr*sr) px(sx+x, sy+y, winter?"#f1f1e6":"#ffe066");
+    // clouds
+    for (let i=0;i<3;i++){ const cx = ((i*W/3 + frame*0.15*(i+1)) % (W+30)) - 20, cy = Math.round(H*(0.08+i*0.07));
+      rect(cx,cy,14,3,"#ffffffcc"); rect(cx+3,cy-2,7,2,"#ffffffcc"); }
+    // far mountains with snow
+    for (let x=0;x<W;x++){ const top = mtn[x]; rect(x,top,1,H,winter?"#7a7f9e":"#8a7cab"); if (top < H*0.36) { rect(x,top,1,Math.max(1,Math.round(H*0.36-top)/2),"#f4f4f4"); } }
+    // mesas
+    for (let x=0;x<W;x++){ rect(x,mesa[x],1,H,"#c96d3a"); px(x,mesa[x],"#e08a4f"); if (x%7===0) rect(x,mesa[x]+3,1,4,"#a3542b"); }
+    // ground
+    const gy = Math.round(H*0.72);
+    rect(0,gy,W,H,winter?"#d9c49a":"#e0b06a");
+    for (let i=0;i<W*1.5;i++){ px(rnd(i)*W, gy+2+rnd(i+77)*(H-gy), "#c9944f"); }
+    // river
+    const ry = Math.round(H*0.82);
+    for (let x=0;x<W;x++){ const wob = Math.round(Math.sin(x*0.09)*2); rect(x,ry+wob,1,5,"#2f8fb5"); px(x,ry+wob,"#5fb7d6"); }
+    for (let i=0;i<W/6;i++){ const x = Math.floor((rnd(i)*W + frame*0.6) % W), wob = Math.round(Math.sin(x*0.09)*2); if ((i+frame)%3===0) px(x, ry+wob+2, "#d6f3fb"); }
+    // cacti
+    [[0.06,0],[0.34,1],[0.62,2]].forEach(([fx,k])=>{ const x = Math.round(W*fx), y = gy-8+k; if (x<W-4){ rect(x,y,2,10,PAL.c); rect(x-2,y+3,1,3,PAL.c); rect(x-2,y+5,2,1,PAL.c); rect(x+3,y+2,1,3,PAL.c); rect(x+2,y+4,2,1,PAL.c); px(x+1,y,PAL.C); } });
+    // saloon on wide screens
+    if (W > 200){ const bx = Math.round(W*0.9), by = gy-14;
+      rect(bx,by,22,14,"#8b5a2b"); rect(bx-1,by-4,24,5,"#6b3f1f"); rect(bx+3,by-3,16,3,"#f0b429"); rect(bx+9,by+6,4,8,"#3b2314"); rect(bx+3,by+4,3,3,"#fbdca0"); rect(bx+16,by+4,3,3,"#fbdca0"); for(let i=0;i<22;i+=3) rect(bx+i,by+1,1,13,"#7a4a22"); }
+    // prospector panning by the river
+    const mx = Math.round(W*0.7), my = ry - 11 + (frame%8<4?0:1);
+    sprite(SPR.miner, mx, my);
+    if (frame % 16 < 2) px(mx+2, my+10, "#fff3b0");
+    // tumbleweed
+    if (!reduce){ weed += 0.8; if (weed > W+20) weed = -20 - rnd(frame)*80; const wy = gy + 3 - Math.abs(Math.round(Math.sin(weed*0.25)*3));
+      rect(weed,wy,4,4,"#a07a3a"); px(weed+1,wy+1,"#6b4a20"); px(weed+(frame%2?0:3),wy-1,"#a07a3a"); }
+  }
+  size(); draw();
+  addEventListener("resize", ()=>{ size(); draw(); });
+  if (!reduce){ setInterval(()=>{ frame++; draw(); }, 125); }
+  return draw;
+}
+
+</script>
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const START_CASH = 300, BASE_CAP = 30, OZ = 16;
+const COLORS = { shovel:"var(--c-shovel)", pan:"var(--c-pan)", flour:"var(--c-flour)", boots:"var(--c-boots)" };
+const CHOICE = { mine:"Prospected", trade:"Traded", work:"Worked" };
+const money = (v, sign) => { const r = Math.round(v); const s = (r<0?"−":(sign&&r>0?"+":"")) + "$" + Math.abs(r).toLocaleString("en-US"); return s; };
+const money2 = v => "$" + (v<10 ? v.toFixed(2) : Math.round(v).toLocaleString("en-US"));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let W = null;      // world (seasons)
+let S = null;      // game state
+
+let MODE = "simple";
+try { MODE = localStorage.getItem("fng-mode") || "simple"; } catch(e){}
+function applyMode(){ document.body.classList.toggle("simple", MODE==="simple"); }
+function firstSentence(t){ const m = t.match(/^.*?[.!?](\s|$)/); return m ? m[0].trim() : t; }
+function randomCode(){ const words=["SUTTER","COLOMA","EUREKA","YUBA","FEATHER","BRANNAN","NUGGET","SLUICE","PLACER","SIERRA"]; return words[Math.floor(Math.random()*words.length)]+"-"+(10+Math.floor(Math.random()*90)); }
+function newGame(code){
+  code = (code||"SUTTER-49").toUpperCase().replace(/[^A-Z0-9-]/g,"").slice(0,16) || "SUTTER-49";
+  S = { code, t:0, cash:START_CASH, inv:{shovel:0,pan:0,flour:0,boots:0}, kit:{shovel:false,pan:false}, advisor:true,
+        phase:"choose", hist:[], worth:[START_CASH], fireLoss:null, last:null, trade:null, mineSite:null, rngSeed: hashStr(code)^0x9e3779b9, rolls:0 };
+  W = buildWorld(code);
+  save(); render();
+}
+function rng(){ // deterministic per code & roll count, so the class shares luck too
+  const r = mulberry32(S.rngSeed + (S.rolls++)*7919)(); return r;
+}
+function season(){ return W[S.t]; }
+function worthAt(s){ return S.cash + GOOD_KEYS.reduce((a,g)=>a + S.inv[g]*s.goods[g].sf, 0); }
+function warehouseValue(s){ return GOOD_KEYS.reduce((a,g)=>a + S.inv[g]*s.goods[g].sf, 0); }
+function kitCost(s){ return (S.kit.shovel?0:s.goods.shovel.camp/10) + (S.kit.pan?0:s.goods.pan.camp/20); }
+function food(s, where){ return 2 * (where==="sf" ? s.goods.flour.sf : s.goods.flour.camp); }
+
+function estimates(){
+  const s = season();
+  const mineBest = Math.max(siteEV("river",s), siteEV("dry",s));
+  const mine = s.rich*mineBest - kitCost(s) - food(s,"camp");
+  const tr = bestTrade(s, S.cash, BASE_CAP, S.inv).profit;
+  const trade = isFinite(tr) ? tr - food(s,"camp") : -Infinity;
+  const work = s.wage - food(s,"sf");
+  return { mine, trade, work };
+}
+
+/* ---------- persistence ---------- */
+function save(){ try{ localStorage.setItem("fng-state", JSON.stringify(S)); }catch(e){} }
+function load(){ try{ const j = localStorage.getItem("fng-state"); if(j){ const o = JSON.parse(j); if(o && o.code){ S=o; W=buildWorld(S.code); return true; } } }catch(e){} return false; }
+
+/* ---------- status strip ---------- */
+function renderStatus(){
+  const s = W[Math.min(S.t,11)];
+  const pips = Math.round(s.hype/2*8);
+  let fever = ""; for(let i=0;i<8;i++) fever += `<i class="${i<pips?(i>=6?"hot":"on"):""}"></i>`;
+  const done = S.phase==="end";
+  $("#status").innerHTML = `
+    <div class="stat"><span class="k">Season</span><span class="v">${done?"Done":(S.t+1)+"/12"} &middot; ${done?"1850":s.label}</span></div>
+    <div class="stat"><span class="k">Cash</span><span class="v gold">${money(S.cash)}</span></div>
+    <div class="stat more"><span class="k">Warehouse</span><span class="v">${money(warehouseValue(s))}</span></div>
+    <div class="stat"><span class="k">Net worth</span><span class="v">${money(worthAt(s))}</span></div>
+    <div class="stat"><span class="k">Gold fever</span><span class="fever" title="Hype level">${fever}</span></div>
+    <div class="modes" role="group" aria-label="View"><button data-mode="simple" aria-pressed="${MODE==="simple"}">Simple</button><button data-mode="detailed" aria-pressed="${MODE!=="simple"}">Detailed</button></div>
+    <button class="sound" id="sound" aria-pressed="${SOUND}">${SOUND?"\u266A Sound on":"\u266A Sound off"}</button>`;
+}
+
+/* ---------- icons ---------- */
+const ICON = { pan: pixelSVG(SPR.pan), crate: pixelSVG(SPR.crate), hammer: pixelSVG(SPR.coins) };
+
+/* ---------- stage ---------- */
+function bulletin(s){
+  const prev = S.t>0 ? W[S.t-1].miners : null;
+  return `<div class="bulletin">
+    <div class="eyebrow">Season ${S.t+1} of 12 &middot; ${s.label}</div>
+    <h2>${esc(s.hist.title)}</h2>
+    <p class="body lead lite">${esc(firstSentence(s.hist.body))}</p>
+    <p class="body more">${esc(s.hist.body)}</p>
+    ${S.fireLoss ? `<div class="notice"><b>Your warehouse burned.</b> You lost ${S.fireLoss}. Goods in storage are never risk-free.</div>`:""}
+    <div class="rumor"><b>Camp rumor: ${esc(s.rumor.title)}.</b><span class="more"> ${esc(s.rumor.body)}</span></div>
+    <div class="facts lite"><span>Miners in California <b>${s.miners.toLocaleString("en-US")}</b></span></div>
+    <div class="facts more">
+      <span>Miners in California <b>${s.miners.toLocaleString("en-US")}</b>${prev?` (${s.miners>=prev?"+":""}${(s.miners-prev).toLocaleString("en-US")})`:""}</span>
+      <span>Gold dust trades at <b>$${OZ}/oz</b></span>
+      <span>Town wage <b>${money2(s.wageDay)}/day</b></span>
+    </div>
+  </div>`;
+}
+
+function renderChoose(){
+  const s = season(), e = estimates();
+  const kc = kitCost(s);
+  // best markup
+  let bm = null; GOOD_KEYS.forEach(g=>{ const m = s.goods[g].camp - s.goods[g].sf; if(!bm || m > bm.m) bm = {g, m}; });
+  const G = s.goods[bm.g];
+  const canTrade = S.cash >= s.trip;
+  const est = (v) => S.advisor ? `<div class="est"><span class="more">Advisor's estimate: </span><span class="lite">You'd likely end up </span><b class="${v>=0?"pos":"neg"}">${isFinite(v)?money(v,true):"n/a"}</b></div>` : `<div class="est">Advisor is off. Weigh it yourself.</div>`;
+  return bulletin(s) + `
+  <div class="choose-head"><h3>What will you do this season?</h3>
+    <label class="toggle"><input type="checkbox" id="advisor" ${S.advisor?"checked":""}> Show advisor estimates</label></div>
+  <div class="choices">
+    <button class="choice" data-choice="mine">
+      <span class="ic">${ICON.pan}</span><h4>Prospect for gold</h4>
+      <span class="key lite">~${money(s.rich*0.9)}</span><span class="keysub lite">gold on a typical claim. Gamble!</span>
+      <ul class="more">
+        <li>A typical claim yields about ${money(s.rich*0.9)} this season</li>
+        <li>${s.miners.toLocaleString("en-US")} miners share the rivers. More miners, less gold each.</li>
+        <li>${kc>0?`Tools at camp prices: ${money2(kc)} (${!S.kit.shovel?`shovel ${money2(s.goods.shovel.camp/10)}`:""}${!S.kit.shovel&&!S.kit.pan?", ":""}${!S.kit.pan?`pan ${money2(s.goods.pan.camp/20)}`:""})`:"You already own a shovel and pan"}</li>
+        <li>Food: 2 barrels of flour at camp, ${money(food(s,"camp"))}</li>
+      </ul>${est(e.mine)}<span class="go">Head to the rivers &rarr;</span>
+    </button>
+    <button class="choice" data-choice="trade" ${canTrade?"":"disabled"}>
+      <span class="ic">${ICON.crate}</span><h4>Trade mining supplies</h4>
+      <span class="key lite">${money2(G.sf)} &rarr; ${money2(G.camp)}</span><span class="keysub lite">${GOODS[bm.g].name.toLowerCase()}: buy in town, sell at camp</span>
+      <ul class="more">
+        <li>Buy in San Francisco, sell at the camps</li>
+        <li>Biggest markup: ${GOODS[bm.g].name.toLowerCase()}, ${money2(G.sf)} &rarr; ${money2(G.camp)} per ${GOODS[bm.g].short}</li>
+        <li>Mule train carries ${BASE_CAP} crates. Hire: ${money(s.trip)}</li>
+        <li>Food: 2 barrels of flour at camp, ${money(food(s,"camp"))}</li>
+      </ul>${canTrade?est(e.trade):`<div class="est">You need at least ${money(s.trip)} to hire the mule train.</div>`}<span class="go">Open the market &rarr;</span>
+    </button>
+    <button class="choice" data-choice="work">
+      <span class="ic">${ICON.hammer}</span><h4>Work for wages</h4>
+      <span class="key lite">${money(s.wage)}</span><span class="keysub lite">guaranteed pay. No risk.</span>
+      <ul class="more">
+        <li>Build, haul, and cook in San Francisco</li>
+        <li>${money2(s.wageDay)} a day &times; 60 days = ${money(s.wage)}</li>
+        <li>No luck needed. No big payday either.</li>
+        <li>Food: 2 barrels of flour in town, ${money(food(s,"sf"))}</li>
+      </ul>${est(e.work)}<span class="go">Take the job &rarr;</span>
+    </button>
+  </div>`;
+}
+
+function renderMine(){
+  const s = season();
+  const fmt = (lo,hi)=>`${money(s.rich*lo)} to ${money(s.rich*hi)}`;
+  const lake = s.goldLake;
+  return bulletin(s) + `
+  <div class="choose-head"><h3>Pick a spot to dig</h3><button class="btn ghost" data-back>Back</button></div>
+  <p class="small">Tools and food: ${money(kitCost(s)+food(s,"camp"))} this season. Tools can break.</p>
+  <div class="sites">
+    <button class="site" data-site="river"><span class="tag">Steady</span><b>Riverbed placer</b><p class="more">${SITES.river.desc}</p><span class="range">${fmt(0.6,1.2)}</span></button>
+    <button class="site" data-site="dry"><span class="tag">Medium risk</span><b>Dry diggings</b><p class="more">${SITES.dry.desc}</p><span class="range">${fmt(0,2.1)}</span></button>
+    ${lake
+      ? `<button class="site" data-site="ledge"><span class="tag hype">Everyone's going!</span><b>Gold Lake</b><p class="more">They say nuggets cover the lake shore. You just have to find it in the high Sierra.</p><span class="range">Rumor says: ${money(s.rich*10)} or more</span></button>`
+      : `<button class="site" data-site="ledge"><span class="tag">Long shot</span><b>Rumored ledge</b><p class="more">${SITES.ledge.desc}</p><span class="range">Usually ${money(s.rich*0.12)}. 1 in 5 chance of ${money(s.rich*2.4)}. 1 in 20 of ${money(s.rich*10)}.</span></button>`}
+  </div>`;
+}
+
+function renderDigging(){
+  return `<div class="panel dig">${pixelSVG(SPR.pan)}<b>Swirling the pan&hellip;</b><span class="small">Washing away the gravel to see what's left.</span></div>`;
+}
+
+/* ---- trading ---- */
+function buyCost(g,n){ const p = season().goods[g].sf; let t=0; for(let i=0;i<n;i++) t += p*Math.pow(1+BUY_IMPACT,i); return t; }
+function sellRev(g,n){ const p = season().goods[g].camp; let t=0; for(let i=0;i<n;i++) t += p*Math.pow(1-SELL_IMPACT,i); return t; }
+function tradeTotals(){
+  const T = S.trade, s = season();
+  let spend=0, rev=0, load=0;
+  GOOD_KEYS.forEach(g=>{ spend += buyCost(g,T.buy[g]); rev += sellRev(g,T.sell[g]); load += T.sell[g]; });
+  const cap = BASE_CAP*(T.wagon?2:1);
+  const fees = s.trip*(T.wagon?3:1);
+  return { spend, rev, load, cap, fees, budget: S.cash - fees };
+}
+function renderTrade(){
+  const s = season(), T = S.trade, tt = tradeTotals();
+  const maxDS = Math.max(...GOOD_KEYS.map(g=>Math.max(s.goods[g].demand, s.goods[g].supply)));
+  const rows = GOOD_KEYS.map(g=>{
+    const G = s.goods[g], info = GOODS[g];
+    const nextBuy = G.sf*Math.pow(1+BUY_IMPACT,T.buy[g]);
+    const nextSell = G.camp*Math.pow(1-SELL_IMPACT,T.sell[g]);
+    const canBuy = tt.spend + nextBuy <= tt.budget + 1e-9;
+    const avail = S.inv[g] + T.buy[g] - T.sell[g];
+    const canSell = avail > 0 && tt.load < tt.cap;
+    const dW = Math.max(4, G.demand/maxDS*100), sW = Math.max(4, G.supply/maxDS*100);
+    return `<tr>
+      <td class="good"><b><span class="swatch" style="background:${COLORS[g]}"></span>${info.name}${G.mult>=3?'<span class="badge hot">HOT</span>':G.mult<0.9?'<span class="badge glut">GLUT</span>':""}</b><small>per ${info.one}</small></td>
+      <td class="more"><div class="sd"><span>Demand</span><div class="bar"><i class="d" style="width:${dW}%"></i></div><span>Supply</span><div class="bar"><i class="s" style="width:${sW}%"></i></div></div></td>
+      <td class="price">${money2(nextBuy)}<small>SF dock</small></td>
+      <td class="price">${money2(nextSell)}<small>${T.sell[g]?`was ${money2(G.camp)}`:"at camp"}</small></td>
+      <td class="price">${S.inv[g]}<small>in warehouse</small></td>
+      <td><div class="stepper" role="group" aria-label="Buy ${info.name}"><button data-t="buy" data-g="${g}" data-d="-1" ${T.buy[g]>0&&avail>0?"":"disabled"} aria-label="Buy one less">&minus;</button><span>${T.buy[g]}</span><button data-t="buy" data-g="${g}" data-d="1" ${canBuy?"":"disabled"} aria-label="Buy one more">+</button><button class="five" data-t="buy" data-g="${g}" data-d="5" ${canBuy?"":"disabled"} aria-label="Buy five more">+5</button></div></td>
+      <td><div class="stepper" role="group" aria-label="Sell ${info.name}"><button data-t="sell" data-g="${g}" data-d="-1" ${T.sell[g]>0?"":"disabled"} aria-label="Sell one less">&minus;</button><span>${T.sell[g]}</span><button data-t="sell" data-g="${g}" data-d="1" ${canSell?"":"disabled"} aria-label="Sell one more">+</button><button class="five" data-t="sell" data-g="${g}" data-d="5" ${canSell?"":"disabled"} aria-label="Sell five more">+5</button></div></td>
+    </tr>`;
+  }).join("");
+  const unsoldVal = GOOD_KEYS.reduce((a,g)=>a + Math.max(0,T.buy[g]-T.sell[g])*s.goods[g].sf,0);
+  const heldSoldVal = GOOD_KEYS.reduce((a,g)=>a + Math.max(0,T.sell[g]-T.buy[g])*s.goods[g].sf,0);
+  const profit = tt.rev - tt.spend - tt.fees + unsoldVal - heldSoldVal + GOOD_KEYS.reduce((a,g)=>a + (Math.min(T.buy[g],T.sell[g])>=0?0:0),0);
+  // net worth change = (rev - spend - fees) + value of bought goods kept - value of held goods sold
+  return bulletin(s) + `
+  <div class="choose-head"><h3>The market</h3><button class="btn ghost" data-back>Back</button></div>
+  <div class="panel">
+    <div class="trade-info">
+      <span>Cash to buy with <b>${money(tt.budget - tt.spend)}</b></span>
+      <span>Mule load <b>${tt.load}/${tt.cap}</b> crates</span>
+      <span class="more">Hauling fee <b>${money(tt.fees)}</b></span>
+      <label class="toggle"><input type="checkbox" id="wagon" ${T.wagon?"checked":""} ${S.cash>=s.trip*3?"":"disabled"}> Hire a second mule train (+${BASE_CAP} crates, fee &times;3)</label>
+    </div>
+    <div class="scroll-x"><table class="market"><thead><tr><th>Goods</th><th class="more">This season</th><th>Buy at</th><th>Sell at</th><th>You own</th><th>Buy in SF</th><th>Sell at camp</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="totals">
+      <div class="tot"><div class="k">Spent in SF</div><div class="v">${money(tt.spend)}</div></div>
+      <div class="tot"><div class="k">Sales at camp</div><div class="v">${money(tt.rev)}</div></div>
+      <div class="tot"><div class="k">Hauling fee</div><div class="v">${money(tt.fees)}</div></div>
+      <div class="tot"><div class="k">Trip profit</div><div class="v ${profit>=0?"pos":"neg"}">${money(profit,true)}</div></div>
+    </div>
+    <p class="hint lite">HOT = scarce, sells high. GLUT = too much, sells low. Each crate you sell lowers the price a little.</p>
+    <p class="hint more">Watch the "Sell at" price drop as you sell. Every crate you bring adds to the camp's supply. Goods you buy but don't sell stay in your San Francisco warehouse for later. Trip profit counts kept goods at today's SF price.</p>
+    <div class="actions"><button class="btn goldb" id="haul">Haul it to camp</button></div>
+  </div>`;
+}
+
+/* ---- report ---- */
+function renderReport(){
+  const R = S.last, s = W[R.t];
+  const opts = [["mine","Prospect"],["trade","Trade"],["work","Wages"]];
+  const vals = opts.map(([k])=> k===R.choice ? R.net : R.evs[k]).map(v=>isFinite(v)?v:0);
+  const lo = Math.min(0,...vals), hi = Math.max(1,...vals), span = hi-lo;
+  const zero = (0-lo)/span*100;
+  const bars = opts.map(([k,label],i)=>{
+    const v = vals[i], x0 = Math.min(zero,(v-lo)/span*100), w = Math.abs((v-0)/span*100);
+    const mine = k===R.choice;
+    const col = k==="mine"?"var(--gold-hi)":k==="trade"?"var(--river)":"var(--muted)";
+    return `<div class="cmp ${mine?"mine-row":""}"><span>${mine?"<b>You: "+label+"</b>":label+" <span class='small'>(est.)</span>"}</span><div class="track"><span class="zero" style="left:${zero}%"></span><i style="left:${x0}%;width:${Math.max(w,0.6)}%;background:${col};opacity:${mine?1:.55}"></i></div><span class="num ${v>=0?"pos":"neg"}" style="text-align:right">${money(v,true)}</span></div>`;
+  }).join("");
+  const good = R.net >= R.oc - 1;
+  const ocName = {mine:"prospecting",trade:"trading",work:"working for wages"}[R.ocChoice];
+  const verdict = good
+    ? `<div class="verdict good lite"><b>Good call!</b> You beat your next best choice, ${ocName} (about ${money(R.oc,true)}).</div><div class="verdict good more"><b>Good call.</b> Your ${money(R.net,true)} beat the next best road, ${ocName} (about ${money(R.oc,true)}). Your opportunity cost was ${money(R.oc)}, and you came out ${money(R.net-R.oc)} ahead of it.</div>`
+    : `<div class="verdict bad lite"><b>You gave up more than you got.</b> ${ocName[0].toUpperCase()+ocName.slice(1)} would likely have paid about ${money(R.oc,true)}.</div><div class="verdict bad more"><b>The road not taken paid more.</b> By choosing this, you gave up ${ocName}, worth about ${money(R.oc,true)}. That's your opportunity cost. You came out ${money(R.oc-R.net)} behind it.${R.choice==="mine"?" Luck plays a part, but so do the odds.":""}</div>`;
+  return `<div class="panel report ${R.net>0?"win":""} ${R.big?"flash":""}">
+    <div class="eyebrow">${s.label} &middot; season report</div>
+    <h2>${esc(R.headline)}</h2>
+    <p>${esc(R.story)}</p>
+    <div class="bignet lite">Season result<b class="${R.net>=0?"pos":"neg"}">${money(R.net,true)}</b></div>
+    <div class="lines more">${R.lines.map(([k,v,cls])=>`<span class="${cls||""}">${esc(k)}</span><span class="num ${cls||""}">${typeof v==="number"?money(v,true):esc(v)}</span>`).join("")}</div>
+    <h3 style="margin-top:20px;font-size:15px">Your road vs. the roads not taken</h3>
+    <div class="compare">${bars}</div>
+    ${verdict}
+    <div class="lesson"><b>Lesson from ${esc(s.label)}:</b> ${esc(s.hist.lesson)}</div>
+    ${R.extra?`<div class="lesson" style="background:var(--gold-soft)"><b style="color:var(--gold)">Hype check:</b> ${esc(R.extra)}</div>`:""}
+    <div class="actions"><button class="btn goldb" id="next">${R.t===11?"See final results":"On to "+W[R.t+1].label+" →"}</button></div>
+  </div>`;
+}
+
+function rankFor(w){
+  if (w < 1000) return ["Busted flat", "The rush chewed you up, like it did most forty-niners. You definitely “saw the elephant.”"];
+  if (w < 3000) return ["Saw the elephant", "You survived the rush with a little to show for it. That's better than many did."];
+  if (w < 7000) return ["Comfortable forty-niner", "You'll head home with a full poke and good stories."];
+  if (w < 14000) return ["Boomtown merchant", "You learned that selling to miners can beat mining. Sam Brannan would tip his hat."];
+  return ["Gold Rush tycoon", "You read supply and demand like a map. You'd fit right in among Brannan, Strauss, and Studebaker."];
+}
+function renderEnd(){
+  const s = W[11], w = worthAt(s);
+  const [rank, blurb] = rankFor(w);
+  const counts = {mine:0,trade:0,work:0}; let ocLost = 0, best = null;
+  S.hist.forEach(h=>{ counts[h.choice]++; ocLost += Math.max(0, h.oc - h.net); if(!best || h.net > best.net) best = h; });
+  const goodCalls = S.hist.filter(h=>h.net >= h.oc-1).length;
+  return `<div class="panel end">
+    <div class="eyebrow">Winter 1850 &middot; final tally</div>
+    <h2>${rank}</h2>
+    <p>${blurb}</p>
+    <div class="endstats">
+      <div class="tot"><div class="k">Net worth</div><div class="v">${money(w)}</div></div>
+      <div class="tot"><div class="k">Gain from $300</div><div class="v ${w>=START_CASH?"pos":"neg"}">${money(w-START_CASH,true)}</div></div>
+      <div class="tot"><div class="k">Good calls</div><div class="v">${goodCalls} of 12</div></div>
+      <div class="tot"><div class="k">Left on the table</div><div class="v neg">${money(ocLost)}</div></div>
+    </div>
+    <p>You prospected <b>${counts.mine}</b> times, traded <b>${counts.trade}</b> times, and worked for wages <b>${counts.work}</b> times. Your best season was <b>${best?W[best.t].label:"none"}</b> (${best?money(best.net,true):""}). "Left on the table" adds up every season where the road not taken was likely worth more.</p>
+    <h3 style="margin-top:18px;font-size:15px">Think it over</h3>
+    <ol class="qs" style="margin-top:8px">
+      <li>When were tools and supplies most expensive at the camps? What was happening to demand then?</li>
+      <li>Why did prices crash in 1850, even though there were more miners than ever?</li>
+      <li>Find a season where you made money but still had a high opportunity cost. What should you have done instead?</li>
+      <li>Did any rumor change your choice? Was the hype worth it?</li>
+    </ol>
+    <div class="actions"><button class="btn goldb" id="again">Play again with code ${esc(S.code)}</button><button class="btn ghost" id="again2">New random game</button></div>
+  </div>`;
+}
+
+function renderStage(){
+  const st = $("#stage");
+  let html = "";
+  if (S.phase==="choose") html = renderChoose();
+  else if (S.phase==="mine") html = renderMine();
+  else if (S.phase==="digging") html = renderDigging();
+  else if (S.phase==="trade") html = renderTrade();
+  else if (S.phase==="report") html = renderReport();
+  else if (S.phase==="end") html = renderEnd();
+  st.innerHTML = html;
+}
+
+/* ---------- actions ---------- */
+function snapshotEVs(){ S.pendingEvs = estimates(); }
+function finish(choice, net, headline, story, lines, extra){
+  const evs = S.pendingEvs || estimates();
+  const others = Object.entries(evs).filter(([k])=>k!==choice && isFinite(evs[k]));
+  others.sort((a,b)=>b[1]-a[1]);
+  const [ocChoice, oc] = others[0];
+  S.last = { t:S.t, choice, net, headline, story, lines, evs, oc, ocChoice, extra, big: /Mother lode/.test(headline) };
+  S.hist.push({ t:S.t, choice, net, oc, ocChoice, worth: worthAt(season()) });
+  S.phase = "report"; S.trade = null; S.pendingEvs = null;
+  setTimeout(()=>sfx(S.last.big ? "strike" : net > 0 ? "coin" : "bust"), 60);
+  save(); render();
+  $("#stage").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
+}
+
+function doWork(){
+  snapshotEVs();
+  const s = season(), f = food(s,"sf");
+  const before = worthAt(s);
+  S.cash += s.wage - f;
+  finish("work", worthAt(s)-before, `Steady pay: ${money(s.wage)}`, `You hauled lumber and unloaded ships for 60 days at ${money2(s.wageDay)} a day. No risk, no jackpot.`,
+    [["Wages", s.wage], ["Food (2 barrels flour, SF)", -f], ["Season result", s.wage-f, "sum"]]);
+}
+
+function doMine(site){
+  const s = season();
+  const kc = kitCost(s), f = food(s,"camp");
+  const boughtKit = [!S.kit.shovel?"a shovel":null, !S.kit.pan?"a pan":null].filter(Boolean);
+  const before = worthAt(s);
+  S.kit.shovel = true; S.kit.pan = true;
+  const roll = SITES[site].roll(rng, s.goldLake);
+  const gold = Math.round(s.rich * roll);
+  const oz = gold/OZ;
+  S.cash += gold - kc - f;
+  const broke = [];
+  if (rng() < 0.35) { S.kit.shovel = false; broke.push("shovel"); }
+  if (rng() < 0.2) { S.kit.pan = false; broke.push("pan"); }
+  const net = worthAt(s)-before;
+  const name = site==="ledge" && s.goldLake ? "Gold Lake" : SITES[site].name;
+  let headline, story;
+  if (roll >= 6) { headline = `Mother lode! ${oz.toFixed(1)} ounces`; story = `At the ${name}, you hit a pocket of gold that men dream about. The camp will talk about this for years.`; }
+  else if (roll >= 1.5) { headline = `Rich color: ${oz.toFixed(1)} ounces`; story = `The ${name} paid well. Your poke is heavy.`; }
+  else if (roll >= 0.5) { headline = `Steady work: ${oz.toFixed(1)} ounces`; story = `You worked the ${name} all season. Honest gold, sore back.`; }
+  else { headline = `Thin pickings: ${oz.toFixed(1)} ounces`; story = `The ${name} was mostly gravel and mud.`; }
+  if (broke.length) story += ` Your ${broke.join(" and ")} broke, so you'll need new ones next time.`;
+  const lines = [[`Gold found (${oz.toFixed(1)} oz × $${OZ})`, gold]];
+  if (kc>0) lines.push([`Bought ${boughtKit.join(" and ")} at camp prices`, -kc]);
+  lines.push(["Food (2 barrels flour, camp)", -f], ["Season result", net, "sum"]);
+  let extra = null;
+  if (site==="ledge" && s.goldLake) extra = "Gold Lake was a real hoax in 1850. A man named J. R. Stoddard claimed he'd found it, and hundreds followed him into the mountains. Nobody found the lake. The rumor's promise was huge, but its real expected value was tiny.";
+  else if (site==="ledge") extra = `Long shots pay off about 1 time in 4, and big only 1 time in 20. Expected value counts both the size of the prize and the chance of getting it.`;
+  finish("mine", net, headline, story, lines, extra);
+}
+
+function doTrade(){
+  const s = season(), T = S.trade, tt = tradeTotals(), f = food(s,"camp");
+  const before = worthAt(s);
+  S.cash += tt.rev - tt.spend - tt.fees;
+  GOOD_KEYS.forEach(g=>{ S.inv[g] += T.buy[g] - T.sell[g]; });
+  const beforeFood = worthAt(s) - before;
+  S.cash -= f;
+  const sold = GOOD_KEYS.filter(g=>T.sell[g]>0).map(g=>`${T.sell[g]} ${GOODS[g].short}${T.sell[g]>1?"s":""} of ${GOODS[g].name.toLowerCase()}`);
+  const kept = GOOD_KEYS.filter(g=>T.buy[g]-T.sell[g]>0).map(g=>`${T.buy[g]-T.sell[g]} of ${GOODS[g].name.toLowerCase()}`);
+  // biggest price drop caused by player
+  let drop = null; GOOD_KEYS.forEach(g=>{ if(T.sell[g]>0){ const d = 1-Math.pow(1-SELL_IMPACT,T.sell[g]); if(!drop||d>drop.d) drop={g,d}; } });
+  let story = sold.length ? `You sold ${sold.join(", ")} at the camps.` : `You hauled nothing to sell, so the trip was just a cost.`;
+  if (kept.length) story += ` You stored ${kept.join(", ")} in your warehouse to sell later. That's speculation: betting prices will rise.`;
+  if (drop && drop.d > 0.08) story += ` Your own crates pushed the camp price of ${GOODS[drop.g].name.toLowerCase()} down ${Math.round(drop.d*100)}%. More supply, lower price.`;
+  const net = worthAt(s)-before;
+  finish("trade", net, net>=0?`Trip profit: ${money(net,true)}`:`A losing haul: ${money(net,true)}`, story,
+    [["Sales at camp", tt.rev], ["Bought in San Francisco", -tt.spend], ["Goods kept in warehouse (SF value)", beforeFood - (tt.rev - tt.spend - tt.fees)], ["Hauling fee", -tt.fees], ["Food (2 barrels flour, camp)", -f], ["Season result", net, "sum"]]);
+}
+
+function nextSeason(){
+  if (S.t >= 11) { S.phase = "end"; save(); render(); return; }
+  S.t++;
+  const s = season();
+  S.fireLoss = null;
+  if (s.fire) {
+    const lost = []; GOOD_KEYS.forEach(g=>{ const n = Math.floor(S.inv[g]*s.fire + (S.inv[g]>0?0.5:0)); if(n>0){ S.inv[g]-=n; lost.push(`${n} ${GOODS[g].name.toLowerCase()}`);} });
+    if (lost.length) S.fireLoss = lost.join(", ");
+  }
+  S.worth.push(worthAt(s));
+  S.phase = "choose"; save(); render();
+  $("#stage").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
+}
+
+/* ---------- charts ---------- */
+function shortLabel(i){ const l = SEASONS[i].split(" "); return l[0].slice(0,2)+" ’"+l[1].slice(2); }
+function worthChart(){
+  const W0 = 560, H0 = 220, L = 52, R = 12, T = 12, B = 30;
+  const pts = [{x:0, y:START_CASH, c:null}];
+  S.hist.forEach((h,i)=>pts.push({x:i+1, y:h.worth, c:h.choice}));
+  const maxY = Math.max(1000, ...pts.map(p=>p.y))*1.08, minY = Math.min(0, ...pts.map(p=>p.y));
+  const X = i => L + i/12*(W0-L-R), Y = v => T + (1-(v-minY)/(maxY-minY))*(H0-T-B);
+  const step = niceStep(maxY-minY, 4); let g = "";
+  for (let v = Math.ceil(minY/step)*step; v <= maxY; v += step) g += `<line class="grid" x1="${L}" x2="${W0-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-6}" y="${Y(v)+3}" text-anchor="end">$${v>=1000?(v/1000)+"k":v}</text>`;
+  for (let i = 0; i <= 12; i+=2) g += `<text x="${X(i)}" y="${H0-10}" text-anchor="middle">${i===0?"Start":shortLabel(i-1)}</text>`;
+  const path = pts.map((p,i)=>i?`H${X(p.x).toFixed(1)}V${Y(p.y).toFixed(1)}`:`M${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join("");
+  const area = pts.length>1 ? `<path d="${path}L${X(pts[pts.length-1].x)},${Y(Math.max(minY,0))}L${X(0)},${Y(Math.max(minY,0))}Z" fill="var(--gold-hi)" opacity=".28"/>` : "";
+  const col = c => c==="mine"?"var(--gold-hi)":c==="trade"?"var(--river)":c==="work"?"var(--muted)":"var(--paper)";
+  const dots = pts.map((p,i)=>`<rect x="${X(p.x)-(i===pts.length-1?6:4.5)}" y="${Y(p.y)-(i===pts.length-1?6:4.5)}" width="${i===pts.length-1?12:9}" height="${i===pts.length-1?12:9}" fill="${col(p.c)}" stroke="var(--edge)" stroke-width="2"><title>${i===0?"Start":SEASONS[i-1]}: ${money(p.y)}</title></rect>`).join("");
+  const last = pts[pts.length-1];
+  const lbl = `<text x="${Math.min(X(last.x)+8, W0-R-40)}" y="${Y(last.y)-9}" style="fill:var(--ink);font-weight:600">${money(last.y)}</text>`;
+  $("#worthChart").innerHTML = `<svg viewBox="0 0 ${W0} ${H0}" role="img" aria-label="Net worth over time">${g}${area}<path d="${path}" fill="none" stroke="var(--edge)" stroke-width="3" stroke-linejoin="miter"/>${dots}${lbl}</svg>`;
+}
+function niceStep(range, n){ const raw = range/n, p = Math.pow(10, Math.floor(Math.log10(raw))), m = raw/p; return (m<1.5?1:m<3?2:m<7?5:10)*p; }
+function priceChart(){
+  const W0 = 560, H0 = 220, L = 40, R = 60, T = 12, B = 30;
+  const lo = Math.log(0.25), hi = Math.log(20);
+  const upto = Math.min(S.t, 11);
+  const X = i => L + i/11*(W0-L-R), Y = v => T + (1-(Math.log(Math.max(0.25,Math.min(20,v)))-lo)/(hi-lo))*(H0-T-B);
+  let g = "";
+  [0.25,0.5,1,2,5,10,20].forEach(v=>{ g += `<line class="${v===1?"base":"grid"}" x1="${L}" x2="${W0-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-6}" y="${Y(v)+3}" text-anchor="end">${v}×</text>`; });
+  for (let i = 0; i < 12; i+=2) g += `<text x="${X(i)}" y="${H0-10}" text-anchor="middle">${shortLabel(i)}</text>`;
+  const ends = [];
+  const lines = GOOD_KEYS.map(k=>{
+    const pts = []; for (let i=0;i<=upto;i++) pts.push([X(i), Y(W[i].goods[k].mult)]);
+    const d = pts.map((p,i)=>`${i?"L":"M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join("");
+    const lp = pts[pts.length-1]; ends.push({k, y: lp[1], x: lp[0], v: W[upto].goods[k].mult});
+    return `<path d="${d}" fill="none" stroke="${COLORS[k]}" stroke-width="3" stroke-linejoin="miter"/>` + `<rect x="${lp[0]-4}" y="${lp[1]-4}" width="8" height="8" fill="${COLORS[k]}" stroke="var(--edge)" stroke-width="1.5"/>`;
+  }).join("");
+  // end labels, de-overlapped
+  ends.sort((a,b)=>a.y-b.y); for (let i=1;i<ends.length;i++) if (ends[i].y - ends[i-1].y < 12) ends[i].y = ends[i-1].y + 12;
+  const labels = ends.map(e=>`<text x="${e.x+7}" y="${e.y+3}" style="fill:${COLORS[e.k]};font-weight:600">${e.v.toFixed(1)}×</text>`).join("");
+  $("#priceChart").innerHTML = `<svg viewBox="0 0 ${W0} ${H0}" role="img" aria-label="Camp price multiples by good">${g}${lines}${labels}</svg>`;
+  $("#priceLegend").innerHTML = GOOD_KEYS.map(k=>`<span><i style="background:${COLORS[k]}"></i>${GOODS[k].name}</span>`).join("");
+}
+function renderLedger(){
+  if (!S.hist.length) { $("#ledger").innerHTML = `<tr class="empty"><td colspan="6">Your first season's results will appear here.</td></tr>`; return; }
+  $("#ledger").innerHTML = S.hist.map(h=>`<tr><td>${shortLabel(h.t)}</td><td><span class="chip ${h.choice}">${CHOICE[h.choice]}</span></td><td class="${h.net>=0?"pos":"neg"}">${money(h.net,true)}</td><td class="more">${money(h.oc,true)}</td><td class="${h.net>=h.oc-1?"":"neg"}">${money(h.oc)}</td><td class="more">${money(h.worth)}</td></tr>`).join("");
+}
+
+function render(){
+  applyMode();
+  if (window.__redrawScene) window.__redrawScene();
+  renderStatus(); renderStage(); worthChart(); priceChart(); renderLedger();
+  $("#code").value = S.code;
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", e=>{
+  const t = e.target.closest("button"); if (!t) return;
+  if (t.dataset.mode) { MODE = t.dataset.mode; try{ localStorage.setItem("fng-mode", MODE); }catch(e){} applyMode(); renderStatus(); sfx("click"); return; }
+  if (t.id==="sound") { setSound(!SOUND); renderStatus(); sfx("click"); return; }
+  if (t.dataset.t) sfx(t.dataset.t==="sell" && +t.dataset.d>0 ? "coin" : "click");
+  else if (t.id!=="haul" && !t.dataset.site) sfx(t.id==="next" ? "step" : "click");
+  if (t.dataset.choice) {
+    const c = t.dataset.choice; snapshotEVs();
+    if (c==="work") doWork();
+    else if (c==="mine") { S.phase="mine"; render(); }
+    else if (c==="trade") { S.trade = { buy:{shovel:0,pan:0,flour:0,boots:0}, sell:{shovel:0,pan:0,flour:0,boots:0}, wagon:false }; S.phase="trade"; render(); }
+    return;
+  }
+  if (t.hasAttribute("data-back")) { S.phase="choose"; S.trade=null; render(); return; }
+  if (t.dataset.site) {
+    const site = t.dataset.site;
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) { doMine(site); return; }
+    S.phase="digging"; renderStage(); setTimeout(()=>doMine(site), 1300); return;
+  }
+  if (t.dataset.t) {
+    const T = S.trade, g = t.dataset.g, d = +t.dataset.d;
+    for (let i=0;i<Math.abs(d);i++){
+      const tt = tradeTotals();
+      if (t.dataset.t==="buy") {
+        if (d<0) { if (T.buy[g]>0 && S.inv[g]+T.buy[g]-T.sell[g]>0) T.buy[g]--; }
+        else { const nb = season().goods[g].sf*Math.pow(1+BUY_IMPACT,T.buy[g]); if (tt.spend+nb <= tt.budget+1e-9) T.buy[g]++; else break; }
+      } else {
+        if (d<0) { if (T.sell[g]>0) T.sell[g]--; }
+        else { if (S.inv[g]+T.buy[g]-T.sell[g]>0 && tt.load<tt.cap) T.sell[g]++; else break; }
+      }
+    }
+    renderStage(); return;
+  }
+  if (t.id==="haul") { doTrade(); return; }
+  if (t.id==="next") { nextSeason(); return; }
+  if (t.id==="again") { newGame(S.code); return; }
+  if (t.id==="again2" || t.id==="randomgame") { newGame(randomCode()); return; }
+  if (t.id==="newgame") { newGame($("#code").value); return; }
+});
+document.addEventListener("change", e=>{
+  if (e.target.id==="advisor") { S.advisor = e.target.checked; save(); renderStage(); }
+  if (e.target.id==="wagon") {
+    const T = S.trade; T.wagon = e.target.checked;
+    // if budget shrank, trim purchases
+    let tt = tradeTotals();
+    while (tt.spend > tt.budget + 1e-9) { const g = GOOD_KEYS.find(k=>T.buy[k]>0); if(!g) break; T.buy[g]--; if (T.sell[g] > S.inv[g]+T.buy[g]) T.sell[g]--; tt = tradeTotals(); }
+    while (tt.load > tt.cap) { const g = GOOD_KEYS.find(k=>T.sell[k]>0); T.sell[g]--; tt = tradeTotals(); }
+    renderStage();
+  }
+});
+
+/* ---------- tabs ---------- */
+const VIEWS = ["play","history","vocab","tools"];
+function show(view){
+  if (!VIEWS.includes(view)) view = "play";
+  VIEWS.forEach(v=>{ document.getElementById("view-"+v).hidden = v!==view; });
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-selected", b.dataset.view===view));
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click", ()=>{ const v=b.dataset.view; if (location.hash !== "#"+v) location.hash = v; else show(v); }));
+window.addEventListener("hashchange", ()=>show(location.hash.slice(1)));
+
+/* ---------- boot ---------- */
+function start(data){
+  if (data && data.S && data.S.code) { S = data.S; W = buildWorld(S.code); }
+  else if (!load()) newGame("SUTTER-49");
+  render();
+  if (S.hist.length===0 && S.phase==="choose") $("#how").open = true;
+  buildReference();
+  show(location.hash.slice(1));
+  if (!window.__sceneStarted){ window.__sceneStarted = true; window.__redrawScene = startScene(()=>S ? Math.min(S.t,11) : 0); }
+}
+window.claude?.hot?.snapshot?.(()=>({S}));
+window.__fng_start = start;
+function buildReference(){
+  const $ = s => document.querySelector(s);
+  /* ===== HISTORY ===== */
+  const timeline = [
+    ["Jan 24, 1848", "Gold at Sutter's Mill", "James W. Marshall, building a sawmill for John Sutter on the American River at Coloma, notices shiny flakes in the water channel."],
+    ["Feb 2, 1848", "California changes hands", "The Treaty of Guadalupe Hidalgo ends the Mexican-American War. Mexico gives up California to the United States, nine days after the discovery. Neither side knew about the gold."],
+    ["Mar 15, 1848", "First newspaper report", "A short item in San Francisco's newspaper mentions the find. Most readers shrug."],
+    ["May 1848", "Brannan's sales pitch", "Sam Brannan, who owned a store at Sutter's Fort, parades through San Francisco with a bottle of gold dust. San Francisco empties as men head for the hills."],
+    ["Dec 5, 1848", "The President confirms it", "President James K. Polk tells Congress the reports are real. Gold fever spreads across the eastern United States and around the world."],
+    ["Feb 28, 1849", "The forty-niners arrive", "The steamship California reaches San Francisco. In 1849 alone, tens of thousands come by ship around Cape Horn, across Panama, or overland by wagon."],
+    ["Dec 24, 1849", "San Francisco burns", "The first of several great fires destroys much of the city. It is rebuilt quickly, then burns again."],
+    ["Apr 1850", "Foreign Miners' Tax", "California charges non-citizen miners $20 a month, a huge sum. Many Mexican, Chilean, and Chinese miners are forced out of the diggings."],
+    ["Summer 1850", "The Gold Lake hoax", "A story spreads about a mountain lake whose shores are covered in gold. Hundreds of miners chase it. It does not exist."],
+    ["Sep 9, 1850", "Statehood", "California becomes the 31st state, skipping the territory stage because its population grew so fast."],
+    ["1852–1853", "Gold output peaks", "California's gold production reaches its peak. Easy surface gold is fading, and mining companies with expensive equipment take over."],
+    ["1853 onward", "Hydraulic mining", "Miners blast hillsides with high-pressure water. It finds gold but buries rivers and farms in mud. A federal court ruling largely stopped it in 1884."]
+  ];
+  const people = [
+    ["James W. Marshall", "Discoverer", "Found the gold that started it all. He never got rich from it, and he died poor in 1885."],
+    ["John Sutter", "Landowner", "Owned the land where gold was found. Squatters and miners overran his property, his workers quit to dig, and his empire collapsed."],
+    ["Sam Brannan", "Merchant & promoter", "Bought up supplies, then spread the news. He became California's first millionaire by selling to miners, not by mining."],
+    ["Levi Strauss", "Dry goods seller", "Came to San Francisco in 1853 to sell cloth and clothing to miners. Decades later, he and tailor Jacob Davis patented riveted work pants: blue jeans."],
+    ["John Studebaker", "Wheelbarrow maker", "Built wheelbarrows for miners in Placerville in the 1850s, then took his savings home to grow his family's wagon company."],
+    ["Domingo Ghirardelli", "Confectioner", "An Italian chocolate maker who ran a store for miners, then founded a chocolate business in San Francisco in 1852."]
+  ];
+  $("#view-history").innerHTML = `
+    <h2>The California Gold Rush</h2>
+    <p class="lede">In 1848, a few flakes of gold turned a quiet Mexican province into the fastest-growing place on Earth. California's non-Native population went from about 14,000 to roughly 100,000 by the end of 1849, and to around 300,000 by 1855. Here's what really happened, and who really got rich.</p>
+    <div class="section"><h3>Timeline</h3><ol class="timeline">${timeline.map(([d,t,b])=>`<li><span class="when">${d}</span><b>${t}</b><span>${b}</span></li>`).join("")}</ol></div>
+    <div class="section"><h3>Who really got rich?</h3>
+      <p class="lede" style="margin-bottom:14px">Most forty-niners went home with little or nothing. Many of the steadiest fortunes went to people who sold to miners. That's why people still say, "In a gold rush, sell shovels."</p>
+      <div class="cards">${people.map(([n,r,b])=>`<div class="card"><div class="role">${r}</div><h4>${n}</h4><p>${b}</p></div>`).join("")}</div>
+    </div>
+    <div class="section"><h3>Prices in the camps</h3>
+      <p class="lede" style="margin-bottom:12px">With demand exploding and supplies months away by ship, prices in the mining camps soared. Accounts from the time report prices like these. Exact numbers varied by camp and month.</p>
+      <div class="scroll-x"><table class="pricecmp"><thead><tr><th>Item</th><th>Normal price back East</th><th>Reported camp price</th></tr></thead><tbody>
+        <tr><td>Gold pan</td><td>about 20 cents</td><td>$8 or more</td></tr>
+        <tr><td>One egg</td><td>about 1 cent</td><td>up to $1</td></tr>
+        <tr><td>Day's wage</td><td>about $1</td><td>$10 or more in 1849</td></tr>
+        <tr><td>Gold dust</td><td colspan="2">traded at about $16 an ounce</td></tr>
+      </tbody></table></div>
+    </div>
+    <div class="section"><h3>The cost of the rush</h3>
+      <div class="cards">
+        <div class="card"><div class="role">Native Californians</div><p>The rush was a catastrophe for California's Native peoples. Disease, starvation, loss of land, and violence, including killings paid for by the state, caused their population to fall from about 150,000 in 1848 to about 30,000 by 1870.</p></div>
+        <div class="card"><div class="role">Immigrant miners</div><p>Miners came from Mexico, Chile, China, Hawaii, Europe, and beyond. Laws like the Foreign Miners' Tax and frequent violence pushed many off their claims.</p></div>
+        <div class="card"><div class="role">The land</div><p>Mining tore up riverbeds, cut forests for timber, and used mercury to collect gold. Hydraulic mining washed whole hillsides into rivers. Some damage is still visible today.</p></div>
+      </div>
+    </div>`;
+
+  /* ===== VOCAB ===== */
+  const vocab = [
+    ["econ","Supply","How much of something sellers have available at different prices.","A ship unloads 5,000 shovels: supply goes up."],
+    ["econ","Demand","How much of something buyers want and can pay for at different prices.","Thousands of newcomers need shovels: demand goes up."],
+    ["econ","Price","What a buyer pays a seller. It rises when demand beats supply and falls when supply beats demand.","A pan costs 20 cents in New York and $8 at the diggings."],
+    ["econ","Scarcity","Not having enough of something for everyone who wants it.","Only a few shovels in camp and lots of miners."],
+    ["econ","Shortage","When people want more of something than sellers have at the current price.","Spring 1849: the camps run short of tools."],
+    ["econ","Surplus (glut)","When sellers have more of something than buyers want at the current price. Prices fall.","1850: crates pile up on the San Francisco docks."],
+    ["econ","Equilibrium","The price where the amount buyers want equals the amount sellers offer.","Where the supply and demand lines cross."],
+    ["econ","Opportunity cost","The value of the best choice you gave up when you made a decision.","If you mine, you give up the wages you could have earned."],
+    ["econ","Trade-off","Giving up some of one thing to get more of another.","Safe wages vs. a chance at a big strike."],
+    ["econ","Profit","Money earned minus all costs.","Sold shovels for $300, paid $100 plus a $50 fee: $150 profit."],
+    ["econ","Revenue","All the money that comes in from sales, before costs.","Your camp sales total."],
+    ["econ","Expected value","The average result you'd get if you made the same bet many times. Chance times payoff.","A 1-in-10 shot at $1,000 has an expected value of $100."],
+    ["econ","Risk","The chance that things go worse than you hoped.","Digging the rumored ledge."],
+    ["econ","Speculation","Buying something now, hoping to sell it later for more.","Storing flour in your warehouse to sell next season."],
+    ["econ","Hype","Excitement that spreads faster than the facts.","The Gold Lake rumor of 1850."],
+    ["econ","Boom and bust","A fast rise in prices or activity, followed by a crash.","Shovel prices soar in 1849 and crash in 1850."],
+    ["econ","Diminishing returns","Each extra worker (or miner) adds less than the one before.","More miners on the river means less gold for each."],
+    ["econ","Entrepreneur","A person who starts a business and takes on its risk.","Levi Strauss selling cloth to miners."],
+    ["econ","Capital","Money or tools used to make more money.","Cash to buy crates of shovels in San Francisco."],
+    ["econ","Inflation","A general rise in prices.","Gold flooding into San Francisco made everything cost more."],
+    ["rush","Forty-niner","A person who came to California in the 1849 gold rush.","Named for the year most arrived."],
+    ["rush","Prospector","Someone who searches for gold or other minerals.","You, every time you choose to dig."],
+    ["rush","Claim","A piece of land a miner marks to dig on, protected by camp rules.","Miners often had to work a claim to keep it."],
+    ["rush","Placer gold","Loose gold found in sand and gravel, washed out of rock by rivers.","What gold pans catch."],
+    ["rush","Gold pan","A shallow pan swirled with water so heavy gold sinks while gravel washes out.","The cheapest mining tool."],
+    ["rush","Rocker (cradle)","A wooden box rocked back and forth to wash more gravel than a pan.","Often worked by two or three partners."],
+    ["rush","Sluice","A long wooden trough with ridges that catch gold as water carries gravel through.","Processes much more dirt than a pan."],
+    ["rush","Lode","A vein of gold still inside solid rock.","Hard-rock mines dug for lodes."],
+    ["rush","Mother Lode","The long belt of gold-bearing rock along the Sierra Nevada foothills.","Also slang for any huge find."],
+    ["rush","Assay","Testing a metal sample to find out how pure it is.","An assay office valued miners' gold."],
+    ["rush","Poke","A small leather bag for carrying gold dust.","Gold dust was used as money."],
+    ["rush","Boomtown","A town that grows very fast because of a rush.","San Francisco grew from about 1,000 to over 20,000 people."],
+    ["rush","Seeing the elephant","1800s slang for facing a hard, eye-opening experience, often a disappointing one.","Heading to the gold fields was called going to see the elephant."],
+    ["rush","Hydraulic mining","Blasting hillsides with powerful jets of water to wash out gold.","Started in 1853; very destructive."]
+  ];
+  $("#view-vocab").innerHTML = `
+    <h2>Vocabulary</h2>
+    <p class="lede">Economics words and Gold Rush words you'll meet in the game. Turn on quiz mode to hide definitions, then tap a card to check yourself.</p>
+    <div class="vocab-tools">
+      <input type="search" id="vsearch" placeholder="Search words" aria-label="Search vocabulary">
+      <div class="presets" role="group" aria-label="Filter">
+        <button data-vf="all" aria-pressed="true">All</button><button data-vf="econ" aria-pressed="false">Economics</button><button data-vf="rush" aria-pressed="false">Gold Rush</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="vquiz"> Quiz mode</label>
+    </div>
+    <div class="terms" id="terms"></div>`;
+  let vf = "all";
+  function drawTerms(){
+    const q = $("#vsearch").value.trim().toLowerCase();
+    $("#terms").innerHTML = vocab.filter(v => (vf==="all"||v[0]===vf) && (!q || (v[1]+" "+v[2]).toLowerCase().includes(q)))
+      .map(v=>`<button class="term" type="button"><span class="cat ${v[0]}">${v[0]==="econ"?"Economics":"Gold Rush"}</span><span class="w">${v[1]}</span><span class="def">${v[2]}</span><span class="ex">${v[3]}</span></button>`).join("") || `<p class="small">No words match.</p>`;
+  }
+  drawTerms();
+  $("#vsearch").addEventListener("input", drawTerms);
+  $("#vquiz").addEventListener("change", e=>{ $("#terms").classList.toggle("quiz", e.target.checked); });
+  $("#terms").addEventListener("click", e=>{ const t = e.target.closest(".term"); if (t && $("#terms").classList.contains("quiz")) t.classList.toggle("show"); });
+  document.querySelectorAll("[data-vf]").forEach(b=>b.addEventListener("click", ()=>{ vf = b.dataset.vf; document.querySelectorAll("[data-vf]").forEach(x=>x.setAttribute("aria-pressed", x===b)); drawTerms(); }));
+
+  /* ===== TOOLS ===== */
+  const ticket = `EXIT TICKET: Forty-Niner's Gamble
+Name: ____________________   Final net worth: $________
+
+1. Name one season when shovel prices at camp were very high.
+   Was that because of supply, demand, or both? Explain.
+
+2. Pick one of your choices. What was your opportunity cost?
+   Was it worth it?
+
+3. Why did prices crash in 1850 even though more miners
+   than ever were in California?
+
+4. Would you rather sell shovels or dig for gold during a
+   "gold rush" today (a hot new product or trend)? Why?`;
+  $("#view-tools").innerHTML = `
+    <h2>Classroom Tools</h2>
+    <p class="lede">Hands-on calculators that go with the game, plus questions and a lesson plan for teachers.</p>
+    <div class="tools-grid">
+      <div class="panel wide">
+        <h3>Supply &amp; demand lab: the price of a shovel</h3>
+        <div class="sdlab">
+          <div class="chart" id="sdchart"></div>
+          <div>
+            <div class="field"><label for="sdD">Newcomers arriving (demand)</label><input type="range" id="sdD" min="0" max="100" value="20"></div>
+            <div class="field" style="margin-top:10px"><label for="sdS">Ships unloading tools (supply)</label><input type="range" id="sdS" min="0" max="100" value="30"></div>
+            <div class="presets" style="margin-top:12px"><button data-p="20,30">Spring 1848</button><button data-p="70,5">Brannan's corner</button><button data-p="100,30">Peak fever 1849</button><button data-p="25,100">Harbor glut 1850</button></div>
+            <div class="readout" id="sdout"></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Opportunity cost calculator</h3>
+        <p class="small" style="margin-bottom:10px">List your options and what each is worth. Pick one. The opportunity cost is the best one you didn't pick.</p>
+        <div id="ocrows"></div>
+        <div class="readout" id="ocout"></div>
+      </div>
+      <div class="panel">
+        <h3>Hype check: expected value</h3>
+        <p class="small" style="margin-bottom:10px">Compare a sure thing to a gamble. Expected value = chance &times; payoff.</p>
+        <div class="row"><div class="field"><label for="evSure">Sure thing ($)</label><input type="number" id="evSure" value="600" min="0"></div></div>
+        <div class="row" style="margin-top:8px"><div class="field"><label for="evChance">Gamble: chance to win (%)</label><input type="number" id="evChance" value="5" min="0" max="100"></div><div class="field"><label for="evPay">Gamble: payoff if you win ($)</label><input type="number" id="evPay" value="6000" min="0"></div></div>
+        <div class="presets"><button data-ev="600,25,2400">Rumored ledge</button><button data-ev="600,3,3000">Gold Lake hoax</button><button data-ev="800,50,1600">Coin flip</button></div>
+        <div class="readout" id="evout"></div>
+      </div>
+      <div class="panel">
+        <h3>Discussion questions</h3>
+        <ol class="qs">
+          <li>Sam Brannan bought shovels <em>before</em> he spread the news. Why was the order important?</li>
+          <li>Shipments took about six months to arrive from the East. How did that delay cause the 1850 glut?</li>
+          <li>Why did wages in San Francisco go up when everyone left to mine?</li>
+          <li>If more miners arrive, what happens to the gold each one finds? What's this called?</li>
+          <li>Name a modern "gold rush" (a hot product, app, or trend). Who sells the shovels?</li>
+          <li>Who paid the costs of the Gold Rush without sharing in the profits?</li>
+        </ol>
+      </div>
+      <div class="panel">
+        <h3>Exit ticket</h3>
+        <pre class="ticket" id="ticket"></pre>
+        <div class="actions"><button class="btn ghost" id="copyTicket">Copy text</button><span class="small" id="copied" aria-live="polite"></span></div>
+      </div>
+      <div class="panel wide">
+        <h3>45-minute lesson plan</h3>
+        <ol class="qs">
+          <li><b>Hook (5 min).</b> Ask: "If you heard there was free gold in a river, what would you buy first?" List answers on the board.</li>
+          <li><b>Vocabulary (5 min).</b> Preview supply, demand, opportunity cost, and expected value in the Vocabulary tab.</li>
+          <li><b>Play (20 min).</b> Give the class one code (for example SUTTER-49) so everyone sees the same events and prices. Students play solo or in pairs.</li>
+          <li><b>Compare (5 min).</b> Collect final net worths. Who did best? Did they mostly mine, trade, or work? When did they switch?</li>
+          <li><b>Lab (5 min).</b> Use the supply &amp; demand lab presets to replay 1848, 1849, and 1850 on the projector.</li>
+          <li><b>Exit ticket (5 min).</b> Hand out or display the exit ticket above.</li>
+        </ol>
+        <p class="small" style="margin-top:10px">Tip: turn off "Show advisor estimates" for a harder game where students must weigh opportunity costs on their own.</p>
+      </div>
+    </div>`;
+  $("#ticket").textContent = ticket;
+  $("#copyTicket").addEventListener("click", ()=>{
+    const done = m => { $("#copied").textContent = m; };
+    try { navigator.clipboard.writeText(ticket).then(()=>done("Copied."), ()=>{ selectTicket(); done("Text selected. Press Ctrl+C or Cmd+C."); }); }
+    catch(e){ selectTicket(); done("Text selected. Press Ctrl+C or Cmd+C."); }
+  });
+  function selectTicket(){ const r = document.createRange(); r.selectNodeContents($("#ticket")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+
+  // S&D lab
+  function sd(){
+    const dv = +$("#sdD").value, sv = +$("#sdS").value;
+    const Dint = 8 + 0.32*dv, sShift = 0.3*sv;           // demand: P = Dint - 0.3Q ; supply: P = 2 + 0.45(Q - sShift)
+    const Q = (Dint - 2 + 0.45*sShift)/0.75, P = Dint - 0.3*Q;
+    const W0=440,H0=300,L=44,R=14,T=14,B=36, qMax=80, pMax=40;
+    const X=q=>L+q/qMax*(W0-L-R), Y=p=>T+(1-p/pMax)*(H0-T-B);
+    let g="";
+    for(let p=0;p<=40;p+=10) g+=`<line x1="${L}" x2="${W0-R}" y1="${Y(p)}" y2="${Y(p)}" stroke="var(--line)"/><text x="${L-6}" y="${Y(p)+4}" text-anchor="end">$${p}</text>`;
+    for(let q=0;q<=80;q+=20) g+=`<text x="${X(q)}" y="${H0-18}" text-anchor="middle">${q*100}</text>`;
+    g+=`<text x="${(L+W0-R)/2}" y="${H0-3}" text-anchor="middle">Shovels sold per season</text>`;
+    // demand line from Q where P=pMax(or 0) to P=0
+    const dq0 = Math.max(0,(Dint-pMax)/0.3), dq1 = Math.min(qMax, Dint/0.3);
+    const sq0 = Math.max(0, sShift - 2/0.45), sq1 = Math.min(qMax, (pMax-2)/0.45 + sShift);
+    const sP = q => Math.max(0, 2+0.45*(q-sShift));
+    g+=`<line x1="${X(dq0)}" y1="${Y(Dint-0.3*dq0)}" x2="${X(dq1)}" y2="${Y(Dint-0.3*dq1)}" stroke="var(--gold-hi)" stroke-width="3"/>`;
+    g+=`<text x="${X(dq0)+8}" y="${Y(Dint-0.3*dq0)+14}" style="fill:var(--gold);font-weight:600">Demand</text>`;
+    g+=`<line x1="${X(sq0)}" y1="${Y(sP(sq0))}" x2="${X(sq1)}" y2="${Y(sP(sq1))}" stroke="var(--river)" stroke-width="3"/>`;
+    g+=`<text x="${Math.min(X(sq1)-4,W0-R-4)}" y="${Y(sP(sq1))+16}" text-anchor="end" style="fill:var(--river);font-weight:600">Supply</text>`;
+    g+=`<line x1="${L}" x2="${X(Q)}" y1="${Y(P)}" y2="${Y(P)}" stroke="var(--ink)" stroke-dasharray="4 3" opacity=".6"/><line x1="${X(Q)}" x2="${X(Q)}" y1="${Y(P)}" y2="${Y(0)}" stroke="var(--ink)" stroke-dasharray="4 3" opacity=".6"/>`;
+    g+=`<circle cx="${X(Q)}" cy="${Y(P)}" r="6" fill="var(--ink)" stroke="var(--paper)" stroke-width="2"/>`;
+    $("#sdchart").innerHTML = `<svg viewBox="0 0 ${W0} ${H0}" role="img" aria-label="Supply and demand graph">${g}</svg>`;
+    let why;
+    if (P > 18) why = "Demand is far ahead of supply. Shovels are scarce, so sellers can charge a lot.";
+    else if (P < 4) why = "Supply has swamped demand. That's a glut, so sellers have to cut prices to sell anything.";
+    else if (P > 9) why = "Demand is strong. Prices are well above normal.";
+    else why = "Supply and demand are fairly balanced, so prices are near normal.";
+    $("#sdout").innerHTML = `Equilibrium price: <b>$${P.toFixed(2)}</b> per shovel<br>Shovels sold: <b>${Math.round(Q*100).toLocaleString("en-US")}</b><br><span class="small">${why} A normal price back East was about $2.</span>`;
+  }
+  ["sdD","sdS"].forEach(id=>$("#"+id).addEventListener("input", sd));
+  document.querySelectorAll("[data-p]").forEach(b=>b.addEventListener("click", ()=>{ const [d,s] = b.dataset.p.split(","); $("#sdD").value=d; $("#sdS").value=s; sd(); }));
+  sd();
+
+  // Opportunity cost
+  const ocDefault = [["Prospect for gold", 900],["Sell shovels", 1400],["Work for wages", 1000]];
+  $("#ocrows").innerHTML = ocDefault.map((r,i)=>`<div class="ocrow"><input type="radio" name="ocpick" id="ocp${i}" value="${i}" ${i===0?"checked":""} aria-label="Choose option ${i+1}"><input type="text" id="ocn${i}" value="${r[0]}" aria-label="Option ${i+1} name" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);min-width:0"><input type="number" id="ocv${i}" value="${r[1]}" aria-label="Option ${i+1} value" style="padding:7px 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);font-family:var(--mono);min-width:0"></div>`).join("");
+  function oc(){
+    const opts = [0,1,2].map(i=>({ n: $("#ocn"+i).value || ("Option "+(i+1)), v: +$("#ocv"+i).value || 0 }));
+    const pick = +document.querySelector('input[name="ocpick"]:checked').value;
+    const others = opts.filter((_,i)=>i!==pick).sort((a,b)=>b.v-a.v);
+    const best = others[0], ch = opts[pick], diff = ch.v - best.v;
+    $("#ocout").innerHTML = `You chose <b>${ch.n}</b> ($${ch.v.toLocaleString("en-US")}).<br>Opportunity cost: <b>$${best.v.toLocaleString("en-US")}</b>, the value of ${best.n.toLowerCase()}.<br>${diff>=0?`<span class="pos">Your choice beats the next best by $${diff.toLocaleString("en-US")}.</span>`:`<span class="neg">You gave up $${(-diff).toLocaleString("en-US")} more than you got.</span>`}`;
+  }
+  $("#ocrows").addEventListener("input", oc); $("#ocrows").addEventListener("change", oc); oc();
+
+  // EV
+  function ev(){
+    const sure = +$("#evSure").value||0, ch = Math.min(100,Math.max(0,+$("#evChance").value||0)), pay = +$("#evPay").value||0;
+    const e = ch/100*pay, hits = Math.round(ch);
+    $("#evout").innerHTML = `Gamble expected value: <b>$${Math.round(e).toLocaleString("en-US")}</b><br>In 100 tries you'd win about <b>${hits}</b> times and lose about <b>${100-hits}</b>.<br>${e>sure?`<span class="pos">On average the gamble pays more than the sure thing, but most single tries still lose.</span>`:`<span class="neg">On average the sure thing pays more. The big prize is hype, not value.</span>`}`;
+  }
+  ["evSure","evChance","evPay"].forEach(id=>$("#"+id).addEventListener("input", ev));
+  document.querySelectorAll("[data-ev]").forEach(b=>b.addEventListener("click", ()=>{ const [s,c,p]=b.dataset.ev.split(","); $("#evSure").value=s; $("#evChance").value=c; $("#evPay").value=p; ev(); }));
+  ev();
+}
+
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
