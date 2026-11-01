@@ -271,6 +271,54 @@ ol.qs{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px;font
 .ocrow{display:grid;grid-template-columns:24px minmax(0,1fr) 110px;gap:8px;align-items:center;margin-bottom:8px}
 pre.ticket{white-space:pre-wrap;background:var(--sunk);border:3px solid var(--edge);padding:12px;font-family:"Courier New",monospace;font-size:13px;margin:10px 0 0}
 .small{font-size:14.5px;color:var(--muted)}
+/* ===== Full screen: the whole game on one screen, no page scrolling ===== */
+.fsbtn{margin-left:0}
+html:has(body.fs){height:100%;overflow:hidden}
+body.fs{height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+body.fs .mast{flex:none}
+body.fs #scene{height:76px}
+body.fs .brand p{display:none}
+body.fs .brand h1{font-size:16px}
+body.fs .mast .wrap{padding-block:10px 0}
+body.fs .status{flex:none;position:relative;top:0}
+body.fs .status .wrap{padding-block:6px}
+@media (min-width:921px){body.fs .status .wrap{flex-wrap:nowrap;gap:6px 18px}body.fs .stat{white-space:nowrap}}
+body.fs main{flex:1;min-height:0;overflow:auto;padding-block:14px}
+body.fs #view-play{height:100%;display:flex;flex-direction:column}
+body.fs #view-play > .how, body.fs .codebar{display:none}
+body.fs .play-grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr);gap:16px}
+body.fs .play-grid > .stack{height:100%;overflow-y:auto;overflow-x:hidden;padding:2px 10px 8px 2px;gap:14px;scrollbar-width:thin}
+body.fs .play-grid > aside.stack{gap:14px}
+body.fs .bulletin{padding:12px 16px}
+body.fs .bulletin h2{margin:6px 0 6px}
+body.fs .rumor{margin-top:8px;padding-top:8px}
+body.fs .facts{margin-top:6px}
+body.fs .choose-head{margin:12px 0 10px}
+body.fs .choice{padding:10px 12px;gap:6px}
+body.fs .choice .ic{width:36px;height:36px}
+body.fs .key{font-size:26px}
+body.fs .panel{padding:12px 14px}
+body.fs .panel h3{margin-bottom:6px}
+body.fs .report h2{margin:4px 0 6px}
+body.fs .bignet{margin-top:6px}
+body.fs .bignet b{font-size:32px}
+body.fs .compare{gap:6px}
+body.fs .verdict,body.fs .lesson{margin-top:10px;padding:8px 12px}
+body.fs .actions{margin-top:10px}
+body.fs .legend{margin-top:4px}
+body.fs .chart svg{max-height:26vh}
+body.fs .dig{padding:24px 10px}
+@media (max-width:920px){
+  body.fs .play-grid{grid-template-rows:none}
+  body.fs .play-grid > .stack{height:auto;overflow:visible;padding:0}
+  body.fs #view-play{height:auto}
+}
+@media (max-height:700px) and (min-width:921px){
+  body.fs #scene{height:52px}
+  body.fs .brand h1{font-size:16px}
+  body.fs .mast .wrap{padding-block:4px 0}
+  body.fs .bulletin .rumor{display:none}
+}
 /* View modes */
 body.simple .more{display:none!important}
 body:not(.simple) .lite{display:none!important}
@@ -682,6 +730,24 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":
 let W = null;      // world (seasons)
 let S = null;      // game state
 
+let FS = false;
+function toTop(){
+  if (FS) { const st = document.querySelector("#view-play .stack"); if (st) st.scrollTop = 0; return; }
+  $("#stage").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
+}
+function setFS(on){
+  FS = on; document.body.classList.toggle("fs", on);
+  const el = document.documentElement;
+  try {
+    if (on && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{});
+    if (!on && document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+  } catch(e){}
+  if (on && location.hash && location.hash !== "#play") location.hash = "play";
+  renderStatus(); worthChart(); priceChart();
+  dispatchEvent(new Event("resize"));
+}
+document.addEventListener("fullscreenchange", ()=>{ if (!document.fullscreenElement && FS) setFS(false); });
+document.addEventListener("keydown", e=>{ if (e.key==="Escape" && FS && !document.fullscreenElement) setFS(false); });
 let MODE = "simple";
 try { MODE = localStorage.getItem("fng-mode") || "simple"; } catch(e){}
 function applyMode(){ document.body.classList.toggle("simple", MODE==="simple"); }
@@ -730,7 +796,8 @@ function renderStatus(){
     <div class="stat"><span class="k">Net worth</span><span class="v">${money(worthAt(s))}</span></div>
     <div class="stat"><span class="k">Gold fever</span><span class="fever" title="Hype level">${fever}</span></div>
     <div class="modes" role="group" aria-label="View"><button data-mode="simple" aria-pressed="${MODE==="simple"}">Simple</button><button data-mode="detailed" aria-pressed="${MODE!=="simple"}">Detailed</button></div>
-    <button class="sound" id="sound" aria-pressed="${SOUND}">${SOUND?"\u266A Sound on":"\u266A Sound off"}</button>`;
+    <button class="sound fsbtn" id="fsbtn" aria-pressed="${FS}">${FS?"\u2716 Exit":"\u26F6 Full screen"}</button>
+    <button class="sound" id="sound" aria-pressed="${SOUND}">${FS?(SOUND?"\u266A On":"\u266A Off"):(SOUND?"\u266A Sound on":"\u266A Sound off")}</button>`;
 }
 
 /* ---------- icons ---------- */
@@ -970,7 +1037,7 @@ function finish(choice, net, headline, story, lines, extra){
   S.phase = "report"; S.trade = null; S.pendingEvs = null;
   setTimeout(()=>sfx(S.last.big ? "strike" : net > 0 ? "coin" : "bust"), 60);
   save(); render();
-  $("#stage").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
+  toTop();
 }
 
 function doWork(){
@@ -1042,7 +1109,7 @@ function nextSeason(){
   }
   S.worth.push(worthAt(s));
   S.phase = "choose"; save(); render();
-  $("#stage").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth", block:"start"});
+  toTop();
 }
 
 /* ---------- charts ---------- */
@@ -1101,6 +1168,7 @@ function render(){
 /* ---------- events ---------- */
 document.addEventListener("click", e=>{
   const t = e.target.closest("button"); if (!t) return;
+  if (t.id==="fsbtn") { setFS(!FS); sfx("click"); return; }
   if (t.dataset.mode) { MODE = t.dataset.mode; try{ localStorage.setItem("fng-mode", MODE); }catch(e){} applyMode(); renderStatus(); sfx("click"); return; }
   if (t.id==="sound") { setSound(!SOUND); renderStatus(); sfx("click"); return; }
   if (t.dataset.t) sfx(t.dataset.t==="sell" && +t.dataset.d>0 ? "coin" : "click");
