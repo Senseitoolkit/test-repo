@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spelling Puzzle Maker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<style>
+/* Layout: control rail on the left, a printable worksheet "on the desk" on the right; stacks on phones. */
+:root{
+  --desk:#eef1f6; --paper:#ffffff; --ink:#1c2738; --muted:#5d6a7e; --line:#d5dbe5;
+  --accent:#2b56c9; --accent-soft:#e3eafb; --margin:#d9534f; --hi:rgba(255,206,46,.55); --answer:#2b56c9;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-letter:"Andika", "Comic Sans MS", "Trebuchet MS", sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --desk:#121822; --paper:#1b2331; --ink:#e7ecf4; --muted:#9aa7bb; --line:#33405a;
+  --accent:#86a6ff; --accent-soft:#25335a; --margin:#e5776f; --hi:rgba(255,206,46,.38); --answer:#9db6ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --desk:#121822; --paper:#1b2331; --ink:#e7ecf4; --muted:#9aa7bb; --line:#33405a;
+  --accent:#86a6ff; --accent-soft:#25335a; --margin:#e5776f; --hi:rgba(255,206,46,.38); --answer:#9db6ff; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--desk);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));padding-block:20px 40px}
+header.top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+header.top h1{font-family:var(--f-display);font-weight:800;font-size:1.7rem;margin:0;letter-spacing:-.01em;text-wrap:balance}
+header.top p{margin:0;color:var(--muted);font-size:.9rem}
+.layout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}}
+.panel{display:flex;flex-direction:column;gap:18px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:18px}
+.group{display:flex;flex-direction:column;gap:8px}
+.label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);font:inherit;font-size:.88rem;padding:8px 4px;cursor:pointer;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--paper);font-weight:700}
+.lists{display:flex;flex-direction:column;gap:2px;max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:6px}
+.lists label{display:flex;gap:8px;align-items:flex-start;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:.88rem}
+.lists label:hover{background:var(--accent-soft)}
+.lists input{margin-top:3px;accent-color:var(--accent)}
+.lists .n{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;font-size:.8rem}
+.tag{font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--margin);margin-left:4px}
+.linkbtns{display:flex;gap:10px}
+.linkbtn{border:0;background:none;color:var(--accent);font:inherit;font-size:.78rem;cursor:pointer;padding:0;text-transform:none;letter-spacing:0;font-weight:700}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;background:var(--accent-soft);color:var(--ink);border:0;border-radius:999px;padding:3px 6px 3px 10px;font-family:var(--f-letter);font-size:.95rem;cursor:pointer}
+.chip span{color:var(--muted);font-family:var(--f-body);font-size:.85rem;width:16px;text-align:center}
+.chip:hover span{color:var(--margin)}
+.chip.skipped{outline:1.5px dashed var(--margin)}
+.addrow{display:flex;gap:6px}
+.addrow input{flex:1;min-width:0;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink)}
+select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);width:100%}
+.check{display:flex;gap:8px;align-items:center;font-size:.9rem;cursor:pointer}
+.check input{accent-color:var(--accent)}
+.btn{font:inherit;font-weight:700;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--paper)}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button:focus-visible,input:focus-visible,select:focus-visible,[contenteditable]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{font-size:.8rem;color:var(--margin)}
+.hint{font-size:.8rem;color:var(--muted)}
+
+.stage{display:flex;flex-direction:column;gap:22px;min-width:0}
+.sheet{background:var(--paper);border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 0 var(--line),0 10px 30px -18px rgba(20,30,50,.35);padding:28px 30px 32px 56px;position:relative;min-width:0}
+.sheet::before{content:"";position:absolute;top:0;bottom:0;left:38px;width:2px;background:var(--margin);opacity:.55}
+@media (max-width:520px){.sheet{padding:20px 16px 24px 30px}.sheet::before{left:18px}}
+.sheet-head{display:flex;flex-direction:column;gap:6px;margin-bottom:18px}
+.namebar{display:flex;gap:24px;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}
+.namebar span{display:inline-flex;gap:6px;align-items:flex-end}
+.namebar i{display:inline-block;width:150px;border-bottom:1.5px solid var(--line);height:1em}
+.sheet h2{font-family:var(--f-display);font-weight:800;font-size:1.6rem;margin:6px 0 0;text-wrap:balance;border-radius:4px}
+.sub{color:var(--muted);font-size:.9rem;margin:0}
+.instr{font-size:.95rem;margin:4px 0 0}
+.kicker{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--margin)}
+.puzzle{overflow-x:auto;display:flex;justify-content:center;padding:4px 0}
+.puzzle svg{display:block;height:auto}
+svg .cell{fill:var(--paper);stroke:var(--ink);stroke-width:1.4}
+svg .num{fill:var(--ink);font-family:var(--f-body);font-size:11px;font-weight:700}
+svg .let{fill:var(--ink);font-family:var(--f-letter);font-size:22px;text-anchor:middle;dominant-baseline:central}
+svg .ans{fill:var(--answer);font-family:var(--f-letter);font-size:24px;text-anchor:middle;dominant-baseline:central;font-weight:700}
+svg .hl{stroke:var(--hi);stroke-linecap:round;fill:none}
+.clues{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-top:20px}
+.clues h3,.bank h3{font-family:var(--f-display);font-size:1.05rem;margin:0 0 8px}
+.clues ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.clues li{display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:4px;align-items:baseline}
+.clues b{font-variant-numeric:tabular-nums}
+.clue{font-family:var(--f-letter);font-size:1.08rem;letter-spacing:.06em;border-radius:3px;padding:0 2px;word-break:break-word}
+.clue.def{font-family:var(--f-body);letter-spacing:0;font-size:1rem}
+.clue:hover{background:var(--accent-soft)}
+.len{color:var(--muted);font-size:.85rem;margin-left:4px}
+.bank{margin-top:20px}
+.bank ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px 16px}
+.bank li{font-family:var(--f-letter);font-size:1.1rem;display:flex;gap:8px;align-items:center}
+.bank li::before{content:"";width:13px;height:13px;border:1.5px solid var(--ink);border-radius:3px;flex:none}
+.answers-label{font-family:var(--f-display);font-weight:800;color:var(--muted);font-size:.85rem;letter-spacing:.1em;text-transform:uppercase;margin:0 0 -10px 4px}
+@media print{
+  body{background:#fff}
+  header.top,.panel,.answers-label{display:none!important}
+  .wrap{padding:0;max-width:none}
+  .layout{display:block}
+  .sheet{box-shadow:none;border:0;padding:0 0 0 28px;break-after:page}
+  .sheet::before{left:8px}
+  .stage{gap:0}
+}
+
+body{margin:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Spelling Puzzle Maker</h1>
+    <p>Crosswords and word searches from the National Curriculum spelling appendix, Year 1 to Year 6.</p>
+  </header>
+  <div class="layout">
+    <aside class="panel" aria-label="Puzzle settings">
+      <div class="group">
+        <div class="label">Year group</div>
+        <div class="seg" id="yearSeg"></div>
+      </div>
+      <div class="group">
+        <div class="label">Puzzle</div>
+        <div class="seg" id="typeSeg">
+          <button type="button" data-type="cw">Crossword</button>
+          <button type="button" data-type="ws">Word search</button>
+        </div>
+      </div>
+      <div class="group">
+        <div class="label">Spelling lists
+          <span class="linkbtns"><button type="button" class="linkbtn" id="allBtn">All</button><button type="button" class="linkbtn" id="noneBtn">None</button></span>
+        </div>
+        <div class="lists" id="lists"></div>
+      </div>
+      <div class="group">
+        <div class="label">Number of words <span id="countOut" style="color:var(--ink);font-variant-numeric:tabular-nums"></span></div>
+        <input type="range" id="count" min="4" max="20" step="1">
+      </div>
+      <div class="group">
+        <div class="label">Words in this puzzle <button type="button" class="linkbtn" id="pickBtn">Pick new words</button></div>
+        <div class="chips" id="chips"></div>
+        <div class="addrow">
+          <input id="addWord" placeholder="Add your own word" autocomplete="off" aria-label="Add your own word">
+          <button type="button" class="btn ghost" id="addBtn">Add</button>
+        </div>
+        <div class="note" id="skipNote" hidden></div>
+        <div class="hint">Tap a word to remove it.</div>
+      </div>
+      <div class="group" id="cwOpts">
+        <div class="label">Crossword clues</div>
+        <select id="clueStyle">
+          <option value="definition">Simple definitions</option>
+          <option value="missing">Missing letters (b _ d g e)</option>
+          <option value="jumble">Jumbled letters (gdbea)</option>
+          <option value="first">First letter and length</option>
+          <option value="blank">Blank, I'll write my own</option>
+        </select>
+        <label class="check"><input type="checkbox" id="cwBank"> Show a word bank</label>
+        <div class="hint">Click any clue on the sheet to type your own.</div>
+      </div>
+      <div class="group" id="wsOpts">
+        <div class="label">Word search</div>
+        <select id="dirs">
+          <option value="easy">Easy: across and down</option>
+          <option value="medium">Medium: add diagonals</option>
+          <option value="hard">Hard: any direction, including backwards</option>
+        </select>
+        <select id="letterCase">
+          <option value="lower">lowercase letters</option>
+          <option value="upper">CAPITAL LETTERS</option>
+        </select>
+      </div>
+      <div class="group">
+        <label class="check"><input type="checkbox" id="showAns"> Show answer sheet</label>
+        <div class="btns">
+          <button type="button" class="btn" id="newBtn">New layout</button>
+          <button type="button" class="btn ghost" id="pick2Btn">New words</button>
+        </div>
+        <div class="hint">To print, use your browser's Print command. Settings are hidden on paper, and the answer sheet prints on its own page.</div>
+      </div>
+    </aside>
+    <section class="stage" id="stage" aria-live="polite"></section>
+  </div>
+</div>
+
+<script>
+const DATA = {
+ y1:{label:"Year 1",short:"Y1",defaults:{count:8,dirs:"easy",case:"lower"},lists:[
+  ["ff, ll, ss, zz and ck","off well miss buzz back"],
+  ["n before k","bank think honk sunk"],
+  ["Two-syllable words","pocket rabbit carrot thunder sunset"],
+  ["-tch","catch fetch kitchen notch hutch"],
+  ["/v/ at the end of words","have live give"],
+  ["Adding s and es","cats dogs spends rocks thanks catches"],
+  ["Adding -ing, -ed, -er","hunting hunted hunter buzzing buzzed buzzer jumping jumped jumper"],
+  ["Adding -er, -est","grander grandest fresher freshest quicker quickest"],
+  ["ai, oi, ay, oy","rain wait train paid afraid oil join coin point soil day play say way stay boy toy enjoy annoy"],
+  ["Split digraphs (a-e, e-e, i-e, o-e, u-e)","made came same take safe these theme complete five ride like time side home those woke hope hole june rule rude use tube tune"],
+  ["ar, ee, ea","car start park arm garden see tree green meet week sea dream meat each read head bread meant instead"],
+  ["er, ir, ur","her term verb person better under summer winter sister girl bird shirt first third turn hurt church burst thursday"],
+  ["oo, oa, oe, ou","food pool moon zoo soon book took foot wood good boat coat road coach goal toe goes out about mouth around sound"],
+  ["ow, ue, ew","now how brown down town own blow snow grow show blue clue true rescue tuesday new few grew flew drew threw"],
+  ["ie, igh","lie tie pie cried tried dried chief field thief high night light bright right"],
+  ["or, ore, aw, au","for short born horse morning more score before wore shore saw draw yawn crawl author august dinosaur astronaut"],
+  ["air, ear, are","air fair pair hair chair dear hear beard near year bear pear wear bare dare care share scared"],
+  ["Words ending -y","very happy funny party family"],
+  ["ph and wh","dolphin alphabet phonics elephant when where which wheel while"],
+  ["k for the /k/ sound","sketch kit skin frisky"],
+  ["Prefix un-","unhappy undo unload unfair unlock"],
+  ["Compound words","football playground farmyard bedroom blackberry"],
+  ["Common exception words","the do to today of said says are were was is his has you your they be he me she we no go so by my here there where love come some one once ask friend school put push pull full house our"]
+ ]},
+ y2:{label:"Year 2",short:"Y2",defaults:{count:10,dirs:"easy",case:"lower"},lists:[
+  ["/dʒ/ spelt dge, ge, g, j","badge edge bridge dodge fudge age huge change charge bulge village gem giant magic giraffe energy jacket jar jog join adjust"],
+  ["/s/ spelt c before e, i, y","race ice cell city fancy"],
+  ["kn and gn","knock know knee gnat gnaw"],
+  ["wr","write written wrote wrong wrap"],
+  ["-le endings","table apple bottle little middle"],
+  ["-el endings","camel tunnel squirrel travel towel tinsel"],
+  ["-al endings","metal pedal capital hospital animal"],
+  ["-il endings","pencil fossil nostril"],
+  ["/aɪ/ spelt -y","cry fly dry try reply july"],
+  ["Adding -es to words ending -y","flies tries replies copies babies carries"],
+  ["y to i before -ed, -er, -est","copied copier happier happiest cried replied copying crying replying"],
+  ["Dropping the e","hiking hiked hiker nicer nicest shiny"],
+  ["Doubling the consonant","patting patted humming hummed dropping dropped sadder saddest fatter fattest runner runny"],
+  ["/ɔ:/ spelt a before l and ll","all ball call walk talk always"],
+  ["/ʌ/ spelt o","other mother brother nothing monday"],
+  ["/i:/ spelt -ey","key donkey monkey chimney valley"],
+  ["a after w and qu","want watch wander quantity squash"],
+  ["or after w","word work worm world worth"],
+  ["ar after w","war warm towards"],
+  ["/ʒ/ spelt s","television treasure usual"],
+  ["-ment, -ness, -ful, -less, -ly","enjoyment sadness careful playful hopeless plainness badly merriment happiness plentiful penniless happily"],
+  ["-tion","station fiction motion national section"],
+  ["Homophones","there their here hear quite quiet see sea bare bear one won sun son too two bee blue blew night knight"],
+  ["Common exception words","door floor poor because find kind mind behind child children wild climb most only both old cold gold hold told every everybody even great break steak pretty beautiful after fast last past father class grass pass plant path bath hour move prove improve sure sugar eye could should would who whole any many clothes busy people water again half money parents christmas"]
+ ]},
+ y34:{label:"Years 3 & 4",short:"Y3–4",defaults:{count:12,dirs:"medium",case:"lower"},lists:[
+  ["Statutory word list","accident accidentally actual actually address answer appear arrive believe bicycle breath breathe build busy business calendar caught centre century certain circle complete consider continue decide describe different difficult disappear early earth eight eighth enough exercise experience experiment extreme famous favourite february forward forwards fruit grammar group guard guide heard heart height history imagine increase important interest island knowledge learn length library material medicine mention minute natural naughty notice occasion occasionally often opposite ordinary particular peculiar perhaps popular position possess possession possible potatoes pressure probably promise purpose quarter question recent regular reign remember sentence separate special straight strange strength suppose surprise therefore though although thought through various weight woman women",true],
+  ["Suffixes on longer words","forgetting forgotten beginning beginner prefer preferred gardening gardener limiting limited limitation"],
+  ["/ɪ/ spelt y","myth gym egypt pyramid mystery"],
+  ["/ʌ/ spelt ou","young touch double trouble country"],
+  ["Prefixes dis-, mis-, in-, il-, im-, ir-","disappoint disagree disobey misbehave mislead misspell inactive incorrect illegal illegible immature immortal impossible impatient imperfect irregular irrelevant irresponsible"],
+  ["Prefixes re-, sub-, inter-, super-, anti-, auto-","redo refresh return reappear redecorate subdivide subheading submarine submerge interact intercity international interrelated supermarket superman superstar antiseptic anticlockwise antisocial autobiography autograph"],
+  ["Suffix -ation","information adoration sensation preparation admiration"],
+  ["Suffix -ly","sadly completely usually finally comically happily angrily gently simply humbly nobly basically frantically dramatically truly duly wholly"],
+  ["-sure and -ture","measure treasure pleasure enclosure creature furniture picture nature adventure"],
+  ["-sion (/ʒən/)","division invasion confusion decision collision television"],
+  ["Suffix -ous","poisonous dangerous mountainous famous various tremendous enormous jealous humorous glamorous vigorous courageous outrageous serious obvious curious hideous spontaneous courteous"],
+  ["-tion, -sion, -ssion, -cian","invention injection action hesitation completion expression discussion confession permission admission expansion extension comprehension tension musician electrician magician politician mathematician"],
+  ["ch as /k/ (Greek)","scheme chorus chemist echo character"],
+  ["ch as /ʃ/ (French)","chef chalet machine brochure"],
+  ["-gue and -que","league tongue antique unique"],
+  ["sc as /s/ (Latin)","science scene discipline fascinate crescent"],
+  ["ei, eigh, ey","vein weigh eight neighbour they obey"],
+  ["Homophones","accept except affect effect ball bawl berry bury brake break fair fare grate great groan grown here hear heel heal knot not mail male main mane meat meet medal meddle missed mist peace piece plain plane rain rein reign scene seen weather whether"]
+ ]},
+ y56:{label:"Years 5 & 6",short:"Y5–6",defaults:{count:15,dirs:"hard",case:"upper"},lists:[
+  ["Statutory word list","accommodate accompany according achieve aggressive amateur ancient apparent appreciate attached available average awkward bargain bruise category cemetery committee communicate community competition conscience conscious controversy convenience correspond criticise curiosity definite desperate determined develop dictionary disastrous embarrass environment equip equipped equipment especially exaggerate excellent existence explanation familiar foreign forty frequently government guarantee harass hindrance identity immediate immediately individual interfere interrupt language leisure lightning marvellous mischievous muscle necessary neighbour nuisance occupy occur opportunity parliament persuade physical prejudice privilege profession programme pronunciation queue recognise recommend relevant restaurant rhyme rhythm sacrifice secretary shoulder signature sincere sincerely soldier stomach sufficient suggest symbol system temperature thorough twelfth variety vegetable vehicle yacht",true],
+  ["-cious and -tious","vicious precious conscious delicious malicious suspicious ambitious cautious fictitious infectious nutritious"],
+  ["-cial and -tial","official special artificial partial confidential essential"],
+  ["-ant, -ance, -ent, -ence","observant observance expectant hesitant hesitancy tolerant tolerance substance innocent innocence decent decency frequent frequency confident confidence assistant assistance obedient obedience independent independence"],
+  ["-able, -ible, -ably, -ibly","adorable adorably applicable considerable considerably tolerable changeable noticeable forcible legible dependable comfortable understandable reasonable enjoyable reliable possible possibly horrible horribly terrible terribly visible visibly incredible incredibly sensible sensibly"],
+  ["Suffixes on words ending -fer","referring referred referral preferring preferred transferring transferred reference referee preference transference"],
+  ["ei after c","deceive conceive receive perceive ceiling"],
+  ["ough","ought bought thought nought brought fought rough tough enough cough though although dough through thorough borough plough bough"],
+  ["Silent letters","doubt island lamb solemn thistle knight"],
+  ["Homophones and confusable words","advice advise device devise licence license practice practise prophecy prophesy aisle isle aloud allowed affect effect altar alter ascent assent bridal bridle cereal serial compliment complement descent dissent desert dessert draft draught farther father guessed guest heard herd morning mourning past passed precede proceed principal principle profit prophet stationary stationery steal steel wary weary"]
+ ]}
+};
+for (const k in DATA) DATA[k].lists = DATA[k].lists.map((l,i)=>({id:k+"-"+i,name:l[0],words:[...new Set(l[1].split(/\s+/).filter(w=>w.length>=3))],statutory:!!l[2]}));
+
+const S = {year:"y1",type:"cw",selected:new Set(),count:8,words:[],seed:1,clueStyle:"definition",cwBank:false,dirs:"easy",case:"lower",showAns:false,clues:{},title:null,skipped:[]};
+try{const s=JSON.parse(localStorage.getItem("spm")||"{}"); if(DATA[s.year])S.year=s.year; if(s.type)S.type=s.type;}catch(e){}
+const save=()=>{try{localStorage.setItem("spm",JSON.stringify({year:S.year,type:S.type}))}catch(e){}};
+
+function rngFrom(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const shuffle=(arr,r)=>{const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const newSeed=()=>Math.floor(Math.random()*1e9);
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function applyYear(y){
+  S.year=y; const d=DATA[y];
+  const stat=d.lists.filter(l=>l.statutory);
+  S.selected=new Set((stat.length?stat:d.lists).map(l=>l.id));
+  S.count=d.defaults.count; S.dirs=d.defaults.dirs; S.case=d.defaults.case; S.title=null;
+  pickWords();
+}
+function pool(){const p=new Set();for(const l of DATA[S.year].lists) if(S.selected.has(l.id)) l.words.forEach(w=>p.add(w));return[...p]}
+function pickWords(){const r=rngFrom(newSeed());S.words=shuffle(pool(),r).slice(0,S.count);S.seed=newSeed()}
+
+/* ---------- Crossword ---------- */
+function buildCrossword(words,seed){
+  const r=rngFrom(seed); let best=null;
+  const base=words.slice().sort((a,b)=>b.length-a.length);
+  for(let t=0;t<80;t++){
+    const order=t===0?base:(t%2?shuffle(base,r).sort((a,b)=>b.length-a.length+ (r()-.5)*4):shuffle(base,r));
+    const res=attemptCW(order,r);
+    const score=res.placed.length*10000-res.area*2-Math.abs(res.w-res.h)*6+res.inter*25;
+    if(!best||score>best.score){best={...res,score}}
+  }
+  return best;
+}
+function attemptCW(order,r){
+  const cells=new Map(),K=(a,b)=>a+","+b,placed=[];
+  let minR=0,maxR=0,minC=0,maxC=0,inter=0;
+  const put=(w,row,col,d)=>{const dr=d?1:0,dc=d?0:1;for(let i=0;i<w.length;i++){const k=K(row+dr*i,col+dc*i);const c=cells.get(k)||{ch:w[i],h:false,v:false};d?c.v=true:c.h=true;cells.set(k,c)}
+    placed.push({w,r:row,c:col,d});minR=Math.min(minR,row);minC=Math.min(minC,col);maxR=Math.max(maxR,row+dr*(w.length-1));maxC=Math.max(maxC,col+dc*(w.length-1))};
+  const fit=(w,row,col,d)=>{const dr=d?1:0,dc=d?0:1;
+    if(cells.has(K(row-dr,col-dc))||cells.has(K(row+dr*w.length,col+dc*w.length)))return -1;
+    let n=0;for(let i=0;i<w.length;i++){const rr=row+dr*i,cc=col+dc*i,c=cells.get(K(rr,cc));
+      if(c){if(c.ch!==w[i]||(d?c.v:c.h))return -1;n++}
+      else if(cells.has(K(rr+dc,cc+dr))||cells.has(K(rr-dc,cc-dr)))return -1}
+    return n===0||n===w.length?-1:n};
+  const [first,...rest]=order; put(first,0,0,0);
+  let queue=rest;
+  for(let pass=0;pass<3&&queue.length;pass++){
+    const left=[];
+    for(const w of queue){
+      let bestC=null;
+      for(const [k,c] of cells){const [cr,cc]=k.split(",").map(Number);
+        for(let i=0;i<w.length;i++){if(w[i]!==c.ch)continue;
+          for(const d of [0,1]){if(d?c.v:c.h)continue;const row=d?cr-i:cr,col=d?cc:cc-i;const n=fit(w,row,col,d);if(n<0)continue;
+            const nh=Math.max(maxR,row+(d?w.length-1:0))-Math.min(minR,row)+1,nw=Math.max(maxC,col+(d?0:w.length-1))-Math.min(minC,col)+1;
+            const s=n*3-Math.max(nh,nw)*0.6-Math.abs(nh-nw*0.9)*0.3+r()*1.2;
+            if(!bestC||s>bestC.s)bestC={row,col,d,s,n}}}}
+      if(bestC){put(w,bestC.row,bestC.col,bestC.d);inter+=bestC.n}else left.push(w)}
+    queue=left}
+  const h=maxR-minR+1,w=maxC-minC+1;
+  placed.forEach(p=>{p.r-=minR;p.c-=minC});
+  return{placed,skipped:queue,w,h,area:w*h,inter};
+}
+function numberCW(cw){
+  const starts=new Map();
+  cw.placed.forEach(p=>{const k=p.r*1000+p.c;if(!starts.has(k))starts.set(k,[]);starts.get(k).push(p)});
+  let n=0;[...starts.keys()].sort((a,b)=>a-b).forEach(k=>{n++;starts.get(k).forEach(p=>p.n=n)});
+}
+
+/* ---------- Word search ---------- */
+const DIRS={easy:[[0,1],[1,0]],medium:[[0,1],[1,0],[1,1],[-1,1]],hard:[[0,1],[1,0],[1,1],[-1,1],[0,-1],[-1,0],[-1,-1],[1,-1]]};
+function buildSearch(words,seed,level){
+  const r=rngFrom(seed),dirs=DIRS[level];
+  const longest=Math.max(...words.map(w=>w.length)),total=words.reduce((a,w)=>a+w.length,0);
+  let size=Math.max(longest,Math.ceil(Math.sqrt(total*(level==="easy"?2.3:1.9))),8);
+  const sorted=words.slice().sort((a,b)=>b.length-a.length);
+  for(;;size++){
+    const g=Array.from({length:size},()=>Array(size).fill(null)),placed=[],skipped=[];
+    for(const w of sorted){let ok=false;
+      for(let t=0;t<500&&!ok;t++){const [dr,dc]=dirs[Math.floor(r()*dirs.length)];
+        const row=Math.floor(r()*size),col=Math.floor(r()*size),er=row+dr*(w.length-1),ec=col+dc*(w.length-1);
+        if(er<0||er>=size||ec<0||ec>=size)continue;
+        let fits=true;for(let i=0;i<w.length;i++){const c=g[row+dr*i][col+dc*i];if(c&&c!==w[i]){fits=false;break}}
+        if(!fits)continue;for(let i=0;i<w.length;i++)g[row+dr*i][col+dc*i]=w[i];placed.push({w,r:row,c:col,dr,dc});ok=true}
+      if(!ok)skipped.push(w)}
+    if(!skipped.length||size>=18){
+      const abc="abcdefghijklmnopqrstuvwxyz";
+      for(const row of g)for(let i=0;i<size;i++)if(!row[i])row[i]=abc[Math.floor(r()*26)];
+      return{g,size,placed,skipped}}
+  }
+}
+
+/* ---------- Clues ---------- */
+const DEFS = {"y1": {"off": "Not on. Turn the light ___.", "well": "Healthy, not ill", "miss": "Not catch or hit something", "buzz": "The noise a bee makes", "back": "The opposite of front", "bank": "A safe place to keep money", "think": "Use your brain", "honk": "The loud noise a car horn makes", "sunk": "Gone down under the water", "pocket": "A small bag sewn into your trousers", "rabbit": "A furry pet with long ears that hops", "carrot": "An orange vegetable that rabbits love", "thunder": "The loud bang in a storm", "sunset": "When it gets dark in the evening", "catch": "Grab a ball with your hands", "fetch": "Go and get something and bring it back", "kitchen": "The room where you cook food", "notch": "A small V-shaped cut in wood", "hutch": "A wooden home for a pet rabbit", "have": "I ___ a cat and a dog.", "live": "Where do you ___? I ___ in London.", "give": "Hand something to someone", "cats": "More than one pet that purrs", "dogs": "More than one pet that barks", "spends": "Uses up money", "rocks": "More than one big stone", "thanks": "What you say when someone helps you", "catches": "Grabs a ball that is thrown", "hunting": "Chasing animals for food", "hunted": "Chased animals for food (in the past)", "hunter": "Someone who chases animals for food", "buzzing": "Making a noise like a bee", "buzzed": "Made a noise like a bee (in the past)", "buzzer": "A button that makes a loud noise", "jumping": "Leaping up into the air", "jumped": "Leapt up (in the past)", "jumper": "A warm woolly top you wear", "grander": "More fancy and impressive", "grandest": "The most fancy and impressive", "fresher": "More new and clean", "freshest": "The most new and clean", "quicker": "More fast", "quickest": "The most fast", "rain": "Water that falls from the clouds", "wait": "Stay until something happens", "train": "It runs on a railway track", "paid": "Gave money for something (in the past)", "afraid": "Feeling scared", "oil": "A runny liquid used for cooking", "join": "Put two things together", "coin": "A round piece of money", "point": "Show with your finger", "soil": "Brown earth that plants grow in", "day": "The opposite of night", "play": "Have fun with toys or games", "say": "Speak words out loud", "way": "A path or road to somewhere", "stay": "Do not leave", "boy": "A young male child", "toy": "Something children play with", "enjoy": "Have fun doing something", "annoy": "Make someone a bit cross", "made": "Built or created (in the past)", "came": "Arrived (in the past)", "same": "Just like the other one", "take": "Pick something up and carry it away", "safe": "Not in danger", "these": "I like ___ shoes here.", "theme": "The main idea or topic", "complete": "Finished, with nothing missing", "five": "The number after four", "ride": "Sit on a bike or horse and go", "like": "Enjoy something", "time": "What a clock shows", "side": "The left or right part of something", "home": "The place where you live", "those": "Look at ___ birds over there.", "woke": "Stopped sleeping (in the past)", "hope": "Wish for something good", "hole": "A gap you can dig in the ground", "june": "The month after May", "rule": "Something you must follow, like no running", "rude": "Not polite", "use": "Do a job with something", "tube": "A long hollow pipe", "tune": "Music you can hum", "car": "It has four wheels and you drive it", "start": "Begin", "park": "A green place with swings and slides", "arm": "Your hand is at the end of this", "garden": "Grass and flowers outside a house", "see": "Look with your eyes", "tree": "A big plant with a trunk and leaves", "green": "The colour of grass", "meet": "Come together with someone", "week": "Seven days", "sea": "Big salty water with waves", "dream": "A story in your head while you sleep", "meat": "Food from animals, like beef or chicken", "each": "Every one. Give ___ child a sweet.", "read": "Look at words in a book", "head": "The top part of your body", "bread": "You make toast from this", "meant": "I ___ to do it, it was not an accident.", "instead": "In place of something else", "her": "I gave the book to ___ because she asked.", "term": "Part of the school year", "verb": "A doing word, like run or jump", "person": "A man, woman or child", "better": "More good", "under": "Below something", "summer": "The hottest time of the year", "winter": "The coldest time of the year", "sister": "A girl in your family, like your brother", "girl": "A young female child", "bird": "An animal with feathers and wings", "shirt": "A top with buttons and a collar", "first": "Number one in a race", "third": "After second", "turn": "Go round, or your go in a game", "hurt": "Feeling pain", "church": "A building where Christians pray", "burst": "Popped, like a balloon", "thursday": "The day after Wednesday", "food": "What you eat", "pool": "A place filled with water to swim in", "moon": "It shines in the sky at night", "zoo": "A place to see lions and tigers", "soon": "In a short time", "book": "It has pages to read", "took": "Picked up and carried away (in the past)", "foot": "You wear a shoe on this", "wood": "What trees are made of", "good": "The opposite of bad", "boat": "It floats on water", "coat": "You wear this outside when it is cold", "road": "Cars drive along this", "coach": "A big bus for long trips", "goal": "When the ball goes in the net", "toe": "One of five on your foot", "goes": "She ___ to school every day.", "out": "The opposite of in", "about": "This story is ___ a cat.", "mouth": "You eat and talk with this", "around": "In a circle", "sound": "Something you hear", "now": "At this moment", "how": "___ are you today?", "brown": "The colour of chocolate", "down": "The opposite of up", "town": "A place with lots of houses and shops", "own": "This toy is my very ___.", "blow": "Push air out of your mouth", "snow": "Cold white flakes that fall in winter", "grow": "Get bigger", "show": "Let someone see something", "blue": "The colour of the sky", "clue": "A hint to help you find the answer", "true": "Not false", "rescue": "Save someone from danger", "tuesday": "The day after Monday", "new": "Not old", "few": "Not many", "grew": "Got bigger (in the past)", "flew": "Went through the air (in the past)", "drew": "Made a picture with a pencil (in the past)", "threw": "Tossed a ball (in the past)", "lie": "Something that is not true", "tie": "Make a knot, like with shoelaces", "pie": "Food with pastry on top", "cried": "Had tears (in the past)", "tried": "Had a go (in the past)", "dried": "Made not wet (in the past)", "chief": "The leader or boss", "field": "A big grassy space on a farm", "thief": "Someone who steals", "high": "A long way up", "night": "When it is dark and you sleep", "light": "The sun gives us this", "bright": "Shining a lot", "right": "Not left, or correct", "for": "This present is ___ you.", "short": "Not tall or long", "born": "When a baby comes into the world", "horse": "A big animal you can ride", "morning": "The start of the day", "more": "A bigger amount", "score": "The points in a game", "before": "Earlier than", "wore": "Had clothes on (in the past)", "shore": "Where the land meets the sea", "saw": "Looked at (in the past)", "draw": "Make a picture with a pencil", "yawn": "Open your mouth wide when tired", "crawl": "Move on your hands and knees", "author": "Someone who writes books", "august": "The month after July", "dinosaur": "A huge animal that lived long ago", "astronaut": "Someone who goes into space", "air": "What we breathe", "fair": "Treating everyone equally", "pair": "Two things that go together, like socks", "hair": "It grows on your head", "chair": "You sit on this", "dear": "You start a letter with ___ Grandma.", "hear": "Listen with your ears", "beard": "Hair on a man's chin", "near": "Close by", "year": "Twelve months", "bear": "A big furry animal, like a grizzly", "pear": "A green fruit, a bit like an apple", "wear": "Put on clothes", "bare": "With nothing on, like feet", "dare": "Be brave enough to try", "care": "Look after someone", "share": "Let others have some too", "scared": "Feeling afraid", "very": "It is ___ cold today.", "happy": "Feeling glad and smiley", "funny": "Makes you laugh", "party": "A fun time with cake and games", "family": "Mum, dad, brothers and sisters", "dolphin": "A clever sea animal that jumps", "alphabet": "All the letters from A to Z", "phonics": "Learning letter sounds to read", "elephant": "A huge grey animal with a trunk", "when": "___ is your birthday?", "where": "___ do you live?", "which": "___ one do you want, red or blue?", "wheel": "A round thing on a bike or car", "while": "I sang ___ I washed up.", "sketch": "A quick drawing", "kit": "The clothes a football team wears", "skin": "It covers your body", "frisky": "Lively and playful", "unhappy": "Sad", "undo": "Open a button or knot", "unload": "Take things out of a van", "unfair": "Not treating everyone the same", "unlock": "Open with a key", "football": "A game where you kick into a goal", "playground": "Where you go at break time", "farmyard": "The muddy space by the barn", "bedroom": "Where you sleep at night", "blackberry": "A small dark fruit on a bramble", "the": "Look at ___ moon.", "today": "This day", "said": "\"Hello,\" ___ Mum yesterday.", "says": "Every day Mum ___, \"Hello!\"", "are": "We ___ going to the park now.", "were": "Yesterday we ___ at the park.", "was": "The dog ___ in the garden yesterday.", "his": "That is Tom's bag. It is ___ bag.", "has": "She ___ a red bike.", "you": "I love ___, Mum!", "your": "Is this ___ coat?", "they": "The children ran. ___ were fast.", "she": "My mum is kind. ___ is nice.", "here": "Come over ___ to me.", "there": "Put it over ___, not here.", "love": "Like someone very, very much", "come": "Move towards me", "some": "Can I have ___ sweets, please?", "one": "The number before two", "once": "___ upon a time...", "ask": "Say a question", "friend": "Someone you like to play with", "school": "Where children go to learn", "put": "Place something down", "push": "The opposite of pull", "pull": "The opposite of push", "full": "The opposite of empty", "house": "A building where a family lives", "our": "This is ___ house. We live here."}, "y2": {"badge": "A small pin you wear to show a prize or club", "edge": "The side or end of something, like a table", "bridge": "It lets you cross over a river", "dodge": "Move quickly out of the way", "fudge": "A soft, sweet treat made with sugar and butter", "age": "How old you are", "huge": "Very, very big", "change": "Make something different", "charge": "Rush forwards, like an angry bull", "bulge": "A lump that sticks out", "village": "A small group of houses in the countryside", "gem": "A shiny, precious stone, like a ruby", "giant": "A very tall person in fairy tales", "magic": "Tricks done by a wizard with a wand", "giraffe": "A tall animal with a very long neck", "energy": "The power that keeps you lively and full of beans", "jacket": "A short coat", "jar": "A glass pot with a lid, for jam", "jog": "Run slowly", "join": "Put things together, or become part of a club", "adjust": "Change something a little to make it fit", "race": "A contest to see who is fastest", "ice": "Frozen water", "cell": "A small room in a prison", "city": "A very big town", "fancy": "Very decorated, not plain", "knock": "Tap on a door to be let in", "know": "Be sure about something in your head", "knee": "The joint in the middle of your leg", "gnat": "A tiny flying insect that bites", "gnaw": "Keep biting at something, like a dog with a bone", "write": "Put words on paper with a pencil", "written": "I have ___ a letter to Grandma.", "wrote": "Yesterday I ___ a story in my book.", "wrong": "Not right", "wrap": "Cover a present in paper", "table": "You eat your dinner at this", "apple": "A round, crunchy fruit, red or green", "bottle": "A container for drinks, with a narrow neck", "little": "Small", "middle": "The centre of something", "camel": "A desert animal with a hump", "tunnel": "A long hole that goes under the ground", "squirrel": "A small animal with a bushy tail that eats nuts", "travel": "Go on a journey", "towel": "You dry yourself with this after a bath", "tinsel": "Sparkly strings to hang on a Christmas tree", "metal": "Iron, gold and silver are all types of this", "pedal": "You push this with your foot on a bike", "capital": "The main city of a country, like London", "hospital": "Where doctors and nurses look after poorly people", "animal": "A dog, cat or lion is one", "pencil": "You draw with this and it needs sharpening", "fossil": "The shape of an old plant or animal in rock", "nostril": "One of the two holes in your nose", "cry": "Have tears coming from your eyes", "fly": "Move through the air like a bird", "dry": "Not wet", "try": "Do your best to do something", "reply": "Answer someone", "july": "The month after June", "flies": "Small buzzing insects (more than one)", "tries": "She ___ her best every day.", "replies": "Answers (more than one)", "copies": "She ___ the words off the board.", "babies": "More than one very young child", "carries": "He ___ the heavy bag home every day.", "copied": "Did the same as someone else (in the past)", "copier": "A machine that makes more of a sheet of paper", "happier": "More cheerful", "happiest": "The most cheerful", "cried": "Had tears falling from your eyes (in the past)", "replied": "Answered (in the past)", "copying": "Doing the same as someone else, right now", "crying": "Having tears falling, right now", "replying": "Answering, right now", "hiking": "Going on long country walks", "hiked": "Went on a long country walk", "hiker": "Someone who goes on long country walks", "nicer": "More kind or pleasant", "nicest": "The most kind or pleasant", "shiny": "Bright and gleaming", "patting": "Tapping gently with your hand, right now", "patted": "Tapped gently with your hand (in the past)", "humming": "Singing with your lips closed, right now", "hummed": "Sang with your lips closed (in the past)", "dropping": "Letting something fall, right now", "dropped": "Let something fall (in the past)", "sadder": "More unhappy", "saddest": "The most unhappy", "fatter": "More round and plump", "fattest": "The most round and plump", "runner": "Someone who takes part in a race on foot", "runny": "Like a watery egg yolk", "all": "Every one of them", "ball": "A round toy you kick or throw", "call": "Shout to someone, or ring them on the phone", "walk": "Move along on your feet, not running", "talk": "Speak to someone", "always": "At every time, never stopping", "other": "Not this one, the ___ one.", "mother": "Your mum", "brother": "A boy who has the same parents as you", "nothing": "Not anything", "monday": "The day after Sunday", "key": "You use this to open a lock", "donkey": "An animal like a small horse with long ears", "monkey": "An animal that swings in trees and eats bananas", "chimney": "Smoke goes up this, out of the roof", "valley": "Low land between hills", "want": "Wish to have something", "watch": "Look at something, like the telly", "wander": "Walk about with nowhere special to go", "quantity": "How much or how many there are", "squash": "Squeeze something flat", "word": "A group of letters that means something", "work": "A job you do", "worm": "A long, wriggly creature in the soil", "world": "The whole Earth and everything on it", "worth": "How much something costs or is valued at", "war": "A long fight between countries", "warm": "A bit hot, not cold", "towards": "In the direction of", "television": "You watch cartoons on this screen", "treasure": "Gold and jewels in a pirate's chest", "usual": "Normal, what happens most days", "enjoyment": "The feeling of having fun", "sadness": "The feeling of being unhappy", "careful": "Taking care not to make mistakes or break things", "playful": "Full of fun, like a kitten", "hopeless": "With no chance of getting better", "plainness": "Being simple, with no decorations", "badly": "Not well at all", "merriment": "Fun and laughter", "happiness": "The feeling of being glad", "plentiful": "More than enough, lots", "penniless": "Having no money at all", "happily": "In a cheerful way", "station": "Where you get on a train", "fiction": "Made-up stories", "motion": "Moving about", "national": "To do with a whole country", "section": "One part of something", "there": "Not here, over ___.", "their": "The children hung up ___ coats.", "here": "Not there, but in this place", "hear": "What you do with your ears", "quite": "A bit, fairly", "quiet": "Not noisy", "see": "What you do with your eyes", "sea": "The big salty water by the beach", "bare": "With nothing on, like ___ feet", "bear": "A big, furry animal that likes honey", "one": "The number before two", "won": "Came first in a race (in the past)", "sun": "The bright star that warms us in the day", "son": "A boy child of a mum or dad", "too": "I want to come ___! (as well)", "two": "The number after one", "bee": "A buzzing insect that makes honey", "blue": "The colour of the sky on a sunny day", "blew": "The wind ___ my hat off.", "night": "When it is dark and you go to sleep", "knight": "A man in armour who rides a horse", "door": "You open this to go into a room", "floor": "The ground inside a room that you walk on", "poor": "Having very little money", "because": "I stayed inside ___ it was raining.", "find": "Discover something you were looking for", "kind": "Nice and caring to others", "mind": "The part of you that thinks", "behind": "At the back of", "child": "A young boy or girl", "children": "More than one young boy or girl", "wild": "Not tame, living free in nature", "climb": "Go up a tree or a ladder", "most": "More than all the others", "only": "Just one, no more", "both": "The two of them together", "old": "Not new or young", "cold": "Not hot, like snow", "gold": "A shiny yellow precious metal", "hold": "Keep something in your hands", "told": "Mum ___ me a bedtime story.", "every": "I brush my teeth ___ morning.", "everybody": "All the people", "even": "Numbers like 2, 4 and 6 are this", "great": "Very good", "break": "Smash something into pieces", "steak": "A thick slice of beef", "pretty": "Nice to look at", "beautiful": "Very lovely to look at", "after": "Lunch comes ___ morning lessons.", "fast": "Very quick", "last": "At the very end, not first", "past": "The time that has already gone", "father": "Your dad", "class": "A group of children taught together", "grass": "Green plants on a lawn", "pass": "Throw the ball to a team-mate", "plant": "A living thing that grows in soil", "path": "A narrow way to walk along", "bath": "You wash in this tub of water", "hour": "Sixty minutes", "move": "Go from one place to another", "prove": "Show that something is true", "improve": "Get better at something", "sure": "Certain, with no doubt", "sugar": "Sweet stuff you put in cakes", "eye": "You see with this", "could": "When I was three, I ___ swim.", "should": "You ___ say thank you for a gift.", "would": "___ you like a biscuit?", "who": "___ is knocking at the door?", "whole": "All of it, not cut up", "any": "Do you have ___ sweets left?", "many": "How ___ sweets do you have?", "clothes": "Things you wear, like shirts and socks", "busy": "Having lots of things to do", "people": "Men, women and children", "water": "Clear liquid that comes out of a tap", "again": "One more time", "half": "One of two equal parts", "money": "Coins and notes you use to buy things", "parents": "Your mum and dad", "christmas": "The festival on 25th December"}, "y34": {"accident": "Something bad that happens by mistake", "accidentally": "By mistake, without meaning to", "actual": "Real and true", "actually": "In fact; really", "address": "Your house number, street and town", "answer": "A reply to a question", "appear": "To come into sight", "arrive": "To reach a place", "believe": "To think something is true", "bicycle": "Two-wheeled machine you pedal", "breath": "Air you take into your body (noun)", "breathe": "To take air in and out of your lungs (verb)", "build": "To make something by putting parts together", "busy": "Having lots to do", "business": "A company that sells things or services", "calendar": "A chart showing the days and months of the year", "caught": "Grabbed something thrown (in the past)", "centre": "The middle of something", "century": "A hundred years", "certain": "Completely sure", "circle": "A perfectly round shape", "complete": "Whole, with nothing missing", "consider": "To think carefully about", "continue": "To keep going", "decide": "To make up your mind", "describe": "To say what something is like", "different": "Not the same", "difficult": "Hard to do", "disappear": "To vanish from sight", "early": "Before the usual or expected time", "earth": "The planet we live on", "eight": "The number after seven", "eighth": "Coming after seventh", "enough": "As much as you need", "exercise": "Activity like running that keeps you fit", "experience": "Something that happens to you that you learn from", "experiment": "A science test to find something out", "extreme": "Very great, or at the very edge", "famous": "Known by lots and lots of people", "favourite": "The one you like best", "february": "The second month of the year", "forward": "Towards the front", "forwards": "Moving towards the front, not backwards", "fruit": "Apples, bananas and oranges, for example", "grammar": "The rules for how words fit together in sentences", "group": "A number of people or things together", "guard": "Someone who keeps watch to protect a place", "guide": "Someone who shows you the way", "heard": "Listened to with your ears (in the past)", "heart": "The organ that pumps blood round your body", "height": "How tall something is", "history": "The study of things that happened long ago", "imagine": "To make a picture in your mind", "increase": "To get bigger in number or amount", "important": "Mattering a lot", "interest": "A wish to know more about something", "island": "Land with water all around it", "knowledge": "Everything you know and understand", "learn": "To find out how to do something new", "length": "How long something is", "library": "A place where you borrow books", "material": "Cloth or fabric; what something is made of", "medicine": "Something you take to make you better when ill", "mention": "To speak about something briefly", "minute": "Sixty seconds", "natural": "Made by nature, not by people", "naughty": "Badly behaved", "notice": "To spot or see something", "occasion": "A special event or time", "occasionally": "Now and then; not very often", "often": "I ___ go swimming, nearly every week.", "opposite": "Totally different, like hot and cold", "ordinary": "Normal, not special", "particular": "One certain thing and no other", "peculiar": "Strange or odd", "perhaps": "___ it will rain later; we are not sure.", "popular": "Liked by lots of people", "position": "The place where something is", "possess": "To own or have", "possession": "Something that you own", "possible": "Able to happen or be done", "potatoes": "Vegetables used to make chips and mash", "pressure": "The force of pushing on something", "probably": "Very likely", "promise": "To say you will definitely do something", "purpose": "The reason for doing something", "quarter": "One of four equal parts", "question": "Something you ask", "recent": "Happened not long ago", "regular": "Happening at the same times again and again", "reign": "The time a king or queen rules", "remember": "To keep something in your mind", "sentence": "A group of words with a capital letter and full stop", "separate": "Apart, not joined together", "special": "Better or different from the usual", "straight": "Not bent or curved", "strange": "Odd or unusual", "strength": "How strong someone or something is", "suppose": "To think something is likely", "surprise": "Something you did not expect", "therefore": "It was raining, ___ we stayed indoors.", "though": "Even ___ it rained, we played outside.", "although": "___ it was late, we stayed up to watch.", "thought": "Had an idea in your mind (in the past)", "through": "From one side to the other, like a tunnel", "various": "Several different kinds", "weight": "How heavy something is", "woman": "A grown-up female", "women": "More than one grown-up female", "forgetting": "Not remembering (happening now)", "forgotten": "Not remembered (in the past)", "beginning": "The start of something", "beginner": "Someone who is just starting to learn", "prefer": "To like one thing better than another", "preferred": "Liked better (in the past)", "gardening": "Looking after plants and flowers outdoors", "gardener": "Someone who looks after plants", "limiting": "Keeping something within a set amount (happening now)", "limited": "Kept small or restricted", "limitation": "Something that holds you back or restricts you", "myth": "An old story about gods or heroes", "gym": "A place to exercise or do PE", "egypt": "Country in Africa famous for pyramids and the Nile", "pyramid": "Shape with a square base and pointed top", "mystery": "Something puzzling that is hard to explain", "young": "Not old", "touch": "To feel with your fingers", "double": "Twice as much", "trouble": "A problem or difficulty", "country": "A land with its own government, like France", "disappoint": "To let someone down", "disagree": "To have a different opinion", "disobey": "To refuse to do what you are told", "misbehave": "To act badly or be naughty", "mislead": "To give someone the wrong idea", "misspell": "To write a word with the wrong letters", "inactive": "Not moving or doing anything", "incorrect": "Wrong", "illegal": "Against the law", "illegible": "Too messy to read", "immature": "Acting younger than your age; childish", "immortal": "Living forever and never dying", "impossible": "Can't be done at all", "impatient": "Not able to wait calmly", "imperfect": "Having faults or flaws", "irregular": "Not happening at even or set times", "irrelevant": "Nothing to do with the subject", "irresponsible": "Not sensible or trustworthy; careless", "redo": "To do something again", "refresh": "To make fresh or cool again", "return": "To come or go back", "reappear": "To come back into sight", "redecorate": "To paint and decorate a room again", "subdivide": "To split parts into even smaller parts", "subheading": "A smaller title under the main title", "submarine": "A ship that travels underwater", "submerge": "To put or go under water", "interact": "To talk and work with others", "intercity": "Travelling between towns, like a fast train", "international": "Between different countries", "interrelated": "Connected to each other", "supermarket": "A large shop selling food and groceries", "superman": "Comic-book hero in a red cape who can fly", "superstar": "A hugely famous performer", "antiseptic": "Cream that kills germs on a cut", "anticlockwise": "Turning the opposite way to a clock's hands", "antisocial": "Not friendly; upsetting to other people", "autobiography": "A book someone writes about their own life", "autograph": "A famous person's signature", "information": "Facts about something", "adoration": "Deep love and worship", "sensation": "A feeling, such as warmth or tickling", "preparation": "Getting ready for something", "admiration": "Great respect for someone", "sadly": "In an unhappy way", "completely": "Totally; all the way", "usually": "Most of the time", "finally": "At last", "comically": "In a funny way", "happily": "In a cheerful, glad way", "angrily": "In a cross, furious way", "gently": "In a soft, careful way", "simply": "In an easy, plain way", "humbly": "In a modest way, without boasting", "nobly": "In a brave and honourable way", "basically": "In the simplest terms; mainly", "frantically": "In a wild, panicky rush", "dramatically": "In a sudden, striking way", "truly": "Really; honestly", "duly": "As expected or required: 'He was ___ thanked.'", "wholly": "Completely; entirely", "measure": "To find the size of something", "treasure": "Gold, jewels and riches", "pleasure": "A feeling of enjoyment", "enclosure": "A fenced area, like at a zoo", "creature": "Any living animal", "furniture": "Tables, chairs and beds", "picture": "A drawing, painting or photo", "nature": "Plants, animals and the world outdoors", "adventure": "An exciting journey or experience", "division": "Sharing a number into equal groups", "invasion": "An army entering another country by force", "confusion": "Not understanding what is going on", "decision": "A choice you make", "collision": "A crash between two things", "television": "A screen you watch programmes on", "poisonous": "Able to make you very ill if eaten or bitten", "dangerous": "Likely to hurt you; not safe", "mountainous": "Having lots of big hills and peaks", "tremendous": "Very great or huge", "enormous": "Very, very big", "jealous": "Wanting what someone else has", "humorous": "Funny", "glamorous": "Stylish and exciting, like a film star", "vigorous": "Strong and full of energy", "courageous": "Very brave", "outrageous": "Shocking and unacceptable", "serious": "Not joking; very important", "obvious": "Easy to see or understand", "curious": "Wanting to find out about things", "hideous": "Very ugly", "spontaneous": "Done suddenly without planning", "courteous": "Very polite", "invention": "A new thing that someone has created", "injection": "Medicine given through a needle", "action": "Something you do", "hesitation": "A pause before doing something", "completion": "The finishing of something", "expression": "The look on your face", "discussion": "A talk about something", "confession": "Owning up to something you did wrong", "permission": "Being allowed to do something", "admission": "Being allowed to enter a place", "expansion": "Getting bigger or wider", "extension": "An extra part added to a building", "comprehension": "Understanding what you read", "tension": "A tight, worried or nervous feeling", "musician": "Someone who plays music", "electrician": "Someone who fixes wires and lights", "magician": "Someone who does magic tricks", "politician": "Someone in government, such as an MP", "mathematician": "An expert in numbers and sums", "scheme": "A plan", "chorus": "The part of a song that repeats", "chemist": "A shop where you get medicine", "echo": "A sound that bounces back", "character": "A person in a story", "chef": "A cook in a restaurant", "chalet": "A wooden holiday hut, often in the mountains", "machine": "Something with moving parts that does a job", "brochure": "A small glossy booklet advertising something", "league": "A group of teams that play each other", "tongue": "The part of your mouth you taste with", "antique": "Very old and valuable", "unique": "The only one of its kind", "science": "The subject where you do experiments", "scene": "A part of a play or film", "discipline": "Training to follow rules and behave well", "fascinate": "To interest someone very much", "crescent": "A curved shape like a thin moon", "vein": "A tube carrying blood back to your heart", "weigh": "To find out how heavy something is", "neighbour": "Someone who lives next door", "they": "___ are my friends, Sam and Ali.", "obey": "To do what you are told", "accept": "To take something that is offered", "except": "Everyone came ___ Tom, who was ill.", "affect": "To change or influence something (verb)", "effect": "A result or change caused by something (noun)", "ball": "A round toy you kick or throw", "bawl": "To cry very loudly", "berry": "A small juicy fruit that grows on a bush", "bury": "To put something under the ground", "brake": "Part of a car or bike that makes it stop", "break": "To smash something into pieces", "fair": "Treating everyone equally", "fare": "Money you pay to ride a bus or train", "grate": "To shred cheese into little bits", "great": "Very good; wonderful", "groan": "A long, low sound of pain or moaning", "grown": "Got bigger (in the past)", "here": "In this place", "hear": "To listen with your ears", "heel": "The back part of your foot", "heal": "To get better after being hurt", "knot": "A tie made by twisting string or rope", "not": "I am ___ going, so don't wait for me.", "mail": "Letters and parcels sent by post", "male": "A boy or a man", "main": "Most important", "mane": "Long hair on a lion's or horse's neck", "meat": "Food from animals, like beef or chicken", "meet": "To come together with someone", "medal": "A prize you get for winning", "meddle": "To interfere in other people's business", "missed": "Failed to catch or hit (in the past)", "mist": "Thin cloud close to the ground", "peace": "A calm time with no war", "piece": "A part or bit of something", "plain": "Simple, with no pattern", "plane": "A machine that flies in the sky", "rain": "Water that falls from clouds", "rein": "A strap used to steer a horse", "seen": "Looked at with your eyes (in the past)", "weather": "Sunshine, rain, wind and snow", "whether": "I don't know ___ to stay or go."}, "y56": {"accommodate": "Give someone a place to stay or room to fit", "accompany": "Go somewhere with someone", "according": "___ to the weather forecast, it will rain today.", "achieve": "Succeed in doing something after working hard", "aggressive": "Ready to attack or start a fight", "amateur": "Someone who does a sport or hobby without being paid", "ancient": "Very, very old; from long ago", "apparent": "Clear to see or easy to understand", "appreciate": "Be thankful for something", "attached": "Joined or fixed onto something", "available": "Free or ready to be used or had", "average": "Usual or normal; not special", "awkward": "Clumsy or uncomfortable", "bargain": "Something bought for less than it is worth", "bruise": "A purple mark on your skin after a bump", "category": "A group of things that are alike", "cemetery": "A place where people are buried", "committee": "A group of people chosen to make decisions", "communicate": "Share ideas or news by talking or writing", "community": "People who live in the same area", "competition": "A contest to find a winner", "conscience": "The inner voice telling you right from wrong", "conscious": "Awake and aware of what is around you", "controversy": "A big public argument or disagreement", "convenience": "Being handy, easy or useful", "correspond": "Write letters to each other, or match up", "criticise": "Point out what is wrong with something", "curiosity": "A strong wish to know or find out", "definite": "Certain and clear; sure", "desperate": "Feeling there is almost no hope left", "determined": "Firmly decided not to give up", "develop": "Grow or change over time", "dictionary": "A book giving the meanings of words", "disastrous": "Very bad, causing great damage or failure", "embarrass": "Make someone feel silly or ashamed", "environment": "The natural world around us", "equip": "Give someone the tools they need", "equipped": "Given the tools you need", "equipment": "The tools or kit needed for a job", "especially": "More than usual; particularly", "exaggerate": "Make something sound bigger or better than it is", "excellent": "Extremely good", "existence": "The state of being alive or real", "explanation": "Words that make something clear", "familiar": "Well known to you", "foreign": "From another country", "forty": "Four times ten", "frequently": "Often; many times", "government": "The group of people who run a country", "guarantee": "A firm promise that something will happen", "harass": "Keep bothering or pestering someone", "hindrance": "Something that gets in the way", "identity": "Who or what a person is", "immediate": "Happening right now, without delay", "immediately": "At once; straight away", "individual": "A single person", "interfere": "Get involved when it is not your business", "interrupt": "Break in while someone is speaking", "language": "Words used by people to speak and write", "leisure": "Free time for relaxing", "lightning": "A flash of light in the sky during a storm", "marvellous": "Wonderful; amazing", "mischievous": "Playfully naughty", "muscle": "Body tissue that helps you move", "necessary": "Needed; must be done", "neighbour": "A person who lives next door", "nuisance": "Someone or something annoying", "occupy": "Live in, fill or take up a space", "occur": "Happen", "opportunity": "A good chance to do something", "parliament": "Where MPs meet to make laws", "persuade": "Get someone to agree or do something", "physical": "To do with the body", "prejudice": "An unfair opinion formed without knowing the facts", "privilege": "A special right or advantage", "profession": "A job needing special training, like doctor", "programme": "A show on TV or radio", "pronunciation": "The way a word is said", "queue": "A line of people waiting their turn", "recognise": "Know someone or something because you have seen it before", "recommend": "Say that something is good to try", "relevant": "Connected to what is being talked about", "restaurant": "A place where you pay to eat a meal", "rhyme": "Words with the same ending sound, like cat and hat", "rhythm": "A regular beat in music or poems", "sacrifice": "Give up something you value for others", "secretary": "Someone who types letters and keeps records in an office", "shoulder": "Where your arm joins your body", "signature": "Your name written in your own special way", "sincere": "Honest and truly meant", "sincerely": "In an honest, heartfelt way; ends a formal letter", "soldier": "A person who serves in an army", "stomach": "Where food goes after you swallow it", "sufficient": "Enough", "suggest": "Put forward an idea", "symbol": "A sign or picture that stands for something", "system": "A set of parts or steps working together", "temperature": "How hot or cold something is", "thorough": "Careful and complete, missing nothing", "twelfth": "Number 12 in order", "variety": "Lots of different kinds", "vegetable": "A plant food, like a carrot or pea", "vehicle": "Something that carries people, like a car or bus", "yacht": "A sailing boat used for racing or holidays", "vicious": "Fierce, cruel and violent", "precious": "Very valuable or dearly loved", "delicious": "Tasting very good", "malicious": "Meaning to hurt or upset someone on purpose", "suspicious": "Feeling that something is not right", "ambitious": "Wanting very much to succeed", "cautious": "Careful to avoid danger", "fictitious": "Made up; not real", "infectious": "Able to spread from person to person, like a cold", "nutritious": "Full of goodness that keeps you healthy", "official": "Approved by people in charge", "special": "Different and better than usual", "artificial": "Made by people, not natural", "partial": "Only part, not complete", "confidential": "Secret; private", "essential": "Absolutely needed", "observant": "Quick to notice things", "observance": "Keeping or following a rule or custom", "expectant": "Waiting eagerly for something to happen", "hesitant": "Unsure, so slow to act or speak", "hesitancy": "Unsureness that makes you pause", "tolerant": "Willing to accept others who are different", "tolerance": "Willingness to accept views or ways unlike yours", "substance": "A material, solid, liquid or gas", "innocent": "Not guilty of doing wrong", "innocence": "Being free from guilt or blame", "decent": "Good, polite and respectable", "decency": "Polite, proper and respectable behaviour", "frequent": "Happening often", "frequency": "How often something happens", "confident": "Sure of yourself", "confidence": "Belief in yourself", "assistant": "A person who helps someone", "assistance": "Help", "obedient": "Doing what you are told", "obedience": "Doing as you are told", "independent": "Free; not needing others' help", "independence": "Freedom to run your own life or country", "adorable": "Very cute and lovable", "adorably": "In a very cute way", "applicable": "Relevant; fitting the situation", "considerable": "Large in amount or size", "considerably": "By a large amount; much", "tolerable": "Bearable; just about OK", "changeable": "Likely to alter often, like the weather", "noticeable": "Easy to see or spot", "forcible": "Done by using strength or power", "legible": "Neat enough to be read", "dependable": "Steady; someone who never lets you down", "comfortable": "Cosy and relaxed", "understandable": "Easy to make sense of", "reasonable": "Fair and sensible", "enjoyable": "Fun; giving pleasure", "reliable": "You can always trust or count on it", "possible": "Able to happen or be done", "possibly": "Perhaps; maybe", "horrible": "Very nasty or unpleasant", "horribly": "In a very nasty way", "terrible": "Very bad", "terribly": "In a very bad way; extremely", "visible": "Able to be seen", "visibly": "In a way that can be seen", "incredible": "Amazing; hard to believe", "incredibly": "Amazingly; extremely", "sensible": "Wise and careful", "sensibly": "In a wise, careful way", "referring": "Mentioning or sending on (right now)", "referred": "Mentioned or sent on (in the past)", "referral": "Being sent on to an expert, like a doctor", "preferring": "Liking one thing more (right now)", "preferred": "Liked one thing more (in the past)", "transferring": "Moving from one place to another (right now)", "transferred": "Moved from one place to another (in the past)", "reference": "A mention of something, or where facts came from", "referee": "The official who makes sure a game is played fairly", "preference": "The thing you like best", "transference": "Moving something from one place or person to another", "deceive": "Trick someone into believing a lie", "conceive": "Think up an idea or plan", "receive": "Be given something", "perceive": "Notice or become aware of", "ceiling": "The top surface of a room", "ought": "You ___ to say sorry.", "bought": "Paid money for (in the past)", "thought": "An idea in your mind", "nought": "Zero", "brought": "Carried here (in the past)", "fought": "Battled or argued (in the past)", "rough": "Bumpy, not smooth", "tough": "Strong and hard to break", "enough": "As much as you need", "cough": "Push air out of your throat noisily", "though": "Even ___ it was late, we stayed up.", "although": "___ it rained, we still had fun.", "dough": "Flour and water mixed for bread", "through": "In one side and out the other", "borough": "A town or district with its own council", "plough": "Farm tool that turns over soil", "bough": "A large branch of a tree", "doubt": "A feeling of not being sure", "island": "Land with water all around it", "lamb": "A baby sheep", "solemn": "Serious and not smiling", "thistle": "A prickly plant with a purple flower", "knight": "A soldier in armour long ago", "advice": "Helpful tips about what to do (noun)", "advise": "Tell someone what they should do (verb)", "device": "A machine or gadget (noun)", "devise": "Think up or invent a plan (verb)", "licence": "An official permit, like a driving one (noun)", "license": "Give official permission (verb)", "practice": "Training or rehearsal, e.g. football ___ (noun)", "practise": "Do something again and again to improve (verb)", "prophecy": "A prediction of the future (noun)", "prophesy": "Predict the future (verb)", "aisle": "A walkway between rows of seats", "isle": "A small piece of land in the sea, as in British ___s", "aloud": "Out loud, so others can hear", "allowed": "Given permission", "affect": "Change or influence something (verb)", "effect": "A result or outcome (noun)", "altar": "A holy table in a church or temple", "alter": "Change something", "ascent": "A climb upwards", "assent": "Agreement or approval", "bridal": "To do with a bride or wedding", "bridle": "Straps on a horse's head for steering", "cereal": "Breakfast food, like cornflakes, eaten with milk", "serial": "A story told in parts, one after another", "compliment": "Something kind said to praise someone", "complement": "Something that goes well with or completes another", "descent": "A movement downwards", "dissent": "Disagreement with an idea or rule", "desert": "A dry, sandy place with little rain", "dessert": "Pudding eaten after the main course", "draft": "A first rough version of writing", "draught": "A chilly flow of air in a room", "farther": "At a greater distance; further", "father": "A dad", "guessed": "Gave an answer without being sure (in the past)", "guest": "A visitor you invite to stay", "heard": "Listened with your ears (in the past)", "herd": "A large group of cows", "morning": "The early part of the day", "mourning": "Feeling deep sadness after a death", "past": "Time that has already gone", "passed": "Went by, or succeeded in a test", "precede": "Come before", "proceed": "Carry on or move forward", "principal": "The head of a school or college", "principle": "A belief or rule about right and wrong", "profit": "Money made after paying costs", "prophet": "Someone who tells what will happen in future", "stationary": "Standing still, not moving", "stationery": "Paper, pens and envelopes", "steal": "Take something that is not yours", "steel": "A strong metal made from iron", "wary": "Careful because of possible danger", "weary": "Very tired"}};
+function defOf(w){const order=[S.year,...Object.keys(DEFS).filter(k=>k!==S.year)];for(const k of order){if(DEFS[k]&&DEFS[k][w])return DEFS[k][w]}return null}
+function autoClue(w,style,r){
+  if(style==="blank")return"";
+  if(style==="definition"){const d=defOf(w);if(d)return d;style="missing"}
+  if(style==="first")return w[0]+" "+Array(w.length-1).fill("_").join(" ");
+  if(style==="jumble"){let s=w;for(let t=0;t<20&&s===w;t++)s=shuffle([...w],r).join("");return s}
+  const idx=[...w].map((_,i)=>i).filter(i=>w.length<=3||i>0);
+  const hide=new Set(shuffle(idx,r).slice(0,Math.max(1,Math.round(w.length*.4))));
+  return[...w].map((c,i)=>hide.has(i)?"_":c).join(" ");
+}
+const clueKey=w=>S.clueStyle+":"+w;
+
+/* ---------- Render ---------- */
+function listSummary(){const sel=DATA[S.year].lists.filter(l=>S.selected.has(l.id));
+  if(!sel.length)return"Your own words";if(sel.length<=2)return sel.map(l=>l.name).join(" · ");return sel.length+" spelling patterns"}
+function defaultTitle(){return DATA[S.year].label+" Spelling "+(S.type==="cw"?"Crossword":"Word Search")}
+
+function renderPanel(){
+  $("yearSeg").innerHTML=Object.entries(DATA).map(([k,d])=>`<button type="button" data-year="${k}" aria-pressed="${k===S.year}">${d.short}</button>`).join("");
+  [...$("typeSeg").children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.type===S.type));
+  $("lists").innerHTML=DATA[S.year].lists.map(l=>`<label><input type="checkbox" data-list="${l.id}" ${S.selected.has(l.id)?"checked":""}><span>${esc(l.name)}${l.statutory?'<span class="tag">statutory</span>':""}</span><span class="n">${l.words.length}</span></label>`).join("");
+  $("count").value=S.count;$("countOut").textContent=S.count;
+  renderChips();
+  $("cwOpts").hidden=S.type!=="cw";$("wsOpts").hidden=S.type!=="ws";
+  $("clueStyle").value=S.clueStyle;$("cwBank").checked=S.cwBank;$("dirs").value=S.dirs;$("letterCase").value=S.case;$("showAns").checked=S.showAns;
+}
+function renderChips(){
+  $("chips").innerHTML=S.words.length?S.words.map(w=>`<button type="button" class="chip${S.skipped.includes(w)?" skipped":""}" data-word="${esc(w)}" aria-label="Remove ${esc(w)}">${esc(w)}<span aria-hidden="true">×</span></button>`).join(""):'<span class="hint">No words yet. Tick a list above or add your own.</span>';
+}
+
+function cwSVG(cw,ans){
+  const CS=40,P=2,W=cw.w*CS+P*2,H=cw.h*CS+P*2,cells=new Map(),nums=new Map();
+  cw.placed.forEach(p=>{for(let i=0;i<p.w.length;i++){const rr=p.r+(p.d?i:0),cc=p.c+(p.d?0:i);cells.set(rr+","+cc,p.w[i])}nums.set(p.r+","+p.c,p.n)});
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" style="width:100%;max-width:${Math.min(W*1.15,760)}px" role="img" aria-label="Crossword grid">`;
+  for(const [k,ch] of cells){const [r,c]=k.split(",").map(Number),x=P+c*CS,y=P+r*CS;
+    s+=`<rect class="cell" x="${x}" y="${y}" width="${CS}" height="${CS}"/>`;
+    if(nums.has(k))s+=`<text class="num" x="${x+3}" y="${y+12}">${nums.get(k)}</text>`;
+    if(ans)s+=`<text class="ans" x="${x+CS/2}" y="${y+CS/2+3}">${ch}</text>`}
+  return s+"</svg>";
+}
+function wsSVG(ws,ans){
+  const CS=34,P=4,N=ws.size,W=N*CS+P*2,up=S.case==="upper";
+  let s=`<svg viewBox="0 0 ${W} ${W}" width="${W}" style="width:100%;max-width:${Math.min(W*1.2,720)}px" role="img" aria-label="Word search grid">`;
+  s+=`<rect x="1" y="1" width="${W-2}" height="${W-2}" rx="6" style="fill:var(--paper);stroke:var(--ink);stroke-width:1.5"/>`;
+  if(ans)ws.placed.forEach(p=>{const x1=P+p.c*CS+CS/2,y1=P+p.r*CS+CS/2,x2=x1+p.dc*(p.w.length-1)*CS,y2=y1+p.dr*(p.w.length-1)*CS;
+    s+=`<line class="hl" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${CS*.78}"/>`});
+  ws.g.forEach((row,r)=>row.forEach((ch,c)=>{s+=`<text class="let" x="${P+c*CS+CS/2}" y="${P+r*CS+CS/2+1}">${up?ch.toUpperCase():ch}</text>`}));
+  return s+"</svg>";
+}
+
+function sheet(ans,body,after){
+  const title=S.title||defaultTitle();
+  return `<article class="sheet">
+    <div class="sheet-head">
+      ${ans?'<div class="kicker">Answers</div>':'<div class="namebar"><span>Name <i></i></span><span>Date <i style="width:100px"></i></span></div>'}
+      <h2 ${ans?"":'contenteditable="true" spellcheck="false" id="titleEdit" aria-label="Worksheet title"'}>${esc(title)}</h2>
+      <p class="sub">${esc(listSummary())}</p>
+      ${ans?"":`<p class="instr">${esc(instructions())}</p>`}
+    </div>
+    <div class="puzzle">${body}</div>${after||""}
+  </article>`;
+}
+function instructions(){
+  if(S.type==="ws"){const d={easy:"across and down",medium:"across, down and diagonally",hard:"in any direction, even backwards"}[S.dirs];
+    return`Find all ${S.words.length-S.skipped.length} words. They go ${d}. Tick each word when you find it.`}
+  return{definition:"Read each clue and write the word it describes in the grid. Where you see ___, find the missing word.",missing:"Each clue is the word with some letters missing. Write the whole word in the grid.",jumble:"Each clue is the word with its letters mixed up. Write the word correctly in the grid.",first:"Each clue gives the first letter and the number of letters.",blank:"Read each clue and write the word in the grid."}[S.clueStyle];
+}
+
+function render(){
+  const stage=$("stage");
+  const words=S.words.filter(w=>/^[a-z]+$/.test(w));
+  if(!words.length){stage.innerHTML=`<article class="sheet"><div class="sheet-head"><h2>${esc(defaultTitle())}</h2><p class="instr">Choose at least one spelling list, or add your own words, to make a puzzle.</p></div></article>`;S.skipped=[];renderChips();$("skipNote").hidden=true;return}
+  let html="";
+  if(S.type==="cw"){
+    const cw=buildCrossword(words,S.seed);numberCW(cw);S.skipped=cw.skipped;
+    const r=rngFrom(S.seed^0x5bd1e995);
+    const clueList=d=>cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).map(p=>{
+      const auto=autoClue(p.w,S.clueStyle,r),k=clueKey(p.w),txt=S.clues[k]!=null?S.clues[k]:auto;
+      return`<li><b>${p.n}</b><span><span class="clue${S.clueStyle==="definition"&&defOf(p.w)?" def":""}" contenteditable="true" spellcheck="false" data-ck="${esc(k)}" aria-label="Clue ${p.n}">${esc(txt)}</span><span class="len">(${p.w.length})</span></span></li>`}).join("");
+    const cluesHTML=`<div class="clues"><div><h3>Across</h3><ol>${clueList(0)}</ol></div><div><h3>Down</h3><ol>${clueList(1)}</ol></div></div>`;
+    const bank=S.cwBank?`<div class="bank"><h3>Word bank</h3><ul>${cw.placed.map(p=>p.w).sort().map(w=>`<li>${esc(w)}</li>`).join("")}</ul></div>`:"";
+    html=sheet(false,cwSVG(cw,false),cluesHTML+bank);
+    if(S.showAns){const al=d=>cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).map(p=>`<li><b>${p.n}</b><span class="clue">${esc(p.w)}</span></li>`).join("");
+      html+=`<p class="answers-label">Answer sheet</p>`+sheet(true,cwSVG(cw,true),`<div class="clues"><div><h3>Across</h3><ol>${al(0)}</ol></div><div><h3>Down</h3><ol>${al(1)}</ol></div></div>`)}
+  }else{
+    const ws=buildSearch(words,S.seed,S.dirs);S.skipped=ws.skipped;const up=S.case==="upper";
+    const bank=`<div class="bank"><h3>Words to find</h3><ul>${ws.placed.map(p=>p.w).sort().map(w=>`<li>${esc(up?w.toUpperCase():w)}</li>`).join("")}</ul></div>`;
+    html=sheet(false,wsSVG(ws,false),bank);
+    if(S.showAns)html+=`<p class="answers-label">Answer sheet</p>`+sheet(true,wsSVG(ws,true),"");
+  }
+  stage.innerHTML=html;
+  renderChips();
+  $("skipNote").hidden=!S.skipped.length;
+  $("skipNote").textContent=S.skipped.length?`Couldn't fit: ${S.skipped.join(", ")}. Try New layout, or remove a word.`:"";
+}
+function full(){renderPanel();render();save()}
+
+/* ---------- Events ---------- */
+$("yearSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b||b.dataset.year===S.year)return;applyYear(b.dataset.year);full()});
+$("typeSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;S.type=b.dataset.type;S.title=null;full()});
+$("lists").addEventListener("change",e=>{const id=e.target.dataset.list;if(!id)return;e.target.checked?S.selected.add(id):S.selected.delete(id);pickWords();renderChips();render()});
+$("allBtn").onclick=()=>{DATA[S.year].lists.forEach(l=>S.selected.add(l.id));pickWords();full()};
+$("noneBtn").onclick=()=>{S.selected.clear();S.words=[];full()};
+$("count").addEventListener("input",e=>{S.count=+e.target.value;$("countOut").textContent=S.count});
+$("count").addEventListener("change",()=>{pickWords();render()});
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;S.words=S.words.filter(w=>w!==b.dataset.word);render()});
+function addWord(){const v=$("addWord").value.toLowerCase().split(/[\s,]+/).map(w=>w.replace(/[^a-z]/g,"")).filter(w=>w.length>=2&&!S.words.includes(w));
+  if(!v.length)return;S.words.push(...v);$("addWord").value="";render()}
+$("addBtn").onclick=addWord;$("addWord").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addWord()}});
+$("pickBtn").onclick=$("pick2Btn").onclick=()=>{pickWords();render()};
+$("newBtn").onclick=()=>{S.seed=newSeed();render()};
+$("clueStyle").onchange=e=>{S.clueStyle=e.target.value;render()};
+$("cwBank").onchange=e=>{S.cwBank=e.target.checked;render()};
+$("dirs").onchange=e=>{S.dirs=e.target.value;render()};
+$("letterCase").onchange=e=>{S.case=e.target.value;render()};
+$("showAns").onchange=e=>{S.showAns=e.target.checked;render()};
+$("stage").addEventListener("input",e=>{const t=e.target;
+  if(t.dataset&&t.dataset.ck)S.clues[t.dataset.ck]=t.textContent;
+  if(t.id==="titleEdit")S.title=t.textContent.trim()||null;});
+$("stage").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.isContentEditable){e.preventDefault();e.target.blur()}});
+
+applyYear(S.year);full();
+</script>
+</body>
+</html>
