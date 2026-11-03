@@ -1,0 +1,383 @@
+<title>Word Work Board Maker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&family=Fredoka:wght@500;600&display=swap">
+<style>
+/* Layout: controls column beside a printable letter-size "sheet" preview on primary handwriting paper */
+:root{
+  --bg:#EEF2F7; --panel:#FFFFFF; --ink:#1E2635; --muted:#5B6578; --line:#D5DDE8;
+  --blue:#2F5DA8; --blue-soft:#E3EBF7; --red:#C8443A; --sheet:#FFFFFF; --sheet-ink:#1E2635; --rule:#BCD0EC;
+  --display:"Fredoka","Trebuchet MS",system-ui,sans-serif;
+  --body:"Andika","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141A24; --panel:#1C2330; --ink:#E6EBF3; --muted:#9AA6BA; --line:#2E3849;
+  --blue:#82A8E8; --blue-soft:#24324A; --red:#E57A70; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#141A24; --panel:#1C2330; --ink:#E6EBF3; --muted:#9AA6BA; --line:#2E3849;
+  --blue:#82A8E8; --blue-soft:#24324A; --red:#E57A70; color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:340px minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+header.top{max-width:1180px;margin:0 auto 18px;display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+header.top h1{font-family:var(--display);font-weight:600;font-size:1.9rem;margin:0;text-wrap:balance;color:var(--ink)}
+header.top h1 span{color:var(--blue)}
+header.top p{margin:0;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field>label,.lbl{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+input[type=text],input[type=date],select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:44px;font:inherit;font-weight:700;padding:8px 0;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--blue);border-color:var(--blue);color:var(--panel)}
+.check{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.check input{margin-top:4px;accent-color:var(--blue);width:16px;height:16px;flex:none}
+.btn{font:inherit;font-weight:700;border-radius:10px;padding:11px 14px;cursor:pointer;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--panel)}
+.btn:focus-visible,.seg button:focus-visible,.card-tools button:focus-visible,summary:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.status{font-size:.88rem;color:var(--muted);min-height:1.3em}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:700}
+.pool{display:flex;flex-direction:column;gap:12px;margin-top:12px;max-height:420px;overflow:auto;padding-right:4px}
+.pool h4{margin:0;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--blue)}
+.pool .check{font-size:.92rem}
+.excluded{font-size:.85rem;color:var(--muted)}
+.excluded ul{margin:4px 0 0;padding-left:18px}
+
+/* Sheet preview */
+.stage{min-width:0}
+.sheet{container-type:inline-size;background:var(--sheet);color:var(--sheet-ink);aspect-ratio:8.5/11;max-width:100%;border-radius:4px;
+  box-shadow:0 1px 2px rgba(20,30,50,.12),0 12px 32px rgba(20,30,50,.14);padding:5.9cqi;display:flex;flex-direction:column;gap:2.2cqi;color-scheme:light}
+.s-head{display:flex;justify-content:space-between;align-items:flex-end;gap:3cqi;border-bottom:.35cqi solid #2F5DA8;padding-bottom:1.6cqi}
+.s-title{font-family:var(--display);font-weight:600;font-size:6.2cqi;line-height:1;color:#2F5DA8}
+.s-week{font-size:2.2cqi;color:#5B6578;margin-top:.8cqi}
+.s-name{font-size:2.3cqi;white-space:nowrap}
+.s-name i{display:inline-block;width:26cqi;border-bottom:.2cqi solid #1E2635;margin-left:1cqi}
+.s-rule{font-size:2.35cqi;text-align:center;font-weight:700}
+.s-rule b{color:#C8443A}
+.grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:1.8cqi;min-height:0}
+.card{position:relative;border:.25cqi solid #1E2635;border-radius:1.4cqi;padding:2cqi 2.2cqi;display:flex;flex-direction:column;gap:.9cqi;min-height:0;overflow:hidden;
+  background:repeating-linear-gradient(to bottom,transparent 0,transparent 4.4cqi,#E3EBF7 4.4cqi,#E3EBF7 4.55cqi)}
+.card.locked{border-color:#2F5DA8;box-shadow:inset 0 0 0 .3cqi #2F5DA8}
+.c-top{display:flex;align-items:center;gap:1.4cqi}
+.num{flex:none;width:4.2cqi;height:4.2cqi;border-radius:50%;border:.25cqi solid #2F5DA8;color:#2F5DA8;display:grid;place-items:center;font-weight:700;font-size:2.2cqi}
+.c-title{font-family:var(--display);font-weight:600;font-size:3.1cqi;line-height:1.1;flex:1;text-wrap:balance}
+.box{flex:none;width:3.6cqi;height:3.6cqi;border:.25cqi solid #1E2635;border-radius:.4cqi}
+.c-body{font-size:2.15cqi;line-height:1.38}
+.c-ex{font-size:2cqi;color:#5B6578;white-space:pre-line}
+.c-ex b{color:#1E2635}
+.card-tools{position:absolute;right:1.4cqi;bottom:1.2cqi;display:flex;gap:6px}
+.card-tools button{font:inherit;font-size:12px;font-weight:700;padding:4px 9px;border-radius:999px;border:1px solid #BCD0EC;background:#FFFFFF;color:#2F5DA8;cursor:pointer}
+.card-tools button[aria-pressed=true]{background:#2F5DA8;color:#FFFFFF;border-color:#2F5DA8}
+.fixit{border:.25cqi dashed #C8443A;border-radius:1.4cqi;padding:1.6cqi 2.2cqi;font-size:2.05cqi;line-height:1.4}
+.fixit strong{font-family:var(--display);font-weight:600;color:#C8443A;font-size:2.6cqi;display:block;margin-bottom:.3cqi}
+.hint{color:var(--muted);font-size:.88rem;margin:10px 2px 0}
+@media (prefers-reduced-motion:no-preference){.card{transition:box-shadow .15s}}
+</style>
+
+<header class="top">
+  <h1>Word Work <span>Board Maker</span></h1>
+  <p>Picks a fresh, balanced set of activities each week. Pencil, paper and colors only.</p>
+</header>
+
+<div class="wrap">
+  <aside class="panel">
+    <div class="field">
+      <label for="title">Board title</label>
+      <input type="text" id="title" value="Word Work">
+    </div>
+    <div class="field">
+      <label for="week">Week of</label>
+      <input type="date" id="week">
+    </div>
+    <div class="field">
+      <span class="lbl" id="countLbl">Activities on the board</span>
+      <div class="seg" id="countSeg" role="group" aria-labelledby="countLbl"></div>
+    </div>
+    <div class="field">
+      <label for="must">Students complete</label>
+      <select id="must"></select>
+    </div>
+    <label class="check"><input type="checkbox" id="fixit" checked><span>Add the Spelling Fix-It box for missed test words</span></label>
+    <label class="check"><input type="checkbox" id="fresh" checked><span>Avoid activities used on the last board</span></label>
+    <div class="actions">
+      <button class="btn" id="shuffle" type="button">Shuffle</button>
+      <button class="btn primary" id="pdf" type="button">Download PDF</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <details>
+      <summary>Activity pool (<span id="poolCount"></span>)</summary>
+      <div class="pool" id="pool"></div>
+    </details>
+  </aside>
+
+  <section class="stage">
+    <div class="sheet" id="sheet"></div>
+    <p class="hint">Lock a card to keep it when you shuffle, or swap just that one. The buttons on each card stay off the PDF.</p>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const CATS = {write:"Writing", practice:"Handwriting practice", study:"Word study", art:"Color & draw"};
+const ACTIVITIES = [
+  {id:"super-sentences",cat:"write",title:"Super Sentences",body:"Write a sentence with each of your spelling words. Good sentences tell who, what, where, when, why and how."},
+  {id:"ask-question",cat:"write",title:"Ask a Question!",body:"Write a question to your teacher with each spelling word. End every sentence with a question mark! Your teacher will write back."},
+  {id:"acrostic",cat:"write",title:"Acrostic Words",body:"Pick 9 spelling words. Write each word going down, then start each line of your poem with that letter. Silly is fine, but it has to make sense.",ex:"F - Fun in the sky.\nL - Laps around clouds.\nY - Yes! I'm free!"},
+  {id:"poetry",cat:"write",title:"Poetry Words",body:"Write a poem that uses at least 10 of your spelling words."},
+  {id:"music",cat:"write",title:"Music Words",body:"Write a song or rap that uses at least 10 of your spelling words."},
+  {id:"invention",cat:"write",title:"Invention Words",body:"Invent a new product and write a commercial to sell it. Use at least 10 spelling words!"},
+  {id:"autobiography",cat:"write",title:"Autobiography",body:"Write the story of your life, from the day you were born to today. Use detailed sentences and at least 10 spelling words."},
+  {id:"create",cat:"write",title:"Create an Activity!",body:"Make up a brand-new word work activity. Give it a name and directions, then do it with your words."},
+
+  {id:"write-right",cat:"practice",title:"Write It Right!",body:"Write each spelling word 5 times in your very best handwriting. Use cursive if you know how!"},
+  {id:"upper-lower",cat:"practice",title:"UPPER & lower",body:"Write each word 2 times. First in UPPERCASE letters, then in lowercase letters.",ex:"SLIDE   slide"},
+  {id:"sml",cat:"practice",title:"Small, Medium, Large",body:"Write each word in the tiniest letters you can still read. Then write it in normal-sized letters. Finally, write it in jumbo letters."},
+  {id:"squiggly",cat:"practice",title:"Squiggly Spelling",body:"Write each word 2 times. First in regular letters, then again in wavy, squiggly letters!"},
+  {id:"cursive",cat:"practice",title:"Cursive Words",body:"Write each word one time. Then use the cursive alphabet to write each word again in cursive."},
+  {id:"across-down",cat:"practice",title:"Across & Down",body:"Write each word across the page, then down the page from the same first letter.",ex:"b a l l\na\nl\nl"},
+  {id:"pyramid",cat:"practice",title:"Pyramid Words",body:"Build each word one letter at a time, adding a letter on every line.",ex:"w\nwa\nwan\nwant"},
+  {id:"dots",cat:"practice",title:"Connect the Dots",body:"Write each word in dots, then connect the dots by tracing over them with a colored pencil."},
+
+  {id:"rainbow",cat:"art",title:"Rainbow Words",body:"Write each word 3 times, changing colors each time. Use crayons, markers or colored pencils."},
+  {id:"spiral",cat:"art",title:"Spelling Spiral",body:"Draw a big spiral that covers your whole paper. Write your words along it in different colors until the spiral runs out."},
+  {id:"shapes",cat:"art",title:"Spelling Shapes",body:"Draw a rectangle for each word, then trace it by writing the word along all four sides."},
+  {id:"big-shape",cat:"art",title:"Word Outline",body:"Draw one large object, like a flower, star or sun. Write your words over its lines in different colors. You may need more than one shape."},
+  {id:"train",cat:"art",title:"Train Words",body:"Write your whole list end-to-end as one long word, like a train. Use a different color for each word."},
+  {id:"picture",cat:"art",title:"Picture Words",body:"Draw a picture or diagram. Write 10 sentences that describe it, using at least 10 spelling words."},
+  {id:"comic",cat:"art",title:"Funny Words",body:"Write and illustrate a comic strip that uses at least 10 of your words."},
+
+  {id:"syllables",cat:"study",title:"Syllable Words",body:"Write each word, then write it again split into syllables.",ex:"beautiful  →  beau-ti-ful"},
+  {id:"vowels",cat:"study",title:"Vowels & Consonants",body:"Write each word. Circle the vowels and underline the consonants."},
+  {id:"sum",cat:"study",title:"Find the Sum!",body:"Write each word. Consonants are worth 10 points and vowels are worth 5. Add up the value of each word.",ex:"cat = 10 + 5 + 10 = 25"},
+  {id:"abc",cat:"study",title:"ABC Order",body:"Write all of your spelling words in alphabetical order."},
+  {id:"grammar",cat:"study",title:"Grammar Sentences",body:"Write a detailed sentence with each word. Underline nouns in red, verbs in blue and adjectives in green."},
+  {id:"define",cat:"study",title:"Define a Word",body:"Use a dictionary or wordcentral.com to look up and write the definition of each spelling word."},
+  {id:"partner",cat:"study",title:"Word Work Check",body:"Find a partner not in your group. Read their list aloud while they check it with a red pen. Then switch and check your own list."}
+];
+const LEFT_OUT = ["Stamp It (stamps)","Scrabble tile math (Scrabble tiles)","Letter Cut-Outs (magazines)","Dice Spelling (dice + directions sheet)","Right Angle Words (alphabet chart)","Type It in Word (computer + OneDrive)"];
+const byId = Object.fromEntries(ACTIVITIES.map(a=>[a.id,a]));
+
+const store = {
+  get(k,d){try{const v=localStorage.getItem("ww:"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem("ww:"+k,JSON.stringify(v))}catch(e){}}
+};
+
+function nextMonday(){
+  const d=new Date(); const day=d.getDay(); const add=((8-day)%7)||7; d.setDate(d.getDate()+add);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+const state = {
+  count: store.get("count",6),
+  must: store.get("must",3),
+  enabled: new Set(store.get("enabled",ACTIVITIES.map(a=>a.id)).filter(id=>byId[id])),
+  last: store.get("last",[]),
+  cards: [] // {id, locked}
+};
+
+const $ = s=>document.querySelector(s);
+const shuffleArr = a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+function pickBalanced(n, exclude){
+  const avoidLast = $("#fresh").checked;
+  const pool = ACTIVITIES.filter(a=>state.enabled.has(a.id) && !exclude.has(a.id));
+  const fresh = avoidLast ? pool.filter(a=>!state.last.includes(a.id)) : pool;
+  const source = fresh.length>=n ? fresh : pool;
+  const buckets = {}; shuffleArr([...source]).forEach(a=>(buckets[a.cat]??=[]).push(a));
+  // round-robin across categories, starting with whichever categories are least represented already
+  const have = {}; exclude.forEach(id=>{const c=byId[id]?.cat;if(c)have[c]=(have[c]||0)+1});
+  const out=[];
+  while(out.length<n){
+    const cats = shuffleArr(Object.keys(buckets).filter(c=>buckets[c].length)).sort((a,b)=>(have[a]||0)-(have[b]||0));
+    if(!cats.length) break;
+    const c=cats[0]; out.push(buckets[c].shift()); have[c]=(have[c]||0)+1;
+  }
+  // if fresh-only ran dry, top up from the full pool
+  if(out.length<n){const taken=new Set([...exclude,...out.map(a=>a.id)]);shuffleArr(pool.filter(a=>!taken.has(a.id))).slice(0,n-out.length).forEach(a=>out.push(a))}
+  return out;
+}
+
+function generate(){
+  const kept = state.cards.filter(c=>c.locked && state.enabled.has(c.id)).slice(0,state.count);
+  const exclude = new Set(kept.map(c=>c.id));
+  const picks = pickBalanced(state.count-kept.length, exclude);
+  // keep locked cards in their slots, fill the rest
+  const slots = new Array(state.count).fill(null);
+  state.cards.forEach((c,i)=>{if(c.locked && exclude.has(c.id) && i<state.count) slots[i]=c});
+  kept.forEach(c=>{if(!slots.includes(c)){const i=slots.indexOf(null);if(i>-1)slots[i]=c}});
+  let p=0; for(let i=0;i<slots.length;i++){if(!slots[i]&&picks[p]) slots[i]={id:picks[p++].id,locked:false}}
+  state.cards = slots.filter(Boolean);
+  if(state.cards.length<state.count) setStatus(`Only ${state.cards.length} activities are switched on in the pool.`);
+  else setStatus("");
+  render();
+}
+
+function swapOne(i){
+  const exclude = new Set(state.cards.map(c=>c.id));
+  const [a] = pickBalanced(1, exclude);
+  if(!a){setStatus("No other activities left in the pool.");return}
+  state.cards[i] = {id:a.id,locked:false}; render();
+}
+
+function weekLabel(){
+  const v=$("#week").value; if(!v) return "";
+  const [y,m,d]=v.split("-").map(Number); const dt=new Date(y,m-1,d);
+  return "Week of "+dt.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"});
+}
+function ruleText(){
+  const n=state.cards.length;
+  if(state.must>=n) return {lead:"Complete all "+n+" activities.",tail:" Check the box when you finish each one."};
+  return {lead:`Choose ${state.must} of these ${n} activities.`,tail:" Check the box when you finish. Do more if you have time!"};
+}
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function render(){
+  const r=ruleText();
+  const sheet=$("#sheet");
+  sheet.innerHTML = `
+    <div class="s-head"><div><div class="s-title">${esc($("#title").value||"Word Work")}</div><div class="s-week">${esc(weekLabel())}</div></div>
+      <div class="s-name">Name<i></i></div></div>
+    <div class="s-rule"><b>${esc(r.lead)}</b>${esc(r.tail)}</div>
+    <div class="grid" style="grid-template-rows:repeat(${Math.ceil(state.cards.length/2)},minmax(0,1fr))">
+      ${state.cards.map((c,i)=>{const a=byId[c.id];return `
+      <div class="card${c.locked?" locked":""}">
+        <div class="c-top"><span class="num">${i+1}</span><span class="c-title">${esc(a.title)}</span><span class="box"></span></div>
+        <div class="c-body">${esc(a.body)}</div>
+        ${a.ex?`<div class="c-ex"><b>Example:</b> ${esc(a.ex)}</div>`:""}
+        <div class="card-tools">
+          <button type="button" data-lock="${i}" aria-pressed="${c.locked}">${c.locked?"Locked":"Lock"}</button>
+          <button type="button" data-swap="${i}">Swap</button>
+        </div>
+      </div>`}).join("")}
+    </div>
+    ${$("#fixit").checked?`<div class="fixit"><strong>Spelling Fix-It</strong>Missed a word on your test? Write each missed word 3 times in your Spelling Notebook using one fun style: cursive, lowercase-UPPERCASE, or rainbow letters. Take your time and form every letter carefully.</div>`:""}`;
+  store.set("count",state.count); store.set("must",state.must);
+}
+
+function buildControls(){
+  const seg=$("#countSeg");
+  seg.innerHTML=[4,6,8].map(n=>`<button type="button" data-count="${n}" aria-pressed="${n===state.count}">${n}</button>`).join("");
+  seg.onclick=e=>{const b=e.target.closest("[data-count]");if(!b)return;state.count=+b.dataset.count;
+    seg.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));fillMust();generate()};
+  fillMust();
+  $("#week").value = nextMonday();
+  ["#title","#week","#fixit"].forEach(s=>$(s).addEventListener("input",render));
+  $("#must").onchange=e=>{state.must=+e.target.value;render()};
+  $("#shuffle").onclick=generate;
+  $("#pdf").onclick=downloadPdf;
+  $("#sheet").onclick=e=>{
+    const l=e.target.closest("[data-lock]"); if(l){const i=+l.dataset.lock;state.cards[i].locked=!state.cards[i].locked;render();return}
+    const s=e.target.closest("[data-swap]"); if(s) swapOne(+s.dataset.swap);
+  };
+  buildPool();
+}
+function fillMust(){
+  if(state.must>state.count) state.must=Math.ceil(state.count/2);
+  $("#must").innerHTML=[...Array(state.count).keys()].map(i=>i+1).map(n=>`<option value="${n}"${n===state.must?" selected":""}>${n===state.count?`All ${n}`:`Any ${n} of ${state.count}`}</option>`).join("");
+}
+function buildPool(){
+  const pool=$("#pool");
+  pool.innerHTML = Object.entries(CATS).map(([k,label])=>`<div><h4>${label}</h4>${
+    ACTIVITIES.filter(a=>a.cat===k).map(a=>`<label class="check"><input type="checkbox" id="pool-${a.id}" data-pool="${a.id}" ${state.enabled.has(a.id)?"checked":""}><span>${esc(a.title)}</span></label>`).join("")
+  }</div>`).join("") + `<div class="excluded"><span class="lbl">Left out: need special materials</span><ul>${LEFT_OUT.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`;
+  pool.onchange=e=>{const id=e.target.dataset.pool;if(!id)return;e.target.checked?state.enabled.add(id):state.enabled.delete(id);
+    store.set("enabled",[...state.enabled]);updatePoolCount()};
+  updatePoolCount();
+}
+function updatePoolCount(){$("#poolCount").textContent=`${state.enabled.size} of ${ACTIVITIES.length} on`}
+function setStatus(t){$("#status").textContent=t}
+
+/* ---------- PDF ---------- */
+function makePdf(){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"pt",format:"letter"});
+  const W=612,H=792,M=40; const BLUE=[47,93,168],RED=[200,68,58],INK=[30,38,53],GREY=[91,101,120],RULE=[227,235,247];
+  let y=M;
+  // header
+  doc.setFont("helvetica","bold");doc.setFontSize(30);doc.setTextColor(...BLUE);
+  doc.text($("#title").value||"Word Work",M,y+24);
+  doc.setFont("helvetica","normal");doc.setFontSize(11);doc.setTextColor(...GREY);
+  const wk=weekLabel(); if(wk) doc.text(wk,M,y+42);
+  doc.setTextColor(...INK);doc.setFontSize(12);
+  doc.text("Name",W-M-190,y+42);doc.setDrawColor(...INK);doc.setLineWidth(.8);doc.line(W-M-155,y+43,W-M,y+43);
+  y+=54;doc.setDrawColor(...BLUE);doc.setLineWidth(2);doc.line(M,y,W-M,y);
+  // rule line
+  y+=22; const r=ruleText();
+  doc.setFontSize(12);doc.setFont("helvetica","bold");const lw=doc.getTextWidth(r.lead);
+  doc.setFont("helvetica","normal");const tw=doc.getTextWidth(r.tail);
+  let x0=(W-lw-tw)/2; doc.setFont("helvetica","bold");doc.setTextColor(...RED);doc.text(r.lead,x0,y);
+  doc.setFont("helvetica","normal");doc.setTextColor(...INK);doc.text(r.tail,x0+lw,y);
+  y+=14;
+  // fix-it box
+  const fix=$("#fixit").checked; let bottom=H-M;
+  if(fix){
+    const fixText="Missed a word on your test? Write each missed word 3 times in your Spelling Notebook using one fun style: cursive, lowercase-UPPERCASE, or rainbow letters. Take your time and form every letter carefully.";
+    doc.setFontSize(10.5);const lines=doc.splitTextToSize(fixText,W-2*M-28);
+    const fh=30+lines.length*13.5; const fy=H-M-fh;
+    doc.setDrawColor(...RED);doc.setLineWidth(1.2);doc.setLineDashPattern([4,3],0);doc.roundedRect(M,fy,W-2*M,fh,8,8,"S");doc.setLineDashPattern([],0);
+    doc.setFont("helvetica","bold");doc.setFontSize(13);doc.setTextColor(...RED);doc.text("Spelling Fix-It",M+14,fy+19);
+    doc.setFont("helvetica","normal");doc.setFontSize(10.5);doc.setTextColor(...INK);doc.text(lines,M+14,fy+35);
+    bottom=fy-12;
+  }
+  // grid
+  const n=state.cards.length, rows=Math.ceil(n/2), gap=12;
+  const cw=(W-2*M-gap)/2, ch=(bottom-y-gap*(rows-1))/rows;
+  state.cards.forEach((c,i)=>{
+    const a=byId[c.id]; const cx=M+(i%2)*(cw+gap), cy=y+Math.floor(i/2)*(ch+gap);
+    // faint ruled lines
+    doc.setDrawColor(...RULE);doc.setLineWidth(.6);
+    for(let ly=cy+48;ly<cy+ch-6;ly+=22) doc.line(cx+6,ly,cx+cw-6,ly);
+    doc.setDrawColor(...INK);doc.setLineWidth(1.2);doc.roundedRect(cx,cy,cw,ch,8,8,"S");
+    // number circle + checkbox
+    doc.setDrawColor(...BLUE);doc.setLineWidth(1.2);doc.circle(cx+22,cy+22,11,"S");
+    doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(...BLUE);doc.text(String(i+1),cx+22,cy+26.5,{align:"center"});
+    doc.setDrawColor(...INK);doc.rect(cx+cw-34,cy+11,20,20,"S");
+    // fit text: shrink until it fits
+    let ts=16, bs=11.5, fits=false, tl, bl, el;
+    const tw2=cw-90, bw=cw-28;
+    while(!fits && bs>=8){
+      doc.setFont("helvetica","bold");doc.setFontSize(ts);tl=doc.splitTextToSize(a.title,tw2);
+      doc.setFont("helvetica","normal");doc.setFontSize(bs);bl=doc.splitTextToSize(a.body,bw);
+      el=a.ex?doc.splitTextToSize("Example: "+a.ex,bw):[];
+      const need=42+(tl.length-1)*ts*1.1+bl.length*bs*1.35+(el.length?8+el.length*bs*1.3:0);
+      if(need<=ch-12) fits=true; else {bs-=.5; ts=Math.max(12,ts-.5)}
+    }
+    doc.setFont("helvetica","bold");doc.setFontSize(ts);doc.setTextColor(...INK);
+    doc.text(tl,cx+42,cy+27);
+    let ty=cy+48+(tl.length-1)*ts*1.1;
+    doc.setFont("helvetica","normal");doc.setFontSize(bs);doc.text(bl,cx+14,ty,{lineHeightFactor:1.35});
+    ty+=bl.length*bs*1.35+6;
+    if(el.length){doc.setTextColor(...GREY);doc.text(el,cx+14,ty,{lineHeightFactor:1.3})}
+  });
+  return doc;
+}
+
+async function downloadPdf(){
+  if(!window.jspdf){setStatus("The PDF tool didn't load. Reload the page and try again.");return}
+  if(!state.cards.length){setStatus("Turn on some activities first.");return}
+  const doc=makePdf();
+  const wk=$("#week").value||"board";
+  const dl = window.claude?.use ? await window.claude.use("downloads") : null;
+  if(!dl){
+    // Opened as a plain file in a browser: use the browser's own download
+    try{doc.save(`Word Work ${wk}.pdf`);setStatus("PDF downloaded.");state.last=state.cards.map(c=>c.id);store.set("last",state.last)}
+    catch(e){setStatus("The PDF couldn't be saved here. Try another browser.")}
+    return;
+  }
+  const bytes=doc.output("arraybuffer");
+  try{
+    await dl.save({filename:`Word Work ${wk}.pdf`,data:bytes});
+    setStatus("PDF saved.");
+    state.last=state.cards.map(c=>c.id); store.set("last",state.last);
+  }catch(err){
+    const msgs={declined:"Download canceled.",rate_limited:"A save prompt is already open. Finish that one first."};
+    setStatus(msgs[err?.code]||"The PDF couldn't be saved here. Try again in a moment.");
+  }
+}
+
+buildControls();
+generate();
+</script>
