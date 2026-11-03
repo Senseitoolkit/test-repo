@@ -83,6 +83,11 @@
     box-shadow: 0 4px 30px rgba(0,0,0,0.08);
     max-height: 75vh; overflow-y: auto; flex-shrink: 0;
   }
+  .menu-intro {
+    font-size: 14px; line-height: 1.5; color: #666;
+    text-align: center; margin-bottom: 18px;
+    padding-bottom: 16px; border-bottom: 1px solid #f0f0f3;
+  }
 
   .section-label {
     font-size: 11px; font-weight: 700; text-transform: uppercase;
@@ -114,6 +119,7 @@
     cursor: pointer; transition: all 0.2s ease;
   }
   .timer-btn .timer-btn-icon { margin-right: 4px; }
+  .timer-btn.active-off { border-color: #1a1a2e; background: #1a1a2e; color: #fff; }
   .timer-btn.active-fast { border-color: #e74c3c; background: #e74c3c; color: #fff; }
   .timer-btn.active-normal { border-color: #f5a623; background: #f5a623; color: #fff; }
   .timer-btn.active-slow { border-color: #34a853; background: #34a853; color: #fff; }
@@ -367,6 +373,7 @@
       <p>Build arithmetic fluency</p>
     </div>
     <div class="menu-body">
+      <p class="menu-intro">Practise quick maths facts! Choose the topics you want, pick a mode, then press <strong>Start</strong> and answer as many as you can.</p>
       <div class="section-label">Pick your topics</div>
       <div class="chips" id="menuTopicChips"></div>
       <div class="section-label" style="margin-top:16px;">Mode</div>
@@ -374,7 +381,7 @@
         <button class="mode-btn active" data-mode="endless">Endless</button>
         <button class="mode-btn" data-mode="round">20 Questions</button>
       </div>
-      <div class="section-label">Timer speed <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#ccc;">(optional)</span></div>
+      <div class="section-label">Timer</div>
       <div class="timer-buttons" id="menuTimerButtons"></div>
       <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
         <div style="flex:1;min-width:120px;">
@@ -496,7 +503,7 @@ let currentProblem = null;
 let feedback = null;
 let score = { correct: 0, total: 0 };
 let streak = { type: null, count: 0, best: 0 };
-let timerEnabled = false;
+let timerEnabled = false;   // timer is Off by default
 let timerSpeed = null;
 let timerInterval = null;
 let timerRemaining = 0;
@@ -591,9 +598,6 @@ function generateProblem(cat) {
         : { display: `${a} − ? = ${a - b}`, answer: b };
     }
     case "bridging10": {
-      // Addition and subtraction facts that bridge through 10
-      // e.g. 7+5=12, 8+6=14, 13-7=6, 15-8=7
-      // Generate: pick two single-digit numbers whose sum > 10 (both >= 2)
       const pairs = [
         [2,9],[3,8],[3,9],[4,7],[4,8],[4,9],[5,6],[5,7],[5,8],[5,9],
         [6,5],[6,6],[6,7],[6,8],[6,9],[7,4],[7,5],[7,6],[7,7],[7,8],[7,9],
@@ -602,13 +606,11 @@ function generateProblem(cat) {
       const [pa, pb] = pairs[rand(0, pairs.length - 1)];
       const sum = pa + pb;
       if (Math.random() < 0.5) {
-        // Addition: a + b = ?  or  ? + b = sum  or  a + ? = sum
         const v = rand(0, 2);
         if (v === 0) return { display: `${pa} + ${pb} = ?`, answer: sum };
         if (v === 1) return { display: `? + ${pb} = ${sum}`, answer: pa };
         return { display: `${pa} + ? = ${sum}`, answer: pb };
       } else {
-        // Subtraction: sum - a = ?  or  sum - ? = b
         if (Math.random() > 0.5) return { display: `${sum} − ${pa} = ?`, answer: pb };
         return { display: `${sum} − ? = ${pb}`, answer: pa };
       }
@@ -999,23 +1001,44 @@ function startTimer() {
   }, 50);
 }
 
-function renderTimerButtons() {
-  const c = document.getElementById("timerButtons"); c.innerHTML = "";
+// Builds the Off / Fast / Normal / Slow buttons into a container.
+// onChange runs after the timer setting changes.
+function buildTimerButtons(container, onChange) {
+  container.innerHTML = "";
+  const off = document.createElement("button");
+  off.className = "timer-btn" + (!timerEnabled ? " active-off" : "");
+  off.textContent = "Off";
+  off.addEventListener("click", () => {
+    if (!timerEnabled) return;
+    timerEnabled = false; timerSpeed = null;
+    onChange();
+  });
+  container.appendChild(off);
   Object.entries(TIMER_SPEEDS).forEach(([key, { label, seconds, icon }]) => {
     const b = document.createElement("button");
     const isA = timerEnabled && timerSpeed === key;
     b.className = "timer-btn" + (isA ? ` active-${key}` : "");
     b.innerHTML = `<span class="timer-btn-icon">${icon}</span>${label} (${seconds}s)`;
     b.addEventListener("click", () => {
-      if (timerEnabled && timerSpeed === key) {
-        timerEnabled = false; timerSpeed = null; stopTimer();
-        document.getElementById("timerText").classList.add("hidden");
-        document.getElementById("timerBarWrapper").classList.add("hidden");
-        if (currentProblem && !feedback) renderNumpad();
-      } else { timerEnabled = true; timerSpeed = key; if (currentProblem && !feedback) startTimer(); }
-      renderTimerButtons();
+      if (isA) return;
+      timerEnabled = true; timerSpeed = key;
+      onChange();
     });
-    c.appendChild(b);
+    container.appendChild(b);
+  });
+}
+
+function renderTimerButtons() {
+  buildTimerButtons(document.getElementById("timerButtons"), () => {
+    if (timerEnabled) {
+      if (currentProblem && !feedback) startTimer();
+    } else {
+      stopTimer();
+      document.getElementById("timerText").classList.add("hidden");
+      document.getElementById("timerBarWrapper").classList.add("hidden");
+      if (currentProblem && !feedback) renderNumpad();
+    }
+    renderTimerButtons();
   });
 }
 
@@ -1034,7 +1057,6 @@ function renderInputMode() {
   } else {
     numpadEl.classList.add("hidden");
     ansDisp.classList.add("hidden");
-    // Bigger equation when no numpad — more room
     problemEl.style.fontSize = "clamp(36px, 14vw, 72px)";
     if (feedback) {
       kbRow.classList.add("hidden");
@@ -1105,19 +1127,7 @@ function renderMenuChips() {
 }
 
 function renderMenuTimerButtons() {
-  const c = document.getElementById("menuTimerButtons"); c.innerHTML = "";
-  Object.entries(TIMER_SPEEDS).forEach(([key, { label, seconds, icon }]) => {
-    const b = document.createElement("button");
-    const isA = timerEnabled && timerSpeed === key;
-    b.className = "timer-btn" + (isA ? ` active-${key}` : "");
-    b.innerHTML = `<span class="timer-btn-icon">${icon}</span>${label} (${seconds}s)`;
-    b.addEventListener("click", () => {
-      if (timerEnabled && timerSpeed === key) { timerEnabled = false; timerSpeed = null; }
-      else { timerEnabled = true; timerSpeed = key; }
-      renderMenuTimerButtons();
-    });
-    c.appendChild(b);
-  });
+  buildTimerButtons(document.getElementById("menuTimerButtons"), renderMenuTimerButtons);
 }
 
 function renderMenuModeButtons() {
@@ -1212,6 +1222,7 @@ document.getElementById("menuNumpadToggle").addEventListener("click", () => { nu
 
 // ========== INIT ==========
 Object.keys(CATEGORIES).forEach(k => CATEGORIES[k].active = false);
+timerEnabled = false; timerSpeed = null;
 loadStorage();
 renderMenuChips(); renderMenuTimerButtons(); renderMenuModeButtons(); renderMenuToggles(); updateMenuPB();
 </script>
