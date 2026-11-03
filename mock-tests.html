@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Year 3 Mock Paper Maker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Lexend:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: an exam booklet on a desk — control strip, cover sheet, then numbered question blocks with margin marks. */
+:root{
+  --ground:#e6ecf0; --paper:#ffffff; --ink:#17222d; --muted:#5a6774; --rule:#cbd4dc;
+  --grid:#bde0f3; --pen:#1d4fc4; --tab:#1c2a37; --tabfg:#ffffff; --shade:#aeb8c2; --water:#c5dcec;
+  --ok:#1b7a45; --okbg:#e3f4ea; --no:#b3261e; --nobg:#fbe7e5; --hl:#fff0a8; --chip:#f2f5f8;
+  --display:"Bricolage Grotesque", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --body:"Lexend", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --ground:#11161b; --paper:#1a2128; --ink:#e5ebf0; --muted:#9aa7b3; --rule:#33404b;
+  --grid:#22405a; --pen:#90b6ff; --tab:#e5ebf0; --tabfg:#11161b; --shade:#5d6b78; --water:#284860;
+  --ok:#6fd49a; --okbg:#173326; --no:#ff8f86; --nobg:#3a1c1a; --hl:#4b4319; --chip:#232c35; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ground:#11161b; --paper:#1a2128; --ink:#e5ebf0; --muted:#9aa7b3; --rule:#33404b;
+  --grid:#22405a; --pen:#90b6ff; --tab:#e5ebf0; --tabfg:#11161b; --shade:#5d6b78; --water:#284860;
+  --ok:#6fd49a; --okbg:#173326; --no:#ff8f86; --nobg:#3a1c1a; --hl:#4b4319; --chip:#232c35; color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 120px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(26px,5vw,38px);line-height:1.05;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.top{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap}
+.top p{margin:4px 0 0;color:var(--muted);max-width:60ch}
+.controls{background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:14px;display:flex;flex-wrap:wrap;gap:14px 20px;align-items:end}
+.ctl{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ctl>label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{font:inherit;font-size:14px;font-weight:500;border:0;background:transparent;color:var(--ink);padding:7px 13px;cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.btn{font:inherit;font-size:14px;font-weight:600;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:8px;padding:7px 14px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn:focus-visible,.seg button:focus-visible,.chip:focus-visible,.cell:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--pen);outline-offset:2px}
+.code{display:flex;gap:6px;align-items:center}
+.code input{font:inherit;font-size:14px;width:118px;padding:6px 8px;border:1.5px solid var(--rule);border-radius:7px;background:var(--paper);color:var(--ink);letter-spacing:.04em;text-transform:uppercase}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--pen)}
+
+/* cover */
+.sheet{background:var(--paper);border:1px solid var(--rule);border-radius:4px;box-shadow:0 1px 0 var(--rule)}
+.cover{padding:22px 24px;display:grid;grid-template-columns:1fr auto;gap:12px 24px;align-items:start}
+.cover .k{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.cover h2{font-family:var(--display);font-size:clamp(22px,4vw,30px);font-weight:800;margin:2px 0 4px;line-height:1.1;text-wrap:balance}
+.cover .meta{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:14px}
+.timer{text-align:right;display:flex;flex-direction:column;align-items:end;gap:6px}
+.timer b{font-variant-numeric:tabular-nums;font-size:28px;font-weight:600;line-height:1}
+.timer.up b{color:var(--no)}
+.namefields{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px 18px;border-top:1px solid var(--rule);padding-top:12px}
+.namefields label{display:flex;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+.namefields input{font:inherit;border:0;border-bottom:1.5px solid var(--ink);background:transparent;color:var(--pen);padding:2px 4px;width:150px}
+
+/* questions */
+.paper{padding:6px 0}
+.q{display:grid;grid-template-columns:52px minmax(0,1fr);gap:0 16px;padding:22px 20px 22px 18px;border-top:1px solid var(--rule)}
+.q:first-child{border-top:0}
+.qn{background:var(--tab);color:var(--tabfg);border-radius:7px;width:40px;height:34px;display:grid;place-items:center;font-weight:700;font-size:17px;font-variant-numeric:tabular-nums}
+.qb{min-width:0;display:flex;flex-direction:column;gap:14px}
+.intro{margin:0;font-size:17px}
+.sub{margin:6px 0 0}
+.part{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:12px;align-items:end}
+.part+.part{border-top:1px dashed var(--rule);padding-top:14px}
+.pb{min-width:0;display:flex;flex-direction:column;gap:12px}
+.ptext{font-size:17px}
+.arith .ptext{font-size:clamp(24px,4.4vw,30px);font-weight:600;letter-spacing:.01em;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.mk{display:flex;flex-direction:column;align-items:end;gap:6px;font-size:12px;color:var(--muted);border-top:1px solid var(--muted);padding-top:3px;white-space:nowrap}
+.score{font-weight:700;font-size:14px;border-radius:5px;padding:1px 7px}
+.part.ok .score{background:var(--okbg);color:var(--ok)} .part.no .score{background:var(--nobg);color:var(--no)}
+.vis{overflow-x:auto;max-width:100%}
+.sv{color:var(--ink);display:block}
+.sv text{fill:var(--ink);font-family:var(--body)}
+.sv .ln{stroke:var(--ink)} .sv .pp{fill:var(--paper)} .sv .sh{fill:var(--shade)} .sv .water{fill:var(--water)}
+.sv .obj{fill:var(--hl)} .sv .objt{fill:var(--ink)} .sv .lcd{fill:var(--tab)} .sv .lcdt{fill:var(--tabfg)}
+
+/* answer boxes */
+.boxw{display:inline-flex;align-items:center;gap:4px;border:2px solid var(--ink);border-radius:3px;background:var(--paper);padding:2px 8px;vertical-align:middle;min-height:44px;margin:2px 0}
+.boxw em{font-style:normal;font-weight:700;font-size:16px}
+.boxw input{font:inherit;font-size:20px;font-weight:600;color:var(--pen);border:0;background:transparent;width:100%;min-width:0;padding:4px 2px;text-align:center}
+.boxw input:focus{outline:none}
+.boxw:focus-within{box-shadow:0 0 0 3px var(--grid)}
+.w-t{width:74px}.w-s{width:110px}.w-m{width:150px}.w-l{width:190px}.w-xl{width:min(100%,420px)}
+.w-xl input{text-align:left;font-size:17px}
+select.box{font:inherit;font-size:16px;font-weight:600;color:var(--pen);border:2px solid var(--ink);border-radius:3px;background:var(--paper);padding:8px;min-height:44px;max-width:100%}
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1.05;margin:0 3px;font-weight:600}
+.fr>span:first-child{border-bottom:2px solid currentColor;padding:0 3px}
+.fr .boxw{min-height:38px;margin:2px 0}
+.work{position:relative;border:1.5px solid var(--ink);min-height:120px;background-color:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px;display:flex;flex-direction:column;justify-content:end;align-items:end;padding:10px;gap:8px}
+.arith .work{min-height:110px}
+.work .ml{position:absolute;left:-1px;top:24px;background:var(--paper);border:1.5px solid var(--ink);border-left:0;border-radius:0 10px 10px 0;font-size:12px;padding:6px 8px;line-height:1.2;width:70px;text-align:center;color:var(--muted)}
+.work textarea.scratch{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;resize:none;font:inherit;font-size:16px;color:var(--pen);padding:12px 14px 12px 88px;line-height:24px}
+.work .ansbox{position:relative;z-index:1;display:flex;gap:8px;flex-wrap:wrap;justify-content:end;align-items:center;background:var(--paper);padding:4px}
+.arith .work textarea.scratch{padding-left:14px}
+.tail{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:end}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+textarea.explain{font:inherit;color:var(--pen);border:1.5px solid var(--ink);border-radius:3px;background:var(--paper);min-height:76px;padding:8px 10px;width:100%;resize:vertical}
+.hint{font-size:13px;color:var(--muted)}
+.eqn{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:20px;font-weight:600;margin:4px 0}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{font:inherit;font-size:16px;font-weight:600;color:var(--ink);background:var(--chip);border:2px solid var(--rule);border-radius:10px;padding:8px 14px;cursor:pointer;min-height:44px;display:grid;place-items:center;max-width:100%}
+.chips.big .chip{font-size:20px;border-radius:999px;padding:6px 20px}
+.chip[aria-pressed="true"]{border-color:var(--pen);box-shadow:inset 0 0 0 2px var(--pen);background:var(--paper)}
+.chips:not(.big) .chip[aria-pressed="true"]::after{content:"✓";position:absolute}
+.chip{position:relative}
+.chips:not(.big) .chip[aria-pressed="true"]::after{top:4px;right:8px;color:var(--pen);font-weight:700}
+.chip .sv{max-width:100%}
+
+/* visuals */
+.ctrbox{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.ctrs{display:inline-flex;flex-wrap:wrap;gap:4px;vertical-align:middle}
+.ctr{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;border:2px solid var(--ink);background:var(--paper)}
+.ctr.c100{background:var(--ink);color:var(--paper)} .ctr.c10{background:var(--shade)} .ctr.c1{background:var(--paper)}
+.inl .ctr{width:30px;height:30px;font-size:10px}
+table.pv{border-collapse:collapse;min-width:min(100%,420px)}
+.pv th{font-size:14px;font-weight:600;border:1.5px solid var(--ink);padding:6px 10px;background:var(--chip)}
+.pv td{border:1.5px solid var(--ink);padding:8px;vertical-align:middle;min-width:110px}
+.arr{display:inline-grid;gap:10px;padding:12px;border:1px dashed var(--rule);border-radius:8px}
+.arr span{width:22px;height:22px;border-radius:50%;background:var(--shade);border:2px solid var(--ink)}
+.hsq{display:grid;grid-template-columns:repeat(10,minmax(0,44px));border-left:1.5px solid var(--ink);border-top:1.5px solid var(--ink);width:max-content;max-width:100%}
+.hsq span{border-right:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);aspect-ratio:1;display:grid;place-items:center;font-size:14px;font-variant-numeric:tabular-nums}
+.hsq span.on{background:var(--shade);font-weight:700}
+.cards{display:flex;flex-wrap:wrap;gap:10px}
+.card{border:2px solid var(--ink);border-radius:6px;padding:8px 16px;font-size:20px;font-weight:600;background:var(--paper);font-variant-numeric:tabular-nums}
+.card.price{font-size:15px;display:flex;flex-direction:column;gap:2px;font-weight:500}
+.card.price b{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.track{display:flex;flex-wrap:wrap;margin:4px 0}
+.tc{border:2px solid var(--ink);min-width:78px;min-height:58px;display:grid;place-items:center;font-size:20px;font-weight:600;margin:-1px 0 0 -1px;padding:4px}
+.tc .boxw{border:0;min-height:0;margin:0;padding:0}
+.mach{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:19px;font-weight:600}
+.mio{border:2px solid var(--ink);border-radius:4px;min-width:72px;min-height:48px;display:grid;place-items:center;padding:2px 8px}
+.mio .boxw{border:0;margin:0;min-height:0}
+.mop{border:2px solid var(--ink);background:var(--chip);border-radius:12px;padding:10px 16px;display:grid;place-items:center}
+.mop .boxw{border:0;background:transparent;min-height:0;margin:0}
+.mach .arr{border:0;padding:0;display:inline;color:var(--muted)}
+.mlab{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);max-width:520px}
+.jugs{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:end}
+.jugs figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px;max-width:100%}
+.jugs figcaption{font-weight:700;font-size:15px;text-align:center;max-width:200px}
+.boxes{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:8px;max-width:420px}
+.pbox{border:2px solid var(--ink);border-radius:4px;aspect-ratio:3/4;display:flex;flex-direction:column;justify-content:end;align-items:end;padding:6px;font-size:11px;font-weight:700;line-height:1.1;background:linear-gradient(135deg,var(--chip) 55%,var(--shade) 55%)}
+.pbox.b10{background:linear-gradient(135deg,var(--paper) 55%,var(--chip) 55%)}
+.pbox b{font-size:20px}
+.pyr{display:flex;flex-direction:column;align-items:center;gap:0}
+.pyr>div{display:flex}
+.pyr span{border:2px solid var(--ink);width:96px;height:72px;display:grid;place-items:center;font-size:20px;font-weight:600;margin:-1px 0 0 -1px;background:var(--paper)}
+.pyr .boxw{border:0;margin:0;min-height:0;width:84px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.dgrid{display:grid;gap:8px;width:max-content;padding:10px;border:1px dashed var(--rule);border-radius:8px}
+.cell{width:40px;height:40px;border-radius:50%;border:2px dashed var(--rule);background:transparent;cursor:pointer;padding:0}
+.cell.on{background:var(--shade);border:2px solid var(--ink)}
+.cell.pre{cursor:default}
+
+/* marking */
+.ans{display:none;background:var(--hl);border-radius:6px;padding:8px 12px;font-size:15px}
+.ans b:first-child{margin-right:4px}
+body.show-ans .ans,.part.marked .ans{display:block}
+.selfm{display:none;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.part.marked .selfm{display:flex}
+.selfm button{font:inherit;font-size:13px;font-weight:600;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:999px;padding:3px 12px;cursor:pointer}
+.selfm button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.endbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px;border-top:2px solid var(--ink);background:var(--paper)}
+.endbar .end{font-family:var(--display);font-weight:800;letter-spacing:.04em}
+.result{position:fixed;left:0;right:0;bottom:0;background:var(--ink);color:var(--paper);padding:12px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;justify-content:center;gap:14px;align-items:center;flex-wrap:wrap;z-index:5}
+.result b{font-size:22px;font-variant-numeric:tabular-nums}
+.result .btn{background:transparent;color:var(--paper);border-color:var(--paper)}
+.note{font-size:13px;color:var(--muted);max-width:70ch}
+@media (max-width:560px){
+  .q{grid-template-columns:1fr;padding:18px 14px;gap:10px}
+  .part{grid-template-columns:1fr}
+  .mk{flex-direction:row;justify-content:space-between;align-items:center;border-top:0;padding-top:0}
+  .cover{grid-template-columns:1fr}.timer{align-items:start;text-align:left}
+  .pyr span{width:76px;height:62px}.pyr .boxw{width:66px}
+  .work .ml{display:none}.work textarea.scratch{padding-left:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Year 3 Mock Paper Maker</h1>
+      <p>Fresh practice papers in the format of your Autumn, Spring and Summer progress checks. Every paper has new numbers, new contexts and new answers.</p>
+    </div>
+  </header>
+
+  <section class="controls" aria-label="Paper settings">
+    <div class="ctl"><label>Term</label><div class="seg" id="termSeg"><button type="button" data-term="au">Autumn</button><button type="button" data-term="sp">Spring</button><button type="button" data-term="su">Summer</button></div></div>
+    <div class="ctl"><label>Paper</label><div class="seg" id="paperSeg"><button type="button" data-paper="1">1 · Arithmetic</button><button type="button" data-paper="2">2 · Reasoning</button></div></div>
+    <div class="ctl"><label>&nbsp;</label><button type="button" class="btn primary" id="newBtn">New paper</button></div>
+    <div class="ctl"><label for="codeIn">Paper code</label><div class="code"><input id="codeIn" aria-label="Paper code" spellcheck="false"><button type="button" class="btn" id="loadBtn">Load</button></div></div>
+    <div class="ctl"><label>&nbsp;</label><label class="toggle"><input type="checkbox" id="ansToggle"> Show mark scheme</label></div>
+  </section>
+
+  <article class="sheet">
+    <div class="cover">
+      <div>
+        <div class="k" id="cvK">Mathematics · Year 3</div>
+        <h2 id="cvTitle">Paper</h2>
+        <div class="meta" id="cvMeta"></div>
+      </div>
+      <div class="timer" id="timer"><b id="tLeft">25:00</b><button type="button" class="btn" id="tBtn">Start timer</button></div>
+      <div class="namefields"><label for="nm">Name <input id="nm" autocomplete="off"></label><label for="dt">Date <input id="dt" autocomplete="off"></label></div>
+    </div>
+  </article>
+
+  <article class="sheet paper" id="paper" aria-live="off"></article>
+  <p class="note">Answers are checked as you type them in. Explanations, drawings and “show your method” marks are for an adult to award after marking. Write down the paper code to bring back the exact same paper later.</p>
+</div>
+<div class="result" id="result" hidden><span>Score</span><b id="resScore">0 / 0</b><span id="resPct"></span><button type="button" class="btn" id="clearBtn">Try a new paper</button></div>
+<script>
+// ================= RNG & helpers =================
+let R = Math.random;
+function seedRng(seed){let a=seed>>>0;R=function(){a=(a+0x6D2B79F5)|0;let t=Math.imul(a^(a>>>15),1|a);t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;};}
+const ri=(a,b)=>a+Math.floor(R()*(b-a+1));
+const pick=a=>a[Math.floor(R()*a.length)];
+function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const sample=(arr,k)=>shuffle(arr).slice(0,k);
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+function tries(make,ok){let r;for(let i=0;i<800;i++){r=make();if(ok(r))return r;}return r;}
+const MIN='−';
+const F=(n,d)=>`<span class="fr"><span>${n}</span><span>${d}</span></span>`;
+const ONES=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+const TENS=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+function words(n){if(n<20)return ONES[n];if(n<100)return TENS[Math.floor(n/10)]+(n%10?'-'+ONES[n%10]:'');const h=Math.floor(n/100),r=n%100;return ONES[h]+' hundred'+(r?' and '+words(r):'');}
+const normWords=s=>String(s??'').toLowerCase().replace(/[-–—,.]/g,' ').replace(/\band\b/g,' ').replace(/\s+/g,' ').trim();
+const isWords=(s,n)=>normWords(s)!==''&&normWords(s)===normWords(words(n));
+const norm=s=>String(s??'').toLowerCase().replace(/[\s,£]/g,'').replace(/(minutes|minute|mins|litres|litre|ml|cm|mm|kg|grams|gram|g|p|m|l)$/,'');
+const isNum=(s,n)=>{const t=norm(s);return /^\d+$/.test(t)&&+t===n;};
+function fracVal(s){const t=String(s??'').replace(/\s/g,'');const m=t.match(/^(\d+)\/(\d+)$/);if(m&&+m[2]>0)return +m[1]/+m[2];if(/^\d+$/.test(t))return +t;return null;}
+const isFrac=(s,n,d)=>{const v=fracVal(s);return v!==null&&Math.abs(v-n/d)<1e-9;};
+const sameSet=(arr,set)=>arr.length===set.length&&set.every(x=>arr.includes(x));
+const money=p=>`£${Math.floor(p/100)}${p%100?'.'+String(p%100).padStart(2,'0'):''}`;
+
+function part(o){return Object.assign({marks:1,inputs:[]},o);}
+function box(w='m',extra={}){return Object.assign({w},extra);}
+// arithmetic question: expression with optional □ for the answer
+function A(expr,ans,o={}){
+  const frac=typeof ans==='object';
+  const inline=expr.includes('□');
+  return {arith:true,parts:[part({
+    html:inline?expr.replace('□','{{0}}'):expr, after:!inline, scratch:inline,
+    inputs:[box(o.w||(inline?'s':'m'),{unit:o.unit,pre:o.pre,mode:frac?'text':'numeric'})],
+    check:v=>frac?(isFrac(v.inp[0],ans.n,ans.d)?1:0):(isNum(v.inp[0],ans)?1:0),
+    ans:frac?F(ans.n,ans.d):(o.pre||'')+ans+(o.unit?' '+o.unit:'')
+  })]};
+}
+const digits=n=>[Math.floor(n/100),Math.floor(n/10)%10,n%10];
+
+// ================= SVG / visual helpers =================
+const svgOpen=(w,h,extra='')=>`<svg class="sv" viewBox="0 0 ${w} ${h}" width="${w}" style="max-width:100%;height:auto" ${extra}>`;
+function svgFrac(x,y,n,d,size=15){return `<text x="${x}" y="${y}" text-anchor="middle" font-size="${size}" font-weight="600">${n}</text><line x1="${x-9}" y1="${y+4}" x2="${x+9}" y2="${y+4}" class="ln" stroke-width="1.6"/><text x="${x}" y="${y+20}" text-anchor="middle" font-size="${size}" font-weight="600">${d}</text>`;}
+// number line: div intervals; labels {i: text|{n,d}}; arrows [{i,label}]; minor: sub ticks per interval
+function nline({div,labels={},arrows=[],minor=0,w=600}){
+  const L=36,Rr=w-36,y=arrows.length?78:40,x=i=>L+i*(Rr-L)/div;let s=svgOpen(w,y+62);
+  s+=`<line x1="${L-10}" y1="${y}" x2="${Rr+10}" y2="${y}" class="ln" stroke-width="2"/>`;
+  for(let i=0;i<=div;i++){s+=`<line x1="${x(i)}" y1="${y-10}" x2="${x(i)}" y2="${y+10}" class="ln" stroke-width="2"/>`;
+    if(minor&&i<div)for(let k=1;k<minor;k++){const xx=x(i)+k*(x(1)-x(0))/minor;s+=`<line x1="${xx}" y1="${y-5}" x2="${xx}" y2="${y+5}" class="ln" stroke-width="1.2"/>`;}}
+  for(const [i,l] of Object.entries(labels)){const xi=x(+i);if(typeof l==='object')s+=svgFrac(xi,y+30,l.n,l.d);else s+=`<text x="${xi}" y="${y+34}" text-anchor="middle" font-size="17" font-weight="600">${l}</text>`;}
+  for(const a of arrows){const xi=x(a.i);s+=`<line x1="${xi}" y1="${y-60}" x2="${xi}" y2="${y-16}" class="ln" stroke-width="2.4"/><path d="M${xi-6} ${y-24} L${xi} ${y-13} L${xi+6} ${y-24}" class="ln" fill="none" stroke-width="2.4"/>`;if(a.label)s+=`<text x="${xi}" y="${y-64}" text-anchor="middle" font-size="16" font-weight="700">${a.label}</text>`;}
+  return s+'</svg>';
+}
+function clock(h,m){let s=svgOpen(180,180);s+=`<circle cx="90" cy="90" r="80" class="pp ln" stroke-width="3"/>`;
+  for(let i=0;i<60;i++){const a=i*6*Math.PI/180,r1=i%5?73:68;s+=`<line x1="${90+r1*Math.sin(a)}" y1="${90-r1*Math.cos(a)}" x2="${90+79*Math.sin(a)}" y2="${90-79*Math.cos(a)}" class="ln" stroke-width="${i%5?1:2.5}"/>`;}
+  for(let i=1;i<=12;i++){const a=i*30*Math.PI/180;s+=`<text x="${90+56*Math.sin(a)}" y="${90-56*Math.cos(a)+6}" text-anchor="middle" font-size="17" font-weight="700">${i}</text>`;}
+  const ma=m*6*Math.PI/180,ha=((h%12)+m/60)*30*Math.PI/180;
+  s+=`<line x1="90" y1="90" x2="${90+64*Math.sin(ma)}" y2="${90-64*Math.cos(ma)}" class="ln" stroke-width="3" stroke-linecap="round"/>`;
+  s+=`<line x1="90" y1="90" x2="${90+40*Math.sin(ha)}" y2="${90-40*Math.cos(ha)}" class="ln" stroke-width="5" stroke-linecap="round"/><circle cx="90" cy="90" r="5" class="pp ln" stroke-width="2"/>`;
+  return s+'</svg>';}
+// jug with scale. top = ml at top mark; marks [{v,label}] ; minor step ml; level ml
+function jug({top,major,minor,level,label=v=>v+' ml',showScale=true}){
+  const W=200,H=230,bx=40,bw=120,by=24,bb=210,sy=v=>bb-14-(v/top)*(bb-14-by-14);
+  let s=svgOpen(W,H);
+  const ly=level==null?null:sy(level);
+  s+=`<path d="M${bx} ${by} L${bx+4} ${bb-8} Q${bx+5} ${bb} ${bx+14} ${bb} L${bx+bw-14} ${bb} Q${bx+bw-5} ${bb} ${bx+bw-4} ${bb-8} L${bx+bw} ${by}" class="pp"/>`;
+  if(ly!=null)s+=`<path d="M${bx+2} ${ly} L${bx+bw-2} ${ly} L${bx+bw-4} ${bb-8} Q${bx+bw-5} ${bb} ${bx+bw-14} ${bb} L${bx+14} ${bb} Q${bx+5} ${bb} ${bx+4} ${bb-8} Z" class="water"/>`;
+  s+=`<path d="M${bx-12} ${by-6} L${bx} ${by} L${bx+4} ${bb-8} Q${bx+5} ${bb} ${bx+14} ${bb} L${bx+bw-14} ${bb} Q${bx+bw-5} ${bb} ${bx+bw-4} ${bb-8} L${bx+bw} ${by}" class="ln" fill="none" stroke-width="3"/>`;
+  s+=`<path d="M${bx+bw} ${by+30} C${bx+bw+40} ${by+30} ${bx+bw+40} ${by+120} ${bx+bw-2} ${by+120}" class="ln" fill="none" stroke-width="3"/>`;
+  if(showScale){const sx=bx+bw-22;
+    for(let v=0;v<=top+1e-9;v+=minor){const isM=Math.abs(v/major-Math.round(v/major))<1e-9;const y=sy(v);if(v===0)continue;s+=`<line x1="${sx-(isM?22:12)}" y1="${y}" x2="${sx}" y2="${y}" class="ln" stroke-width="${isM?2:1.4}"/>`;
+      if(isM)s+=`<text x="${sx-26}" y="${y+4}" text-anchor="end" font-size="11" font-weight="700">${label(v)}</text>`;}
+    s+=`<line x1="${sx}" y1="${sy(top)}" x2="${sx}" y2="${bb-6}" class="ln" stroke-width="1.6"/>`;}
+  return s+'</svg>';}
+function ruler(lenMM,{start=0,name='',cmMax=15}={}){
+  const k=3.6,x0=24,W=x0*2+cmMax*10*k;let s=svgOpen(W,118);
+  const ox=x0+start*k;
+  s+=`<rect x="${ox}" y="8" width="${lenMM*k}" height="30" rx="12" class="obj ln" stroke-width="2"/>`;
+  s+=`<text x="${ox+lenMM*k/2}" y="28" text-anchor="middle" font-size="12" font-weight="600" class="objt">${name}</text>`;
+  s+=`<rect x="6" y="46" width="${W-12}" height="58" rx="4" class="pp ln" stroke-width="1.8"/>`;
+  for(let i=0;i<=cmMax*10;i++){const x=x0+i*k,h=i%10===0?16:i%5===0?11:7;s+=`<line x1="${x}" y1="46" x2="${x}" y2="${46+h}" class="ln" stroke-width="${i%10?0.9:1.6}"/>`;
+    if(i%10===0)s+=`<text x="${x}" y="${78}" text-anchor="middle" font-size="13" font-weight="600">${i/10}</text>`;}
+  s+=`<text x="${x0}" y="96" text-anchor="middle" font-size="10">cm</text>`;
+  return s+'</svg>';}
+function partWhole(whole,parts,blankIdx=null){ // whole on left, two parts right
+  const wtxt=v=>typeof v==='object'?v:{t:v};
+  let s=svgOpen(320,190);
+  s+=`<line x1="90" y1="95" x2="230" y2="45" class="ln" stroke-width="2"/><line x1="90" y1="95" x2="230" y2="145" class="ln" stroke-width="2"/>`;
+  const circ=(x,y,v,blank)=>{let c=`<circle cx="${x}" cy="${y}" r="${blank?38:38}" class="pp ln" stroke-width="2.4"/>`;if(blank)return c;const o=wtxt(v);if(o.n!=null)return c+svgFrac(x,y-6,o.n,o.d,17);return c+`<text x="${x}" y="${y+7}" text-anchor="middle" font-size="20" font-weight="700">${o.t}</text>`;};
+  s+=circ(80,95,whole,blankIdx===0)+circ(240,45,parts[0],blankIdx===1)+circ(240,145,parts[1],blankIdx===2);
+  return s+'</svg>';}
+const counterRow=(val,n)=>`<span class="ctrs">${Array.from({length:n},()=>`<span class="ctr c${val}">${val}</span>`).join('')}</span>`;
+function pvChart(cols,rows){ // cols: ['Hundreds','Tens','Ones'] rows: array of [counts per col]
+  const vals={Hundreds:100,Tens:10,Ones:1};
+  return `<table class="pv"><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map((n,i)=>`<td>${counterRow(vals[cols[i]],n)}</td>`).join('')}</tr>`).join('')}</table>`;}
+const dotArray=(r,c)=>`<div class="arr" style="grid-template-columns:repeat(${c},1fr)">${'<span></span>'.repeat(r*c)}</div>`;
+// 2D fraction shapes
+function fbar(n,shaded,w=300){const cw=w/n;let s=svgOpen(w+4,54);for(let i=0;i<n;i++)s+=`<rect x="${2+i*cw}" y="2" width="${cw}" height="50" class="${shaded.includes(i)?'sh':'pp'} ln" stroke-width="2"/>`;return s+'</svg>';}
+function fbarUneven(widths,shaded,w=300){let s=svgOpen(w+4,54),x=2;const tot=widths.reduce((a,b)=>a+b,0);widths.forEach((ww,i)=>{const cw=ww/tot*w;s+=`<rect x="${x}" y="2" width="${cw}" height="50" class="${shaded.includes(i)?'sh':'pp'} ln" stroke-width="2"/>`;x+=cw;});return s+'</svg>';}
+function fcircle(n,shaded,r=62){let s=svgOpen(r*2+8,r*2+8);const c=r+4;for(let i=0;i<n;i++){const a1=i/n*2*Math.PI-Math.PI/2,a2=(i+1)/n*2*Math.PI-Math.PI/2;s+=`<path d="M${c} ${c} L${c+r*Math.cos(a1)} ${c+r*Math.sin(a1)} A${r} ${r} 0 ${n===1?1:0} 1 ${c+r*Math.cos(a2)} ${c+r*Math.sin(a2)} Z" class="${shaded.includes(i)?'sh':'pp'} ln" stroke-width="2"/>`;}return s+'</svg>';}
+function ftris(n,shaded){const w=60;let s=svgOpen((Math.ceil(n/2)+1)*w+8,64);for(let i=0;i<n;i++){const up=i%2===0,x=4+(i>>1)*w+(up?0:w/2);const p=up?`M${x} 60 L${x+w/2} 4 L${x+w} 60 Z`:`M${x} 4 L${x+w} 4 L${x+w/2} 60 Z`;s+=`<path d="${p}" class="${shaded.includes(i)?'sh':'pp'} ln" stroke-width="2" stroke-linejoin="round"/>`;}return s+'</svg>';}
+function fgrid(r,c,shaded,cell=40){let s=svgOpen(c*cell+4,r*cell+4);for(let i=0;i<r*c;i++)s+=`<rect x="${2+(i%c)*cell}" y="${2+Math.floor(i/c)*cell}" width="${cell}" height="${cell}" class="${shaded.includes(i)?'sh':'pp'} ln" stroke-width="2"/>`;return s+'</svg>';}
+const SHAPES3D={
+  cube:{name:'cube',f:6,v:8,d:'M20 50 L90 50 L90 120 L20 120 Z M50 22 L120 22 L120 92 L90 120 M20 50 L50 22 M90 50 L120 22',hid:'M50 22 L50 92 L20 120 M50 92 L120 92'},
+  cuboid:{name:'cuboid',f:6,v:8,d:'M10 60 L110 60 L110 120 L10 120 Z M40 34 L140 34 L140 94 L110 120 M10 60 L40 34 M110 60 L140 34',hid:'M40 34 L40 94 L10 120 M40 94 L140 94'},
+  sqpyr:{name:'square-based pyramid',f:5,v:5,d:'M20 108 L100 108 L130 82 M20 108 L75 18 L100 108 M75 18 L130 82',hid:'M20 108 L50 82 L130 82 M75 18 L50 82'},
+  triprism:{name:'triangular prism',f:5,v:6,d:'M10 112 L40 62 L70 112 Z M40 62 L120 32 L150 82 L70 112 M120 32',hid:'M10 112 L90 82 L150 82 M90 82 L120 32'},
+  tetra:{name:'triangular-based pyramid',f:4,v:4,d:'M20 110 L120 110 L75 18 Z M120 110 L140 74 L75 18',hid:'M20 110 L140 74'}};
+function shape3d(k){const s=SHAPES3D[k];return svgOpen(160,130)+`<path d="${s.d}" class="ln" fill="none" stroke-width="2.2" stroke-linejoin="round"/><path d="${s.hid}" class="ln" fill="none" stroke-width="1.6" stroke-dasharray="5 4"/></svg>`;}
+const LETTERS=['A','B','C','D','E','F','G','H'];
+function compass(){let s=svgOpen(240,240);const c=120;for(let i=0;i<8;i++){const a=i*45*Math.PI/180,x=c+84*Math.sin(a),y=c-84*Math.cos(a);s+=`<line x1="${c}" y1="${c}" x2="${x}" y2="${y}" class="ln" stroke-width="2"/><path d="M${x-7*Math.sin(a)-5*Math.cos(a)} ${y+7*Math.cos(a)-5*Math.sin(a)} L${x} ${y} L${x-7*Math.sin(a)+5*Math.cos(a)} ${y+7*Math.cos(a)+5*Math.sin(a)}" class="ln" fill="none" stroke-width="2"/><text x="${c+104*Math.sin(a)}" y="${c-104*Math.cos(a)+6}" text-anchor="middle" font-size="18" font-weight="700">${LETTERS[i]}</text>`;}return s+'</svg>';}
+function lineSvg(kind){let s=svgOpen(150,110);const L=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="ln" stroke-width="4" stroke-linecap="round"/>`;
+  const m={horizontal:L(20,55,130,55),vertical:L(75,8,75,102),diagonal:L(20,90,130,25),parallel:L(15,70,120,15)+L(30,100,135,45),perpendicular:L(75,10,75,100)+L(20,55,130,55),neither:L(20,85,125,25)+L(30,95,140,92)};return s+m[kind]+'</svg>';}
+function scaleSvg(cubes,cyl,reading){let s=svgOpen(220,170);const top=88;
+  let items='';const cube=(x,y)=>`<path d="M${x} ${y} l18 -9 l18 9 l0 22 l-18 9 l-18 -9 Z M${x} ${y} l18 9 l18 -9 M${x+18} ${y+9} l0 22" class="pp ln" stroke-width="2" stroke-linejoin="round"/>`;
+  const pos=[[70,top-32],[88,top-40],[52,top-40]];for(let i=0;i<cubes;i++){const [x,y]=cubes===1?[92,top-32]:pos[i];items+=cube(x,y);}
+  if(cyl)items+=`<rect x="134" y="${top-54}" width="34" height="50" class="sh ln" stroke-width="2"/><ellipse cx="151" cy="${top-54}" rx="17" ry="6" class="pp ln" stroke-width="2"/>`;
+  s+=items+`<ellipse cx="110" cy="${top}" rx="90" ry="14" class="pp ln" stroke-width="2.4"/><path d="M60 ${top+12} L46 ${top+70} L174 ${top+70} L160 ${top+12}" class="pp ln" stroke-width="2.4"/><rect x="66" y="${top+26}" width="88" height="32" rx="3" class="lcd"/><text x="146" y="${top+49}" text-anchor="end" font-size="19" font-weight="800" class="lcdt">${reading} g</text>`;
+  return s+'</svg>';}
+function fracWall(dens){const W=480;let s=svgOpen(W+4,dens.length*34+4);dens.forEach((d,r)=>{for(let i=0;i<d;i++){const w=W/d;s+=`<rect x="${2+i*w}" y="${2+r*34}" width="${w}" height="34" class="pp ln" stroke-width="1.6"/>`;s+=d===1?`<text x="${2+w/2}" y="${2+r*34+23}" text-anchor="middle" font-size="15" font-weight="700">1</text>`:`<text x="${2+i*w+w/2}" y="${2+r*34+15}" text-anchor="middle" font-size="11" font-weight="700">1</text><line x1="${2+i*w+w/2-6}" y1="${2+r*34+18}" x2="${2+i*w+w/2+6}" y2="${2+r*34+18}" class="ln"/><text x="${2+i*w+w/2}" y="${2+r*34+30}" text-anchor="middle" font-size="11" font-weight="700">${d}</text>`;}});return s+'</svg>';}
+function rectSvg(a,b){const k=Math.min(46,300/a);const w=a*k,h=b*k;let s=svgOpen(w+120,h+70);s+=`<rect x="60" y="20" width="${w}" height="${h}" class="pp ln" stroke-width="2.4"/><text x="${60+w/2}" y="${h+50}" text-anchor="middle" font-size="16" font-weight="700">${a} cm</text><text x="${w+70}" y="${20+h/2+5}" font-size="16" font-weight="700">${b} cm</text>`;return s+'</svg>';}
+function simpleJug(frac){let s=svgOpen(130,170);const bx=20,bw=80,by=20,bb=160,ly=bb-8-(bb-by-12)*frac;s+=`<path d="M${bx+2} ${ly} L${bx+bw-2} ${ly} L${bx+bw-4} ${bb-6} Q${bx+bw-5} ${bb} ${bx+bw-12} ${bb} L${bx+12} ${bb} Q${bx+5} ${bb} ${bx+4} ${bb-6} Z" class="water"/><path d="M${bx-10} ${by-6} L${bx} ${by} L${bx+4} ${bb-6} Q${bx+5} ${bb} ${bx+12} ${bb} L${bx+bw-12} ${bb} Q${bx+bw-5} ${bb} ${bx+bw-4} ${bb-6} L${bx+bw} ${by}" class="ln" fill="none" stroke-width="3"/><path d="M${bx+bw} ${by+22} C${bx+bw+30} ${by+22} ${bx+bw+30} ${by+90} ${bx+bw-2} ${by+90}" class="ln" fill="none" stroke-width="3"/>`;return s+'</svg>';}
+
+// choice helper
+const chips=(opts,multi=false,big=false)=>({opts,multi,big});
+
+// ================= PAPER DEFINITIONS =================
+const PAPERS={
+  au1:{term:'Autumn',paper:1,title:'Paper 1: arithmetic',mins:25},
+  au2:{term:'Autumn',paper:2,title:'Paper 2: reasoning and problem solving',mins:50},
+  sp1:{term:'Spring',paper:1,title:'Paper 1: arithmetic',mins:25},
+  sp2:{term:'Spring',paper:2,title:'Paper 2: reasoning and problem solving',mins:50},
+  su1:{term:'Summer',paper:1,title:'Paper 1: arithmetic',mins:20},
+  su2:{term:'Summer',paper:2,title:'Paper 2: reasoning and problem solving',mins:35}};
+const GEN={};
+
+// ---------- Autumn arithmetic ----------
+GEN.au1=()=>{const Q=[];
+  {const t=ri(2,9),o=ri(4,9),b=ri(1,o-1);Q.push(A(`${10*t+o} ${MIN} ${b} =`,10*t+o-b));}
+  {const a=pick([2,3,4,5,8,10]),b=ri(3,12);Q.push(A(`${b} × ${a} =`,a*b));}
+  {const h=ri(5,9),t=pick([0,0,ri(1,9)]),o=ri(1,9),s=ri(2,h-1),n=h*100+t*10+o;Q.push(A(`${n} ${MIN} ${s*100} =`,n-s*100));}
+  {const d=pick([2,3,4,5,10]),q=ri(2,10);Q.push(A(`${d*q} ÷ ${d} =`,q));}
+  {const at=ri(4,9),ao=ri(4,9),bt=ri(1,at-1),bo=ri(0,ao);Q.push(A(`${at*10+ao} ${MIN} ${bt*10+bo} =`,(at-bt)*10+ao-bo));}
+  {const h=ri(1,8),t=ri(0,6),o=ri(0,9),b=ri(1,9-t)*10,n=h*100+t*10+o;Q.push(A(`${n} + ${b} =`,n+b));}
+  {const h=ri(1,8),t=ri(0,8),o=ri(4,9),b=ri(10-o,9),n=h*100+t*10+o;Q.push(A(`${n} + ${b} =`,n+b));}
+  {const d=pick([3,4,8,5,2]),q=ri(3,12);Q.push(A(`${d*q} = □ × ${d}`,q));}
+  {const a=tries(()=>5*ri(3,19),a=>a%10===5);Q.push(A(`${a} + □ = 100`,100-a));}
+  {const h=ri(1,8),t=ri(5,9),o=ri(0,9),b=ri(10-t,9)*10,n=h*100+t*10+o;Q.push(A(`${n} + ${b} =`,n+b));}
+  {const t=ri(2,9),o=ri(0,7),b=ri(o+1,9);Q.push(A(`${t*10+o} ${MIN} ${b} =`,t*10+o-b));}
+  {const [a,b]=tries(()=>[10*ri(21,79),10*ri(11,49)],([a,b])=>a%100+b%100>=100&&a+b<1000&&a%100);Q.push(A(`□ = ${a} + ${b}`,a+b,{w:'m'}));}
+  {const [a,b]=tries(()=>[ri(201,599),ri(101,399)],([a,b])=>{const A=digits(a),B=digits(b);return A[2]+B[2]>=10&&A[1]+B[1]+1<10&&A[0]+B[0]<10;});Q.push(A(`${a} + ${b} =`,a+b));}
+  {const d=pick([8,4,3]),q=ri(2,12);Q.push(A(`${d*q} ÷ ${d} =`,q));}
+  {const h=ri(1,9),t=ri(1,9),o=ri(1,9),n=h*100+t*10+o,m=ri(0,2);const parts=[h*100,t*10,o].map((v,i)=>i===m?'□':v);Q.push(A(`${n} = ${parts.join(' + ')}`,[h*100,t*10,o][m]));}
+  {const h=ri(2,9),t=ri(0,6),o=ri(0,9),b=ri(t+1,9)*10,n=h*100+t*10+o;Q.push(A(`${n} ${MIN} ${b} =`,n-b));}
+  {const [a,b]=tries(()=>[ri(120,880),ri(21,89)],([a,b])=>Math.floor(a/100)!==Math.floor((a+b)/100)&&a+b<1000&&(a%10+b%10<10));Q.push(A(`${a} + ${b} =`,a+b));}
+  {const [a,b]=tries(()=>[ri(320,990),ri(21,59)],([a,b])=>a%10<b%10&&Math.floor(a/10)%10>Math.floor(b/10)%10);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const d=pick([3,4,6,7,8]),q=ri(3,12);Q.push(A(`${q} = ${d*q} ÷ □`,d));}
+  {const a=ri(150,640),b=pick([97,98,99,96,95]);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  return Q;};
+
+// ---------- Spring arithmetic ----------
+GEN.sp1=()=>{const Q=[];
+  {const a=10*ri(2,8),b=pick([100-a,10*ri(1,9-a/10)]);Q.push(A(`${a} + ${b} =`,a+b));}
+  {const at=ri(1,7),ao=ri(0,8),bt=ri(1,8-at),bo=ri(1,9-ao);Q.push(A(`${at*10+ao} + ${bt*10+bo} =`,(at+bt)*10+ao+bo));}
+  {const n=ri(3,9),m=pick([10,10,5,4,8,3]);Q.push(A(`${n} × □ = ${n*m}`,m));}
+  {const [a,b]=tries(()=>[ri(300,999),ri(101,299)],([a,b])=>{const A=digits(a),B=digits(b);return A.every((x,i)=>x>=B[i]);});Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const a=pick([3,4,8]),b=ri(3,12);Q.push(A(`${a} × ${b} =`,a*b));}
+  {const a=tries(()=>ri(11,48),a=>a%10>0&&a%10<9),c=10-a%10,b=ri(3,9);Q.push(A(`${a} + ${b} + ${c} =`,a+b+c));}
+  {const [a,b]=tries(()=>[ri(41,99),ri(11,39)],([a,b])=>a%10<b%10&&a-b>9);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const a=tries(()=>ri(21,89),a=>a%5!==0);Q.push(A(`${a} + □ = 100`,100-a));}
+  {const b=pick([199,99,299,198]),a=ri(b+60,b+500);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const u=pick(['g','cm','ml','m']),a=10*ri(2,9),k=pick([3,4,5,2]);Q.push(A(`${a} ${u} × ${k} =`,a*k,{unit:u}));}
+  {const [a,b]=tries(()=>[ri(201,599),ri(151,399)],([a,b])=>{const A=digits(a),B=digits(b);return A[2]+B[2]>=10&&A[1]+B[1]+1>=10&&a+b<1000;});Q.push(A(`${a} + ${b} =`,a+b));}
+  {const [a,b]=tries(()=>[ri(500,999),ri(150,399)],([a,b])=>{const A=digits(a),B=digits(b);return A[2]<B[2]&&A[1]>B[1]&&A[0]>B[0];});Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const [a,b]=tries(()=>[ri(101,709),ri(81,98)],([a,b])=>a%100<20&&(a%10+b%10)<10);Q.push(A(`${a} + ${b} =`,a+b));}
+  {const d=pick([3,4,8,6,9]),q=ri(3,10);Q.push(A(`${d*q} ÷ □ = ${q}`,d));}
+  {const [a,b]=tries(()=>[ri(201,699),ri(21,79)],([a,b])=>a%10<b%10&&Math.floor(a/10)%10<Math.floor(b/10)%10+1);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const d=pick([6,7,8,9]),q=ri(3,10);Q.push(A(`${d*q} ÷ ${d} =`,q));}
+  {const [a,b,c]=tries(()=>[pick([2,3,4,6,8]),pick([3,4,6,8,12]),pick([2,3,4,6,8])],([a,b,c])=>c!==a&&c!==b&&(a*b)%c===0&&a*b/c<=12&&a*b/c!==a&&a*b/c!==b);Q.push(A(`${a} × ${b} = ${c} × □`,a*b/c));}
+  {const d=pick([5,2,5,3]),q=ri(11,19);Q.push(A(`${d*q} ÷ ${d} =`,q));}
+  {const [a,b]=tries(()=>[ri(101,399),ri(300,800)],([a,b])=>b-a>100&&b%10<a%10);Q.push(A(`${a} + □ = ${b}`,b-a,{w:'m'}));}
+  {const d=pick([3,4,5,8]),n=ri(14,49);Q.push(A(`${d} × ${n} =`,d*n));}
+  return Q;};
+
+// ---------- Summer arithmetic ----------
+GEN.su1=()=>{const Q=[];
+  {const a=ri(21,89),b=pick([10,10,100]);Q.push(A(`${a} + ${b} =`,a+b));}
+  {const n=pick([3,4,5,8,2]),k=pick([3,4]);Q.push(A(`${Array(k).fill(n).join(' + ')} =`,n*k));}
+  {const a=tries(()=>ri(21,69),a=>a%10>0),b=10*ri(1,8-Math.floor(a/10))+(10-a%10);Q.push(A(`□ = ${a} + ${b}`,a+b,{w:'m'}));}
+  {const a=pick([2,3,4,5,8,10]),b=ri(2,12);Q.push(A(`${a} × ${b} =`,a*b));}
+  {const a=100*ri(3,9),s=100*ri(1,a/100-1),pound=R()<.6;Q.push(A(`£${a} ${MIN} £□ = £${a-s}`,s,{pre:'£'}));}
+  {const d=pick([4,3,8,2]),q=ri(11,12);const dd=R()<.5?d:pick([3,4,8]),qq=R()<.5?q:ri(4,12);Q.push(A(`${dd*qq} ÷ ${dd} =`,qq));}
+  {const [a,b]=tries(()=>[ri(120,299),ri(15,49)],([a,b])=>a%10<b%10);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const a=100*ri(2,8)+ri(1,9),b=pick([97,98,99,96]);Q.push(A(`${a} + ${b} =`,a+b));}
+  {const d=pick([2,3,4,5,8]),q=ri(3,10);Q.push(A(`${F(1,d)} of ${d*q} =`,q));}
+  {const d=pick([7,9,11,12,10]),a=ri(1,d-3),b=ri(1,d-1-a);Q.push(A(`${F(a,d)} + ${F(b,d)} =`,{n:a+b,d},{w:'s'}));}
+  {const [a,b]=tries(()=>[ri(500,999),ri(150,450)],([a,b])=>a%10<b%10&&Math.floor(a/10)%10>Math.floor(b/10)%10&&a>b);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const d=pick([4,8,3]),q=ri(3,12);Q.push(A(`${d*q} ÷ □ = ${q}`,d));}
+  {const a=pick([199,299,198,99]),b=ri(124,499);Q.push(A(`${a} + ${b} =`,a+b));}
+  {const n=ri(23,68),k=pick([3,4,8]);Q.push(A(`${n} × ${k} =`,n*k));}
+  {const d=pick([5,6,7,8,9,10]),a=ri(1,d-1);Q.push(A(`${F(a,d)} + □ = 1`,{n:d-a,d}));}
+  {const a=10*ri(30,80),c=10*ri(12,(a-100)/10-1),b=a-(c+100);Q.push(A(`${a} ${MIN} □ = ${c} + 100`,b));}
+  {const d=pick([3,4,5]),n=ri(2,d-1),q=ri(3,10);Q.push(A(`${F(n,d)} of ${d*q} =`,n*q));}
+  {const a=ri(220,560),c=ri(a+120,950);Q.push(A(`${a} ml + □ = ${c} ml`,c-a,{w:'m',unit:'ml'}));}
+  {const a=100*ri(3,9),b=ri(a-198,a-102);Q.push(A(`${a} ${MIN} ${b} =`,a-b));}
+  {const a=pick([3,4]),b=ri(21,39),c=tries(()=>10*ri(Math.ceil(a*b/10)+1,Math.ceil(a*b/10)+8),c=>c%50===0);Q.push(A(`${a} × ${b} = ${c} ${MIN} □`,c-a*b));}
+  return Q;};
+
+// ---------- Autumn reasoning ----------
+GEN.au2=()=>{const Q=[];
+  {const h=ri(1,5),t=ri(0,5),o=ri(1,6),n=h*100+t*10+o;
+   Q.push({intro:'Eva makes this number.',visual:`<div class="ctrbox">${counterRow(100,h)}${counterRow(10,t)}${counterRow(1,o)}</div>`,parts:[
+    part({html:'Write Eva’s number in numerals. {{0}}',inputs:[box('m')],check:v=>isNum(v.inp[0],n)?1:0,ans:''+n}),
+    part({html:'Write Eva’s number in words. {{0}}',inputs:[box('xl',{mode:'text'})],check:v=>isWords(v.inp[0],n)?1:0,ans:words(n)})]});}
+  {const w=ri(42,98),o=w%10||7,p=R()<.5?w%10||ri(2,9):ri(11,w-11),b=w-p;
+   Q.push({intro:'Complete the part-whole model.',visual:partWhole(w,[p,''],2),parts:[part({html:'Missing part: {{0}}',inputs:[box('s')],check:v=>isNum(v.inp[0],b)?1:0,ans:''+b})]});}
+  {const m=pick([3,4,5,8]),mult=[];for(let i=m;i<=50;i+=m)mult.push(i);const missed=sample(mult.slice(1),2).sort((a,b)=>a-b);
+   const nm=['Amir','Mo','Rosie','Dexter','Alex','Annie'];const who=pick(nm);
+   Q.push({intro:`${who} is shading multiples of ${m}`,visual:`<div class="hsq">${Array.from({length:50},(_,i)=>`<span class="${mult.includes(i+1)&&!missed.includes(i+1)?'on':''}">${i+1}</span>`).join('')}</div>`,parts:[
+    part({html:'Which two numbers has '+(['Rosie','Annie'].includes(who)?'she':'he')+' missed? {{0}} and {{1}}',inputs:[box('s'),box('s')],check:v=>{const a=+norm(v.inp[0]),b=+norm(v.inp[1]);return sameSet([a,b],missed)?1:0;},ans:missed.join(' and ')})]});}
+  {const h=ri(1,4),t=ri(0,5),o=ri(1,5),n=h*100+t*10+o;const add=pick([{c:'Tens',k:ri(1,3)},{c:'Hundreds',k:1},{c:'Ones',k:ri(2,3)}]);const val={Hundreds:100,Tens:10,Ones:1}[add.c]*add.k;
+   Q.push({intro:'Dexter is using place value counters to represent a number.',visual:pvChart(['Hundreds','Tens','Ones'],[[h,t,o]]),parts:[
+    part({html:'Write Dexter’s number in words. {{0}}',inputs:[box('xl',{mode:'text'})],check:v=>isWords(v.inp[0],n)?1:0,ans:words(n)}),
+    part({html:`Dexter adds these counters to the chart. <span class="inl">${counterRow({Hundreds:100,Tens:10,Ones:1}[add.c],add.k)}</span><br>What is Dexter’s new number? {{0}}`,inputs:[box('m')],check:v=>isNum(v.inp[0],n+val)?1:0,ans:''+(n+val)})]});}
+  {const mk=(m)=>{const yes=sample(Array.from({length:40},(_,i)=>m*(i+1)).filter(x=>x<100&&x>2),2),no=[];while(no.length<2){const x=ri(3,95);if(x%m&&!no.includes(x)&&!(m===5&&x%10===0))no.push(x);}return {opts:shuffle([...yes,...no]),yes};};
+   const a=mk(2),b=mk(pick([5,10]));const bm=b.yes.every(x=>x%10===0)?10:5;
+   Q.push({parts:[part({html:'Circle all the multiples of 2',choice:chips(a.opts.map(String),true,true),check:v=>sameSet(v.ch.map(i=>a.opts[i]),a.yes)?1:0,ans:a.yes.join(', ')}),
+     part({html:`Circle all the multiples of ${bm}`,choice:chips(b.opts.map(String),true,true),check:v=>sameSet(v.ch.map(i=>b.opts[i]),b.opts.filter(x=>x%bm===0))?1:0,ans:b.opts.filter(x=>x%bm===0).join(', ')})]});}
+  {const [a,b,c]=sample([1,2,3,4,5,6,7,8],3);const perms=[[a,b,c],[a,c,b],[b,a,c],[b,c,a],[c,a,b],[c,b,a]].map(d=>d[0]*100+d[1]*10+d[2]);const four=sample(perms,4);const hund=100*ri(Math.floor(Math.min(...four)/100)+1,Math.min(9,Math.floor(Math.max(...four)/100)+1));const set=shuffle([...four,hund].filter((x,i,arr)=>arr.indexOf(x)===i));const sorted=[...set].sort((x,y)=>x-y);
+   Q.push({parts:[part({html:`Write these numbers in order from smallest to greatest.<div class="cards">${set.map(x=>`<span class="card">${x}</span>`).join('')}</div><div class="row">${set.map((_,i)=>`{{${i}}}`).join('')}</div>`,inputs:set.map(()=>box('s')),check:v=>sorted.every((x,i)=>isNum(v.inp[i],x))?1:0,ans:sorted.join(', ')})]});}
+  {const step=pick([100,50]),yes=sample([1,2,3,4,5,6,7,8,9].map(x=>x*step).filter(x=>step===100||x%100),2);const no=[];while(no.length<2){const x=10*ri(5,95);if(x%step&&!no.includes(x))no.push(x);}const opts=shuffle([...yes,...no]);const who=pick(['Alex','Eva','Nijah','Ron']);
+   Q.push({intro:`${who} is counting up in ${step}s from 0`,parts:[part({html:'Circle the numbers that '+(who==='Ron'?'he':'she')+' will say.',choice:chips(opts.map(String),true,true),check:v=>sameSet(v.ch.map(i=>opts[i]),opts.filter(x=>x%step===0))?1:0,ans:opts.filter(x=>x%step===0).join(', ')})]});}
+  {const s=100*ri(1,8),k=ri(1,9);Q.push({intro:'What number is the arrow pointing to?',visual:nline({div:10,labels:{0:s,10:s+100},arrows:[{i:k}]}),parts:[part({html:'{{0}}',inputs:[box('m')],check:v=>isNum(v.inp[0],s+10*k)?1:0,ans:''+(s+10*k)})]});}
+  {const st=pick([50,50,100,25]),start=st*ri(1,st===100?3:6),cells=Array.from({length:6},(_,i)=>start+i*st),blanks=[2,4,5];
+   Q.push({intro:'Complete the number track.',parts:[part({html:`<div class="track">${cells.map((c,i)=>blanks.includes(i)?`<span class="tc">{{${blanks.indexOf(i)}}}</span>`:`<span class="tc">${c}</span>`).join('')}</div>`,inputs:blanks.map(()=>box('t')),check:v=>blanks.every((b,j)=>isNum(v.inp[j],cells[b]))?1:0,ans:blanks.map(b=>cells[b]).join(', ')})]});}
+  {const r=ri(2,4),c=tries(()=>ri(3,6),x=>x!==r),N=pick([12,15,16,18,20,24]),dc=pick([2,3,4,5,6].filter(x=>N%x===0&&N/x<=6&&N/x>1));const rows=N/dc;
+   Q.push({intro:'Ron has made an array using counters.',visual:dotArray(r,c),parts:[
+    part({html:'Complete the sentence.<br>Ron has made {{0}} equal groups of {{1}}',inputs:[box('s'),box('s')],check:v=>{const a=+norm(v.inp[0]),b=+norm(v.inp[1]);return (a===r&&b===c)||(a===c&&b===r)?1:0;},ans:`${r} equal groups of ${c} (or ${c} groups of ${r})`}),
+    part({html:`Dora has started making an array with ${N} counters. Finish Dora’s array. <span class="hint">Tap the spaces to add counters.</span>`,grid:{rows:6,cols:dc,pre:Array.from({length:dc},(_,i)=>'0,'+i)},check:v=>{const g=v.grid;if(g.size!==N)return 0;for(let rr=0;rr<rows;rr++)for(let cc=0;cc<dc;cc++)if(!g.has(rr+','+cc))return 0;return 1;},ans:`${rows} rows of ${dc} counters (${N} altogether)`})]});}
+  {const near=pick([[398,101],[502,199],[601,298],[699,402],[797,203]]);const [a,b]=near.map(x=>x+ri(-1,1)*(x%100<50?1:-1));const good=Math.round(a/100)*100-Math.round(b/100)*100;const bad=good+pick([-100,100]);const rosieRight=R()<.5;const est={Rosie:rosieRight?good:bad,Mo:rosieRight?bad:good};
+   Q.push({intro:`Rosie and Mo are both estimating the answer to ${a} ${MIN} ${b}<br>Rosie says, “The answer is about ${est.Rosie}”<br>Mo says, “The answer is about ${est.Mo}”`,parts:[part({html:'Whose estimate is better? Circle your answer.',choice:chips(['Rosie','Mo'],false,true),self:true,textarea:'Explain your choice.',check:v=>v.ch[0]===(rosieRight?0:1)?1:0,ans:`<b>${rosieRight?'Rosie':'Mo'}</b> — ${a} rounds to ${Math.round(a/100)*100} and ${b} rounds to ${Math.round(b/100)*100}, and ${Math.round(a/100)*100} ${MIN} ${Math.round(b/100)*100} = ${good}. Award the mark only with a correct explanation.`})]});}
+  {const v=pick([{op:MIN,n:99,first:'subtract 100 from',next:'add 1'},{op:MIN,n:101,first:'subtract 100 from',next:'subtract 1'},{op:'+',n:99,first:'add 100 to',next:'subtract 1'},{op:'+',n:101,first:'add 100 to',next:'add 1'}]);const a=ri(312,789);const opts=['add 1','subtract 1',`add ${v.n}`,`subtract ${v.n}`];
+   Q.push({intro:`Annie is calculating ${a} ${v.op} ${v.n}<br>Annie says, “First I am going to ${v.first} ${a}”`,parts:[part({html:'What does Annie need to do next? Tick the correct box.',choice:chips(opts,false),check:x=>opts[x.ch[0]]===v.next?1:0,ans:v.next})]});}
+  {const x=ri(5,9),y=ri(2,x-1),k=pick([3,4,8,2]),a=ri(3,9),mm=pick([2,4]);
+   Q.push({intro:'Complete the number sentences.',parts:[part({html:`${x} × ${k} = ${y} × ${k} + {{0}} × ${k}`,inputs:[box('s')],check:v=>isNum(v.inp[0],x-y)?1:0,ans:''+(x-y)}),
+     part({html:`${a} × 2 × {{0}} = ${a} × ${2*mm}`,inputs:[box('s')],check:v=>isNum(v.inp[0],mm)?1:0,ans:''+mm})]});}
+  {const d=pick([100,10,100]),a=ri(101,690),c=ri(51,99)+pick([0,100,200]);
+   Q.push({intro:'Fill in the missing numbers.',parts:[part({html:`{{0}} more than ${a} is ${a+d}`,inputs:[box('s')],check:v=>isNum(v.inp[0],d)?1:0,ans:''+d}),
+     part({html:`10 less than {{0}} is ${c}`,inputs:[box('s')],check:v=>isNum(v.inp[0],c+10)?1:0,ans:''+(c+10)})]});}
+  {const a=ri(220,480),s1=ri(12,49),ad=100*ri(1,3),i2=10*ri(30,70),s2=10*ri(2,9),o2=i2-s2+tries(()=>10*ri(1,9),x=>x!==s2);const d2=o2-(i2-s2);
+   const mach=(inp,ops,out)=>`<div class="mach"><span class="mio">${inp}</span><span class="arr">→</span>${ops.map(o=>`<span class="mop">${o}</span><span class="arr">→</span>`).join('')}<span class="mio">${out}</span></div><div class="mlab"><span>input</span><span>output</span></div>`;
+   Q.push({intro:'Complete the function machines.',parts:[part({html:mach(a,[`${MIN} ${s1}`,`+ ${ad}`],'{{0}}'),inputs:[box('s')],check:v=>isNum(v.inp[0],a-s1+ad)?1:0,ans:''+(a-s1+ad)}),
+     part({html:mach(i2,[`${MIN} ${s2}`,'{{0}}'],o2),inputs:[box('s',{mode:'text'})],check:v=>{const t=String(v.inp[0]).toLowerCase().replace(/\s/g,'').replace(/^add/,'+').replace(/^plus/,'+');return t===`+${d2}`?1:0;},ans:`+ ${d2}`})]});}
+  {const s=100*ri(1,6),div=pick([4,5,10]),k=ri(1,div-1),step=200/div;Q.push({intro:'What number is the arrow pointing to?',visual:nline({div,labels:{0:s,[div]:s+200},arrows:[{i:k}]}),parts:[part({html:'{{0}}',inputs:[box('m')],check:v=>isNum(v.inp[0],s+k*step)?1:0,ans:''+(s+k*step)})]});}
+  {const m=pick([8,4,3]),yes=m*ri(Math.ceil(60/m),Math.floor(160/m)),no=tries(()=>yes+ri(-6,6),x=>x%m&&x!==yes);const opts=R()<.5?[yes,no]:[no,yes];
+   Q.push({parts:[part({html:`Circle the multiple of ${m}`,choice:chips(opts.map(String),false,true),self:true,textarea:'Explain your reasoning.',check:v=>opts[v.ch[0]]===yes?1:0,ans:`<b>${yes}</b> — ${yes} = ${yes/m} × ${m}; ${no} is not in the ${m} times-table. Award the mark only with a correct explanation.`})]});}
+  {const [a,b]=tries(()=>[ri(150,480),ri(120,390)],([a,b])=>a%10+b%10>=10&&a+b<900);const who=pick(['Tommy','Jack','Ron','Max']),thing=pick(['stickers','marbles','stamps','cards']);
+   Q.push({intro:`${who} has ${a} ${thing}.<br>He is given ${b} more ${thing}.`,parts:[part({html:`How many ${thing} does he have now? {{0}}`,inputs:[box('m')],check:v=>isNum(v.inp[0],a+b)?1:0,ans:''+(a+b)}),
+     part({html:'Write a subtraction to check your answer. {{0}} − {{1}} = {{2}}',inputs:[box('s'),box('s'),box('s')],check:v=>{const x=+norm(v.inp[0]),y=+norm(v.inp[1]),z=+norm(v.inp[2]);return x===a+b&&((y===b&&z===a)||(y===a&&z===b))?1:0;},ans:`${a+b} − ${b} = ${a} (or ${a+b} − ${a} = ${b})`})]});}
+  {const [a,b,p]=tries(()=>[10*ri(35,60),10*ri(12,30),10*ri(8,20)],([a,b,p])=>a>b&&Math.abs((a-p)-(b+p))>=20&&a-p>0);const A2=a-p,B2=b+p,ans=A2>B2?0:1;
+   Q.push({intro:`Jug A has ${a} ml of juice.<br>Jug B has ${b} ml of juice.<br>${p} ml of juice is poured from jug A into jug B.`,visual:`<div class="jugs"><figure>${simpleJug(a/600)}<figcaption>A</figcaption></figure><figure>${simpleJug(b/600)}<figcaption>B</figcaption></figure></div>`,parts:[part({html:'Which jug now contains more juice?',method:true,choice:chips(['Jug A','Jug B'],false,true),marks:2,check:v=>v.ch[0]===ans?2:0,ans:`<b>Jug ${'AB'[ans]}</b> — A: ${a} − ${p} = ${A2} ml, B: ${b} + ${p} = ${B2} ml. Award 1 mark for a correct method with one arithmetic slip.`})]});}
+  {const k=pick([3,4,5]),bags=ri(6,10),st=pick([4,6,8]),have=st*bags-ri(3,12);const who=pick(['Dani','Eva','Nijah','Huan']);
+   Q.push({intro:`${who} is putting sweets into party bags.<br>${who==='Huan'?'He':'She'} puts ${k} sweets in each bag.<br>${who==='Huan'?'He':'She'} uses ${k*bags} sweets in total.`,parts:[part({html:'How many bags does '+(who==='Huan'?'he':'she')+' fill? {{0}}',inputs:[box('s')],check:v=>isNum(v.inp[0],bags)?1:0,ans:''+bags}),
+     part({html:`${who} wants to put ${st} stickers into each party bag. ${who==='Huan'?'He':'She'} has ${have} stickers.<br>How many more stickers does ${who==='Huan'?'he':'she'} need? {{0}}`,inputs:[box('s')],check:v=>isNum(v.inp[0],st*bags-have)?1:0,ans:`${st*bags-have} (${st} × ${bags} = ${st*bags}, ${st*bags} − ${have})`})]});}
+  return Q;};
+
+// ---------- Spring reasoning ----------
+GEN.sp2=()=>{const Q=[];
+  {const names=['lolly stick','crayon','pencil','straw','key'];const n1=pick(names),L1=ri(6,14),n2=pick(names.filter(x=>x!==n1)),L2=tries(()=>ri(52,146),x=>x%10!==0&&x%5!==0);
+   Q.push({parts:[part({html:`What is the length of the ${n1}?`,visual:ruler(L1*10,{name:n1}),inputs:[box('s',{unit:'cm'})],tail:'{{0}}',check:v=>isNum(v.inp[0],L1)?1:0,ans:L1+' cm'}),
+     part({html:`How long is the ${n2}?`,visual:ruler(L2,{name:n2}),inputs:[box('s',{unit:'cm'}),box('s',{unit:'mm'})],tail:'{{0}} {{1}}',check:v=>isNum(v.inp[0],Math.floor(L2/10))&&isNum(v.inp[1],L2%10)?1:0,ans:`${Math.floor(L2/10)} cm ${L2%10} mm`})]});}
+  {const d=pick([3,4,5]);const opts=shuffle([{s:fbar(d,[0],170),ok:1},{s:fcircle(d+1,[0],48),ok:0},{s:fbarUneven(d===3?[1,2,1]:[1,1,2,1,1].slice(0,d),[0],170),ok:0},{s:fbar(d,[0,1],170),ok:0}]);
+   Q.push({parts:[part({html:`Tick the shape that has ${F(1,d)} shaded.`,choice:chips(opts.map(o=>o.s),false),check:v=>opts[v.ch[0]]?.ok?1:0,ans:'The shape split into '+d+' equal parts with 1 part shaded.'})]});}
+  {const r=ri(2,5),c=tries(()=>ri(3,8),x=>x!==r),p=r*c;const line=i=>`<div class="eqn">{{${i}}} ${i<6?'×':'÷'} {{${i+1}}} = {{${i+2}}}</div>`;
+   Q.push({intro:'Write two multiplications and two divisions shown by the array.',visual:dotArray(r,c),parts:[part({html:line(0)+line(3)+line(6)+line(9),inputs:Array.from({length:12},()=>box('t')),marks:2,
+    check:v=>{const n=v.inp.map(x=>+norm(x));const m1=[n[0],n[1],n[2]],m2=[n[3],n[4],n[5]],d1=[n[6],n[7],n[8]],d2=[n[9],n[10],n[11]];const okM=m=>((m[0]===r&&m[1]===c)||(m[0]===c&&m[1]===r))&&m[2]===p;const okD=d=>d[0]===p&&((d[1]===r&&d[2]===c)||(d[1]===c&&d[2]===r));let s=0;const ms=okM(m1)+okM(m2)-(okM(m1)&&okM(m2)&&m1[0]===m2[0]?1:0);const ds=okD(d1)+okD(d2)-(okD(d1)&&okD(d2)&&d1[1]===d2[1]?1:0);const t=ms+ds;return t>=4?2:t>=2?1:0;},
+    ans:`${r} × ${c} = ${p}, ${c} × ${r} = ${p}, ${p} ÷ ${r} = ${c}, ${p} ÷ ${c} = ${r}. 2 marks for all four; 1 mark for two or three.`})]});}
+  {const d=pick([4,5,6,8]),shown=[0,d,ri(1,d-1)];const blanks=sample([...Array(d).keys()].slice(1).filter(i=>!shown.includes(i)),Math.min(3,d-2)).sort((a,b)=>a-b);const L=['A','B','C'];const labels={0:'0',[d]:{n:d,d}};labels[shown[2]]={n:shown[2],d};blanks.forEach((b,j)=>labels[b]=L[j]);
+   Q.push({intro:'Complete the number line.',visual:nline({div:d,labels}),parts:[part({html:blanks.map((b,j)=>`${L[j]} = {{${j}}}`).join(' &nbsp; '),inputs:blanks.map(()=>box('s',{mode:'text',ph:'a/b'})),check:v=>blanks.every((b,j)=>isFrac(v.inp[j],b,d))?1:0,ans:blanks.map((b,j)=>`${L[j]} = ${F(b,d)}`).join(', ')})]});}
+  {const g=pick([3,4,5,8]),n=ri(4,10),thing=pick(['children','pencils','cakes','cars']);Q.push({intro:`${g*n} ${thing} are put into groups of ${g}`,parts:[part({html:'How many groups are there? {{0}}',inputs:[box('s')],check:v=>isNum(v.inp[0],n)?1:0,ans:''+n})]});}
+  {const d1=pick([5,6,7,8,9]),a1=ri(1,d1-1),d2=pick([4,5,6,8,10].filter(x=>x!==d1)),a2=ri(1,d2-1);
+   Q.push({intro:'Complete the part-whole models.',parts:[part({html:'',visual:partWhole({n:d1,d:d1},[{n:a1,d:d1},''],2),inputs:[box('s',{mode:'text',ph:'a/b'})],tail:'Missing part: {{0}}',check:v=>isFrac(v.inp[0],d1-a1,d1)?1:0,ans:F(d1-a1,d1)}),
+     part({html:'',visual:partWhole(1,[{n:a2,d:d2},''],2),inputs:[box('s',{mode:'text',ph:'a/b'})],tail:'Missing part: {{0}}',check:v=>isFrac(v.inp[0],d2-a2,d2)?1:0,ans:F(d2-a2,d2)})]});}
+  {const v1=100*ri(2,8),v2=1000+200*ri(1,4);
+   Q.push({intro:'What is the volume of liquid in each jug?',parts:[part({html:'',visual:jug({top:1000,major:500,minor:100,level:v1,label:v=>v===1000?'1 litre':''}),inputs:[box('s',{unit:'ml'})],tail:'{{0}}',check:v=>isNum(v.inp[0],v1)?1:0,ans:v1+' ml'}),
+     part({html:'',visual:jug({top:2000,major:1000,minor:200,level:v2,label:v=>v/1000+' litre'}),inputs:[box('s',{unit:'l'}),box('s',{unit:'ml'})],tail:'{{0}} {{1}}',check:v=>isNum(v.inp[0],1)&&isNum(v.inp[1],v2-1000)?1:0,ans:`1 l ${v2-1000} ml`})]});}
+  {const d=pick([6,7,8,9,10]),a=ri(2,d-2),n=pick([6,8,10,12,5]);
+   Q.push({intro:'Write a number in each box to make the statements correct.',parts:[part({html:`<span class="fr"><span>{{0}}</span><span>${d}</span></span> &gt; ${F(a,d)}`,inputs:[box('t')],check:v=>{const x=+norm(v.inp[0]);return /^\d+$/.test(norm(v.inp[0]))&&x>a?1:0;},ans:`Any number greater than ${a}, e.g. ${a+1}`}),
+     part({html:`${F(1,n)} &lt; <span class="fr"><span>1</span><span>{{0}}</span></span>`,inputs:[box('t')],check:v=>{const x=+norm(v.inp[0]);return /^\d+$/.test(norm(v.inp[0]))&&x>=1&&x<n?1:0;},ans:`Any number from 1 to ${n-1}`})]});}
+  {const cards=tries(()=>[ri(60,99),ri(101,180),ri(101,180)],c=>new Set(c).size===3);const sh=shuffle(cards);const s=Math.min(...cards)+Math.max(...cards);
+   Q.push({intro:'Here are three number cards.',visual:`<div class="cards">${sh.map(x=>`<span class="card">${x}</span>`).join('')}</div>`,parts:[part({html:'What is the total of the smallest and greatest numbers?',method:true,tail:'{{0}}',inputs:[box('m')],marks:2,check:v=>isNum(v.inp[0],s)?2:0,ans:`${Math.min(...cards)} + ${Math.max(...cards)} = ${s}. Award 1 mark for choosing the correct two numbers with one error.`})]});}
+  {const a=tries(()=>ri(301,989),x=>x%10<10&&Math.floor(x/10)%10>0),b=ri(21,89),c=tries(()=>ri(1,9)*100+ri(0,0)*10+ri(1,9),x=>true);
+   Q.push({intro:'Complete the sentences.',parts:[part({html:`10 less than ${a} is {{0}}`,inputs:[box('s')],check:v=>isNum(v.inp[0],a-10)?1:0,ans:''+(a-10)}),part({html:`100 more than ${b} is {{0}}`,inputs:[box('s')],check:v=>isNum(v.inp[0],b+100)?1:0,ans:''+(b+100)}),part({html:`{{0}} is 10 less than ${c}`,inputs:[box('s')],check:v=>isNum(v.inp[0],c-10)?1:0,ans:''+(c-10)})]});}
+  {const [a,b,c]=tries(()=>[ri(2,9),ri(2,5),ri(2,9)],([a,b,c])=>c!==a&&(a*b)%c===0&&c!==b&&a*b/c<=12);
+   Q.push({intro:'Complete the number sentences.',parts:[part({html:`${a*10} × ${b} = {{0}} × ${b*10}`,inputs:[box('s')],check:v=>isNum(v.inp[0],a)?1:0,ans:''+a}),part({html:`${a*10} × ${b} = ${c*10} × {{0}}`,inputs:[box('s')],check:v=>isNum(v.inp[0],a*b/c)?1:0,ans:''+a*b/c})]});}
+  {const m=ri(3,4),t=ri(1,3),o=ri(1,4),n=t*10+o;const who=pick(['Nijah','Eva','Rosie']);
+   Q.push({intro:`${who} is using place value counters to multiply.`,visual:pvChart(['Tens','Ones'],Array(m).fill([t,o])),parts:[part({html:'Write her multiplication. {{0}} × {{1}} = {{2}}',inputs:[box('t'),box('t'),box('t')],check:v=>{const x=+norm(v.inp[0]),y=+norm(v.inp[1]),z=+norm(v.inp[2]);return ((x===n&&y===m)||(x===m&&y===n))&&z===n*m?1:0;},ans:`${n} × ${m} = ${n*m}`})]});}
+  {const yes=sample([40,80,270,400,130,560,90,310,700],3),no=sample([65,101,45,205,88,302,15,109],2),opts=shuffle([...yes,...no]);
+   Q.push({parts:[part({html:'Circle the numbers that are multiples of 10',choice:chips(opts.map(String),true,true),self:true,textarea:'Explain your reasoning.',check:v=>sameSet(v.ch.map(i=>opts[i]),yes)?1:0,ans:`${yes.sort((a,b)=>a-b).join(', ')} — multiples of 10 have 0 ones (they end in 0). Award the mark only with a correct explanation.`})]});}
+  {const mm=tries(()=>[1000,ri(11,19)*100+pick([0,50]),ri(5,9)*10+ri(0,9),ri(60,95)*10],a=>new Set(a).size===4&&a[3]!==a[0]);const fmt=x=>x===1000?'1 m':x%10===0&&x>=100?(x/10)+' cm':x+' mm';
+   const labels=mm.map((x,i)=>i===2?x+' mm':fmt(x));const items=shuffle(mm.map((x,i)=>({x,l:labels[i]})));const sorted=[...items].sort((a,b)=>a.x-b.x);
+   Q.push({intro:'Write the lengths in order. Start with the shortest length.',visual:`<div class="cards">${items.map(o=>`<span class="card">${o.l}</span>`).join('')}</div>`,parts:[part({html:`<div class="row">${items.map((_,i)=>`{{${i}}}`).join('')}</div><div class="mlab"><span>shortest</span><span>longest</span></div>`,inputs:items.map(()=>box('m',{select:items.map(o=>o.l)})),check:v=>sorted.every((o,i)=>v.inp[i]===o.l)?1:0,ans:sorted.map(o=>o.l).join(', ')})]});}
+  {const it=pick([['an apple','100 grams'],['a paperclip','1 gram'],['a bag of sugar','1 kilogram'],['a pencil','10 grams'],['a banana','100 grams'],['a bag of potatoes','1 kilogram'],['a £1 coin','10 grams']]);const opts=['1 gram','10 grams','100 grams','1 kilogram'];
+   Q.push({intro:`What is the mass of ${it[0]}?`,parts:[part({html:'Circle the most appropriate estimate.',choice:chips(opts,false,true),check:v=>opts[v.ch[0]]===it[1]?1:0,ans:it[1]})]});}
+  {const a=ri(4,9),b=ri(2,a-1);Q.push({intro:'Work out the perimeter of the rectangle.',visual:rectSvg(a,b),parts:[part({html:'{{0}}',inputs:[box('s',{unit:'cm'})],check:v=>isNum(v.inp[0],2*(a+b))?1:0,ans:2*(a+b)+' cm'})]});}
+  {const d=pick([2,2,3,4]);Q.push({intro:`Write a fraction that is equivalent to ${F(1,d)}<br>You may use the fraction wall to help you.`,visual:fracWall([1,2,3,4,6,8].filter(x=>x!==5)),parts:[part({html:'{{0}}',inputs:[box('s',{mode:'text',ph:'a/b'})],check:v=>{const t=String(v.inp[0]).replace(/\s/g,'');return isFrac(t,1,d)&&t!==`1/${d}`&&t.includes('/')?1:0;},ans:`e.g. ${F(2,2*d)}, ${F(3,3*d)}`})]});}
+  {const C=pick([1000,800,600,900]),A2=C/2,diff=ri(21,95),B=A2-diff;const cl=C===1000?'1 litre':C+' ml';
+   Q.push({visual:`<div class="jugs"><figure>${simpleJug(A2/C*0.85)}<figcaption>A</figcaption></figure><figure>${simpleJug(B/C*0.85)}<figcaption>B</figcaption></figure><figure>${simpleJug(0.85)}<figcaption>C</figcaption></figure></div>`,intro:`Jug A has half as much water as jug C.<br>Jug B has ${diff} ml less water than jug A.<br>The volume of water in jug C is ${cl}.`,parts:[part({html:'Work out the volumes of water in jug A and jug B.',method:true,inputs:[box('s',{unit:'ml',pre:'jug A'}),box('s',{unit:'ml',pre:'jug B'})],tail:'{{0}} {{1}}',marks:2,check:v=>(isNum(v.inp[0],A2)?1:0)+(isNum(v.inp[1],B)?1:0),ans:`jug A ${A2} ml, jug B ${B} ml`})]});}
+  {const k=pick([2,3,4]),piece=tries(()=>10*ri(5,15),p=>p%100!==0),tot=k*piece;const who=pick(['Eva','Amir','Dora']);
+   Q.push({intro:`${who} has ${Math.floor(tot/100)} m ${tot%100} cm of string.<br>${who==='Amir'?'He':'She'} cuts the string into ${k} equal pieces.`,parts:[part({html:'What is the length of each piece of string? {{0}} {{1}}',inputs:[box('t',{unit:'m'}),box('t',{unit:'cm'})],check:v=>isNum(v.inp[0],Math.floor(piece/100))&&isNum(v.inp[1],piece%100)?1:0,ans:`${Math.floor(piece/100)} m ${piece%100} cm`})]});}
+  {const sol=tries(()=>{const lo=10*ri(2,5),a=pick([3,4,6]),b=pick([5,10,3]),r=ri(1,2);const ans=[];for(let n=lo+1;n<lo+10;n++)if(n%a===0&&n%b===r)ans.push(n);return {lo,a,b,r,ans};},o=>o.ans.length===1&&o.a!==o.b);
+   Q.push({intro:`Huan has more than ${sol.lo} buttons but fewer than ${sol.lo+10} buttons.<br>When he shares them equally into ${sol.a} bowls, he has no buttons left over.<br>When he shares them equally into ${sol.b} bowls, he has ${sol.r===1?'one button':'two buttons'} left over.`,parts:[part({html:'How many buttons does Huan have? {{0}}',inputs:[box('s')],check:v=>isNum(v.inp[0],sol.ans[0])?1:0,ans:''+sol.ans[0]})]});}
+  return Q;};
+
+// ---------- Summer reasoning ----------
+GEN.su2=()=>{const Q=[];
+  {const s1=pick([50,25,100]),st1=s1*ri(0,2),seq1=Array.from({length:7},(_,i)=>st1+i*s1),b1=[3,4,6];
+   const s2=pick([4,3,8]),seq2=Array.from({length:7},(_,i)=>s2*(ri(0,0)+11)-i*s2+s2*ri(0,0));const top=s2*ri(9,12),q2=Array.from({length:7},(_,i)=>top-i*s2),b2=[1,4,5];
+   const tr=(seq,bl,off)=>`<div class="track">${seq.map((c,i)=>bl.includes(i)?`<span class="tc">{{${off+bl.indexOf(i)}}}</span>`:`<span class="tc">${c}</span>`).join('')}</div>`;
+   Q.push({intro:'Complete the sequences.',parts:[part({html:tr(seq1,b1,0)+tr(q2,b2,3),inputs:Array.from({length:6},()=>box('t')),marks:2,check:v=>(b1.every((b,j)=>isNum(v.inp[j],seq1[b]))?1:0)+(b2.every((b,j)=>isNum(v.inp[3+j],q2[b]))?1:0),ans:`${b1.map(b=>seq1[b]).join(', ')} and ${b2.map(b=>q2[b]).join(', ')}`})]});}
+  {const h=ri(2,6),t=ri(1,5),items=shuffle([...Array(h).fill(100),...Array(t).fill(10)]),thing=pick(['Pens','Pencils','Clips']);
+   Q.push({intro:`${thing} are sold in boxes of 10 and boxes of 100`,visual:`<div class="boxes">${items.map(n=>`<span class="pbox b${n}"><b>${n}</b>${thing}</span>`).join('')}</div>`,parts:[part({html:`How many ${thing.toLowerCase()} are there altogether? {{0}}`,inputs:[box('m')],check:v=>isNum(v.inp[0],h*100+t*10)?1:0,ans:''+(h*100+t*10)})]});}
+  {const keys=tries(()=>sample(['cube','sqpyr','triprism','tetra','cuboid'],3),k=>!(k.includes('cube')&&k.includes('cuboid'))&&new Set(k.map(x=>SHAPES3D[x].f+'-'+SHAPES3D[x].v)).size===3);const tgt=pick(keys),S=SHAPES3D[tgt];
+   Q.push({parts:[part({html:`Circle the shape with ${S.f} faces and ${S.v} vertices.`,choice:chips(keys.map(shape3d),false),check:v=>keys[v.ch[0]]===tgt?1:0,ans:`The ${S.name}`})]});}
+  {const sets=[{w:['minutes','hour'],s1:'There are 60 {{0}} in an {{1}}.',a1:['minutes','hour']},{w:['seconds','minute'],s1:'There are 60 {{0}} in a {{1}}.',a1:['seconds','minute']},{w:['hours','day'],s1:'There are 24 {{0}} in a {{1}}.',a1:['hours','day']}];const st=pick(sets);const mon=pick([['March',31],['April',30],['January',31],['June',30],['September',30]]);const third=pick([['months','There are 12 {{2}} in a year.','months'],['days',`There are ${mon[1]} {{2}} in ${mon[0]}.`,'days']]);
+   const bank=[...new Set([...st.w,third[0]])].sort();
+   Q.push({intro:'Use these words to complete the sentences.',visual:`<div class="cards">${bank.map(w=>`<span class="card">${w}</span>`).join('')}</div>`,parts:[part({html:`${st.s1}<br>${third[1]}`,inputs:[box('m',{select:bank}),box('m',{select:bank}),box('m',{select:bank})],check:v=>v.inp[0]===st.a1[0]&&v.inp[1]===st.a1[1]&&v.inp[2]===third[2]?1:0,ans:`${st.a1[0]}, ${st.a1[1]}; ${third[2]}`})]});}
+  {const d=pick([10,8,5,6]),shown=sample([...Array(d).keys()].slice(1),2),rest=[...Array(d+1).keys()].slice(1).filter(i=>!shown.includes(i)),ar=sample(rest,3).sort((a,b)=>a-b),labels={0:'0'};shown.forEach(i=>labels[i]={n:i,d});
+   Q.push({intro:'Complete the missing fractions.',visual:nline({div:d,labels,arrows:ar.map((i,j)=>({i,label:'ABC'[j]}))}),parts:[part({html:ar.map((i,j)=>`${'ABC'[j]} = {{${j}}}`).join(' &nbsp; '),inputs:ar.map(()=>box('s',{mode:'text',ph:'a/b'})),marks:2,check:v=>{const c=ar.filter((i,j)=>isFrac(v.inp[j],i,d)).length;return c===3?2:c===2?1:0;},ans:ar.map((i,j)=>`${'ABC'[j]} = ${F(i,d)}`).join(', ')+'. 1 mark for two correct.'})]});}
+  {const k1=pick(['vertical','horizontal']),o1=shuffle(['horizontal','vertical','diagonal']),k2=pick(['parallel','perpendicular']),o2=shuffle(['parallel','perpendicular','neither']),cm=ri(4,9);
+   Q.push({parts:[part({html:`Circle the ${k1} line.`,choice:chips(o1.map(lineSvg),false),check:v=>o1[v.ch[0]]===k1?1:0,ans:`The ${k1} line`}),part({html:`Circle the ${k2} lines.`,choice:chips(o2.map(lineSvg),false),check:v=>o2[v.ch[0]]===k2?1:0,ans:`The ${k2} lines`}),part({html:`Draw a line that is ${cm} cm long. <span class="hint">Use a ruler on paper — your teacher marks this one.</span>`,self:true,drawn:true,check:()=>0,ans:`A straight line ${cm} cm long (accept ±2 mm).`})]});}
+  {const lv=50*ri(5,15),use=tries(()=>5*ri(15,Math.floor(lv/5)-10),u=>u%25!==0||u%50!==0);const who=pick(['Steph','Mo','Eva']);
+   Q.push({intro:'Here is a jug of water.',visual:jug({top:1000,major:200,minor:50,level:lv,label:v=>v===1000?'1 Litre':v+' ml'}),parts:[part({html:'How much water is in the jug? {{0}}',inputs:[box('s',{unit:'ml'})],check:v=>isNum(v.inp[0],lv)?1:0,ans:lv+' ml'}),part({html:`${who} uses ${use} ml of the water. How much water is left? {{0}}`,inputs:[box('s',{unit:'ml'})],check:v=>isNum(v.inp[0],lv-use)?1:0,ans:(lv-use)+' ml'})]});}
+  {const n1=ri(4,7),k1=ri(1,n1-1),n2=pick([4,6,8]),k2=ri(1,n2-1),gr=pick([[2,3],[2,4],[3,3],[2,5]]),k3=ri(1,gr[0]*gr[1]-1);
+   const shapes=[[ftris(n1,sample([...Array(n1).keys()],k1)),k1,n1],[fcircle(n2,sample([...Array(n2).keys()],k2)),k2,n2],[fgrid(gr[0],gr[1],sample([...Array(gr[0]*gr[1]).keys()],k3)),k3,gr[0]*gr[1]]];
+   Q.push({intro:'What fraction of each shape is shaded?',parts:shapes.map(([s,k,n])=>part({html:'',visual:s,inputs:[box('s',{mode:'text',ph:'a/b'})],tail:'{{0}}',check:v=>isFrac(v.inp[0],k,n)?1:0,ans:F(k,n)}))});}
+  {const c=10*ri(6,15),cyl=10*ri(15,45);const who=pick(['Sam','Ron','Jack']);
+   Q.push({intro:`${who} weighs a cube.`,visual:`<div class="jugs"><figure>${scaleSvg(1,false,c)}</figure><figure>${scaleSvg(3,true,3*c+cyl)}</figure></div><p class="sub">He adds two more identical cubes and one cylinder to the scale.</p>`,parts:[part({html:'How much does the cylinder weigh? {{0}}',inputs:[box('s',{unit:'g'})],check:v=>isNum(v.inp[0],cyl)?1:0,ans:cyl+' g'})]});}
+  {const d=pick([7,8,9,10,11]),ml=ri(3,d-2),mr=d-ml,bm=ri(1,Math.min(ml,mr)-1),bl=ml-bm,br=mr-bm;
+   const [b,c]=[10*ri(8,25),10*ri(15,40)],a=10*ri(8,30),top=a+2*b+c;
+   const pyr=(rows)=>`<div class="pyr">${rows.map(r=>`<div>${r.map(x=>`<span>${x}</span>`).join('')}</div>`).join('')}</div>`;
+   if(br<=0){/* guard */}
+   Q.push({intro:'Here are two addition pyramids.<br>The two numbers below add to make the number above.<br>Complete each addition pyramid.',parts:[
+    part({html:pyr([['1'],[F(ml,d),'{{0}}'],['{{1}}',F(bm,d),'{{2}}']]),inputs:[box('t',{mode:'text'}),box('t',{mode:'text'}),box('t',{mode:'text'})],marks:2,check:v=>{const c2=[isFrac(v.inp[0],mr,d),isFrac(v.inp[1],bl,d),isFrac(v.inp[2],br,d)].filter(Boolean).length;return c2===3?2:c2===2?1:0;},ans:`${F(mr,d)}, ${F(bl,d)}, ${F(br,d)}. 1 mark for two correct.`}),
+    part({html:pyr([[String(top)],['{{0}}','{{1}}'],['{{2}}',String(b),String(c)]]),inputs:[box('t'),box('t'),box('t')],marks:2,check:v=>{const c2=[isNum(v.inp[0],a+b),isNum(v.inp[1],b+c),isNum(v.inp[2],a)].filter(Boolean).length;return c2===3?2:c2===2?1:0;},ans:`${a+b}, ${b+c}, ${a}. 1 mark for two correct.`})]});}
+  {const h=ri(2,4),m1=5*ri(0,11),dur=5*ri(3,11),t2=h*60+m1+dur;
+   Q.push({intro:'Joe is walking home from school.',visual:`<div class="jugs"><figure>${clock(h,m1)}<figcaption>He leaves school at this time.</figcaption></figure><figure>${clock(Math.floor(t2/60),t2%60)}<figcaption>He arrives home at this time.</figcaption></figure></div>`,parts:[part({html:'How many minutes does it take Joe to walk home? {{0}}',inputs:[box('s',{unit:'minutes'})],check:v=>isNum(v.inp[0],dur)?1:0,ans:dur+' minutes'})]});}
+  {const a=10*ri(15,80),b=10*ri(1,6),d=pick([1,-1,10]);const a2=a-d;
+   Q.push({intro:'Complete the number statements.',parts:[part({html:`<div class="eqn">${a} + ${b} = ${a2} + {{0}}</div><div class="eqn">${a} ${MIN} ${b} = ${a2} ${MIN} {{1}}</div>`,inputs:[box('s'),box('s')],marks:2,check:v=>(isNum(v.inp[0],b+d)?1:0)+(isNum(v.inp[1],b-d)?1:0),ans:`${b+d} and ${b-d}`})]});}
+  {const fruit=pick([['apples','apple'],['oranges','orange'],['pears','pear']]),k=ri(2,4),each=pick([15,20,25,30,35]),bag=100+10*ri(1,9),note=pick([500,500,1000]);const ch=note-k*each-bag;const who=pick(['Jen','Annie','Eva']);
+   Q.push({intro:`${who} has a £${note/100} note.<br>${who} buys ${['','','two','three','four'][k]} single ${fruit[0]} and a bag of ${fruit[0]}.`,visual:`<div class="cards"><span class="card price"><b>Bag of ${fruit[0]}</b>£1 and ${bag-100}p per bag</span><span class="card price"><b>Single ${fruit[1]}</b>${each}p each</span></div>`,parts:[part({html:'How much change does she get? {{0}} and {{1}}',method:true,inputs:[box('t',{pre:'£'}),box('t',{unit:'p'})],marks:2,check:v=>isNum(v.inp[0],Math.floor(ch/100))&&isNum(v.inp[1],ch%100)?2:0,ans:`£${Math.floor(ch/100)} and ${ch%100}p (${k} × ${each}p = ${k*each}p; ${k*each}p + ${money(bag)} = ${money(k*each+bag)}; £${note/100} − ${money(k*each+bag)}). Award 1 mark for a correct method.`})]});}
+  {const [a,b]=pick([[2,3],[2,4],[3,4],[3,5],[4,5]]);
+   Q.push({intro:`Bella says ${F(1,a)} is greater than ${F(1,b)}`,visual:`<div class="stack">${fbar(1,[],300)}${fbar(1,[],300)}</div>`,parts:[part({html:'Prove Bella is correct. You can use the bars to help you.',self:true,textarea:'Your proof',check:()=>0,ans:`Split one bar into ${a} equal parts and one into ${b}; shade one part of each. The ${F(1,a)} part is longer, because the same whole is shared into fewer parts.`})]});}
+  {const s1=ri(0,7),n1=pick([2,1,3]),dir1=n1===2?'':pick(['clockwise ','anti-clockwise ']),s2=ri(0,7),dir2=pick(['anti-clockwise','clockwise']);const r1=dir1==='anti-clockwise '?(s1-2*n1+16)%8:(s1+2*n1)%8,r2=dir2==='clockwise'?(s2+2)%8:(s2+6)%8;const nw=['','one','two','three'];
+   Q.push({visual:compass(),parts:[part({html:`Amir is facing ${LETTERS[s1]}. He turns ${dir1}through <b>${nw[n1]}</b> right angle${n1>1?'s':''}.<br>Which letter is Amir facing now? {{0}}`,inputs:[box('t',{mode:'text'})],check:v=>String(v.inp[0]).trim().toUpperCase()===LETTERS[r1]?1:0,ans:LETTERS[r1]}),
+     part({html:`Susie is facing ${LETTERS[s2]}. She turns <b>${dir2}</b> through one right angle.<br>Which letter is Susie facing now? {{0}}`,inputs:[box('t',{mode:'text'})],check:v=>String(v.inp[0]).trim().toUpperCase()===LETTERS[r2]?1:0,ans:LETTERS[r2]})]});}
+  {const o=tries(()=>{const d=pick([4,5,6,8,10]),a=ri(1,d-2),b=ri(1,d-1-a),rem=d-a-b,p=rem*ri(2,12),tot=p*d/rem;return {d,a,b,rem,p,tot};},o=>o.rem>=1&&Number.isInteger(o.tot)&&o.tot<=120&&o.p>=6&&gcd(o.a,o.d)===1);
+   Q.push({intro:`There are red, purple and green sweets in a jar.<br>${F(o.a,o.d)} of the sweets are red.<br>${F(o.b,o.d)} of the sweets are green.<br>${o.p} of the sweets are purple.`,parts:[part({html:'How many sweets are there altogether?',method:true,tail:'{{0}}',inputs:[box('m')],marks:2,check:v=>isNum(v.inp[0],o.tot)?2:0,ans:`${o.tot} — purple is ${F(o.rem,o.d)} of the sweets, so ${F(1,o.d)} is ${o.p/o.rem} and the whole is ${o.p/o.rem} × ${o.d}. Award 1 mark for finding ${F(o.rem,o.d)} is purple.`})]});}
+  return Q;};
+
+
+
+// ================= APP =================
+const $=s=>document.querySelector(s);
+const store={get(k){try{return localStorage.getItem(k);}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+const S={term:store.get('y3term')||'au',paper:store.get('y3paper')||'1',seed:0,Q:[],vals:[],marked:false,selfAward:{},timer:null,left:0};
+const key=()=>S.term+S.paper;
+const newSeed=()=>1000+Math.floor(Math.random()*899000);
+
+function inputHTML(d,qi,pi,ii){
+  const id=`i-${qi}-${pi}-${ii}`;
+  if(d.select)return `<select class="box" id="${id}" data-q="${qi}" data-p="${pi}" data-i="${ii}" aria-label="Answer"><option value="">Choose…</option>${d.select.map(o=>`<option>${o}</option>`).join('')}</select>`;
+  return `<span class="boxw w-${d.w}">${d.pre?`<em>${d.pre}</em>`:''}<input id="${id}" data-q="${qi}" data-p="${pi}" data-i="${ii}" inputmode="${d.mode==='text'?'text':'numeric'}" autocomplete="off" aria-label="Answer"${d.ph?` placeholder="${d.ph}"`:''}>${d.unit?`<em>${d.unit}</em>`:''}</span>`;
+}
+function fill(html,p,qi,pi){return html.replace(/\{\{(\d+)\}\}/g,(m,i)=>inputHTML(p.inputs[+i],qi,pi,+i));}
+function partHTML(p,qi,pi){
+  let h=`<div class="part" id="p-${qi}-${pi}" data-q="${qi}" data-p="${pi}"><div class="pb">`;
+  if(p.html)h+=`<div class="ptext">${fill(p.html,p,qi,pi)}</div>`;
+  if(p.visual)h+=`<div class="vis">${p.visual}</div>`;
+  if(p.choice)h+=`<div class="chips${p.choice.big?' big':''}" role="group">${p.choice.opts.map((o,i)=>`<button type="button" class="chip" data-q="${qi}" data-p="${pi}" data-c="${i}" aria-pressed="false">${o}</button>`).join('')}</div>`;
+  if(p.grid){const g=p.grid;h+=`<div class="dgrid" style="grid-template-columns:repeat(${g.cols},40px)">`;for(let r=0;r<g.rows;r++)for(let c=0;c<g.cols;c++){const k=r+','+c,pre=g.pre.includes(k);h+=`<button type="button" class="cell${pre?' on pre':''}" data-q="${qi}" data-p="${pi}" data-cell="${k}" aria-label="Row ${r+1} space ${c+1}"${pre?' disabled':''}></button>`;}h+='</div>';}
+  if(p.textarea)h+=`<textarea class="explain" id="t-${qi}-${pi}" aria-label="${p.textarea}" placeholder="${p.textarea}"></textarea>`;
+  if(p.method)h+=`<div class="work"><span class="ml">Show your method</span><textarea class="scratch" id="w-${qi}-${pi}" aria-label="Working out"></textarea>${p.tail?`<div class="ansbox">${fill(p.tail,p,qi,pi)}</div>`:''}</div>`;
+  else if(p.after)h+=`<div class="work"><textarea class="scratch" id="w-${qi}-${pi}" aria-label="Working out"></textarea><div class="ansbox">${inputHTML(p.inputs[0],qi,pi,0)}</div></div>`;
+  else if(p.scratch)h+=`<div class="work"><textarea class="scratch" id="w-${qi}-${pi}" aria-label="Working out"></textarea></div>`;
+  else if(p.tail)h+=`<div class="tail">${fill(p.tail,p,qi,pi)}</div>`;
+  h+=`<div class="ans"><b>Answer:</b> ${p.ans}</div>`;
+  if(p.self){h+=`<div class="selfm">Adult check:${Array.from({length:p.marks+1},(_,m)=>`<button type="button" data-award="${m}" data-q="${qi}" data-p="${pi}" aria-pressed="false">${m} mark${m===1?'':'s'}</button>`).join('')}</div>`;}
+  h+=`</div><div class="mk"><span class="score"></span><span>${p.marks} mark${p.marks>1?'s':''}</span></div></div>`;
+  return h;
+}
+function render(){
+  const k=key(),P=PAPERS[k];seedRng(S.seed);S.Q=GEN[k]();
+  S.vals=S.Q.map(q=>q.parts.map(p=>({inp:p.inputs.map(()=>''),ch:[],grid:new Set(p.grid?p.grid.pre:[])})));
+  S.marked=false;S.selfAward={};
+  const total=S.Q.reduce((a,q)=>a+q.parts.reduce((b,p)=>b+p.marks,0),0);
+  $('#cvK').textContent=`Mathematics · Year 3 · ${P.term} mock paper`;
+  $('#cvTitle').textContent=P.title.charAt(0).toUpperCase()+P.title.slice(1);
+  $('#cvMeta').innerHTML=`<span>${P.mins} minutes</span><span>${S.Q.length} questions</span><span>${total} marks</span><span>No calculator${P.paper===2&&P.term==='Summer'?' · ruler needed':''}</span>`;
+  $('#codeIn').value=`${k.toUpperCase()}-${S.seed}`;
+  let h='';S.Q.forEach((q,qi)=>{h+=`<section class="q${q.arith?' arith':''}"><div class="qn">${qi+1}</div><div class="qb">${q.intro?`<p class="intro">${q.intro}</p>`:''}${q.visual?`<div class="vis">${q.visual}</div>`:''}${q.parts.map((p,pi)=>partHTML(p,qi,pi)).join('')}</div></section>`;});
+  h+=`<div class="endbar"><span class="end">END OF PAPER</span><button type="button" class="btn primary" id="markBtn">Mark my paper</button></div>`;
+  $('#paper').innerHTML=h;
+  document.querySelectorAll('#termSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.term===S.term));
+  document.querySelectorAll('#paperSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.paper===S.paper));
+  $('#result').hidden=true;resetTimer();
+  store.set('y3term',S.term);store.set('y3paper',S.paper);
+}
+function mark(){
+  S.marked=true;let got=0,tot=0;
+  S.Q.forEach((q,qi)=>q.parts.forEach((p,pi)=>{const v=S.vals[qi][pi],el=$(`#p-${qi}-${pi}`);let m=0;
+    try{m=p.check(v)||0;}catch(e){m=0;}
+    const k=qi+'-'+pi;if(p.self){if(S.selfAward[k]==null)S.selfAward[k]=m;m=S.selfAward[k];el.querySelectorAll('[data-award]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.award===m));}
+    got+=m;tot+=p.marks;el.classList.add('marked');el.classList.toggle('ok',m===p.marks);el.classList.toggle('no',m<p.marks);
+    el.querySelector('.score').textContent=`${m}/${p.marks}`;}));
+  $('#resScore').textContent=`${got} / ${tot}`;$('#resPct').textContent=`${Math.round(got/tot*100)}%`;$('#result').hidden=false;
+}
+// events
+$('#paper').addEventListener('input',e=>{const t=e.target;if(t.dataset.i!=null){S.vals[t.dataset.q][t.dataset.p].inp[t.dataset.i]=t.value;}});
+$('#paper').addEventListener('change',e=>{const t=e.target;if(t.tagName==='SELECT'&&t.dataset.i!=null)S.vals[t.dataset.q][t.dataset.p].inp[t.dataset.i]=t.value;});
+$('#paper').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(c){const {q,p}=c.dataset,i=+c.dataset.c,part=S.Q[q].parts[p],v=S.vals[q][p];
+    if(part.choice.multi){v.ch=v.ch.includes(i)?v.ch.filter(x=>x!==i):[...v.ch,i];}else v.ch=v.ch[0]===i?[]:[i];
+    c.parentElement.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',v.ch.includes(+b.dataset.c)));return;}
+  const cell=e.target.closest('.cell');if(cell&&!cell.disabled){const v=S.vals[cell.dataset.q][cell.dataset.p],k=cell.dataset.cell;v.grid.has(k)?v.grid.delete(k):v.grid.add(k);cell.classList.toggle('on',v.grid.has(k));return;}
+  const aw=e.target.closest('[data-award]');if(aw){S.selfAward[aw.dataset.q+'-'+aw.dataset.p]=+aw.dataset.award;mark();return;}
+  if(e.target.id==='markBtn')mark();
+});
+$('#termSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.term=b.dataset.term;S.seed=newSeed();render();});
+$('#paperSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.paper=b.dataset.paper;S.seed=newSeed();render();});
+$('#newBtn').addEventListener('click',()=>{S.seed=newSeed();render();window.scrollTo({top:0});});
+$('#clearBtn').addEventListener('click',()=>{S.seed=newSeed();render();window.scrollTo({top:0});});
+$('#ansToggle').addEventListener('change',e=>document.body.classList.toggle('show-ans',e.target.checked));
+function loadCode(){const m=$('#codeIn').value.trim().toUpperCase().match(/^(AU|SP|SU)([12])-(\d{1,9})$/);
+  if(!m){$('#codeIn').setCustomValidity('Use a code like SP2-48213');$('#codeIn').reportValidity();return;}
+  $('#codeIn').setCustomValidity('');S.term=m[1].toLowerCase();S.paper=m[2];S.seed=+m[3];render();}
+$('#loadBtn').addEventListener('click',loadCode);
+$('#codeIn').addEventListener('keydown',e=>{if(e.key==='Enter')loadCode();});
+// timer
+const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+function resetTimer(){clearInterval(S.timer);S.timer=null;S.left=PAPERS[key()].mins*60;$('#tLeft').textContent=fmt(S.left);$('#tBtn').textContent='Start timer';$('#timer').classList.remove('up');}
+$('#tBtn').addEventListener('click',()=>{
+  if(S.timer){clearInterval(S.timer);S.timer=null;$('#tBtn').textContent='Resume';return;}
+  if(S.left<=0)resetTimer();
+  $('#tBtn').textContent='Pause';
+  S.timer=setInterval(()=>{S.left--;$('#tLeft').textContent=S.left>0?fmt(S.left):'Time’s up';if(S.left<=0){clearInterval(S.timer);S.timer=null;$('#timer').classList.add('up');$('#tBtn').textContent='Reset';}},1000);
+});
+S.seed=newSeed();render();
+
+</script>
+</body>
+</html>
