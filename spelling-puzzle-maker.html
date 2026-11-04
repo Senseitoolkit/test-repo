@@ -58,6 +58,7 @@ select{font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:7
 .check{display:flex;gap:8px;align-items:center;font-size:.9rem;cursor:pointer}
 .check input{accent-color:var(--accent)}
 .btn{font:inherit;font-weight:700;border-radius:8px;padding:9px 12px;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:var(--paper)}
+.btn:disabled{opacity:.6;cursor:wait}
 .btn.ghost{background:transparent;color:var(--accent)}
 .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 button:focus-visible,input:focus-visible,select:focus-visible,[contenteditable]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -180,13 +181,16 @@ body{margin:0}
           <button type="button" class="btn" id="newBtn">New layout</button>
           <button type="button" class="btn ghost" id="pick2Btn">New words</button>
         </div>
-        <div class="hint">To print, use your browser's Print command. Settings are hidden on paper, and the answer sheet prints on its own page.</div>
+        <button type="button" class="btn" id="pdfBtn" style="background:var(--ink);border-color:var(--ink)">Download PDF with answer key</button>
+        <div class="hint" id="pdfStatus" role="status"></div>
+        <div class="hint">The PDF is A4: the puzzle first, then the answer key on its own page.</div>
       </div>
     </aside>
     <section class="stage" id="stage" aria-live="polite"></section>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const DATA = {
  y1:{label:"Year 1",short:"Y1",defaults:{count:8,dirs:"easy",case:"lower"},lists:[
@@ -438,13 +442,13 @@ function instructions(){
 function render(){
   const stage=$("stage");
   const words=S.words.filter(w=>/^[a-z]+$/.test(w));
-  if(!words.length){stage.innerHTML=`<article class="sheet"><div class="sheet-head"><h2>${esc(defaultTitle())}</h2><p class="instr">Choose at least one spelling list, or add your own words, to make a puzzle.</p></div></article>`;S.skipped=[];renderChips();$("skipNote").hidden=true;return}
+  if(!words.length){S.last=null;stage.innerHTML=`<article class="sheet"><div class="sheet-head"><h2>${esc(defaultTitle())}</h2><p class="instr">Choose at least one spelling list, or add your own words, to make a puzzle.</p></div></article>`;S.skipped=[];renderChips();$("skipNote").hidden=true;return}
   let html="";
   if(S.type==="cw"){
     const cw=buildCrossword(words,S.seed);numberCW(cw);S.skipped=cw.skipped;
-    const r=rngFrom(S.seed^0x5bd1e995);
+    const r=rngFrom(S.seed^0x5bd1e995),autos={};S.last={type:"cw",cw,autos};
     const clueList=d=>cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).map(p=>{
-      const auto=autoClue(p.w,S.clueStyle,r),k=clueKey(p.w),txt=S.clues[k]!=null?S.clues[k]:auto;
+      const auto=(autos[p.w]=autoClue(p.w,S.clueStyle,r)),k=clueKey(p.w),txt=S.clues[k]!=null?S.clues[k]:auto;
       return`<li><b>${p.n}</b><span><span class="clue${S.clueStyle==="definition"&&defOf(p.w)?" def":""}" contenteditable="true" spellcheck="false" data-ck="${esc(k)}" aria-label="Clue ${p.n}">${esc(txt)}</span><span class="len">(${p.w.length})</span></span></li>`}).join("");
     const cluesHTML=`<div class="clues"><div><h3>Across</h3><ol>${clueList(0)}</ol></div><div><h3>Down</h3><ol>${clueList(1)}</ol></div></div>`;
     const bank=S.cwBank?`<div class="bank"><h3>Word bank</h3><ul>${cw.placed.map(p=>p.w).sort().map(w=>`<li>${esc(w)}</li>`).join("")}</ul></div>`:"";
@@ -452,7 +456,7 @@ function render(){
     if(S.showAns){const al=d=>cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).map(p=>`<li><b>${p.n}</b><span class="clue">${esc(p.w)}</span></li>`).join("");
       html+=`<p class="answers-label">Answer sheet</p>`+sheet(true,cwSVG(cw,true),`<div class="clues"><div><h3>Across</h3><ol>${al(0)}</ol></div><div><h3>Down</h3><ol>${al(1)}</ol></div></div>`)}
   }else{
-    const ws=buildSearch(words,S.seed,S.dirs);S.skipped=ws.skipped;const up=S.case==="upper";
+    const ws=buildSearch(words,S.seed,S.dirs);S.skipped=ws.skipped;S.last={type:"ws",ws};const up=S.case==="upper";
     const bank=`<div class="bank"><h3>Words to find</h3><ul>${ws.placed.map(p=>p.w).sort().map(w=>`<li>${esc(up?w.toUpperCase():w)}</li>`).join("")}</ul></div>`;
     html=sheet(false,wsSVG(ws,false),bank);
     if(S.showAns)html+=`<p class="answers-label">Answer sheet</p>`+sheet(true,wsSVG(ws,true),"");
@@ -487,6 +491,98 @@ $("stage").addEventListener("input",e=>{const t=e.target;
   if(t.dataset&&t.dataset.ck)S.clues[t.dataset.ck]=t.textContent;
   if(t.id==="titleEdit")S.title=t.textContent.trim()||null;});
 $("stage").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.isContentEditable){e.preventDefault();e.target.blur()}});
+
+/* ---------- PDF ---------- */
+const INK=[28,39,56],MUTED=[93,106,126],RED=[200,70,60],PW=210,PH=297,M=16,CW=PW-2*M;
+const pdfText=s=>String(s).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...").replace(/\//g,"/").replace(/[^\x20-\x7e\xa0-\xff]/g,"").replace(/\s+/g," ").trim();
+function pdfHeader(doc,ans){
+  let y=18;doc.setTextColor(...INK);doc.setDrawColor(...INK);doc.setLineWidth(0.3);
+  if(ans){doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(...RED);doc.text("ANSWER KEY",M,y);doc.setTextColor(...INK)}
+  else{doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Name",M,y);doc.line(M+11,y+0.8,M+85,y+0.8);doc.text("Date",M+95,y);doc.line(M+104,y+0.8,M+145,y+0.8)}
+  y+=10;doc.setFont("helvetica","bold");doc.setFontSize(20);
+  const t=doc.splitTextToSize(pdfText(S.title||defaultTitle()),CW);doc.text(t,M,y);y+=t.length*7.5;
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...MUTED);doc.text(doc.splitTextToSize(pdfText(listSummary()),CW)[0],M,y);y+=6;doc.setTextColor(...INK);
+  if(!ans){doc.setFontSize(11);const ins=doc.splitTextToSize(pdfText(instructions()),CW);doc.text(ins,M,y);y+=ins.length*5}
+  return y+4;
+}
+function cwCells(cw){const cells=new Map();cw.placed.forEach(p=>{for(let i=0;i<p.w.length;i++)cells.set((p.r+(p.d?i:0))+","+(p.c+(p.d?0:i)),p.w[i])});return cells}
+function pdfCWGrid(doc,cw,y,maxH,ans){
+  const cs=Math.min(CW/cw.w,maxH/cw.h,11),x0=PW/2-cw.w*cs/2,nums=new Map(cw.placed.map(p=>[p.r+","+p.c,p.n]));
+  doc.setDrawColor(...INK);doc.setLineWidth(0.35);
+  for(const [k,ch] of cwCells(cw)){const [r,c]=k.split(",").map(Number),x=x0+c*cs,yy=y+r*cs;doc.rect(x,yy,cs,cs);
+    if(nums.has(k)){doc.setFont("helvetica","bold");doc.setFontSize(Math.max(5,cs*0.62));doc.text(String(nums.get(k)),x+0.7,yy+cs*0.27+0.4)}
+    if(ans){doc.setFont("helvetica","bold");doc.setFontSize(cs*1.55);doc.setTextColor(43,86,201);doc.text(ch,x+cs/2,yy+cs*0.58,{align:"center",baseline:"middle"});doc.setTextColor(...INK)}}
+  return y+cw.h*cs;
+}
+// Lays out Across/Down columns. Returns height, or draws if draw=true.
+function pdfClueCols(doc,cw,y,itemsFor,draw){
+  const colW=(CW-8)/2;let maxY=y;
+  [0,1].forEach((d,ci)=>{const x=M+ci*(colW+8);let yy=y;
+    if(draw){doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text(d?"Down":"Across",x,yy+4)}yy+=8;
+    doc.setFontSize(10.5);
+    cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).forEach(p=>{
+      doc.setFont("helvetica","normal");const lines=doc.splitTextToSize(pdfText(itemsFor(p)),colW-8);
+      if(draw){doc.setFont("helvetica","bold");doc.text(String(p.n),x,yy+3.6);doc.setFont("helvetica","normal");doc.text(lines,x+8,yy+3.6)}
+      yy+=lines.length*4.6+2});
+    maxY=Math.max(maxY,yy)});
+  return maxY-y;
+}
+function pdfBank(doc,words,y,draw,up,cols){
+  cols=cols||4;const colW=CW/cols,rows=Math.ceil(words.length/cols);
+  if(draw){doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text(S.type==="ws"?"Words to find":"Word bank",M,y+4)}
+  if(draw){doc.setFont("helvetica","normal");doc.setFontSize(12);doc.setLineWidth(0.3);
+    words.forEach((w,i)=>{const c=Math.floor(i/rows),r=i%rows,x=M+c*colW,yy=y+9+r*7;doc.rect(x,yy,3.2,3.2);doc.text(up?w.toUpperCase():w,x+5.5,yy+2.9)})}
+  return 9+rows*7;
+}
+function buildPDF(){
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),L=S.last,bottom=PH-14;
+  if(L.type==="cw"){
+    const cw=L.cw,clueOf=p=>{const k=clueKey(p.w);let t=S.clues[k]!=null?S.clues[k]:L.autos[p.w];t=pdfText(t||"");return (t||"________")+"  ("+p.w.length+")"};
+    let y=pdfHeader(doc,false);
+    const ch=pdfClueCols(doc,cw,0,clueOf,false),words=cw.placed.map(p=>p.w).sort(),bh=S.cwBank?pdfBank(doc,words,0,false)+4:0;
+    let room=bottom-y-ch-bh-12;
+    if(room>=55){y=pdfCWGrid(doc,cw,y,Math.min(room,150),false)+8}
+    else{pdfCWGrid(doc,cw,y,bottom-y,false);doc.addPage();y=18}
+    y+=pdfClueCols(doc,cw,y,clueOf,true)+4;
+    if(S.cwBank){if(y+bh>bottom){doc.addPage();y=18}pdfBank(doc,words,y,true)}
+    doc.addPage();y=pdfHeader(doc,true);
+    const ah=pdfClueCols(doc,cw,0,p=>p.w,false);
+    room=bottom-y-ah-8;
+    if(room>=55){y=pdfCWGrid(doc,cw,y,Math.min(room,170),true)+8}else{pdfCWGrid(doc,cw,y,bottom-y,true);doc.addPage();y=18}
+    pdfClueCols(doc,cw,y,p=>p.w,true);
+  }else{
+    const ws=L.ws,up=S.case==="upper",words=ws.placed.map(p=>p.w).sort(),N=ws.size;
+    const sheetFor=ans=>{let y=pdfHeader(doc,ans);const bh=ans?0:pdfBank(doc,words,0,false,up);
+      const cs=Math.min(CW/N,10,(bottom-y-bh-8)/N),x0=PW/2-N*cs/2;
+      doc.setDrawColor(...INK);doc.setLineWidth(0.4);doc.roundedRect(x0-2,y-2,N*cs+4,N*cs+4,2,2);
+      if(ans){doc.setDrawColor(255,214,90);doc.setLineWidth(cs*0.78);doc.setLineCap("round");
+        ws.placed.forEach(p=>{const x1=x0+p.c*cs+cs/2,y1=y+p.r*cs+cs/2;doc.line(x1,y1,x1+p.dc*(p.w.length-1)*cs,y1+p.dr*(p.w.length-1)*cs)});
+        doc.setLineCap("butt");doc.setLineWidth(0.3);doc.setDrawColor(...INK)}
+      doc.setFont("helvetica","normal");doc.setFontSize(cs*1.75);
+      ws.g.forEach((row,r)=>row.forEach((ch,c)=>doc.text(up?ch.toUpperCase():ch,x0+c*cs+cs/2,y+r*cs+cs/2,{align:"center",baseline:"middle"})));
+      y+=N*cs+10;if(!ans)pdfBank(doc,words,y,true,up)};
+    sheetFor(false);doc.addPage();sheetFor(true);
+  }
+  return doc;
+}
+let dlP=null;
+const getDL=()=>dlP||(dlP=(window.claude&&typeof window.claude.use==="function")?Promise.resolve(window.claude.use("downloads")).catch(()=>null):Promise.resolve(undefined));
+async function downloadPDF(){
+  const st=$("pdfStatus"),btn=$("pdfBtn");
+  if(!S.last){st.textContent="Add some words to make a puzzle first.";return}
+  if(!window.jspdf){st.textContent="The PDF maker didn't load. Check your internet connection and reload the page.";return}
+  btn.disabled=true;st.textContent="Making PDF…";
+  try{
+    const doc=buildPDF(),name=pdfText(S.title||defaultTitle()).replace(/&/g,"and").replace(/[^\w\- ]+/g,"").replace(/\s+/g," ").trim()+".pdf";
+    const dl=await getDL();
+    if(dl===undefined){doc.save(name);st.textContent="Saved "+name+". The answer key is on the last page."}
+    else if(dl===null){st.textContent="Downloads aren't available in this view. Open the page in claude.ai to save the PDF."}
+    else{try{await dl.save({filename:name,data:doc.output("blob")});st.textContent="Saved "+name+". The answer key is on the last page."}
+      catch(e){st.textContent=e&&e.code==="declined"?"":e&&e.code==="rate_limited"?"A save is already waiting for your answer.":"Couldn't save the PDF here. Try again in a moment."}}
+  }catch(e){console.error(e);st.textContent="Something went wrong making the PDF. Try New layout and download again."}
+  btn.disabled=false;
+}
+$("pdfBtn").onclick=downloadPDF;
 
 applyYear(S.year);full();
 </script>
