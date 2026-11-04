@@ -203,6 +203,12 @@ td.part.pre{color:var(--prefix)} td.part.root{color:var(--root)} td.part.suf{col
 .ws.key{border-style:dashed}
 .ws.key ol,.ws.key table{font-size:.92rem}
 .ws .parts-eq{display:inline-flex;gap:6px;align-items:baseline}
+.ws .splitlist{display:flex;flex-direction:column;gap:18px}
+.ws .splititem .pw{font-size:1.15rem;margin-bottom:4px}
+.ws .line{display:flex;align-items:baseline;gap:10px;min-height:2em}
+.ws .lbl2{font-size:.8rem;color:var(--muted);white-space:nowrap;min-width:11em}
+.ws .rule{flex:1;border-bottom:1px solid var(--fg);height:1.6em}
+.ws .eg.splititem{display:block} .ws .eg .line{min-height:1.6em}
 .ws .eg{background:var(--mark);border-radius:6px;padding:8px 12px;margin:0 0 10px;font-size:.95rem}
 .ws .eg b.lab{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;margin-right:8px;color:var(--muted)}
 .ws .eg .ans{font-family:var(--display);font-weight:700;border-bottom:1px solid var(--fg);padding:0 .2em}
@@ -513,6 +519,7 @@ function renderSheet(){
     affix:`<p class="eg"><b class="lab">Example</b>${esc(ex.p.slice(0,exI).map(p=>p[0]).join(""))}<span class="ans">${esc(exAff[0])}</span>${esc(ex.p.slice(exI+1).map(p=>p[0]).join(""))} &nbsp;(${esc(ex.d)}) &nbsp;→ the missing part is <b>${esc(label(exAff))}</b></p>`,
     match:`<p class="eg"><b class="lab">Example</b><span class="pw ${exAff[1]}">${esc(label(exAff))}</span> &nbsp;⟶&nbsp; ${esc(exAff[2])}</p>`,
     build:`<p class="eg"><b class="lab">Example</b>${ex.p.map(p=>`<span class="pw ${p[1]}">${esc(label(p))}</span> <small>(${esc(p[2])})</small>`).join(" + ")} &nbsp;→&nbsp; Word: <span class="ans">${esc(ex.w)}</span> &nbsp; Meaning: <span class="ans">${esc(ex.d.replace(/\.$/,""))}</span></p>`,
+    split:`<div class="eg splititem"><b class="lab">Example</b><div class="pw">${esc(ex.w)}</div><div class="line"><span class="lbl2">Parts</span><span class="ans">${ex.p.map(p=>esc(label(p))).join(" + ")}</span></div><div class="line"><span class="lbl2">What each part means</span><span class="ans">${ex.p.map(p=>esc(p[2])).join(" + ")}</span></div><div class="line"><span class="lbl2">So the word means</span><span class="ans">${esc(ex.d.replace(/\.$/,""))}</span></div></div>`,
     splitRow:`<tr class="egrow"><td class="pw">${esc(ex.w)} <small style="font-weight:400;color:var(--muted)">(example)</small></td><td class="ans">${ex.p.map(p=>esc(label(p))).join(" + ")}</td><td class="ans">${ex.p.map(p=>esc(p[2])).join(" + ")}</td><td class="ans">${esc(ex.d.replace(/\.$/,""))}</td></tr>`
   };
   let body="",key="",q=0;
@@ -521,7 +528,7 @@ function renderSheet(){
     body+=H("gap",EG.gap+`<div class="bank">${shuffled(ws,r).map(c=>"<span>"+esc(c.w)+"</span>").join("")}</div>`)+`<ol>${ws.map(c=>{const m=c.s.match(new RegExp("\\b"+c.w.slice(0,Math.max(4,c.w.length-2))+"[a-z]*","i"));const blank=m?c.s.replace(m[0],'<span class="blank"></span>'):c.s;return "<li>"+esc(blank).replace(/&lt;span class=&quot;blank&quot;&gt;&lt;\/span&gt;/g,'<span class="blank"></span>')+"</li>"}).join("")}</ol></div>`;
     key+=`<div><h2>${q}. Fill the gap</h2><ol>${ws.map(c=>"<li>"+esc(c.w)+"</li>").join("")}</ol></div>`}
   if(on.includes("split")){const ws=pick.slice(0,Math.min(6,pick.length));
-    body+=H("split")+`<div class="tablewrap"><table><thead><tr><th>Word</th><th>Parts</th><th>What the parts mean</th><th>So the word means</th></tr></thead><tbody>${EG.splitRow}${ws.map(c=>`<tr><td class="pw">${esc(c.w)}</td><td><span class="cell"></span></td><td><span class="cell"></span></td><td><span class="cell" style="min-width:10em"></span></td></tr>`).join("")}</tbody></table></div></div>`;
+    body+=H("split",EG.split)+`<div class="splitlist">${ws.map(c=>`<div class="splititem"><div class="pw">${esc(c.w)}</div><div class="line"><span class="lbl2">Parts</span><span class="rule"></span></div><div class="line"><span class="lbl2">What each part means</span><span class="rule"></span></div><div class="line"><span class="lbl2">So the word means</span><span class="rule"></span></div></div>`).join("")}</div></div>`;
     key+=`<div><h2>${q}. Break it apart</h2><ol>${ws.map(c=>"<li><b>"+esc(c.w)+"</b>: "+c.p.map(p=>`<span class="${p[1]}">${esc(label(p))}</span> (${esc(p[2])})`).join(" + ")+" = "+esc(c.d)+"</li>").join("")}</ol></div>`}
   if(on.includes("affix")&&affixWords.length){const ws=shuffled(affixWords,r).slice(0,Math.min(8,affixWords.length));
     const items=ws.map(c=>{const aff=shuffled(c.p.filter(p=>p[1]!=="root"),r)[0];const i=c.p.indexOf(aff);const before=c.p.slice(0,i).map(p=>p[0]).join(""),after=c.p.slice(i+1).map(p=>p[0]).join("");return {c,aff,before,after}});
