@@ -41,6 +41,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--ink);outline-offset
 .decks button{padding:4px 9px;border-radius:999px;color:var(--muted)}
 .decks button:hover{color:var(--fg)}
 .decks button[aria-checked="true"]{background:var(--fg);color:var(--bg)}
+.pfilter{margin-left:-8px}
+.pfilter .fpre[aria-checked="true"]{background:var(--prefix)} .pfilter .froot[aria-checked="true"]{background:var(--root)} .pfilter .fsuf[aria-checked="true"]{background:var(--suffix)}
 .toggle{display:inline-flex;align-items:center;gap:6px;color:var(--muted);padding:4px 2px;border-bottom:1.5px solid transparent}
 .toggle:hover{color:var(--fg)}
 .toggle[aria-pressed="true"]{color:var(--fg);border-bottom-color:var(--fg)}
@@ -200,6 +202,12 @@ td.part.pre{color:var(--prefix)} td.part.root{color:var(--root)} td.part.suf{col
       <button type="button" data-deck="latin" role="radio" aria-checked="false" title="Only words with a Latin or Greek root, with the source word under each part (L)">Latin</button>
       <button type="button" data-deck="shuffle" role="radio" aria-checked="false" title="The year's words in a random order (S)">Shuffle</button>
     </div>
+    <div class="decks pfilter" id="pfilter" role="radiogroup" aria-label="Which parts" hidden>
+      <button type="button" data-pf="all" role="radio" aria-checked="true">All</button>
+      <button type="button" data-pf="pre" role="radio" aria-checked="false" class="fpre">Prefixes</button>
+      <button type="button" data-pf="root" role="radio" aria-checked="false" class="froot">Roots</button>
+      <button type="button" data-pf="suf" role="radio" aria-checked="false" class="fsuf">Suffixes</button>
+    </div>
     <nav class="views" aria-label="View">
       <a href="#cards" id="navCards" aria-current="page">Flashcards</a>
       <a href="#lists" id="navLists">Word lists</a>
@@ -293,11 +301,11 @@ const el={years:document.getElementById("years"),yeartag:document.getElementById
 
 const store={get(k,d){try{const v=localStorage.getItem("wpd:"+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem("wpd:"+k,JSON.stringify(v))}catch(e){}}};
 
-let state={year:store.get("year",3),idx:0,step:0,order:[],deck:store.get("deck","words")};
+let state={year:store.get("year",3),idx:0,step:0,order:[],deck:store.get("deck","words"),pf:store.get("pf","all")};
 const DECK_LABEL={words:"",parts:"Parts",latin:"Latin",shuffle:"Shuffle"};
 const hasClassical=c=>c.p.some(p=>/Latin|Greek/.test(p[3]));
 
-function deckList(){const g=DATA[state.year];return state.deck==="parts"?PARTS[state.year]:state.deck==="latin"?g.words.filter(hasClassical):g.words}
+function deckList(){const g=DATA[state.year];return state.deck==="parts"?PARTS[state.year].filter(p=>state.pf==="all"||p.type===state.pf):state.deck==="latin"?g.words.filter(hasClassical):g.words}
 function buildOrder(){const n=deckList().length;state.order=[...Array(n).keys()];if(state.deck==="shuffle"){for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[state.order[i],state.order[j]]=[state.order[j],state.order[i]]}}}
 function current(){return deckList()[state.order[state.idx]]}
 
@@ -306,7 +314,7 @@ function highlight(sentence,word){const re=new RegExp("("+word.replace(/[.*+?^${
 
 function renderPart(){
   const y=DATA[state.year],c=current();
-  el.yeartag.textContent=y.label+" · Parts";
+  el.yeartag.textContent=y.label+" · "+({all:"Parts",pre:"Prefixes",root:"Roots",suf:"Suffixes"})[state.pf];
   el.counter.textContent=(state.idx+1)+" / "+deckList().length;
   el.word.textContent=c.label; el.word.className="word "+c.type;
   document.getElementById("pmeaning").textContent=c.meaning;
@@ -353,9 +361,12 @@ function setYear(y){ state.year=y; store.set("year",y); state.idx=0; state.step=
 el.years.innerHTML=Object.keys(DATA).map(y=>`<button type="button" data-y="${y}" aria-pressed="false">Year ${y}</button>`).join("");
 el.years.addEventListener("click",e=>{const b=e.target.closest("button");if(b)setYear(+b.dataset.y)});
 
-function setDeck(d){state.deck=d;store.set("deck",d);state.idx=0;state.step=0;buildOrder();render();
+function setDeck(d){state.deck=d;store.set("deck",d);state.idx=0;state.step=0;document.getElementById("pfilter").hidden=d!=="parts";buildOrder();render();
   document.querySelectorAll("#decks button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.deck===d)))}
 document.getElementById("decks").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setDeck(b.dataset.deck)});
+const pfEl=document.getElementById("pfilter");
+function setPf(f){state.pf=f;store.set("pf",f);state.idx=0;state.step=0;buildOrder();render();pfEl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.pf===f)))}
+pfEl.addEventListener("click",e=>{const b=e.target.closest("button");if(b)setPf(b.dataset.pf)});
 el.next.addEventListener("click",advance);
 el.prev.addEventListener("click",prevCard);
 el.skip.addEventListener("click",nextWord);
@@ -405,7 +416,7 @@ function renderLists(){
     count.textContent=q?shown+" of "+total+" words":total+" words"};
   input.addEventListener("input",update); update();
   el.lists.addEventListener("click",e=>{const b=e.target.closest(".golink");if(!b)return;const tr=b.closest("tr"),y=+tr.closest(".yearblock").dataset.y;
-    state.year=y;store.set("year",y);state.deck="words";store.set("deck","words");document.querySelectorAll("#decks button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.deck==="words")));buildOrder();state.idx=+tr.dataset.i;state.step=0;location.hash="#cards";render()});
+    state.year=y;store.set("year",y);state.deck="words";store.set("deck","words");pfEl.hidden=true;document.querySelectorAll("#decks button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.deck==="words")));buildOrder();state.idx=+tr.dataset.i;state.step=0;location.hash="#cards";render()});
 }
 function partsFor(y){
   const g=DATA[y],groups=new Map();
@@ -442,5 +453,6 @@ window.addEventListener("hashchange",route);
 Object.values(DATA).forEach(g=>g.words.forEach(c=>{const j=c.p.map(p=>p[0]).join("");if(j!==c.w)console.warn("Parts do not spell word:",c.w,j)}));
 
 document.querySelectorAll("#decks button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.deck===state.deck)));
+pfEl.hidden=state.deck!=="parts"; pfEl.querySelectorAll("button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.pf===state.pf)));
 buildOrder(); render(); renderLists(); route();
 </script>
