@@ -165,8 +165,21 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
 .paper-open .sheet{display:none}
 .paper-open .bar{display:none}
 .paper-size{display:flex;gap:8px;align-items:center}
+.pages{display:flex;flex-direction:column;gap:10px}
+.cols{display:grid;gap:0 6mm}
+.cols.c1{grid-template-columns:1fr}
+.cols.c2{grid-template-columns:1fr 1fr}
+.cols.c3{grid-template-columns:1fr 1fr 1fr}
+.cols .trow b{width:6mm;font-size:11pt}
+.cols.c1 .trow b{width:7mm;font-size:13pt}
+.cols.c3 .tram{height:12mm}
+.cols.c3 .trow{gap:3mm;margin-bottom:5mm}
 .trow{break-inside:avoid}
-.teacher{break-inside:avoid}
+.answers ol{margin:4mm 0 0;padding-left:6mm;font-size:11pt;columns:2;column-gap:8mm}
+.answers ol.c3{columns:3}
+.answers li{break-inside:avoid;padding:1mm 0}
+.answers li em{display:block;color:var(--p-muted);font-style:normal;font-size:9pt}
+.answers .psub{margin-top:5mm}
 #paperbtn[aria-pressed="true"]{background:var(--ink);color:var(--sheet)}
 #paper{display:flex;flex-direction:column;gap:10px}
 .paper-nav{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
@@ -214,7 +227,7 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
 .formkey span{display:inline-flex;align-items:center;gap:1.5mm}
 .formkey .k-start{width:3mm;height:3mm;border-radius:50%;background:var(--p-good)}
 .formkey .k-end{width:0;height:0;border-left:3.5mm solid var(--p-pencil);border-top:2mm solid transparent;border-bottom:2mm solid transparent}
-@media (max-width:600px){.page{padding:8mm 6mm}.lists{columns:1}.teacher ol{columns:1}}
+@media (max-width:600px){.page{padding:8mm 6mm}.lists{columns:1}.teacher ol{columns:1}.cols{grid-template-columns:1fr!important}.answers ol{columns:1!important}}
 @media print{
   @page{size:A4;margin:12mm}
   html,body{height:auto;background:#fff;padding:0;overflow:visible}
@@ -223,6 +236,8 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
   .wrap{max-width:none;height:auto;min-height:0;gap:0}
   .paper-nav,.paper-hint,#panel{display:none!important}
   .page{box-shadow:none;border-radius:0;width:auto;max-width:none;padding:0;margin:0}
+  .page+.page{break-before:page}
+  .cols.c2{grid-template-columns:1fr 1fr}.cols.c3{grid-template-columns:1fr 1fr 1fr}.answers ol{columns:2}.answers ol.c3{columns:3}
   .lgroup{break-inside:avoid}
   .band{break-inside:avoid}
 }
@@ -304,7 +319,7 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
       <button type="button" class="btn" id="paper-shuffle" style="font-size:14px;padding:5px 12px">New words</button>
     </div>
     <p class="note paper-hint" id="paper-hint">A4. Download PDF saves the open page as a file; Print sends it to your printer. If neither does anything here, you're inside a preview that blocks them: open the page on your site, or use your browser's own Print (Ctrl/Cmd + P).</p>
-    <div class="page" id="pv-test"></div>
+    <div class="pages" id="pv-test"></div>
     <div class="page" id="pv-lists" hidden></div>
     <div class="page" id="pv-letters" hidden></div>
   </section>
@@ -752,24 +767,28 @@ function pickPaperWords(){
 }
 function renderTestSheet(){
   if (!paperWords.length) pickPaperWords();
-  const scope = setLabel() + " · " + level;
-  const rows = paperWords.map((_, i)=>`<div class="trow"><b>${i+1}</b><div class="tram"></div></div>`).join("");
+  const scope = setLabel() + " · " + level, n = paperWords.length, cols = n > 20 ? 3 : 2, per = Math.ceil(n/cols);
+  const colHtml = Array.from({length:cols}, (_, c)=>`<div class="col">${paperWords.slice(c*per, (c+1)*per).map((_, r)=>`<div class="trow"><b>${c*per+r+1}</b><div class="tram"></div></div>`).join("")}</div>`).join("");
   const words = paperWords.map(w=>`<li>${esc(w)}${SENTENCES[w] ? ` <em>${esc(SENTENCES[w])}</em>` : ""}</li>`).join("");
   $("pv-test").innerHTML = `
-    <h2>Spelling test</h2>
-    <p class="psub">${esc(scope)} · listen, then write each word on the lines</p>
-    <div class="prule"></div>
-    <div class="fields">
-      <label class="field"><span>Name</span><i></i></label>
-      <label class="field"><span>Date</span><i></i></label>
-      <label class="field"><span>List</span><i style="min-width:40mm;text-align:center;font-size:10pt;color:var(--p-muted)">${esc(level)}</i></label>
-      <div class="score"><small>score</small><b>/ ${paperWords.length}</b></div>
+    <div class="page">
+      <h2>Spelling test</h2>
+      <p class="psub">${esc(scope)} · listen, then write each word on the lines</p>
+      <div class="prule"></div>
+      <div class="fields">
+        <label class="field"><span>Name</span><i></i></label>
+        <label class="field"><span>Date</span><i></i></label>
+        <label class="field"><span>List</span><i style="min-width:40mm;text-align:center;font-size:10pt;color:var(--p-muted)">${esc(level)}</i></label>
+        <div class="score"><small>score</small><b>/ ${n}</b></div>
+      </div>
+      <div class="cols c${cols}">${colHtml}</div>
+      <div class="tramkey"><span><i></i>blue: tall letters reach here</span><span><i class="dot"></i>dotted: small letters stop here</span><span><i class="red"></i>red: fall letters drop below</span></div>
     </div>
-    ${rows}
-    <div class="tramkey"><span><i></i>blue: tall letters reach here</span><span><i class="dot"></i>dotted: small letters stop here</span><span><i class="red"></i>red: fall letters drop below</span></div>
-    <div class="teacher">
-      <h3>Teacher's words <small>· ${esc(scope)} · ${paperWords.length} words, unmastered ones first · fold or cut off before handing out</small></h3>
-      <ol>${words}</ol>
+    <div class="page answers">
+      <h2>Teacher's words</h2>
+      <p class="psub">${esc(scope)} · ${n} words, unmastered ones first · this page is for the teacher only</p>
+      <div class="prule"></div>
+      <ol class="c${cols}">${words}</ol>
       <p class="psub">Say the word · say the sentence · say the word again. Press New words for a different set.</p>
     </div>`;
 }
@@ -949,7 +968,7 @@ function pdfFooter(doc, T, lines){
   lines.forEach((t, i)=>doc.text(t, PW/2, PH - 9 + i*4.5, {align:"center"}));
 }
 function pdfTest(doc, T){
-  const scope = setLabel() + " · " + level, n = paperWords.length;
+  const scope = setLabel() + " · " + level, n = paperWords.length, cols = n > 20 ? 3 : 2, per = Math.ceil(n/cols);
   pdfHeader(doc, T, "Spelling test", scope + " · listen, then write each word on the lines");
   let y = PM + 26, x = PM;
   doc.setDrawColor(...C.muted); doc.setLineWidth(.3);
@@ -964,36 +983,30 @@ function pdfTest(doc, T){
   doc.setDrawColor(...C.ink); doc.setLineWidth(.4); doc.roundedRect(bx, y-7, 24, 14, 1.5, 1.5, "S");
   T(9, false, C.muted); doc.text("score", bx+12, y-2.5, {align:"center"});
   T(12, true); doc.text("/ " + n, bx+12, y+4.5, {align:"center"});
-  const xh = 6.5, pitch = 18, lx = PM + 12, lw = PW - PM - lx;
-  let base = y + 28;
+  // one page: 2 columns of 10 or 3 columns of 10
+  const gap = 6, colw = (PW - 2*PM - gap*(cols-1))/cols, numw = cols === 3 ? 6 : 8;
+  const xh = cols === 3 ? 5.6 : 6.2, pitch = cols === 3 ? 17 : 18, base0 = y + 12 + 2*xh;
   for (let i=0; i<n; i++){
-    if (base + 5 > PH - PM){ doc.addPage(); base = PM + 2*xh + 4; }
-    T(13, true); doc.text(String(i+1), PM+8, base, {align:"right"});
-    pdfTram(doc, lx, base, lw, xh);
-    base += pitch;
+    const c = Math.floor(i/per), r = i % per, cx = PM + c*(colw+gap), base = base0 + r*pitch;
+    T(cols === 3 ? 11 : 13, true); doc.text(String(i+1), cx + numw - 1, base, {align:"right"});
+    pdfTram(doc, cx + numw + 1.5, base, colw - numw - 1.5, xh);
   }
-  let ky = base - pitch + 7;
-  if (ky + 4 > PH - PM){ doc.addPage(); ky = PM + 4; }
-  let kx = lx; T(8.5, false, C.muted);
+  let ky = base0 + (per-1)*pitch + 7, kx = PM; T(8.5, false, C.muted);
   for (const [col, dash, text] of [[C.blue, false, "blue: tall letters reach here"], [C.black, true, "dotted: small letters stop here"], [C.red, false, "red: fall letters drop below"]]){
     doc.setDrawColor(...col); doc.setLineWidth(.35); if (dash) doc.setLineDashPattern([1,1],0);
     doc.line(kx, ky-1, kx+9, ky-1); doc.setLineDashPattern([],0);
     doc.text(text, kx+11, ky); kx += 11 + doc.getTextWidth(text) + 8;
   }
-  // teacher strip: on its own page when it would not fit
-  const half = Math.ceil(n/2), stripH = 14 + half*5.2 + 8;
-  let ty = ky + 8;
-  if (ty + stripH > PH - PM){ doc.addPage(); ty = PM; }
-  doc.setDrawColor(...C.muted); doc.setLineWidth(.3); doc.setLineDashPattern([1.5,1.5],0); doc.line(PM, ty, PW-PM, ty); doc.setLineDashPattern([],0);
-  ty += 6; T(11, true); doc.text("Teacher's words", PM, ty); const tw = doc.getTextWidth("Teacher's words");
-  T(8.5, false, C.muted); doc.text(" · " + scope + " · " + n + " words, unmastered ones first · fold or cut off before handing out", PM + tw + 1, ty);
-  const colw = (PW - 2*PM - 6)/2;
+  // the answers always start a new page
+  doc.addPage();
+  pdfHeader(doc, T, "Teacher's words", scope + " · " + n + " words, unmastered ones first · this page is for the teacher only");
+  const acols = cols, acolw = (PW - 2*PM - 6*(acols-1))/acols, ty = PM + 26;
   paperWords.forEach((w, i)=>{
-    const cx = PM + (i < half ? 0 : colw + 6), cy = ty + 6 + (i % half) * 5.2;
-    T(10); doc.text(`${i+1}. ${w}`, cx + 2, cy); const ww = doc.getTextWidth(`${i+1}. ${w}`);
-    if (SENTENCES[w]){ T(8.5, false, C.muted); doc.text(doc.splitTextToSize(SENTENCES[w], colw - 6 - ww)[0], cx + 2 + ww + 2, cy); }
+    const c = Math.floor(i/per), r = i % per, cx = PM + c*(acolw+6), cy = ty + r*9;
+    T(11); doc.text(`${i+1}. ${w}`, cx + 2, cy); const ww = doc.getTextWidth(`${i+1}. ${w}`);
+    if (SENTENCES[w]){ T(8.5, false, C.muted); const sent = doc.splitTextToSize(SENTENCES[w], acolw - 4); doc.text(sent[0], cx + 2, cy + 3.6); }
   });
-  T(8.5, false, C.muted); doc.text("Say the word · say the sentence · say the word again.", PM, ty + 6 + half*5.2 + 2);
+  T(9, false, C.muted); doc.text("Say the word · say the sentence · say the word again.", PM, ty + per*9 + 4);
 }
 function pdfLists(doc, T){
   const colw = (PW - 2*PM - 8)/2, cols = [PM, PM + colw + 8];
