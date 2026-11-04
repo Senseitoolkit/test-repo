@@ -424,7 +424,7 @@ function renderLists(){
     count.textContent=q?shown+" of "+total+" words":total+" words"};
   input.addEventListener("input",update); update();
   el.lists.addEventListener("click",e=>{const b=e.target.closest(".golink");if(!b)return;const tr=b.closest("tr"),y=+tr.closest(".yearblock").dataset.y;
-    state.year=y;store.set("year",y);state.deck="words";store.set("deck","words");pfEl.hidden=true;document.querySelectorAll("#decks button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.deck==="words")));buildOrder();state.idx=+tr.dataset.i;state.step=0;location.hash="#cards";render()});
+    state.year=y;store.set("year",y);state.deck="words";store.set("deck","words");pfEl.hidden=true;document.querySelectorAll("#decks button").forEach(b=>b.setAttribute("aria-checked",String(b.dataset.deck==="words")));buildOrder();state.idx=+tr.dataset.i;state.step=0;go("#cards");render()});
 }
 function partsFor(y){
   const g=DATA[y],groups=new Map();
@@ -447,6 +447,7 @@ function renderGuide(){
   <div class="gbreak"><h2>Word list</h2><p class="gnote" style="margin-bottom:10px">Every word in the ${g.label} deck with its breakdown, definition and example sentence.</p>
   <div class="tablewrap"><table><thead><tr><th>Word</th><th>Parts</th><th>Definition</th><th>Sentence</th></tr></thead><tbody>${g.words.map(c=>`<tr><td class="w">${esc(c.w)}</td><td>${c.p.map(p=>`<span class="mini ${p[1]}">${esc(p[0])} <small>${esc(p[2])}</small></span>`).join(" ")}</td><td>${esc(c.d)}</td><td>${esc(c.s)}</td></tr>`).join("")}</tbody></table></div></div>`;
   document.getElementById("printBtn").addEventListener("click",()=>{try{window.print()}catch(e){}});
+  G.querySelector("a.quiet").addEventListener("click",e=>{e.preventDefault();go("#cards")});
 }
 function route(){
   const h=location.hash;
@@ -456,6 +457,10 @@ function route(){
   [el.navCards,el.navLists,el.navLatin,el.navGuides].forEach(a=>a===cur?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
 }
 window.addEventListener("hashchange",route);
+// Some hosts intercept link clicks, so switch views directly as well as via the hash.
+function go(h){try{if(location.hash!==h)history.replaceState(null,"",h)}catch(e){}route()}
+document.querySelector("nav.views").addEventListener("click",e=>{const a=e.target.closest("a");if(!a)return;e.preventDefault();go(a.getAttribute("href"))});
+document.getElementById("latin").addEventListener("click",e=>{const a=e.target.closest("a[href^='#']");if(a){e.preventDefault();go(a.getAttribute("href"))}});
 
 // sanity: parts must spell the word
 Object.values(DATA).forEach(g=>g.words.forEach(c=>{const j=c.p.map(p=>p[0]).join("");if(j!==c.w)console.warn("Parts do not spell word:",c.w,j)}));
