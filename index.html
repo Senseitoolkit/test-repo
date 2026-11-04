@@ -228,6 +228,15 @@
         .king-card video { width: 100%; height: 100%; display: block; object-fit: cover; }
         .king-caption { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(255,255,255,0.92); color: var(--rose-600); font-size: 0.82rem; font-weight: 700; padding: 0.35rem 0.9rem; border-radius: 100px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.18); }
         @keyframes king-in { 0% { transform: scale(0.4) rotate(-8deg); opacity: 0; } 100% { transform: scale(1) rotate(0); opacity: 1; } }
+
+        /* ─── Fireworks (thank you) ─── */
+        .fireworks { display: none; position: fixed; inset: 0; z-index: 2500; pointer-events: none; }
+        .fireworks.active { display: block; }
+        .fireworks canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .fireworks-text { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(2.4rem, 8vw, 5rem); color: var(--white); text-shadow: 0 4px 24px rgba(0,0,0,0.45), 0 0 40px rgba(236,138,53,0.6); letter-spacing: -0.01em; white-space: nowrap; animation: welcome-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .fireworks.fading { animation: fireworks-out 0.8s ease forwards; }
+        @keyframes welcome-in { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        @keyframes fireworks-out { to { opacity: 0; } }
     </style>
 </head>
 <body>
@@ -701,6 +710,12 @@
 
     <div class="toast" id="toast"><span class="toast-dot"></span><span id="toastMsg">All sections unlocked</span></div>
 
+    <!-- Fireworks: "thank you" -->
+    <div class="fireworks" id="fireworks" aria-hidden="true">
+        <canvas id="fireworksCanvas"></canvas>
+        <div class="fireworks-text">You’re welcome!</div>
+    </div>
+
     <!-- King pop-up: plays when the magic word is wrong -->
     <div class="king-pop" id="kingPop" onclick="hideKing()" role="dialog" aria-label="Wrong magic word">
         <div class="king-card">
@@ -802,37 +817,90 @@
 
         function submitPassword() {
             const input = document.getElementById('modalInput');
-            const error = document.getElementById('modalError');
             const typed = input.value.toLowerCase().trim();
-            if (pendingType === 'all' && typed === 'quest') {
-                closeModal();
-                window.location.href = 'levelquest.html';
+
+            /* ─── The magic-word modal (logo) ─── */
+            if (pendingType === 'all') {
+                if (typed === 'quest') { closeModal(); window.location.href = 'levelquest.html'; return; }
+                if (typed === 'vault') { closeModal(); window.location.href = 'vault.html'; return; }
+                if (typed === 'mraxel') { closeModal(); showAxel(); return; }
+                if (typed === PASSWORD) { unlockAll(); return; }
+                if (typed === 'thank you' || typed === 'thankyou' || typed === 'thanks') { closeModal(); showFireworks(); return; }
+                if (typed === 'please') { flashError('Sorry, try again'); return; }
+                if (typed === 'password') { flashError('LOL'); return; }
+                flashError('That’s not the magic word');
+                showKing();
                 return;
             }
-            if (pendingType === 'all' && typed === 'vault') {
-                closeModal();
-                window.location.href = 'vault.html';
-                return;
-            }
-            if (pendingType === 'all' && typed === 'mraxel') {
-                closeModal();
-                showAxel();
-                return;
-            }
+
+            /* ─── Section password prompts ─── */
             if (typed === PASSWORD) {
-                if (pendingType === 'all') { unlockAll(); return; }
                 const href = pendingHref;
                 setUnlocked(pendingType);
                 closeModal();
                 updateStatus();
                 if (href) window.location.href = href;
             } else {
-                input.classList.add('error');
-                error.textContent = pendingType === 'all' ? 'That’s not the magic word' : 'Incorrect password';
-                setTimeout(() => input.classList.remove('error'), 400);
-                input.value = '';
-                if (pendingType === 'all') { showKing(); } else { input.focus(); }
+                flashError('Incorrect password');
+                input.focus();
             }
+        }
+
+        function flashError(text) {
+            const input = document.getElementById('modalInput');
+            const error = document.getElementById('modalError');
+            input.classList.add('error');
+            error.textContent = text;
+            setTimeout(() => input.classList.remove('error'), 400);
+            input.value = '';
+            if (!document.getElementById('kingPop').classList.contains('active')) input.focus();
+        }
+
+        /* ─── "Thank you" → You're welcome + fireworks ─── */
+        let fwRaf = null, fwTimers = [];
+        function showFireworks() {
+            const wrap = document.getElementById('fireworks');
+            const canvas = document.getElementById('fireworksCanvas');
+            const ctx = canvas.getContext('2d');
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const W = window.innerWidth, H = window.innerHeight;
+            canvas.width = W * dpr; canvas.height = H * dpr; ctx.scale(dpr, dpr);
+            cancelAnimationFrame(fwRaf); fwTimers.forEach(clearTimeout); fwTimers = [];
+            wrap.classList.remove('fading'); wrap.classList.add('active');
+
+            const colors = ['#ec8a35', '#ea6e5b', '#4a94d4', '#58a96a', '#9776cf', '#ffd166', '#ffffff'];
+            const rockets = [], sparks = [];
+            function launch() {
+                rockets.push({ x: W * (0.15 + Math.random() * 0.7), y: H, vy: -(9 + Math.random() * 4) * (H / 700), vx: (Math.random() - 0.5) * 2, color: colors[Math.floor(Math.random() * colors.length)], target: H * (0.2 + Math.random() * 0.35) });
+            }
+            function burst(x, y, color) {
+                const n = 70 + Math.floor(Math.random() * 40);
+                for (let i = 0; i < n; i++) {
+                    const a = (Math.PI * 2 * i) / n + Math.random() * 0.2, sp = 2 + Math.random() * 4.5;
+                    sparks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, decay: 0.012 + Math.random() * 0.012, color, r: 1.5 + Math.random() * 1.5 });
+                }
+            }
+            const started = performance.now();
+            function frame(now) {
+                ctx.fillStyle = 'rgba(15,23,42,0.22)'; ctx.fillRect(0, 0, W, H);
+                for (let i = rockets.length - 1; i >= 0; i--) {
+                    const r = rockets[i]; r.x += r.vx; r.y += r.vy; r.vy += 0.08;
+                    ctx.beginPath(); ctx.arc(r.x, r.y, 2.5, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+                    if (r.y <= r.target || r.vy >= 0) { burst(r.x, r.y, r.color); rockets.splice(i, 1); }
+                }
+                for (let i = sparks.length - 1; i >= 0; i--) {
+                    const p = sparks[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.045; p.vx *= 0.985; p.vy *= 0.985; p.life -= p.decay;
+                    if (p.life <= 0) { sparks.splice(i, 1); continue; }
+                    ctx.globalAlpha = Math.max(p.life, 0); ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fillStyle = p.color; ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                if (now - started < 6500 || sparks.length || rockets.length) fwRaf = requestAnimationFrame(frame);
+            }
+            ctx.clearRect(0, 0, W, H);
+            fwRaf = requestAnimationFrame(frame);
+            for (let i = 0; i < 14; i++) fwTimers.push(setTimeout(launch, i * 380 + Math.random() * 150));
+            fwTimers.push(setTimeout(() => wrap.classList.add('fading'), 5600));
+            fwTimers.push(setTimeout(() => { wrap.classList.remove('active', 'fading'); cancelAnimationFrame(fwRaf); ctx.clearRect(0, 0, W, H); }, 6500));
         }
 
         /* ─── Wrong magic word → the King pops up ─── */
