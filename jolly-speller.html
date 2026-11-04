@@ -153,6 +153,21 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
 .paper-open .wrap{height:auto;min-height:0}
 .paper-open .sheet{display:none}
 .paper-open .bar{display:none}
+.pages{display:flex;flex-direction:column;gap:10px}
+.cols{display:grid;gap:0 6mm}
+.cols.c1{grid-template-columns:1fr}
+.cols.c2{grid-template-columns:1fr 1fr}
+.cols.c3{grid-template-columns:1fr 1fr 1fr}
+.cols .trow b{width:6mm;font-size:11pt}
+.cols.c1 .trow b{width:7mm;font-size:13pt}
+.cols.c3 .tram{height:12mm}
+.cols.c3 .trow{gap:3mm;margin-bottom:5mm}
+.trow{break-inside:avoid}
+.answers ol{margin:4mm 0 0;padding-left:6mm;font-size:11pt;columns:2;column-gap:8mm}
+.answers ol.c3{columns:3}
+.answers li{break-inside:avoid;padding:1mm 0}
+.answers li em{display:block;color:var(--p-muted);font-style:normal;font-size:9pt}
+.answers .psub{margin-top:5mm}
 #paperbtn[aria-pressed="true"]{background:var(--ink);color:var(--sheet)}
 #paper{display:flex;flex-direction:column;gap:10px}
 .paper-nav{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
@@ -200,7 +215,7 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
 .formkey span{display:inline-flex;align-items:center;gap:1.5mm}
 .formkey .k-start{width:3mm;height:3mm;border-radius:50%;background:var(--p-good)}
 .formkey .k-end{width:0;height:0;border-left:3.5mm solid var(--p-pencil);border-top:2mm solid transparent;border-bottom:2mm solid transparent}
-@media (max-width:600px){.page{padding:8mm 6mm}.lists{columns:1}.teacher ol{columns:1}}
+@media (max-width:600px){.page{padding:8mm 6mm}.lists{columns:1}.teacher ol{columns:1}.cols{grid-template-columns:1fr!important}.answers ol{columns:1!important}}
 @media print{
   @page{size:A4;margin:12mm}
   html,body{height:auto;background:#fff;padding:0;overflow:visible}
@@ -209,6 +224,8 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
   .wrap{max-width:none;height:auto;min-height:0;gap:0}
   .paper-nav,.paper-hint,#panel{display:none!important}
   .page{box-shadow:none;border-radius:0;width:auto;max-width:none;padding:0;margin:0}
+  .page+.page{break-before:page}
+  .cols.c2{grid-template-columns:1fr 1fr}.cols.c3{grid-template-columns:1fr 1fr 1fr}.answers ol{columns:2}.answers ol.c3{columns:3}
   .lgroup{break-inside:avoid}
   .band{break-inside:avoid}
 }
@@ -278,7 +295,7 @@ details summary{cursor:pointer;font-family:var(--font-display);font-weight:600}
       </div>
     </div>
     <p class="note paper-hint" id="paper-hint">A4. Download PDF saves the open page as a file; Print sends it to your printer. If neither does anything here, you're inside a preview that blocks them: open the page on your site, or use your browser's own Print (Ctrl/Cmd + P).</p>
-    <div class="page" id="pv-test"></div>
+    <div class="pages" id="pv-test"></div>
     <div class="page" id="pv-lists" hidden></div>
     <div class="page" id="pv-letters" hidden></div>
   </section>
@@ -670,22 +687,26 @@ let paperView = "test";
 function renderTestSheet(){
   const g = GROUPS[level];
   const scope = g.name + (sound === "All" ? "" : " · " + sound);
-  const rows = Array.from({length:10}, (_, i)=>`<div class="trow"><b>${i+1}</b><div class="tram"></div></div>`).join("");
+  const rows = round.map((_, i)=>`<div class="trow"><b>${i+1}</b><div class="tram"></div></div>`).join("");
   const words = round.map(x=>`<li>${esc(x.w)}${SENTENCES[x.w] ? ` <em>${esc(SENTENCES[x.w])}</em>` : ""}</li>`).join("");
   $("pv-test").innerHTML = `
-    <h2>Spelling test</h2>
-    <p class="psub">Jolly Phonics · listen, then write each word on the lines</p>
-    <div class="prule"></div>
-    <div class="fields">
-      <label class="field"><span>Name</span><i></i></label>
-      <label class="field"><span>Date</span><i></i></label>
-      <label class="field"><span>Group</span><i style="min-width:40mm;text-align:center;font-size:10pt;color:var(--p-muted)">${esc(scope)}</i></label>
-      <div class="score"><small>score</small><b>/ 10</b></div>
+    <div class="page">
+      <h2>Spelling test</h2>
+      <p class="psub">Jolly Phonics · listen, then write each word on the lines</p>
+      <div class="prule"></div>
+      <div class="fields">
+        <label class="field"><span>Name</span><i></i></label>
+        <label class="field"><span>Date</span><i></i></label>
+        <label class="field"><span>Group</span><i style="min-width:40mm;text-align:center;font-size:10pt;color:var(--p-muted)">${esc(scope)}</i></label>
+        <div class="score"><small>score</small><b>/ 10</b></div>
+      </div>
+      <div class="cols c1">${rows}</div>
+      <div class="tramkey"><span><i></i>blue: tall letters reach here</span><span><i class="dot"></i>dotted: small letters stop here</span><span><i class="red"></i>red: fall letters drop below</span></div>
     </div>
-    ${rows}
-    <div class="tramkey"><span><i></i>blue: tall letters reach here</span><span><i class="dot"></i>dotted: small letters stop here</span><span><i class="red"></i>red: fall letters drop below</span></div>
-    <div class="teacher">
-      <h3>Teacher's words <small>· ${esc(scope)} · the 10 words of the current test · fold or cut off before handing out</small></h3>
+    <div class="page answers">
+      <h2>Teacher's words</h2>
+      <p class="psub">${esc(scope)} · the 10 words of the current test · this page is for the teacher only</p>
+      <div class="prule"></div>
       <ol>${words}</ol>
       <p class="psub">Say the word · say the sentence · say the word again. Take another test in the app for a different 10.</p>
     </div>`;
@@ -874,33 +895,29 @@ function pdfTest(doc, T){
   doc.setDrawColor(...C.ink); doc.setLineWidth(.4); doc.roundedRect(bx, y-7, 24, 14, 1.5, 1.5, "S");
   T(9, false, C.muted); doc.text("score", bx+12, y-2.5, {align:"center"});
   T(12, true); doc.text("/ 10", bx+12, y+4.5, {align:"center"});
-  const xh = 6.5, pitch = 18, lx = PM + 12, lw = PW - PM - lx;
-  let base = y + 28;
+  const xh = 7, pitch = 20, lx = PM + 12, lw = PW - PM - lx;
+  let base = y + 30;
   for (let i=0; i<10; i++){
     T(13, true); doc.text(String(i+1), PM+8, base, {align:"right"});
     pdfTram(doc, lx, base, lw, xh);
     base += pitch;
   }
-  // key
-  let ky = base - pitch + 7; let kx = lx;
-  T(8.5, false, C.muted);
+  let ky = base - pitch + 8, kx = lx; T(8.5, false, C.muted);
   for (const [col, dash, text] of [[C.blue, false, "blue: tall letters reach here"], [C.black, true, "dotted: small letters stop here"], [C.red, false, "red: fall letters drop below"]]){
     doc.setDrawColor(...col); doc.setLineWidth(.35); if (dash) doc.setLineDashPattern([1,1],0);
     doc.line(kx, ky-1, kx+9, ky-1); doc.setLineDashPattern([],0);
     doc.text(text, kx+11, ky); kx += 11 + doc.getTextWidth(text) + 8;
   }
-  // teacher strip
-  let ty = ky + 8;
-  doc.setDrawColor(...C.muted); doc.setLineWidth(.3); doc.setLineDashPattern([1.5,1.5],0); doc.line(PM, ty, PW-PM, ty); doc.setLineDashPattern([],0);
-  ty += 6; T(11, true); doc.text("Teacher's words", PM, ty); const tw = doc.getTextWidth("Teacher's words");
-  T(8.5, false, C.muted); doc.text(" · " + scope + " · the 10 words of the current test · fold or cut off before handing out", PM + tw + 1, ty);
-  const colw = (PW - 2*PM - 6)/2;
+  // the answers always start a new page
+  doc.addPage();
+  pdfHeader(doc, T, "Teacher's words", scope + " · the 10 words of the current test · this page is for the teacher only");
+  const colw = (PW - 2*PM - 6)/2, ty = PM + 26;
   round.forEach((it, i)=>{
-    const cx = PM + (i < 5 ? 0 : colw + 6), cy = ty + 6 + (i % 5) * 5.2;
-    T(10); doc.text(`${i+1}. ${it.w}`, cx + 2, cy); const ww = doc.getTextWidth(`${i+1}. ${it.w}`);
-    if (SENTENCES[it.w]){ T(8.5, false, C.muted); doc.text(SENTENCES[it.w], cx + 2 + ww + 2, cy); }
+    const cx = PM + (i < 5 ? 0 : colw + 6), cy = ty + (i % 5) * 9;
+    T(12); doc.text(`${i+1}. ${it.w}`, cx + 2, cy);
+    if (SENTENCES[it.w]){ T(9, false, C.muted); doc.text(doc.splitTextToSize(SENTENCES[it.w], colw - 4)[0], cx + 2, cy + 4.2); }
   });
-  pdfFooter(doc, T, ["Say the word · say the sentence · say the word again. Take another test in the app for a different 10."]);
+  T(9, false, C.muted); doc.text("Say the word · say the sentence · say the word again. Take another test in the app for a different 10.", PM, ty + 5*9 + 6);
 }
 function pdfLists(doc, T){
   const colw = (PW - 2*PM - 8)/2, cols = [PM, PM + colw + 8];
