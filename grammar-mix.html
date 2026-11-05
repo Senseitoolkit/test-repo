@@ -1,0 +1,1603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grammar Mix - Grammar & Punctuation Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Lexend:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#E8EDF4; --panel:#F6F8FB; --card:#FFFFFF; --ink:#18212F; --muted:#586477; --line:#C8D1DE;
+  --tile:#FFFDF4; --tile-ink:#131923; --tile-edge:#131923;
+  --slot:#FFFFFF; --slot-edge:#1B2433; --fix-bg:#EEF1F6;
+  --ok:#1C8547; --ok-bg:#DFF3E7; --bad:#C23329; --bad-bg:#FBE4E1; --todo:#8A6A12; --todo-bg:#FBF1D6;
+  --focus:#2F6FE0;
+  --s-word:#D9760B; --s-sent:#2A6FC4; --s-text:#1F8D5B; --s-punct:#D63E2E; --s-term:#7646CC; --s-mix:#4F46E5;
+  --accent:var(--s-word);
+  --slot-size:clamp(38px, 8vw, 50px);
+  --display:"Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Lexend", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0F141C; --panel:#151C27; --card:#1B2330; --ink:#E6EBF3; --muted:#9BA7B9; --line:#2D394B;
+    --slot:#222C3B; --slot-edge:#C6D0DF; --fix-bg:#273243;
+    --ok:#4CC27E; --ok-bg:#15301F; --bad:#F0776B; --bad-bg:#3A1C19; --todo:#E7C25A; --todo-bg:#33290F; --focus:#7FA8FF;
+    --s-word:#F2A33E; --s-sent:#5E9BEA; --s-text:#43B884; --s-punct:#F06A58; --s-term:#A07BEB; --s-mix:#8B8FF5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0F141C; --panel:#151C27; --card:#1B2330; --ink:#E6EBF3; --muted:#9BA7B9; --line:#2D394B;
+  --slot:#222C3B; --slot-edge:#C6D0DF; --fix-bg:#273243;
+  --ok:#4CC27E; --ok-bg:#15301F; --bad:#F0776B; --bad-bg:#3A1C19; --todo:#E7C25A; --todo-bg:#33290F; --focus:#7FA8FF;
+  --s-word:#F2A33E; --s-sent:#5E9BEA; --s-text:#43B884; --s-punct:#F06A58; --s-term:#A07BEB; --s-mix:#8B8FF5;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:270px minmax(0,1fr);gap:24px;max-width:1200px;margin:0 auto;padding:20px 20px 40px}
+.side{display:flex;flex-direction:column;gap:16px;position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow-y:auto;padding-bottom:12px;scrollbar-width:thin}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-tiles{display:flex;gap:3px}
+.brand-tiles span{min-width:22px;height:22px;padding:0 4px;display:grid;place-items:center;background:var(--tile);color:var(--tile-ink);border:2px solid var(--tile-edge);border-radius:4px;font:800 12px/1 var(--display);padding-top:2px}
+.brand h2{margin:0;font:800 21px/1 var(--display)}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;margin-top:-6px}
+.back:hover{color:var(--ink)}
+.fs-back{display:inline-flex;align-items:center;gap:4px;font:600 14px var(--body);color:var(--ink);text-decoration:none;padding:6px 10px;border:2px solid var(--line);border-radius:9px;background:var(--card)}
+.fs-back:hover{border-color:var(--ink)}
+.label{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.years{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.year-btn{height:38px;border-radius:8px;border:2px solid var(--line);background:var(--card);font:800 17px/1 var(--display);padding-top:3px;cursor:pointer}
+.year-btn[aria-pressed="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.strands{display:flex;flex-direction:column;gap:3px;list-style:none;margin:0;padding:0}
+.strand-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 10px;border:0;border-radius:10px;background:transparent;cursor:pointer;font-weight:500;font-size:14px}
+.strand-btn:hover{background:var(--panel)}
+.strand-btn .sw{width:14px;height:14px;border-radius:4px;flex:none;background:var(--c)}
+.strand-btn .n{margin-left:auto;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.strand-btn[aria-pressed="true"]{background:var(--card);box-shadow:inset 0 0 0 2px var(--c);font-weight:600}
+.toggle{display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--ink)}
+.howto{font-size:12.5px;color:var(--muted);margin:0}
+
+.main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--card);border:14px solid var(--accent);border-radius:26px;padding:22px 26px 18px;display:flex;flex-direction:column;gap:6px}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px 16px;flex-wrap:wrap}
+.head-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.fs-btn{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border-color:var(--accent);color:var(--accent);font-weight:700}
+.fs-btn:hover{background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.fs-nav{display:none;align-items:center;gap:8px;flex-wrap:wrap}
+.fs-year{font:800 17px/1 var(--display);padding:6px 10px 4px;border-radius:8px;background:var(--accent);color:#fff}
+.fs-lvl{font:700 14px var(--body);padding:5px 10px;border:2px solid var(--line);border-radius:9px}
+.strand-step{display:flex;align-items:stretch;border:2px solid var(--accent);border-radius:9px;overflow:hidden}
+.strand-step button{border:0;background:var(--card);color:var(--accent);font:800 20px/1 var(--display);width:32px;cursor:pointer}
+.strand-step select{border:0;border-inline:1px solid var(--line);background:var(--card);color:var(--ink);font:600 14px var(--body);padding:5px 6px;max-width:46vw;cursor:pointer}
+.eyebrow{margin:0 0 2px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.card-head h1{margin:0;font:800 clamp(22px,3.4vw,30px)/1.1 var(--display);text-wrap:balance}
+.card-no{flex:none;width:58px;height:58px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;text-align:center;line-height:1}
+.card-no small{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;opacity:.9}
+.card-no b{font:800 17px/1 var(--display)}
+.lvl{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+.pips{display:flex;gap:4px}
+.pips i{width:22px;height:8px;border-radius:4px;background:var(--line)}
+.pips i.done{background:var(--accent)}
+.pips i.now{background:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:inset 0 0 0 2px var(--accent)}
+.lvl-txt{font-size:12.5px;color:var(--muted);font-weight:500}
+
+.probs{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column}
+.prob{padding-block:18px;border-top:2px dashed var(--line)}
+.prob:first-child{border-top:0}
+.fit{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:14px;align-items:start}
+.pnum{width:28px;height:28px;border-radius:50%;border:2px solid var(--accent);color:var(--accent);display:grid;place-items:center;font:800 15px/1 var(--display);padding-top:2px}
+.pbody{display:flex;flex-direction:column;gap:10px;min-width:0}
+.obj{margin:0;font-size:12px;color:var(--muted);max-width:70ch;border-left:3px solid var(--line);padding-left:8px}
+.obj[hidden]{display:none}
+.q{margin:0;font-size:15.5px;max-width:70ch}
+.prow{display:flex;flex-direction:column;gap:12px}
+.mchip{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:12.5px;color:var(--muted);max-width:76ch}
+.mchip b{font-weight:600;color:var(--ink);background:color-mix(in srgb,var(--accent) 13%,var(--card));border:1.5px solid color-mix(in srgb,var(--accent) 45%,transparent);padding:2px 10px;border-radius:999px;font-size:12.5px;white-space:nowrap}
+.stag{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:var(--accent);padding:3px 8px;border-radius:6px}
+.stag.rev{background:var(--muted)}
+.pmark{min-width:92px;display:flex;justify-content:flex-end}
+.pill{font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.bad{background:var(--bad-bg);color:var(--bad)} .pill.todo{background:var(--todo-bg);color:var(--todo)}
+.card-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding-top:14px;border-top:2px solid var(--line)}
+.btn{border:2px solid var(--ink);background:var(--card);border-radius:10px;padding:9px 16px;font-weight:600;font-size:14px;cursor:pointer}
+.btn:hover{background:var(--panel)}
+.btn.primary{background:var(--ink);color:var(--card)}
+.btn.ghost{border-color:var(--line)}
+.status{margin-left:auto;font-size:14px;font-weight:500}
+.status.win{color:var(--ok);font-weight:600}
+
+/* ----- sentences, tokens, gaps ----- */
+.sent{display:flex;flex-wrap:wrap;align-items:center;gap:6px 0;font-size:clamp(17px,2.2vw,21px);line-height:1.5;max-width:80ch}
+.sent .seg{white-space:pre-wrap}
+.toks{gap:6px}
+.tok{border:2.5px solid transparent;background:transparent;border-radius:9px;padding:3px 7px;cursor:pointer;font:inherit;line-height:1.3}
+.tok:not(.plain):hover{border-color:color-mix(in srgb,var(--accent) 50%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.tok.sel{background:color-mix(in srgb,var(--accent) 18%,var(--card));border-color:var(--accent);font-weight:600}
+.tok.plain{cursor:default}
+.prob[data-state="ok"] .tok.sel{border-color:var(--ok);background:var(--ok-bg)}
+.prob[data-state="bad"] .tok.sel{border-color:var(--bad);background:var(--bad-bg)}
+.blank,.ans-in,.ans-sel,.drop,.shown{min-width:var(--slot-size);height:var(--slot-size);border-radius:8px;font:700 calc(var(--slot-size)*.44)/1 var(--body);padding:0 .45em;display:inline-grid;place-items:center;white-space:nowrap;vertical-align:middle;margin:0 3px}
+.blank{border:3px dashed var(--slot-edge);background:var(--slot)}
+.blank:not(.empty){border-style:solid;background:var(--tile);color:var(--tile-ink);border-color:var(--tile-edge);box-shadow:0 3px 0 var(--tile-edge)}
+.blank.empty{color:var(--muted)}
+.ans-in{width:calc(var(--w)*.62em + 1.3em);max-width:min(70vw,20em);border:3px solid var(--slot-edge);background:var(--slot);color:var(--ink);text-align:center;outline:none}
+.ans-in.pk{width:var(--slot-size);font-size:calc(var(--slot-size)*.6)}
+.ans-in:focus{border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 30%,transparent)}
+.ans-sel{border:3px solid var(--slot-edge);background:var(--slot);color:var(--ink);cursor:pointer;max-width:min(70vw,22em)}
+.drop{min-width:calc(var(--slot-size)*1.4);border:3px dashed var(--slot-edge);background:var(--slot);color:var(--muted);cursor:pointer;transition:transform .12s,background .12s}
+.drop.filled{border-style:solid;background:var(--tile);color:var(--tile-ink);border-color:var(--tile-edge);box-shadow:0 3px 0 var(--tile-edge);touch-action:none;cursor:grab}
+.drop.pk{min-width:var(--slot-size);font-size:calc(var(--slot-size)*.6);font-family:var(--display);font-weight:800}
+.drop.target,.drop.hover,.bin.hover,.olist .oitem.hover,.pool.hover{background:color-mix(in srgb,var(--accent) 18%,var(--slot));transform:scale(1.03)}
+.shown{color:#1a5fb4;border:2px solid color-mix(in srgb,#2F73D0 40%,transparent);background:color-mix(in srgb,#2F73D0 8%,var(--card));font-style:italic}
+.prob[data-state="ok"] :is(.blank,.ans-in,.ans-sel,.drop,.wheel,.bin,.bline){border-color:var(--ok)}
+.prob[data-state="bad"] :is(.blank,.ans-in,.ans-sel,.drop,.wheel,.bin,.bline){border-color:var(--bad)}
+.wheel{display:inline-flex;flex-direction:column;align-items:center;min-width:var(--slot-size);border:3px solid var(--slot-edge);border-radius:9px;background:var(--slot);overflow:hidden;cursor:ns-resize;user-select:none;vertical-align:middle;margin:0 3px}
+.wheel button{border:0;background:var(--fix-bg);width:100%;font-size:11px;padding:3px 0;cursor:pointer;line-height:1;color:var(--muted)}
+.wheel button:hover{background:color-mix(in srgb,var(--accent) 20%,var(--fix-bg));color:var(--ink)}
+.wheel b{font:700 calc(var(--slot-size)*.42)/1 var(--body);padding:.35em .5em;white-space:nowrap}
+
+/* ----- widgets ----- */
+.widget{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tile,.achip,.bword,.chip{display:inline-grid;place-items:center;min-width:var(--slot-size);height:var(--slot-size);padding:0 .5em;border-radius:8px;background:var(--tile);color:var(--tile-ink);border:3px solid var(--tile-edge);box-shadow:0 3px 0 var(--tile-edge);font:700 calc(var(--slot-size)*.42)/1 var(--body);cursor:grab;touch-action:none;user-select:none;transition:transform .12s;white-space:nowrap}
+.tile{font:800 calc(var(--slot-size)*.6)/1 var(--display);padding-top:.08em}
+.tile small{font:500 9px var(--body);color:var(--muted);margin-top:-4px}
+.tile{display:inline-flex;flex-direction:column;justify-content:center}
+.tile:hover,.achip:hover,.bword:hover,.chip:hover{transform:translateY(-2px)}
+.tile.sel,.achip.sel,.chip.sel,.drop.sel,.oitem.sel{outline:4px solid var(--accent);outline-offset:2px;transform:translateY(-3px)}
+.achip.used,.bword.used,.chip.used{background:transparent;border:3px dashed var(--line);box-shadow:none;color:transparent;cursor:default;transform:none}
+.bword{cursor:pointer}
+.chip{height:auto;min-height:var(--slot-size);white-space:normal;text-align:center;max-width:min(60vw,22em);padding:.3em .6em;line-height:1.25}
+.tray-lbl{width:100%;font-size:12px;color:var(--muted);font-weight:600}
+.cpile,.pool{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border:2px dashed var(--line);border-radius:12px;background:var(--panel);min-height:calc(var(--slot-size) + 24px)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;max-width:700px}
+.opts.multi{flex-direction:column;align-items:flex-start}
+.opt{display:flex;align-items:center;gap:10px;padding:8px 12px;border:2.5px solid var(--line);border-radius:12px;background:var(--card);cursor:pointer;text-align:left;max-width:100%}
+.opt:hover{border-color:var(--accent)}
+.opt .key{flex:none;width:24px;height:24px;border-radius:6px;background:var(--fix-bg);color:var(--muted);display:grid;place-items:center;font-size:12px;font-weight:600}
+.opt .oval{font-weight:600;font-size:17px;line-height:1.3}
+.opt.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--card))}
+.opt.sel .key{background:var(--accent);color:#fff}
+.olist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-width:640px}
+.shownlist.inline{flex-direction:row;flex-wrap:wrap}.shownlist.inline .oitem{padding:6px 10px}
+.oitem.plain{cursor:default;background:color-mix(in srgb,#2F73D0 8%,var(--card));border-color:color-mix(in srgb,#2F73D0 40%,transparent);font-style:italic}
+.oitem{display:flex;align-items:center;gap:10px;padding:8px 10px;border:2.5px solid var(--line);border-radius:12px;background:var(--card);cursor:grab;touch-action:none;user-select:none;font-size:16px}
+.ogrip{color:var(--muted);font-size:14px;letter-spacing:-2px}
+.otext{flex:1}
+.obtns{display:flex;gap:4px}
+.obtns button{width:30px;height:28px;border:2px solid var(--line);border-radius:7px;background:var(--card);cursor:pointer;font-size:12px}
+.obtns button:disabled{opacity:.3;cursor:default}
+.bline{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:calc(var(--slot-size) + 20px);padding:8px 10px;border:3px dashed var(--slot-edge);border-radius:12px;background:var(--slot);max-width:700px}
+.bline:empty::before{content:'Tap the words below to build your answer';color:var(--muted);font-size:13px}
+.bline .bword{cursor:pointer}
+.bins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;max-width:760px}
+.bin{border:3px solid var(--slot-edge);border-radius:14px;background:var(--slot);padding:8px;min-height:90px;display:flex;flex-direction:column;gap:6px;transition:transform .12s,background .12s}
+.bin.target{background:color-mix(in srgb,var(--accent) 12%,var(--slot))}
+.bin h4{margin:0 0 2px;font:700 13px var(--body);color:var(--accent);text-align:center;border-bottom:2px solid var(--line);padding-bottom:5px}
+.bin .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.jwrap{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border:2px dashed var(--line);border-radius:14px;background:var(--panel);touch-action:pan-y;cursor:grab;transition:background .15s,border-color .15s;user-select:none}
+.jwrap.lean-r,.jwrap.v-right{border-color:var(--ok);background:var(--ok-bg)}
+.jwrap.lean-l,.jwrap.v-wrong{border-color:var(--bad);background:var(--bad-bg)}
+.jwrap.v-wrong{cursor:default}
+.jtag{font-size:12.5px;font-weight:600;color:var(--muted)}
+.claim{margin:0;font-size:17px}
+.claim b{color:var(--accent)}
+.judge{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.jbtn{padding:8px 16px;border-radius:10px;font-weight:700;cursor:pointer;border:2.5px solid;background:var(--card)}
+.jbtn.r{border-color:var(--ok);color:var(--ok)} .jbtn.w{border-color:var(--bad);color:var(--bad)}
+.jbtn.r[aria-pressed="true"]{background:var(--ok);color:#fff} .jbtn.w[aria-pressed="true"]{background:var(--bad);color:#fff}
+.judge .hint{font-size:12px;color:var(--muted)}
+.fix{display:flex;flex-direction:column;gap:8px;padding:10px 14px;border-left:4px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--card));border-radius:0 12px 12px 0}
+.fixlbl{margin:0;font-size:12.5px;font-weight:600;color:var(--accent)}
+.binpick{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.binpick .word{font-weight:700;font-size:18px;margin-right:6px}
+.drag-ghost{position:fixed;left:0;top:0;pointer-events:none;z-index:50;transform:translate(-50%,-50%) rotate(-3deg) scale(1.06);box-shadow:0 12px 24px rgba(0,0,0,.28)}
+.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* ----- passport, objectives ----- */
+.passbar{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:10px 16px}
+.pass-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.passport{display:flex;flex-wrap:wrap;gap:5px}
+.stamp{width:34px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--ok) calc(var(--p)*1%),var(--line) 0)}
+.stamp>span{width:80%;height:80%;border-radius:50%;background:var(--card);display:grid;place-items:center;font-size:15px;filter:grayscale(1);opacity:.55}
+.stamp.earned>span{filter:none;opacity:1;background:var(--ok-bg)}
+.pass-count{margin:0 0 0 auto;font-size:12.5px;color:var(--muted)}
+.curr{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px 18px}
+.curr summary{cursor:pointer;font-weight:600;font-size:14px}
+.curr summary span{color:var(--muted);font-weight:400}
+.curr ol{margin:12px 0 4px;padding-left:22px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;max-width:80ch}
+.curr li::marker{color:var(--muted)}
+.chipn{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--fix-bg);color:var(--muted);white-space:nowrap}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,160%);background:var(--ink);color:var(--card);padding:12px 18px;border-radius:12px;font-weight:600;z-index:90;opacity:0;transition:transform .35s,opacity .35s;box-shadow:0 12px 30px rgba(0,0,0,.25);max-width:90vw;text-align:center}
+.toast.show{transform:translate(-50%,0);opacity:1}
+.sr{position:absolute;left:0;top:0;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.qnav{display:flex;gap:6px;align-items:center;margin-right:6px}
+.qnav[hidden]{display:none}
+.qnav button{min-width:42px;height:40px;border-radius:10px;border:2.5px solid var(--line);background:var(--card);font:800 18px/1 var(--display);cursor:pointer;padding:0 8px}
+.qnav button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:#fff}
+.qnav button.ok{border-color:var(--ok)} .qnav button.bad{border-color:var(--bad)}
+.qnav .all{font:600 13px var(--body)}
+
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr);gap:14px;padding:14px 16px 30px}
+  .side{position:static;gap:12px;max-height:none;overflow:visible;padding-bottom:0}
+  .strands{flex-direction:row;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .strand-btn{white-space:nowrap;width:auto;background:var(--card)}
+  .strand-btn .n{display:none}
+  .howto{display:none}
+  .card{border-width:10px;padding:16px 16px 14px;border-radius:20px}
+  .fit{grid-template-columns:26px minmax(0,1fr);gap:10px}
+  .pmark{grid-column:2;justify-content:flex-start;min-width:0}
+  .status{margin-left:0;width:100%}
+  .fs-btn span{display:none}
+}
+/* ----- full screen ----- */
+body.fs .side,body.fs .curr,body.fs .passbar{display:none}
+body.fs .app{display:block;max-width:none;padding:0}
+body.fs .main{position:fixed;inset:0;z-index:20;background:var(--bg);padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px));overflow:auto;--slot-size:clamp(44px,5.5vw,70px)}
+body.fs .card{min-height:calc(100vh - 24px);border-width:10px;border-radius:22px;display:grid;grid-template-rows:auto 1fr auto;align-content:start}
+body.fs .head-text{display:none}
+body.fs .fs-nav{display:flex}
+body.fs .card-no{width:46px;height:46px}
+body.fs .q{font-size:clamp(18px,2.4vw,28px);max-width:none}
+body.fs .sent{font-size:clamp(20px,2.6vw,32px)}
+body.fs .opt .oval,body.fs .oitem,body.fs .claim{font-size:clamp(17px,2.1vw,26px)}
+body.fs .mchip span,body.fs .obj,body.fs .judge .hint{display:none}
+body.fs .probs.zoomed .prob:not(.zoom){display:none}
+body.fs .pnum{cursor:zoom-in}
+body.fs .prob.zoom .pnum{cursor:zoom-out;background:var(--accent);color:#fff}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-tiles" aria-hidden="true"><span>the</span><span>?</span><span>-ly</span></div>
+      <h2>Grammar Mix</h2>
+    </div>
+    <a class="back" href="index.html#practice"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Teacher Toolkit</a>
+    <div><p class="label">Year</p><div class="years" id="years"></div></div>
+    <div><p class="label">Category</p><ul class="strands" id="strands"></ul></div>
+    <label class="toggle"><input type="checkbox" id="notes"> Show objectives on the card</label>
+    <p class="howto">Every question practises grammar and punctuation from the National Curriculum checklist: word grammar, sentence grammar, tense and text, punctuation, and the grammar words you need to know. Each question tells you how to answer it, and the way you answer changes from question to question. Get questions right to move up a level; higher levels give you less help and harder items.</p>
+  </aside>
+
+  <main class="main">
+    <section class="card" id="card" aria-labelledby="card-title">
+      <header class="card-head">
+        <div class="head-text"><p class="eyebrow" id="card-eyebrow"></p><h1 id="card-title"></h1><div class="lvl" id="lvl"></div></div>
+        <div class="fs-nav" id="fs-nav" aria-label="Choose year and category">
+          <a class="fs-back" href="index.html#practice" aria-label="Back to Teacher Toolkit"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 18 9 12 15 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Toolkit</span></a>
+          <span class="fs-year" id="fs-year"></span>
+          <span class="fs-lvl" id="fs-terms"></span>
+          <div class="strand-step"><button type="button" data-step="-1" aria-label="Previous category">‹</button><select id="fs-strand" aria-label="Category"></select><button type="button" data-step="1" aria-label="Next category">›</button></div>
+        </div>
+        <div class="head-right">
+          <button type="button" class="btn fs-btn" id="btn-fs" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>Full screen</span></button>
+          <div class="card-no" aria-label="Card number"><div><small>Card</small><b id="card-no"></b></div></div>
+        </div>
+      </header>
+      <ol class="probs" id="probs"></ol>
+      <footer class="card-foot">
+        <div class="qnav" id="qnav" role="group" aria-label="Choose a question" hidden></div>
+        <button type="button" class="btn primary" id="btn-check">Check answers</button>
+        <button type="button" class="btn" id="btn-new">New card</button>
+        <button type="button" class="btn ghost" id="btn-clear">Clear answers</button>
+        <button type="button" class="btn ghost" id="btn-show">Show answers</button>
+        <span class="status" id="status" aria-live="polite"></span>
+      </footer>
+    </section>
+
+    <section class="passbar" aria-label="Tech skills passport"><span class="pass-lbl">Tech skills passport</span><div class="passport" id="passport"></div><span class="pass-count" id="passport-count"></span></section>
+    <details class="curr" id="curr"><summary>Objectives in this category <span id="curr-count"></span></summary><ol id="curr-list"></ol></details>
+  </main>
+</div>
+<div class="sr" aria-live="polite" id="sr"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script id="core">
+/* =====================================================================
+   GRAMMAR MIX — core (no DOM): helpers, item builders, curriculum, modes,
+   card engine, answer checking. The UI script below only renders this.
+   ===================================================================== */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let R=Math.random,CY=1;
+const rnd=(a,b)=>a+Math.floor(R()*(b-a+1));
+const pick=a=>a[Math.floor(R()*a.length)];
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const strHash=s=>{let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return h};
+const setEq=(a,b)=>a.length===b.length&&a.every(x=>b.includes(x));
+const uniq=a=>a.filter((x,i)=>a.indexOf(x)===i);
+
+/* ---------- item builders ----------
+   gp(q, template, opts)   gap item. Gaps are written {answer|wrong|wrong}; extra accepted
+                           answers are joined with ~ e.g. {that~which|where}. opts: punct (answers are
+                           punctuation marks, enables tiles), cs (case-sensitive), long (options are
+                           whole sentences: choice/judge only), d (difficulty 1-3).
+   tg(q, sentence, label)  tap-the-words item. Mark target words with * or a [span of words].
+                           label is used in claims: '"dog" is a noun.'
+   od(q, items)            put-in-order item; items are given in the correct order.
+   bn(q, bins, items)      sort-into-groups item; items are [text, binIndex].             */
+function gp(q,tpl,o={}){const segs=[],gaps=[];let last=0;const re=/\{([^}]*)\}/g;let m;while((m=re.exec(tpl))){segs.push(tpl.slice(last,m.index));const parts=m[1].split('|');gaps.push({a:parts[0].split('~'),o:parts.slice(1)});last=re.lastIndex}segs.push(tpl.slice(last));return{kind:'gap',q,segs,gaps,d:2,...o}}
+function tg(q,s,label,o={}){s=s.replace(/\[([^\]]+)\]/g,(m,inner)=>inner.split(' ').map(w=>'*'+w).join(' '));const words=[],target=[];s.split(' ').forEach((t,i)=>{if(t[0]==='*'){target.push(i);words.push(t.slice(1))}else words.push(t)});return{kind:'tag',q,words,target,label,d:2,...o}}
+function od(q,items,o={}){return{kind:'order',q,items,d:2,...o}}
+function bn(q,bins,items,o={}){return{kind:'bins',q,bins,items:items.map(x=>x[0]),groups:items.map(x=>x[1]),d:2,...o}}
+
+/* ---------- small content generators ---------- */
+const PLURALS=[['cat','cats'],['dog','dogs'],['hat','hats'],['book','books'],['frog','frogs'],['box','boxes'],['fox','foxes'],['bus','buses'],['dish','dishes'],['wish','wishes'],['church','churches'],['watch','watches'],['brush','brushes'],['glass','glasses'],['bench','benches'],['kiss','kisses'],['dress','dresses'],['peach','peaches']];
+const plurals=()=>PLURALS.map(([s,p])=>gp('Write the plural noun.',`one ${s}, two {${p}|${s+(p===s+'es'?'s':'es')}|${s}'s}`,{d:p===s+'es'?2:1}));
+const SUFFIX1=[['jump','jumping','jumped','jumper'],['play','playing','played','player'],['walk','walking','walked','walker'],['help','helping','helped','helper'],['paint','painting','painted','painter'],['look','looking','looked',null],['kick','kicking','kicked','kicker'],['open','opening','opened','opener'],['wash','washing','washed','washer'],['cook','cooking','cooked','cooker'],['pull','pulling','pulled',null],['climb','climbing','climbed','climber'],['buzz','buzzing','buzzed','buzzer'],['rain','raining','rained',null]];
+const suffix1=()=>SUFFIX1.flatMap(([r,ing,ed,er])=>[gp('Add -ing to the verb.',`${r} + ing = {${ing}|${r+r.slice(-1)}ing|${r.slice(0,-1)}ing}`,{d:1}),gp('Add -ed to the verb.',`${r} + ed = {${ed}|${r}d|${r}t}`,{d:1}),...(er?[gp('Add -er to the verb.',`${r} + er = {${er}|${r}or|${r}ar}`)]:[])]);
+const UN=['happy','kind','lock','tie','do','fair','well','load','zip','pack','tidy','able','safe','wrap'];
+const unwords=()=>UN.map(w=>gp('Add the prefix un-.',`un + ${w} = {un${w}|${w}un|un-${w}}`,{d:1}));
+const pair=(q,list,fn)=>list.map(x=>gp(q,fn(...x),{d:x[2]||2}));
+const sfx=(q,r,s,n,o={})=>gp(q,`${r} + ${s} = {${n}|${o.w1||r+s+'e'}|${o.w2||r+'-'+s}}`,{d:o.d||1});
+
+/* =====================================================================
+   CURRICULUM — England National Curriculum, Grammar & Punctuation checklist
+   (Years 1–6). CURR[year][strand] = [ [objective, [items...]], ... ]
+   strands: word, sent, text, punct, term
+   ===================================================================== */
+const CURR={
+/* ================================ YEAR 1 ================================ */
+1:{
+word:[
+ ['Recognise singular and plural nouns.',[
+  bn('Sort the nouns: singular or plural?',['Singular','Plural'],[['cat',0],['dogs',1],['box',0],['foxes',1],['tree',0],['buses',1]],{d:1}),
+  bn('Sort the nouns: singular or plural?',['Singular','Plural'],[['girl',0],['boys',1],['bus',0],['hats',1],['apple',0],['dishes',1]]),
+  bn('Sort the nouns: singular or plural?',['Singular','Plural'],[['child',0],['children',1],['mouse',0],['mice',1],['foot',0],['feet',1]],{d:3}),
+  tg('Tap the plural nouns.','The *dogs chased the *cats around the garden.','a plural noun'),
+  tg('Tap the singular nouns.','The *boy put his *hat in the *box.','a singular noun'),
+  tg('Tap the plural noun.','Two *birds sat on the fence.','a plural noun',{d:1}),
+  gp('Singular or plural?','birds → {plural|singular}',{d:1}),
+  gp('Singular or plural?','a bus → {singular|plural}',{d:1}),
+  gp('Singular or plural?','three boxes → {plural|singular}')]],
+ ['Form regular plurals using -s and -es.',[
+  ...plurals(),
+  bn('Which ending makes the plural?',['Add -s','Add -es'],[['dog',0],['fox',1],['hat',0],['bus',1],['book',0],['dish',1]]),
+  bn('Which ending makes the plural?',['Add -s','Add -es'],[['cup',0],['church',1],['tree',0],['glass',1],['pen',0],['wish',1]],{d:3}),
+  gp('Choose the plural.','I can see two {buses|buss|bus} outside.'),
+  gp('Choose the plural.','All the {dishes|dishs|dish} are clean.'),
+  gp('Choose the plural.','Three {frogs|froges|frog} sat on a log.',{d:1})]],
+ ['Add suffixes such as -ing, -ed and -er to roots without spelling changes.',[
+  ...suffix1(),
+  gp('Choose the right word.','Yesterday I {jumped|jumping|jump} over the puddle.'),
+  gp('Choose the right word.','Look! The frog is {jumping|jumped|jumper}.'),
+  gp('Choose the right word.','A person who helps is a {helper|helping|helped}.'),
+  gp('Choose the right word.','Mum is {cooking|cooked|cooker} our tea.'),
+  gp('Choose the right word.','The dog {barked|barking|barker} at the cat last night.'),
+  tg('Tap the words that end in a suffix.','The *painter was *painting a *jumping horse.','a word with a suffix',{d:3})]],
+ ['Understand how the prefix un- changes the meaning of verbs and adjectives.',[
+  ...unwords(),
+  gp('Choose the word that means "not kind".','The {unkind|kind|unkindly} boy pushed in.'),
+  gp('Choose the word that means "not tidy".','My room is very {untidy|tidy|tidyun}.'),
+  gp('Choose the word that means the opposite of lock.','Please {unlock|lock|relock} the door.'),
+  gp('Choose the word that means "not happy".','The {unhappy|happy|unhappily} puppy sat by the gate.',{d:1}),
+  tg('Tap the word with the prefix un-.','Mum will *unlock the door when she gets home.','a word with the prefix un-'),
+  tg('Tap the word with the prefix un-.','The *unhappy puppy sat by the gate.','a word with the prefix un-'),
+  tg('Tap the word with the prefix un-.','Dad had to *untie the knot in my laces.','a word with the prefix un-'),
+  bn('Does un- mean "not" or "undo" here?',['un- is a prefix','no prefix here'],[['unhappy',0],['unkind',0],['under',1],['uncle',1],['unlock',0],['until',1]],{d:3})]]],
+sent:[
+ ['Understand that words combine to form sentences.',[
+  od('Put the words in order to make a sentence.',['The','dog','ran','fast.'],{d:1}),
+  od('Put the words in order to make a sentence.',['I','like','to','play','outside.']),
+  od('Put the words in order to make a sentence.',['My','cat','is','black','and','white.']),
+  od('Put the words in order to make a sentence.',['We','went','to','the','park.'],{d:1}),
+  od('Put the words in order to make a sentence.',['The','sun','is','very','hot','today.'],{d:3}),
+  bn('Is it a sentence?',['Sentence','Not a sentence'],[['The sun is hot.',0],['big red',1],['I can run.',0],['under the',1],['Birds can fly.',0],['my little',1]]),
+  gp('Choose the words that make a sentence.','{The frog can hop.|frog the hop|hop can the}',{long:true,d:1}),
+  gp('Choose the words that make a sentence.','{We like jam.|like we jam|jam like}',{long:true,d:1})]],
+ ['Join words using and.',[
+  gp('Join the words with and.','I like apples {and|but|or} pears.',{d:1}),
+  gp('Join the words with and.','Tom {and|or|the} Sam are friends.'),
+  gp('Join the words with and.','The flag is red {and|or|but} white.'),
+  gp('Join the words with and.','We saw cows, sheep {and|but|to} pigs.'),
+  gp('Join the words with and.','Fish {and|or|is} chips are my favourite.',{d:1}),
+  od('Put the words in order. Use and to join the words.',['I','have','a','cat','and','a','dog.']),
+  od('Put the words in order. Use and to join the words.',['Ben','likes','jam','and','honey.']),
+  tg('Tap the word that joins the two words.','Sam ate cheese *and crackers.','a joining word',{d:1})]],
+ ['Join clauses using and.',[
+  gp('Join the two ideas with and.','We went to the park {and|because|or} we played football.'),
+  gp('Join the two ideas with and.','I washed my hands {and|but|so} then I ate my lunch.'),
+  gp('Join the two ideas with and.','It was sunny {and|or|if} we went outside.',{d:1}),
+  gp('Choose the best joining word.','The bell rang {and|or|because} we went in.'),
+  od('Order the words to make one long sentence.',['It','was','cold','and','I','wore','my','coat.'],{d:3}),
+  od('Order the words to make one long sentence.',['Dad','cooked','tea','and','we','ate','it.']),
+  tg('Tap the word that joins the two ideas.','I washed my hands *and then I ate my lunch.','the word that joins the two ideas'),
+  tg('Tap the word that joins the two ideas.','The dog barked *and the cat ran away.','the word that joins the two ideas')]]],
+text:[
+ ['Sequence sentences to create short narratives.',[
+  od('Put the sentences in order to tell the story.',['First, I woke up.','Then I ate my breakfast.','After that, I brushed my teeth.','Finally, I went to school.'],{d:1}),
+  od('Put the sentences in order to tell the story.',['We planted a seed.','We watered it every day.','A green shoot appeared.','Soon it grew into a sunflower.']),
+  od('Put the sentences in order to tell the story.',['Ben got a new kite.','He took it to the hill.','The wind lifted it high.','Then the string snapped!'],{d:3}),
+  od('Put the sentences in order to tell the story.',['Mum mixed the cake.','She put it in the oven.','We ate it for tea.'],{d:1}),
+  od('Put the sentences in order to tell the story.',['The egg cracked.','A chick popped out.','It said cheep!'],{d:1}),
+  od('Put the sentences in order to tell the story.',['Once upon a time there was a frog.','One day he found a golden ball.','He gave it back to the princess.','They lived happily ever after.']),
+  gp('Which word shows this sentence comes first?','{First|Next|Finally}, I put on my shoes.',{d:1}),
+  gp('Choose the word that joins the sentences in order.','I woke up. {Then|First|Finally} I got dressed. {Finally|First|Next}, I went to school.'),
+  bn('Does this sentence come first or last in a story?',['Comes first','Comes last'],[['Once upon a time, there was a king.',0],['They lived happily ever after.',1],['One morning, Ali found a map.',0],['At last, the treasure was found.',1],['It was the first day of school.',0],['Finally, the bell rang and we went home.',1]]),
+  tg('Tap the words that tell you the order.','*First we mixed the flour. *Then we added eggs. *Finally we baked it.','a word that tells you the order',{d:3}),
+  gp('Which word shows this sentence comes last?','{Finally|First|Then}, we went home.')]]],
+punct:[
+ ['Separate words with spaces.',[
+  gp('Which one has a space between every word?','{The cat sat on the mat.|Thecat sat onthe mat.|The catsat on the mat.}',{long:true,d:1}),
+  gp('Which one has a space between every word?','{I can see a bus.|Ican see abus.|I can seea bus.}',{long:true}),
+  gp('Which one has a space between every word?','{We like to swim.|Welike to swim.|We liketo swim.}',{long:true}),
+  gp('Which one has a space between every word?','{My dog is big.|Mydog isbig.|My dogis big.}',{long:true}),
+  od('Build the sentence. Leave a space between each word.',['The','frog','is','green.'],{d:1}),
+  od('Build the sentence. Leave a space between each word.',['Dad','has','a','red','car.']),
+  gp('How many words are in "I can hop"?','{3|2|4|5}',{d:1}),
+  gp('How many words are in "The big dog ran"?','{4|3|5|6}')]],
+ ['Begin sentences with capital letters.',[
+  gp('Choose the word to start the sentence.','{The|the} cat is asleep.',{cs:true,d:1}),
+  gp('Choose the word to start the sentence.','{My|my} dad can swim.',{cs:true}),
+  gp('Choose the word to start the sentence.','{We|we} like to play.',{cs:true}),
+  gp('Choose the word to start the sentence.','{Can|can} you see the moon?',{cs:true}),
+  gp('Choose the word to start the sentence.','{It|it} is raining today.',{cs:true,d:1}),
+  gp('Choose the right words.','{The|the} bus is late. {We|we} will walk.',{cs:true,d:3}),
+  tg('Tap the word that needs a capital letter.','*my dog likes to run.','a word that needs a capital letter'),
+  tg('Tap the word that needs a capital letter.','The sun is hot. *we need a hat.','a word that needs a capital letter',{d:3}),
+  tg('Tap the word that needs a capital letter.','*look at the big red bus.','a word that needs a capital letter'),
+  tg('Tap the words that start with a capital letter.','*Mum and *I went to the shop. *It was busy.','a word that starts with a capital letter',{d:3})]],
+ ['Use full stops to end statements.',[
+  gp('Add the full stop.','I like to play in the garden{.}',{punct:true,d:1}),
+  gp('Add the full stop.','My cat is black{.}',{punct:true,d:1}),
+  gp('Finish the statement with the right mark.','We went to the beach{.}',{punct:true}),
+  gp('Finish the statement with the right mark.','The frog sat on a log{.}',{punct:true}),
+  gp('Add the full stops.','I have a dog{.} He is called Max{.}',{punct:true,d:3}),
+  gp('Add the full stops.','It is hot{.} We can swim{.}',{punct:true,d:3}),
+  gp('Which sentence ends correctly?','{I can jump.|I can jump|I can jump,}',{long:true}),
+  gp('Which sentence ends correctly?','{We are at home.|We are at home,|we are at home}',{long:true})]],
+ ['Use question marks for questions.',[
+  gp('Add the right mark.','Where is my coat{?}',{punct:true,d:1}),
+  gp('Add the right mark.','Can you see the bird{?}',{punct:true}),
+  gp('Add the right mark.','What is your name{?}',{punct:true,d:1}),
+  gp('Add the right mark.','The bird is in the tree{.}',{punct:true}),
+  gp('Add the right mark.','Do you like cake{?}',{punct:true}),
+  gp('Add the right marks.','How old are you{?} I am six{.}',{punct:true,d:3}),
+  bn('Statement or question?',['Statement','Question'],[['Where is my hat',1],['My hat is red',0],['Can we go',1],['I am six',0],['Is it hot',1],['We like it',0]]),
+  gp('Which sentence needs a question mark?','{Where do you live|I live in Leeds|My house is small}',{long:true})]],
+ ['Use exclamation marks for exclamations.',[
+  gp('Add the right mark.','What a lovely day{!}',{punct:true,d:1}),
+  gp('Add the right marks.','Wow{!} Look at that{!}',{punct:true}),
+  gp('Add the right mark.','What a huge spider{!}',{punct:true}),
+  gp('Add the right mark.','The spider is big{.}',{punct:true}),
+  gp('Add the right mark.','How fast you run{!}',{punct:true}),
+  gp('Add the right marks.','Ouch{!} That hurt{!}',{punct:true,d:3}),
+  gp('Add the right marks.','Is it a spider{?} Yes{!}',{punct:true,d:3}),
+  bn('Which mark does it need?',['Full stop .','Question mark ?','Exclamation mark !'],[['What a big dog',2],['The dog is big',0],['Is the dog big',1],['Help',2],['I like dogs',0],['Where is the dog',1]],{d:3})]],
+ ["Use capital letters for people's names, place names, days of the week and the pronoun I.",[
+  gp('Choose the words with capital letters.','{Sam|sam} and {I|i} went to {London|london}.',{cs:true}),
+  gp('Choose the words with capital letters.','On {Monday|monday} we saw {Ben|ben}.',{cs:true,d:1}),
+  gp('Choose the words with capital letters.','{Mia|mia} lives in {Leeds|leeds}.',{cs:true,d:1}),
+  gp('Choose the words with capital letters.','My friend {Amir|amir} and {I|i} play on {Friday|friday}.',{cs:true,d:3}),
+  gp('Choose the words with capital letters.','Next {Sunday|sunday} we fly to {Spain|spain}.',{cs:true}),
+  tg('Tap the words that need capital letters.','*sam went to *leeds on *friday.','a word that needs a capital letter'),
+  tg('Tap the words that need capital letters.','My friend *mia and *i like *paris.','a word that needs a capital letter',{d:3}),
+  tg('Tap the words that need capital letters.','On *tuesday *ben went to *bristol.','a word that needs a capital letter'),
+  bn('Does it need a capital letter?',['Capital letter','Lowercase'],[['monday',0],['dog',1],['london',0],['tree',1],['sam',0],['cat',1]],{d:1})]]],
+term:[
+ ['Use the terms: letter, capital letter, word, singular, plural, sentence, punctuation, full stop, question mark, exclamation mark.',[
+  gp('Choose the term.','The mark at the end of a question is a {question mark|full stop|exclamation mark}.',{d:1}),
+  gp('Choose the term.','The mark at the end of a statement is a {full stop|question mark|comma}.',{d:1}),
+  gp('Choose the term.','The mark that shows surprise or shouting is an {exclamation mark|full stop|question mark}.'),
+  gp('Choose the term.','A {sentence|letter|word} is a group of words that makes sense on its own.'),
+  gp('Choose the term.','{Plural|Singular|Sentence} means more than one.'),
+  gp('Choose the term.','{Singular|Plural|Punctuation} means just one.'),
+  gp('Choose the term.','Full stops, question marks and exclamation marks are all {punctuation|letters|words}.'),
+  gp('Choose the term.','The B in Ben is a {capital letter|full stop|plural}.'),
+  bn('Letter, word or sentence?',['Letter','Word','Sentence'],[['b',0],['dog',1],['The dog ran.',2],['m',0],['happy',1],['I can hop.',2]]),
+  bn('Name the punctuation mark.',['Full stop','Question mark','Exclamation mark'],[['.',0],['?',1],['!',2]],{d:1})]]]},
+/* ================================ YEAR 2 ================================ */
+2:{
+word:[
+ ['Form nouns using suffixes such as -ness and -er.',[
+  ...[['sad','sadness'],['kind','kindness'],['dark','darkness'],['ill','illness'],['happy','happiness',3],['soft','softness'],['fit','fitness']].map(([r,n,d])=>gp('Add -ness to make a noun.',`${r} + ness = {${n}|${r}nes|${r+'ness'===n?r+'nness':r+'ness'}}`,{d:d||1})),
+  ...[['teach','teacher'],['bake','baker',3],['sing','singer'],['paint','painter'],['farm','farmer'],['build','builder'],['run','runner',3],['swim','swimmer',3]].map(([r,n,d])=>gp('Add -er to make a noun.',`${r} + er = {${n}|${r+'er'===n?r+'or':r+'er'}|${r}ar}`,{d:d||1})),
+  gp('Choose the noun.','The {darkness|dark|darkly} scared the puppy.'),
+  gp('Choose the noun.','A person who teaches is a {teacher|teaching|teaches}.'),
+  gp('Choose the noun.','Her {kindness|kind|kindly} made me smile.'),
+  tg('Tap the nouns made with -ness or -er.','The *baker was full of *happiness.','a noun with the suffix -ness or -er',{d:3})]],
+ ['Create compound words and compound nouns.',[
+  ...[['foot','ball'],['rain','bow'],['sun','flower'],['white','board'],['super','man'],['play','ground'],['bed','room'],['snow','man'],['tooth','brush'],['cup','cake']].map(([a,b])=>gp('Join the two words to make a compound word.',`${a} + ${b} = {${a}${b}|${a}-${b}|${b}${a}}`,{d:1})),
+  tg('Tap the compound word.','We played *football in the garden.','a compound word'),
+  tg('Tap the compound word.','A *rainbow appeared after the storm.','a compound word'),
+  tg('Tap the compound words.','I left my *toothbrush in the *bathroom.','a compound word',{d:3}),
+  bn('Compound word or not?',['Compound word','Not a compound word'],[['sunflower',0],['happy',1],['playground',0],['running',1],['bedroom',0],['little',1]]),
+  gp('Which word is made from "butter" and "fly"?','{butterfly|flybutter|butterfully}',{d:1})]],
+ ['Form adjectives using suffixes such as -ful and -less.',[
+  ...[['care','ful'],['help','ful'],['hope','ful'],['play','ful'],['colour','ful'],['care','less'],['hope','less'],['use','less'],['fear','less'],['home','less']].map(([r,s])=>gp('Add the suffix to make an adjective.',`${r} + ${s} = {${r}${s}|${r}${s==='ful'?'full':'les'}|${r}-${s}}`,{d:1})),
+  gp('Choose the adjective that means "full of hope".','The {hopeful|hopeless|hope} fans cheered.'),
+  gp('Choose the adjective that means "without care".','The {careless|careful|care} driver hit the fence.'),
+  gp('Choose the adjective.','The sky was {cloudless|cloudful|cloud} and blue.'),
+  gp('Choose the adjective.','What a {useful|useless|use} tool! It opened the jar.'),
+  bn('Does the word mean "full of" or "without"?',['Full of (-ful)','Without (-less)'],[['joyful',0],['fearless',1],['careful',0],['homeless',1],['playful',0],['useless',1]])]],
+ ['Use -er and -est to make comparative and superlative adjectives.',[
+  gp('Make the comparative and superlative.','tall → {taller|tallest|more tall} → {tallest|taller|most tall}'),
+  gp('Make the comparative and superlative.','small → {smaller|smallest} → {smallest|smaller}',{d:1}),
+  gp('Make the comparative and superlative.','big → {bigger|biger|bigest} → {biggest|bigest|bigger}',{d:3}),
+  gp('Make the comparative and superlative.','happy → {happier|happyer|happiest} → {happiest|happyest|happier}',{d:3}),
+  gp('Choose the right form.','This hill is {higher|highest|high} than that one.'),
+  gp('Choose the right form.','Of all the runners, Sam is the {fastest|faster|fast}.'),
+  gp('Choose the right form.','My bag is {heavier|heaviest|heavy} than yours.'),
+  gp('Choose the right form.','This is the {longest|longer|long} snake in the zoo.',{d:1}),
+  bn('Comparative (-er) or superlative (-est)?',['Comparative','Superlative'],[['bigger',0],['biggest',1],['softer',0],['softest',1],['wider',0],['widest',1]],{d:1})]],
+ ['Use -ly to form adverbs from adjectives.',[
+  ...[['quick','quickly'],['slow','slowly'],['sad','sadly'],['quiet','quietly'],['loud','loudly'],['soft','softly'],['happy','happily',3],['gentle','gently',3],['brave','bravely']].map(([a,v,d])=>gp('Add -ly to make an adverb.',`${a} + ly = {${v}|${a+'ly'===v?a+'ley':a+'ly'}|${a}lly}`,{d:d||1})),
+  gp('Choose the adverb.','She sang {sweetly|sweet|sweetness}.'),
+  gp('Choose the adverb.','The snail moved {slowly|slow|slower} across the path.'),
+  gp('Choose the adverb.','He shouted {loudly|loud|louder} across the field.'),
+  tg('Tap the adverb made with -ly.','The baby smiled *happily at her mum.','an adverb')]],
+ ['Recognise and use nouns, verbs, adjectives and adverbs.',[
+  tg('Tap the verbs.','The frog *jumped into the pond and *swam away.','a verb'),
+  tg('Tap the nouns.','The *girl put the *book on the *table.','a noun',{d:1}),
+  tg('Tap the adjectives.','The *tiny mouse hid under the *old chair.','an adjective'),
+  tg('Tap the adverb.','The dog barked *loudly at the postman.','an adverb'),
+  tg('Tap the verbs.','We *ran to the park and *played on the swings.','a verb'),
+  tg('Tap the adjectives.','A *huge, *hairy spider crawled up the *wet wall.','an adjective',{d:3}),
+  tg('Tap the adverb.','The baby slept *peacefully all night.','an adverb'),
+  bn('Sort the words.',['Noun','Verb','Adjective','Adverb'],[['table',0],['jump',1],['shiny',2],['quickly',3],['teacher',0],['sing',1],['soft',2],['gently',3]]),
+  bn('Sort the words.',['Noun','Verb','Adjective'],[['river',0],['swim',1],['cold',2],['dog',0],['bark',1],['fluffy',2]],{d:1})]]],
+sent:[
+ ['Use coordinating conjunctions: and, but, or.',[
+  gp('Choose the conjunction.','I wanted to play outside, {but|and|or} it was raining.'),
+  gp('Choose the conjunction.','Would you like tea {or|but|and} juice?'),
+  gp('Choose the conjunction.','I like cats {and|or|but} I like dogs.',{d:1}),
+  gp('Choose the conjunction.','We can walk {or|but|and} we can take the bus.'),
+  gp('Choose the conjunction.','The cake looked lovely {but|or|and} it tasted awful.'),
+  gp('Choose the conjunction.','She opened the door {and|but|or} went inside.',{d:1}),
+  tg('Tap the coordinating conjunction.','I wanted an ice cream *but the shop was shut.','a coordinating conjunction'),
+  tg('Tap the coordinating conjunction.','We can play inside *or we can go to the park.','a coordinating conjunction'),
+  bn('Which conjunction fits the gap?',['and','but','or'],[['I fell over __ I did not cry.',1],['Do you want red __ blue?',2],['We ate cake __ drank juice.',0],['Tea __ coffee?',2],['It rained __ we had fun.',1],['Sam sang __ Jo danced.',0]],{d:3})]],
+ ['Use subordinating conjunctions: when, if, that, because.',[
+  gp('Choose the conjunction.','I put on my coat {because|or|and} it was cold.'),
+  gp('Choose the conjunction.','We will go to the park {if|but|or} it stops raining.'),
+  gp('Choose the conjunction.','I was happy {when|or|but} my friend arrived.'),
+  gp('Choose the conjunction.','I think {that|but|or} it will snow tonight.'),
+  gp('Choose the conjunction.','Wash your hands {when|or|and} you come in.'),
+  gp('Choose the conjunction.','You can have a sweet {if|because|but} you tidy up.'),
+  tg('Tap the subordinating conjunction.','We stayed inside *because it was raining.','a subordinating conjunction'),
+  tg('Tap the subordinating conjunction.','Tell me *when you are ready.','a subordinating conjunction'),
+  bn('Coordinating or subordinating?',['Coordinating','Subordinating'],[['and',0],['because',1],['but',0],['when',1],['or',0],['if',1]])]],
+ ['Write expanded noun phrases for description and specification.',[
+  tg('Tap the expanded noun phrase.','We saw [the big, shaggy dog] at the park.','part of the expanded noun phrase'),
+  tg('Tap the expanded noun phrase.','[The shiny red bike] belongs to Ali.','part of the expanded noun phrase'),
+  tg('Tap the expanded noun phrase.','I ate [a juicy, ripe peach] for lunch.','part of the expanded noun phrase'),
+  gp('Add an adjective to expand the noun phrase.','the {fluffy|fluffily|fluff} white rabbit'),
+  gp('Add an adjective to expand the noun phrase.','a {tall|tallly|tallness}, dark tower'),
+  od('Put the words in order to make an expanded noun phrase.',['the','shiny,','red','car'],{d:1}),
+  od('Put the words in order to make an expanded noun phrase.',['a','huge,','hairy','spider']),
+  od('Put the words in order to make an expanded noun phrase.',['the','old','man','with','a','stick'],{d:3})]],
+ ['Recognise and write statements.',[
+  bn('Which are statements?',['Statement','Not a statement'],[['The sun is hot.',0],['Is it hot?',1],['I have a cat.',0],['Shut the door.',1],['We like pizza.',0],['What a mess!',1]]),
+  gp('What type of sentence is "The cat sat on the mat."?','{statement|question|command|exclamation}',{d:1}),
+  od('Build a statement.',['The','shop','opens','at','nine.']),
+  gp('Finish the statement.','It is cold today{.}',{punct:true,d:1}),
+  gp('Which is a statement?','{We went to the zoo.|Did we go to the zoo?|Go to the zoo.}',{long:true}),
+  bn('Sort the sentences.',['Statement','Question','Exclamation','Command'],[['I like jam.',0],['Do you like jam?',1],['What lovely jam!',2],['Pass the jam.',3],['The bus is late.',0],['Is the bus late?',1],['How late the bus is!',2],['Catch the bus.',3]],{d:3})]],
+ ['Recognise and write questions.',[
+  bn('Which are questions?',['Question','Not a question'],[['Where is my bag?',0],['My bag is here.',1],['Can you help?',0],['Help me.',1],['What time is it?',0],['It is late.',1]]),
+  gp('What type of sentence is "Can we go now?"','{question|statement|command|exclamation}',{d:1}),
+  od('Build a question.',['Where','did','you','put','the','keys?']),
+  gp('Add the right mark.','Have you seen my dog{?}',{punct:true}),
+  gp('Which word starts a question?','{Where|The|Please} is the station?',{d:1}),
+  gp('Which is a question?','{Are you tired?|You are tired.|Go to bed.}',{long:true})]],
+ ['Recognise and write exclamations.',[
+  bn('Which are exclamations?',['Exclamation','Not an exclamation'],[['What a lovely day!',0],['It is a lovely day.',1],['How tall you are!',0],['Are you tall?',1],['What big teeth you have!',0],['Open wide.',1]]),
+  gp('What type of sentence is "What a huge dog!"','{exclamation|statement|command|question}'),
+  gp('An exclamation often starts with What or How.','{What|The|Please} a surprise!'),
+  gp('Add the mark.','How kind you are{!}',{punct:true}),
+  od('Build an exclamation.',['What','a','wonderful','surprise','this','is!'],{d:3}),
+  gp('Which is an exclamation?','{How cold it is!|It is cold.|Is it cold?}',{long:true})]],
+ ['Recognise and write commands.',[
+  bn('Which are commands?',['Command','Not a command'],[['Shut the door.',0],['The door is shut.',1],['Sit down now.',0],['Are you sitting?',1],['Stir the mixture.',0],['What a lovely cake!',1]]),
+  gp('What type of sentence is "Wash your hands."','{command|statement|question|exclamation}',{d:1}),
+  gp('A command often starts with a verb.','{Put|The|You} your coat on.'),
+  od('Build a command.',['Mix','the','flour','and','eggs.']),
+  gp('Which is a command?','{Pass the salt.|Can you pass the salt?|The salt is here.}',{long:true}),
+  gp('Add the mark to the command.','Line up quietly{.}',{punct:true})]]],
+text:[
+ ['Use present tense correctly.',[
+  gp('Choose the present tense verb.','Every day I {walk|walked|walking} to school.',{d:1}),
+  gp('Choose the present tense verb.','She {likes|liked|liking} pizza.'),
+  gp('Choose the present tense verb.','The sun {rises|rose|rising} in the east.'),
+  gp('Choose the present tense verb.','My brother {plays|played|playing} football on Saturdays.'),
+  gp('Choose the present tense verb.','We {are|were|was} at school now.',{d:3}),
+  tg('Tap the present tense verbs.','The cat *sleeps on the mat and *purrs.','a present tense verb'),
+  tg('Tap the present tense verb.','Birds *fly south in the winter.','a present tense verb',{d:1})]],
+ ['Use past tense correctly.',[
+  gp('Choose the past tense verb.','Yesterday we {played|play|playing} in the park.',{d:1}),
+  gp('Choose the past tense verb.','Last week she {went|goed|go} to the zoo.'),
+  gp('Choose the past tense verb.','He {ran|runned|runs} all the way home.'),
+  gp('Choose the past tense verb.','I {saw|seed|see} a fox last night.'),
+  gp('Choose the past tense verb.','We {were|was|are} happy yesterday.',{d:3}),
+  gp('Choose the past tense verb.','The baby {cried|cryed|cries} all night.',{d:3}),
+  tg('Tap the past tense verbs.','The dog *barked and *chased the ball.','a past tense verb'),
+  bn('Past or present?',['Past','Present'],[['jumped',0],['jumps',1],['ran',0],['runs',1],['ate',0],['eats',1]])]],
+ ['Maintain consistent tense throughout writing.',[
+  gp('Keep the tense the same.','Yesterday I went to the shop and {bought|buy|buys} some bread.'),
+  gp('Keep the tense the same.','Every morning she wakes up and {brushes|brushed|brush} her teeth.'),
+  gp('Keep the tense the same.','Last night we watched a film and then {went|go|goes} to bed.'),
+  gp('Keep the tense the same.','The children laughed and {clapped|clap|claps}.',{d:1}),
+  gp('Keep the tense the same.','Tom opens the box and {smiles|smiled|smiling}.'),
+  gp('Which sentence keeps the same tense?','{We ran to the park and played on the swings.|We ran to the park and play on the swings.|We run to the park and played on the swings.}',{long:true,d:3})]],
+ ['Use present progressive forms for ongoing actions.',[
+  gp('Choose the present progressive form.','Look! The baby {is crawling|crawled|crawls} across the floor.'),
+  gp('Choose the present progressive form.','They {are playing|played|play} outside right now.'),
+  gp('Choose the present progressive form.','I {am reading|read|reads} a great book at the moment.'),
+  gp('Choose the present progressive form.','Shh! Dad {is sleeping|sleeps|slept}.',{d:1}),
+  tg('Tap the present progressive verb.','The children [are singing] in the hall.','part of the present progressive verb'),
+  bn('Present progressive or not?',['Present progressive','Not progressive'],[['is running',0],['ran',1],['are jumping',0],['jumped',1],['am eating',0],['eats',1]])]],
+ ['Use past progressive forms for ongoing actions.',[
+  gp('Choose the past progressive form.','While I {was reading|read|am reading}, the phone rang.'),
+  gp('Choose the past progressive form.','The children {were singing|are singing|sing} when the bell went.'),
+  gp('Choose the past progressive form.','It {was raining|rains|is raining} all day yesterday.',{d:1}),
+  gp('Choose the past progressive form.','We {were walking|walk|are walking} home when we saw a fox.'),
+  tg('Tap the past progressive verb.','The dogs [were barking] all night.','part of the past progressive verb'),
+  bn('Present progressive or past progressive?',['Present progressive','Past progressive'],[['is running',0],['was running',1],['are jumping',0],['were jumping',1],['am eating',0],['was eating',1]])]]],
+punct:[
+ ['Use capital letters and sentence-ending punctuation accurately.',[
+  gp('Fix the start and the end.','{Where|where} are you going{?|.|!}',{cs:true}),
+  gp('Fix the start and the end.','{The|the} dog barked{.|?|!}',{cs:true,d:1}),
+  gp('Fix the start and the end.','{What|what} a mess{!|.|?}',{cs:true}),
+  gp('Fix the start and the end.','{Can|can} I have a go{?|.|!}',{cs:true}),
+  gp('Add the end marks.','My name is Sam{.} What is yours{?}',{punct:true,d:3}),
+  gp('Add the end marks.','Stop{!} The road is busy{.}',{punct:true,d:3}),
+  gp('Which sentence is correct?','{Can you swim?|can you swim?|Can you swim.}',{long:true})]],
+ ['Use commas to separate items in lists.',[
+  gp('Add the commas.','I packed a hat{,} a coat{,} a scarf and gloves.',{punct:true}),
+  gp('Add the commas.','We need eggs{,} flour{,} sugar and butter.',{punct:true}),
+  gp('Add the comma.','I have a dog{,} a cat and a fish.',{punct:true,d:1}),
+  gp('Add the commas.','Red{,} blue{,} green and yellow are colours.',{punct:true}),
+  gp('Which list is punctuated correctly?','{I like apples, pears and plums.|I like apples pears, and plums.|I like, apples pears and plums.}',{long:true}),
+  gp('Where do the commas go?','Bring a pen{,} a pencil{,} a ruler and a rubber.',{punct:true,d:3})]],
+ ['Use apostrophes for contractions and omitted letters.',[
+  gp('Add the apostrophe.','We can{\'}t go out today.',{punct:true,d:1}),
+  gp('Add the apostrophe.','I{\'}m six years old.',{punct:true,d:1}),
+  gp('Add the apostrophe.','It{\'}s raining again.',{punct:true}),
+  gp('Add the apostrophe.','Don{\'}t touch that!',{punct:true}),
+  gp('Add the apostrophe.','They{\'}re late for school.',{punct:true,d:3}),
+  gp('Write the contraction.',"do not → {don't|dont|do'nt}"),
+  gp('Write the contraction.',"could not → {couldn't|could'nt|couldnt}",{d:3}),
+  gp('Write the contraction.',"I am → {I'm|Im|I'am}",{d:1}),
+  gp('Write the contraction.',"it is → {it's|its|its'}"),
+  gp('Write the contraction.',"we will → {we'll|well|we'ill}"),
+  bn('What does the contraction mean?',['is not','did not','will not'],[["isn't",0],["didn't",1],["won't",2],["isn't it",0],["didn't he",1],["won't go",2]],{d:3})]],
+ ['Use apostrophes to show singular possession.',[
+  gp('Add the apostrophe.','the dog{\'}s bone',{punct:true,d:1}),
+  gp('Add the apostrophe.','Sam{\'}s bike is red.',{punct:true}),
+  gp('Add the apostrophe.','My mum{\'}s car is blue.',{punct:true}),
+  gp('Add the apostrophe.','The cat{\'}s tail is long.',{punct:true,d:1}),
+  gp('Show who it belongs to.',"The bike belonging to Sam is {Sam's|Sams|Sams'} bike."),
+  gp('Show who it belongs to.',"The coat belonging to the girl is the {girl's|girls|girls'} coat."),
+  bn('Possession or contraction?',['Possession (belonging)','Contraction'],[["dog's",0],["can't",1],["Sam's",0],["it's",1],["mum's",0],["don't",1]],{d:3})]]],
+term:[
+ ['Use the terms: noun, noun phrase, statement, question, exclamation, command, compound, suffix, adjective, adverb, verb, tense, apostrophe, comma.',[
+  gp('Choose the term.','A word that describes a noun is an {adjective|adverb|verb}.'),
+  gp('Choose the term.','A word that describes how a verb is done is an {adverb|adjective|noun}.'),
+  gp('Choose the term.','A doing or being word is a {verb|noun|adjective}.',{d:1}),
+  gp('Choose the term.','A person, place or thing is a {noun|verb|adverb}.',{d:1}),
+  gp('Choose the term.','A sentence that asks something is a {question|statement|command}.'),
+  gp('Choose the term.','A sentence that tells you to do something is a {command|exclamation|question}.'),
+  gp('Choose the term.','The ending -ness is a {suffix|prefix|compound}.'),
+  gp('Choose the term.','"Football" is a {compound|suffix|tense} word.'),
+  gp('Choose the term.','A sentence that tells you something is a {statement|question|exclamation}.'),
+  gp('Choose the term.','The mark in "don\'t" is an {apostrophe|comma|full stop}.'),
+  gp('Choose the term.','The mark that separates items in a list is a {comma|full stop|apostrophe}.'),
+  gp('Choose the term.','Past and present are {tenses|suffixes|nouns}.'),
+  gp('Choose the term.','"The big dog" is a {noun phrase|verb|adverb}.'),
+  gp('Choose the term.','A sentence starting with What or How that shows strong feeling is an {exclamation|statement|command}.',{d:3}),
+  bn('Sort by word class.',['Noun','Verb','Adjective','Adverb'],[['pencil',0],['write',1],['sharp',2],['neatly',3],['garden',0],['dig',1],['muddy',2],['slowly',3]])]]]},
+/* ================================ YEAR 3 ================================ */
+3:{
+word:[
+ ['Form nouns using a range of prefixes.',[
+  ...[['super','market'],['super','hero'],['super','star'],['anti','septic'],['auto','graph'],['auto','biography'],['sub','marine'],['sub','heading'],['tele','phone'],['inter','net']].map(([a,b])=>gp('Add the prefix to make a noun.',`${a} + ${b} = {${a}${b}|${b}${a}|${a}-${b}}`,{d:1})),
+  gp('Choose the prefix that means "self".','{auto|super|anti}graph'),
+  gp('Choose the prefix that means "under".','{sub|super|anti}marine'),
+  gp('Choose the prefix that means "against".','{anti|auto|super}freeze'),
+  gp('Choose the prefix that means "above" or "better".','{super|sub|auto}hero'),
+  bn('Which prefix does the word take?',['super-','anti-','auto-'],[['market',0],['freeze',1],['pilot',2],['hero',0],['clockwise',1],['graph',2]]),
+  tg('Tap the nouns with a prefix.','We bought an *autograph at the *supermarket.','a noun with a prefix',{d:3})]],
+ ['Choose a or an appropriately before nouns.',[
+  gp('Choose a or an.','I ate {an|a} apple and {a|an} banana.',{d:1}),
+  gp('Choose a or an.','She has {an|a} umbrella.'),
+  gp('Choose a or an.','He is {an|a} honest boy.',{d:3}),
+  gp('Choose a or an.','We saw {a|an} unicorn in the film.',{d:3}),
+  gp('Choose a or an.','Put {an|a} egg in {a|an} bowl.'),
+  gp('Choose a or an.','It was {an|a} hour long.',{d:3}),
+  gp('Choose a or an.','{An|A} elephant has {a|an} trunk.'),
+  bn('a or an?',['a','an'],[['umbrella',1],['house',0],['orange',1],['dog',0],['hour',1],['uniform',0]],{d:3}),
+  bn('a or an?',['a','an'],[['apple',1],['cat',0],['ice cream',1],['ball',0],['egg',1],['tree',0]],{d:1})]],
+ ['Recognise word families and relationships between related words.',[
+  tg('Tap the words from the same family as "act".','The *actor and the *actress loved *acting in the play.','part of the act word family'),
+  tg('Tap the words from the same family as "help".','My *helpful sister *helped me when I felt *helpless.','part of the help word family'),
+  tg('Tap the words from the same family as "sign".','The *signature on the *signpost was a *signal to stop.','part of the sign word family',{d:3}),
+  bn('Sort the words into word families.',['play family','sign family'],[['player',0],['signal',1],['playful',0],['signature',1],['replay',0],['design',1]]),
+  bn('Sort the words into word families.',['medic family','solve family'],[['medicine',0],['solution',1],['medical',0],['dissolve',1],['paramedic',0],['solvable',1]],{d:3}),
+  gp('Which word is NOT in the "sign" family?','{single|signal|signature|design}'),
+  gp('Which word is in the same family as "medic"?','{medicine|middle|medal}'),
+  gp('Which word is in the same family as "cover"?','{discover|cold|cove}',{d:1})]]],
+sent:[
+ ['Express time using conjunctions, adverbs and prepositions.',[
+  gp('Choose the word that tells you when.','{Before|Under|Behind} we left, we packed a bag.'),
+  gp('Choose the word that tells you when.','We will eat {after|under|because} the film.',{d:1}),
+  gp('Choose the word that tells you when.','{Later|Behind|Beside}, we went home.'),
+  gp('Choose the word that tells you when.','I brush my teeth {before|above|beside} bed.'),
+  gp('Choose the word that tells you when.','Wait {until|under|across} the bell rings.'),
+  gp('Choose the word that tells you when.','{Yesterday|Nearby|Because}, it snowed.'),
+  tg('Tap the words that tell you when.','[After lunch] we played outside.','part of the phrase that tells you when'),
+  tg('Tap the word that tells you when.','*Soon the rain stopped.','a word that tells you when',{d:1}),
+  tg('Tap the words that tell you when.','We went home [when it got dark].','part of the phrase that tells you when',{d:3})]],
+ ['Express place using adverbs and prepositions.',[
+  gp('Choose the word that tells you where.','The cat hid {under|after|while} the bed.',{d:1}),
+  gp('Choose the word that tells you where.','We walked {across|before|because} the bridge.'),
+  gp('Choose the word that tells you where.','Look {behind|until|when} the sofa.'),
+  gp('Choose the word that tells you where.','The ball rolled {into|after|since} the pond.'),
+  gp('Choose the word that tells you where.','{Nearby|Later|Therefore}, a dog barked.'),
+  tg('Tap the preposition that tells you where.','The keys are *inside the drawer.','a preposition of place'),
+  tg('Tap the prepositions that tell you where.','The bird flew *over the house and *into the tree.','a preposition of place',{d:3}),
+  tg('Tap the word that tells you where.','We looked *everywhere for the dog.','a word that tells you where')]],
+ ['Express cause using conjunctions, adverbs and prepositions.',[
+  gp('Choose the word that shows cause.','I was late {because|before|under} the bus broke down.',{d:1}),
+  gp('Choose the word that shows cause.','It was raining, {so|under|after} we stayed inside.'),
+  gp('Choose the word that shows cause.','{Therefore|Beneath|Above}, the match was cancelled.'),
+  gp('Choose the words that show cause.','We won {because of|behind|during} our hard work.'),
+  gp('Choose the word that shows cause.','She was tired, {so|until|beside} she went to bed.'),
+  tg('Tap the words that show cause.','The road was closed [because of] the snow.','part of the phrase that shows cause'),
+  tg('Tap the word that shows cause.','I forgot my coat, *so I got wet.','a word that shows cause'),
+  bn('Time, place or cause?',['Time','Place','Cause'],[['before',0],['under',1],['because',2],['after',0],['behind',1],['so',2],['until',0],['across',1],['therefore',2]],{d:3})]],
+ ['Extend sentences with subordinate clauses and a wider range of conjunctions.',[
+  tg('Tap the subordinate clause.','We stayed inside [because it was raining].','part of the subordinate clause'),
+  tg('Tap the subordinate clause.','[Although it was late], we kept reading.','part of the subordinate clause'),
+  tg('Tap the subordinate clause.','I will phone you [when I get home].','part of the subordinate clause'),
+  tg('Tap the subordinate clause.','The dog, [which was muddy], jumped on the sofa.','part of the subordinate clause',{d:3}),
+  gp('Choose a conjunction.','{Although|And|Or} it was cold, we went swimming.'),
+  gp('Choose a conjunction.','I will call you {when|but|or} I arrive.',{d:1}),
+  gp('Choose a conjunction.','Keep stirring {until|or|and} the sauce thickens.'),
+  gp('Choose a conjunction.','We cannot go {unless|and|or} it stops raining.',{d:3}),
+  gp('Choose a conjunction.','I read a book {while|or|but} I waited.'),
+  bn('Main clause or subordinate clause?',['Main clause','Subordinate clause'],[['We went home',0],['because it was late',1],['The dog barked',0],['when the post came',1],['I ate my tea',0],['although I was not hungry',1]])]]],
+text:[
+ ['Use paragraphs to group related material.',[
+  od('Order the sentences so the paragraph makes sense.',['Hedgehogs are small animals.','They are covered in sharp spines.','When scared, they roll into a ball.','This keeps them safe from foxes.']),
+  od('Order the sentences so the paragraph makes sense.',['It was the first day of the holidays.','Mia jumped out of bed.','She packed her bag in a hurry.','At last it was time to go to the beach.']),
+  od('Order the sentences so the paragraph makes sense.',['Our school has a garden.','We grow beans and carrots there.','Every class takes turns to water the plants.','In summer we eat what we have grown.'],{d:3}),
+  bn('Which paragraph does each sentence belong in?',['About dogs','About the sea'],[['Dogs love to chase sticks.',0],['Waves crash onto the sand.',1],['A puppy needs lots of sleep.',0],['Fish swim in the deep water.',1],['They wag their tails when happy.',0],['The tide comes in twice a day.',1]]),
+  gp('When should you start a new paragraph?','{when you move to a new idea or topic|after every sentence|only at the end of the page}',{long:true,d:1}),
+  gp('A paragraph is a group of sentences about','{one main idea|many different ideas|a single word}',{long:true})]],
+ ['Use headings and subheadings to organise information.',[
+  gp('Choose the best heading: "Lions live in groups called prides. The females do most of the hunting."','{Lion Families|Cooking Rice|My Holiday}',{long:true}),
+  gp('Choose the best subheading for a section about what lions eat.','{Food and Hunting|How to Build a Kite|Lion Families}',{long:true}),
+  gp('Choose the best heading: "Mix the flour and eggs. Add milk slowly. Fry in a hot pan."','{How to Make Pancakes|Animals of Africa|The Weather}',{long:true,d:1}),
+  bn('Heading or sentence?',['Heading','Sentence'],[['Life in the Rainforest',0],['Toucans have huge beaks.',1],['Animals of the Forest',0],['Monkeys swing from the branches.',1],['The Weather',0],['It rains almost every day.',1]]),
+  gp('Headings and subheadings help the reader to','{find information quickly|spell words correctly|count the pages}',{long:true}),
+  gp('Choose the term.','A smaller title inside a section is a {subheading|paragraph|clause}.')]],
+ ['Use the present perfect tense and distinguish it from the simple past.',[
+  gp('Choose the right tense.','I {have lived|lived|live} here since 2020.'),
+  gp('Choose the right tense.','Yesterday I {visited|have visited|visit} my gran.',{d:1}),
+  gp('Choose the right tense.','She {has finished|finished|finish} her work already.'),
+  gp('Choose the right tense.','We {went|have gone|go} to Spain last summer.'),
+  gp('Choose the right tense.','They {have eaten|ate|eat} all the biscuits!'),
+  gp('Choose the right tense.','Last night it {snowed|has snowed|snows}.',{d:1}),
+  bn('Simple past or present perfect?',['Simple past','Present perfect'],[['I ate',0],['I have eaten',1],['we went',0],['we have gone',1],['she saw',0],['she has seen',1]]),
+  tg('Tap the present perfect verb.','I [have lost] my keys again.','part of the present perfect verb',{d:3})]]],
+punct:[
+ ['Introduce inverted commas (speech marks) to indicate direct speech.',[
+  gp('Add the inverted commas and the comma.','{"}Come here{,}{"} said Mum.',{punct:true}),
+  gp('Add the punctuation.','Dad shouted{,} {"}Dinner is ready{!}{"}',{punct:true,d:3}),
+  gp('Add the punctuation.','{"}Can I come too{?}{"} asked Jo.',{punct:true}),
+  gp('Add the inverted commas.','{"}I love this song{"} sighed Mia.',{punct:true,d:1}),
+  gp('Add the inverted commas.','The teacher said{,} {"}Open your books.{"}',{punct:true}),
+  gp('Which sentence is punctuated correctly?','{"Stop!" shouted Ben.|"Stop! shouted Ben.|Stop!" shouted Ben.}',{long:true}),
+  tg('Tap the words that are actually spoken.','["Let\'s go home,"] said Ali.','part of the direct speech'),
+  tg('Tap the words that are actually spoken.','Mum asked, ["Where are your shoes?"]','part of the direct speech',{d:3})]]],
+term:[
+ ['Use the terms: preposition, conjunction, word family, prefix, clause, subordinate clause, direct speech, consonant, vowel, inverted commas.',[
+  gp('Choose the term.','A word that shows where or when, like under or before, is a {preposition|conjunction|prefix}.'),
+  gp('Choose the term.','A word that joins clauses, like because, is a {conjunction|preposition|vowel}.'),
+  gp('Choose the term.','Words like act, actor and action belong to the same {word family|prefix|clause}.'),
+  gp('Choose the term.','super- in superhero is a {prefix|suffix|clause}.',{d:1}),
+  gp('Choose the term.','A group of words with a verb in it is a {clause|prefix|vowel}.'),
+  gp('Choose the term.','A clause that cannot stand alone as a sentence is a {subordinate clause|main clause|word family}.'),
+  gp('Choose the term.','The words someone actually says are {direct speech|a prefix|a conjunction}.'),
+  gp('Choose the term.','Inverted commas are also called {speech marks|full stops|brackets}.',{d:1}),
+  gp('Choose the term.','The letters a, e, i, o and u are {vowels|consonants|prefixes}.',{d:1}),
+  bn('Vowel or consonant?',['Vowel','Consonant'],[['a',0],['b',1],['e',0],['t',1],['o',0],['m',1],['u',0],['s',1]],{d:1}),
+  bn('Preposition or conjunction?',['Preposition','Conjunction'],[['under',0],['because',1],['before',0],['although',1],['across',0],['when',1]],{d:3})]]]},
+/* ================================ YEAR 4 ================================ */
+4:{
+word:[
+ ['Distinguish plural -s from possessive -s.',[
+  bn('Plural or possessive?',['Plural','Possessive'],[["dogs",0],["dog's",1],["cats",0],["cat's",1],["girls",0],["girl's",1]],{d:1}),
+  gp('Choose the right word.',"The {dogs|dog's} barked all night."),
+  gp('Choose the right word.',"The {dog's|dogs} tail wagged."),
+  gp('Choose the right word.',"Both {boys|boy's} ran to the gate."),
+  gp('Choose the right word.',"My {sister's|sisters} room is tidy."),
+  gp('Choose the right word.',"Three {birds|bird's} sat on the wire.",{d:1}),
+  tg('Tap the word with a possessive -s.',"The *teacher's pen is on the desk.",'a possessive noun',{d:1}),
+  tg('Tap the plural nouns (not the possessive).',"The *children played with Ben's *toys and *games.",'a plural noun',{d:3})]],
+ ['Use Standard English verb inflections rather than non-standard spoken forms.',[
+  gp('Choose the Standard English form.','We {were|was} late for school.'),
+  gp('Choose the Standard English form.','I {did|done} my homework last night.'),
+  gp('Choose the Standard English form.',"She {doesn't|don't} like peas."),
+  gp('Choose the Standard English form.','They {have|has} gone home.'),
+  gp('Choose the Standard English form.','We {saw|seen} a fox in the garden.'),
+  gp('Choose the Standard English form.','He {was|were} happy.',{d:1}),
+  gp('Choose the Standard English form.',"I {haven't|ain't} got any.",{d:3}),
+  gp('Choose the Standard English form.','You {were|was} right.'),
+  bn('Standard English or non-standard?',['Standard English','Non-standard'],[['we were',0],['we was',1],['I did',0],['I done',1],["she doesn't",0],["she don't",1]])]],
+ ['Recognise determiners, pronouns and possessive pronouns.',[
+  tg('Tap the determiners.','*The cat sat on *a mat under *this table.','a determiner'),
+  tg('Tap the pronouns.','*She gave *it to *them.','a pronoun'),
+  tg('Tap the possessive pronouns.','This book is *mine, not *yours.','a possessive pronoun'),
+  tg('Tap the determiners.','*My brother ate *some cake and *three biscuits.','a determiner',{d:3}),
+  tg('Tap the pronouns.','*I told *him that *we would be late.','a pronoun'),
+  tg('Tap the possessive pronoun.','The red coat is *hers.','a possessive pronoun',{d:1}),
+  bn('Sort the words.',['Determiner','Pronoun','Possessive pronoun'],[['the',0],['she',1],['mine',2],['an',0],['they',1],['yours',2],['my',0],['it',1],['hers',2]])]]],
+sent:[
+ ['Expand noun phrases using modifying adjectives, nouns and prepositional phrases.',[
+  tg('Tap the whole expanded noun phrase.','[The old teacher with grey hair] smiled.','part of the expanded noun phrase'),
+  tg('Tap the whole expanded noun phrase.','[A delicious chocolate cake with cherries] sat on the table.','part of the expanded noun phrase'),
+  tg('Tap the whole expanded noun phrase.','We found [a tiny silver key] under the mat.','part of the expanded noun phrase',{d:1}),
+  gp('Add a prepositional phrase.','the boy {with the red hat|quickly|ran}'),
+  gp('Add a prepositional phrase.','the house {at the end of the road|happily|was}'),
+  gp('Add a noun that modifies the noun.','the {school|teach|learn} bus'),
+  gp('Add a noun that modifies the noun.','a {football|kick|green} pitch',{d:3}),
+  od('Order the words to make an expanded noun phrase.',['the','strict','maths','teacher','with','curly','hair'],{d:3}),
+  od('Order the words to make an expanded noun phrase.',['a','shiny','new','bike','with','red','wheels'])]],
+ ['Use fronted adverbials to introduce sentences.',[
+  tg('Tap the fronted adverbial.','[Later that day,] we went swimming.','part of the fronted adverbial'),
+  tg('Tap the fronted adverbial.','[Without a sound,] the cat crept in.','part of the fronted adverbial'),
+  tg('Tap the fronted adverbial.','[As quick as a flash,] the fox vanished.','part of the fronted adverbial',{d:3}),
+  tg('Tap the fronted adverbial.','[Under the stairs,] the dog slept.','part of the fronted adverbial',{d:1}),
+  gp('Choose a fronted adverbial.','{Before breakfast,|Sausages,|Blue,} I walked the dog.'),
+  gp('Choose a fronted adverbial.','{Nervously,|Chair,|The,} she stepped onto the stage.'),
+  od('Reorder so the sentence starts with the adverbial.',['Without','a','sound,','the','cat','crept','in.']),
+  od('Reorder so the sentence starts with the adverbial.',['After','lunch,','we','played','football.'],{d:1})]],
+ ['Choose nouns and pronouns to maintain clarity and avoid unnecessary repetition.',[
+  gp('Choose the pronoun to avoid repeating the noun.','Mia opened the box. {She|Mia|They} smiled.',{d:1}),
+  gp('Choose the pronoun to avoid repeating the noun.','The dogs barked. {They|It|He} wanted food.'),
+  gp('Choose the pronoun to avoid repeating the nouns.','Tom and Ali ran home. {They|He|It} were tired.'),
+  gp('Choose the pronoun.','Dad lost his keys. Mum found {them|it|him}.'),
+  gp('Which version avoids repeating the noun?',"{Ben found his bag. He was relieved.|Ben found his bag. Ben was relieved.|Ben found Ben's bag. Ben was relieved.}",{long:true}),
+  gp('"Sam told Jo that he was late." Which word is unclear?','The pronoun {he|Sam|Jo} could mean either boy.',{d:3}),
+  gp('Which is clearer?','{The teacher praised Ali because Ali had worked hard.|The teacher praised Ali because she had worked hard.|She praised her because she had worked hard.}',{long:true,d:3})]]],
+text:[
+ ['Organise paragraphs around a theme.',[
+  bn('Which paragraph does each sentence belong in?',['The beach','School'],[['The sand was warm under our feet.',0],['The bell rang for assembly.',1],['We built a huge sandcastle.',0],['Our teacher handed out the books.',1],['Gulls circled over the waves.',0],['Maths is my favourite lesson.',1]]),
+  od('Order the sentences so the paragraph makes sense.',['Penguins are birds that cannot fly.','Instead, they are brilliant swimmers.','Their wings work like flippers.','They can dive deep to catch fish.']),
+  od('Order the sentences so the paragraph makes sense.',['The castle stood on a hill.','Its walls were thick and grey.','A moat ran all the way round.','Only one bridge led to the gate.'],{d:3}),
+  gp('A paragraph should be about','{one main theme or idea|lots of different ideas|a single word}',{long:true,d:1}),
+  gp('Which sentence does NOT belong in a paragraph about volcanoes?','{My cat likes to sleep on the sofa.|Lava pours down the sides.|Ash can block out the sun.}',{long:true})]],
+ ['Use nouns and pronouns effectively to create cohesion within and across sentences.',[
+  gp('Choose the words that link the sentences.','Tom lost his hat. {He|Tom|She} looked everywhere for {it|the hat|them}.'),
+  gp('Choose the pronoun.','The twins love football. {They|It|He} play every day.',{d:1}),
+  gp('Choose the pronoun.','I bought a new book. {It|He|They} is about dragons.'),
+  gp('Choose the noun to make it clear.','Dad and Grandad went fishing. {Grandad|He|They} caught the biggest fish.',{d:3}),
+  tg('Tap the pronoun that refers back to "the castle".','The castle was old. *It had tall towers.','the pronoun that refers back to the castle'),
+  tg('Tap the pronoun that refers back to "the twins".','The twins ran to the park. *They played until dark.','the pronoun that refers back to the twins',{d:1})]]],
+punct:[
+ ['Use inverted commas and associated punctuation correctly for direct speech.',[
+  gp('Add the punctuation.','{"}I am tired{,}{"} yawned Ben.',{punct:true}),
+  gp('Add the punctuation.','{"}Help{!}{"} shouted Zara.',{punct:true,d:1}),
+  gp('Add the punctuation.','Ben asked{,} {"}Can we go now{?}{"}',{punct:true}),
+  gp('Add the punctuation.','Mum whispered{,} {"}Be quiet{.}{"}',{punct:true,d:3}),
+  gp('Add the punctuation.','{"}Where are you{?}{"} called Dad.',{punct:true}),
+  gp('Which is punctuated correctly?','{"Wait for me!" called Jo.|"Wait for me!", called Jo.|"Wait for me" called Jo!}',{long:true}),
+  gp('Which is punctuated correctly?','{Sam said, "I am hungry."|Sam said "I am hungry".|Sam said, I am hungry.}',{long:true,d:3})]],
+ ['Use apostrophes for plural possession.',[
+  gp('Choose the right form.',"The {children's|childrens'|childrens} coats were wet."),
+  gp('Choose the right form (many girls).',"the {girls'|girl's|girls} changing room"),
+  gp('Choose the right form (many teachers).',"the {teachers'|teacher's|teachers} staffroom"),
+  gp('Choose the right form (two dogs).',"the {dogs'|dog's|dogs} kennels",{d:1}),
+  gp('Choose the right form.',"the {men's|mens'|mens} toilets",{d:3}),
+  gp('Add the apostrophe (more than one boy).',"the boys{'} toilets",{punct:true}),
+  gp('Add the apostrophe (two cats).',"both cats{'} food bowls",{punct:true}),
+  bn('Singular or plural possession?',['Singular possession','Plural possession'],[["dog's",0],["dogs'",1],["girl's",0],["girls'",1],["baby's",0],["babies'",1]])]],
+ ['Use commas after fronted adverbials.',[
+  gp('Add the comma.','After lunch{,} we played outside.',{punct:true,d:1}),
+  gp('Add the comma.','Suddenly{,} the lights went out.',{punct:true}),
+  gp('Add the comma.','In the morning{,} Dad made pancakes.',{punct:true}),
+  gp('Add the comma.','As fast as he could{,} Sam ran home.',{punct:true,d:3}),
+  gp('Add the comma.','Without warning{,} the dog barked.',{punct:true}),
+  gp('Which is punctuated correctly?','{Before bed, I read a story.|Before bed I read, a story.|Before, bed I read a story.}',{long:true})]]],
+term:[
+ ['Use the terms: determiner, pronoun, possessive pronoun, adverbial.',[
+  gp('Choose the term.','Words like the, a, this and my that come before a noun are {determiners|pronouns|adverbials}.'),
+  gp('Choose the term.','Words like she, it and they that replace nouns are {pronouns|determiners|adverbials}.'),
+  gp('Choose the term.','Mine, yours and hers are {possessive pronouns|determiners|adverbials}.'),
+  gp('Choose the term.','A word or phrase that tells you when, where or how is an {adverbial|determiner|pronoun}.'),
+  gp('Choose the term.','A fronted adverbial comes at the {start|end|middle} of a sentence.',{d:1}),
+  gp('Choose the term.','After a fronted adverbial we use a {comma|full stop|apostrophe}.',{d:1}),
+  bn('Sort the words.',['Determiner','Pronoun','Adverbial'],[['the',0],['they',1],['yesterday',2],['some',0],['him',1],['in the park',2]])]]]},
+/* ================================ YEAR 5 ================================ */
+5:{
+word:[
+ ['Convert nouns and adjectives into verbs using suffixes such as -ate, -ise and -ify.',[
+  ...[['pollen','pollinate'],['active','activate'],['elastic','elasticate'],['apology','apologise'],['advert','advertise'],['critic','criticise'],['solid','solidify'],['class','classify'],['simple','simplify'],['pure','purify'],['note','notify'],['glory','glorify']].map(([n,v])=>gp('Turn the word into a verb.',`${n} → {${v}|${['ate','ise','ify'].filter(s=>!v.endsWith(s)).map(s=>n+s).join('|')}}`,{d:v.startsWith(n)?1:3})),
+  gp('Choose the verb.','Please {apologise|apology|apologetic} to your sister.'),
+  gp('Choose the verb.','We need to {simplify|simple|simply} the instructions.'),
+  gp('Choose the verb.','The water will {solidify|solid|solidly} when it freezes.'),
+  bn('Which suffix makes the verb?',['-ate','-ise','-ify'],[['pollen',0],['apology',1],['solid',2],['medic',0],['advert',1],['pure',2]],{d:3})]],
+ ['Use verb prefixes such as dis-, de-, mis-, over- and re-.',[
+  ...[['dis','agree'],['dis','appear'],['de','frost'],['de','code'],['mis','spell'],['mis','behave'],['over','cook'],['over','sleep'],['re','build'],['re','write']].map(([a,b])=>gp('Add the prefix to the verb.',`${a} + ${b} = {${a}${b}|${a}-${b}|${b}${a}}`,{d:1})),
+  gp('Choose the prefix that means "wrongly".','{mis|dis|re}understand'),
+  gp('Choose the prefix that means "again".','{re|de|mis}read'),
+  gp('Choose the prefix that means "too much".','{over|under|dis}eat'),
+  gp('Choose the prefix that means "the opposite of".','{dis|re|over}like'),
+  gp('Choose the prefix that means "remove" or "undo".','{de|mis|over}ice',{d:3}),
+  bn('Which prefix does the verb take?',['dis-','mis-','re-','over-'],[['appear',0],['place',1],['fill',2],['flow',3],['trust',0],['lead',1],['visit',2],['load',3]],{d:3})]]],
+sent:[
+ ['Use relative clauses, including those with an omitted relative pronoun.',[
+  tg('Tap the relative clause.','The boy [who lives next door] has a new bike.','part of the relative clause'),
+  tg('Tap the relative clause.','My coat, [which is red], is on the peg.','part of the relative clause'),
+  tg('Tap the relative clause.','The town [where I was born] is by the sea.','part of the relative clause'),
+  tg('Tap the relative clause (the pronoun has been left out).','The film [we watched] was scary.','part of the relative clause',{d:3}),
+  tg('Tap the relative clause.','The man [whose car was stolen] called the police.','part of the relative clause',{d:3}),
+  gp('Choose the relative pronoun.','The book {that|who|where} I read was brilliant.'),
+  gp('Choose the relative pronoun.','The woman {who|which|where} runs the shop is kind.',{d:1}),
+  gp('Choose the relative pronoun.','The town {where|who|which} I was born is small.'),
+  gp('Choose the relative pronoun.','The dog, {which|who|where} was muddy, jumped up.'),
+  gp('Choose the relative pronoun.',"The man {whose|who's|which} dog barked is my uncle.",{d:3}),
+  gp('Add back the omitted relative pronoun.','The cake {that~which|where|whose} I baked was tasty.')]],
+ ['Use modal verbs to express degrees of possibility.',[
+  tg('Tap the modal verb.','You *should wear a coat.','a modal verb',{d:1}),
+  tg('Tap the modal verb.','It *might rain later.','a modal verb'),
+  tg('Tap the modal verb.','We *must finish our work.','a modal verb'),
+  tg('Tap the modal verb.','I *could help you tomorrow.','a modal verb'),
+  gp('Choose the modal verb.','It {might|is|has} rain later.'),
+  gp('Choose the modal verb.','You {must|are|have} wash your hands.'),
+  gp('Choose the modal verb.','We {will|do|are} win the match!'),
+  gp('Choose the modal verb.','She {can|is|has} swim very well.',{d:1}),
+  bn('How certain is it?',['Certain','Possible'],[['will',0],['might',1],['must',0],['could',1],['may',1],['shall',0]]),
+  bn('Modal verb or not?',['Modal verb','Not a modal verb'],[['should',0],['ran',1],['might',0],['eating',1],['could',0],['tall',1]],{d:1})]],
+ ['Use adverbs to express degrees of possibility.',[
+  tg('Tap the adverb of possibility.','*Perhaps we will go swimming.','an adverb of possibility'),
+  tg('Tap the adverb of possibility.','It will *probably rain.','an adverb of possibility'),
+  tg('Tap the adverb of possibility.','She will *definitely win.','an adverb of possibility'),
+  tg('Tap the adverb of possibility.','*Maybe the bus is late.','an adverb of possibility',{d:1}),
+  gp('Choose the adverb of possibility.','We will {probably|happily|quickly} win.'),
+  gp('Choose the adverb of possibility.','{Perhaps|Loudly|Bravely} it will snow.'),
+  gp('Choose the adverb of possibility.','He is {certainly|slowly|softly} the best player.'),
+  bn('How certain is it?',['Certain','Possible'],[['definitely',0],['perhaps',1],['certainly',0],['maybe',1],['surely',0],['possibly',1]]),
+  bn('Adverb of possibility or adverb of manner?',['Possibility','Manner'],[['perhaps',0],['quickly',1],['maybe',0],['gently',1],['probably',0],['loudly',1]],{d:3})]],
+ ['Select grammar and vocabulary appropriately for meaning and effect.',[
+  gp('Choose the most precise verb.','The thief {crept|went|walked} silently down the hall.'),
+  gp('Choose the most precise verb.','The wind {howled|blew|was} through the trees.'),
+  gp('Choose the most precise verb.','The frightened rabbit {darted|went|moved} into its burrow.'),
+  gp('Choose the stronger adjective.','The {enormous|big|large} castle loomed over the village.',{d:1}),
+  gp('Choose the word that creates a scary mood.','The door {creaked|opened|moved} open slowly.'),
+  gp('Choose the word that creates a calm mood.','The river {drifted|rushed|crashed} past the meadow.',{d:3}),
+  gp('Choose the more formal verb.','The head teacher will {address|talk to|chat with} the school at nine.',{d:3})]]],
+text:[
+ ['Use cohesive devices to connect ideas within a paragraph.',[
+  gp('Choose the cohesive device.','Owls hunt at night. {Therefore|Nevertheless|Otherwise}, they have excellent eyesight.'),
+  gp('Choose the cohesive device.','First, mix the flour. {Then|Nevertheless|However}, add the eggs.',{d:1}),
+  gp('Choose the cohesive device.','It was raining. {However|Firstly|Therefore}, we still went out.'),
+  gp('Choose the cohesive device.','Mix the flour. {Next|Although|Despite}, add the sugar.'),
+  gp('Choose the cohesive device.','She was tired. {As a result|In contrast|Nearby}, she went to bed early.'),
+  bn('What does the device do?',['Adding','Contrasting','Showing cause'],[['also',0],['however',1],['therefore',2],['furthermore',0],['on the other hand',1],['as a result',2]],{d:3})]],
+ ['Link ideas between paragraphs using adverbials of time, place and number.',[
+  bn('Time, place or number?',['Time','Place','Number'],[['Later that day',0],['Across the river',1],['Secondly',2],['The next morning',0],['Nearby',1],['Firstly',2],['Meanwhile',0],['In the distance',1],['Finally',2]]),
+  gp('Choose an adverbial of time to open the next paragraph.','{The following week,|Secondly,|Beneath the bridge,} the team met again.'),
+  gp('Choose an adverbial of place.','{On the far side of town,|Soon,|Thirdly,} a new shop opened.'),
+  gp('Choose an adverbial of number.','{Secondly,|Nearby,|Meanwhile,} you need to add the eggs.',{d:1}),
+  tg('Tap the adverbial that links to the paragraph before.','[Meanwhile, back at the castle,] the king was waiting.','part of the linking adverbial',{d:3})]],
+ ['Use appropriate tense choices to link ideas across paragraphs.',[
+  gp('Keep the tense consistent.','The Romans built roads. They {used|use|will use} stones to make them strong.'),
+  gp('Keep the tense consistent.','Today, many people cycle to work. They {say|said|will say} it keeps them fit.'),
+  gp('Keep the tense consistent.','In 1666 a fire began in London. It {spread|spreads|will spread} quickly.',{d:1}),
+  gp('Keep the tense consistent.','Dinosaurs lived long ago. Some {ate|eat|will eat} plants.'),
+  gp('Choose the tense that fits a report about the future.','Next year the school {will open|opened|opens} a new library.',{d:3}),
+  bn('Past, present or future?',['Past','Present','Future'],[['lived',0],['lives',1],['will live',2],['ran',0],['runs',1],['will run',2]])]]],
+punct:[
+ ['Use brackets to indicate parenthesis.',[
+  gp('Add the brackets.','My brother {(}who is ten{)} loves football.',{punct:true}),
+  gp('Add the brackets.','The Nile {(}the longest river in Africa{)} flows north.',{punct:true}),
+  gp('Add the brackets.','Sam {(}my best friend{)} is moving house.',{punct:true,d:1}),
+  gp('Which is punctuated correctly?','{Our dog (a terrier) loves mud.|Our dog (a terrier loves mud.|Our dog a terrier) loves mud.}',{long:true}),
+  tg('Tap the parenthesis.','My gran [(who is eighty)] still swims every day.','part of the parenthesis',{d:3})]],
+ ['Use dashes to indicate parenthesis.',[
+  gp('Add the dashes.','My gran {–} a keen gardener {–} grows roses.',{punct:true}),
+  gp('Add the dashes.','The cake {–} a chocolate one {–} was delicious.',{punct:true,d:1}),
+  gp('Add the dashes.','Our teacher {–} who loves maths {–} set us a puzzle.',{punct:true}),
+  gp('Which is punctuated correctly?','{The storm – a fierce one – lasted all night.|The storm a fierce one – lasted all night.|The storm – a fierce one lasted all night.}',{long:true}),
+  tg('Tap the parenthesis.','The bridge [– built in 1890 –] is still standing.','part of the parenthesis',{d:3})]],
+ ['Use commas to indicate parenthesis.',[
+  gp('Add the commas.','The teacher{,} Mrs Bell{,} was kind.',{punct:true}),
+  gp('Add the commas.','Our dog{,} a scruffy terrier{,} loves mud.',{punct:true}),
+  gp('Add the commas.','Paris{,} the capital of France{,} is beautiful.',{punct:true,d:1}),
+  gp('Which is punctuated correctly?','{Ali, my cousin, is visiting.|Ali my cousin, is visiting.|Ali, my cousin is visiting.}',{long:true}),
+  gp('Choose the term.','Parenthesis can be marked with brackets, dashes or {commas|full stops|apostrophes}.',{d:1})]],
+ ['Use commas to clarify meaning and avoid ambiguity.',[
+  gp('Add the comma so Grandma is safe!',"Let's eat{,} Grandma.",{punct:true,d:1}),
+  gp('Add the comma to make the meaning clear.','After eating{,} the children played.',{punct:true}),
+  gp('Add the comma to make the meaning clear.','I like cooking{,} my family and my dog.',{punct:true}),
+  gp('Which sentence means the children ate first, then played?','{After eating, the children played.|After eating the children, we played.|After, eating the children played.}',{long:true}),
+  gp('Which sentence means we invited only two people?','{We invited Ali, a dentist, and Sam.|We invited Ali, a dentist and Sam.|We invited, Ali a dentist and Sam.}',{long:true,d:3})]]],
+term:[
+ ['Use the terms: modal verb, relative pronoun, relative clause, parenthesis, bracket, dash, cohesion, ambiguity.',[
+  gp('Choose the term.','Might, should and must are {modal verbs|relative pronouns|adverbials}.'),
+  gp('Choose the term.','Who, which and that are {relative pronouns|modal verbs|dashes}.'),
+  gp('Choose the term.','A clause starting with who or which is a {relative clause|main clause|parenthesis}.'),
+  gp('Choose the term.','Extra information dropped into a sentence is called {parenthesis|cohesion|ambiguity}.'),
+  gp('Choose the term.','Linking ideas together smoothly is called {cohesion|ambiguity|parenthesis}.'),
+  gp('Choose the term.','When a sentence could mean two things it has {ambiguity|cohesion|parenthesis}.'),
+  gp('Choose the term.','This mark – is a {dash|bracket|comma}.',{d:1}),
+  gp('Choose the term.','This mark ( is a {bracket|dash|comma}.',{d:1}),
+  bn('Modal verb or relative pronoun?',['Modal verb','Relative pronoun'],[['could',0],['which',1],['must',0],['whose',1],['may',0],['that',1]])]]]},
+/* ================================ YEAR 6 ================================ */
+6:{
+word:[
+ ['Distinguish vocabulary used in informal and formal English.',[
+  bn('Formal or informal?',['Formal','Informal'],[['request',0],['ask for',1],['purchase',0],['buy',1],['children',0],['kids',1],['enter',0],['go in',1]]),
+  bn('Formal or informal?',['Formal','Informal'],[['enquire',0],['ask',1],['assist',0],['help out',1],['commence',0],['kick off',1]],{d:3}),
+  gp('Choose the formal word.','Please {enter|go in|pop in} through the main door.'),
+  gp('Choose the formal word.','The meeting will {commence|kick off|start up} at nine.'),
+  gp('Choose the formal word.','Could you {assist|give a hand to|help out} the new pupils?',{d:1}),
+  gp('Choose the informal word.','The film was {awesome|excellent|superb}.'),
+  gp('Choose the formal word.','We {require|wanna|gotta} your reply by Friday.')]],
+ ['Recognise and use synonyms.',[
+  gp('Choose a synonym for "happy".','{joyful|sad|angry|tired}',{d:1}),
+  gp('Choose a synonym for "cold".','{chilly|warm|hot}',{d:1}),
+  gp('Choose a synonym for "big".','{enormous|tiny|small}'),
+  gp('Choose a synonym for "quick".','{rapid|slow|lazy}'),
+  gp('Choose a synonym for "angry".','{furious|calm|pleased}'),
+  gp('Choose a synonym for "brave".','{courageous|cowardly|timid}',{d:3}),
+  bn('Sort the synonyms.',['Synonyms of big','Synonyms of small'],[['huge',0],['tiny',1],['enormous',0],['minute',1],['vast',0],['miniature',1]]),
+  tg('Tap the synonym of "said".','Sam *whispered the answer to his friend.','a synonym of said')]],
+ ['Recognise and use antonyms.',[
+  gp('Choose the antonym of "brave".','{cowardly|fearless|bold}'),
+  gp('Choose the antonym of "hot".','{cold|warm|boiling}',{d:1}),
+  gp('Choose the antonym of "ancient".','{modern|old|antique}'),
+  gp('Choose the antonym of "generous".','{mean|kind|giving}'),
+  gp('Choose the antonym of "noisy".','{silent|loud|rowdy}'),
+  gp('Choose the antonym of "arrive".','{depart|come|reach}',{d:3}),
+  bn('Synonym or antonym of "fast"?',['Synonym of fast','Antonym of fast'],[['quick',0],['slow',1],['rapid',0],['sluggish',1],['speedy',0],['leisurely',1]])]]],
+sent:[
+ ['Use passive constructions to change the presentation of information.',[
+  gp('Make it passive.','The dog chased the cat. → The cat {was chased|chased|is chasing} by the dog.'),
+  gp('Make it passive.','Mum baked a cake. → A cake {was baked|baked|bakes} by Mum.',{d:1}),
+  gp('Make it passive.','Someone stole my bike. → My bike {was stolen|stole|is stealing}.'),
+  gp('Make it passive.','The storm damaged the roof. → The roof {was damaged|damaged|damages} by the storm.'),
+  gp('Make it passive.','The children ate the cakes. → The cakes {were eaten|was eaten|ate} by the children.',{d:3}),
+  bn('Active or passive?',['Active','Passive'],[['The cat chased the mouse.',0],['The mouse was chased by the cat.',1],['Ben kicked the ball.',0],['The ball was kicked by Ben.',1],['The wind blew the leaves.',0],['The leaves were blown by the wind.',1]]),
+  tg('Tap the passive verb form.','The window [was broken] by the ball.','part of the passive verb')]],
+ ['Distinguish formal and informal grammatical structures.',[
+  bn('Formal or informal?',['Formal','Informal'],[['Would you be so kind as to close the window?',0],['Can you shut the window?',1],['I would be grateful if you could reply.',0],['Get back to me, yeah?',1],['It is requested that visitors sign in.',0],['Sign in when you get here.',1]]),
+  gp('Choose the formal version.','{I would like to request a refund.|I want my money back.|Give me my cash back.}',{long:true}),
+  gp('Choose the informal version.','{See you later!|I look forward to seeing you.|I anticipate our next meeting.}',{long:true,d:1}),
+  gp('Choose the formal structure.','{It is believed that the bridge is unsafe.|People reckon the bridge is dodgy.|The bridge is well unsafe.}',{long:true,d:3}),
+  gp('Choose the formal structure.','{Visitors are asked not to touch the exhibits.|Don\'t touch the stuff!|Hands off, please.}',{long:true})]],
+ ['Recognise and use appropriate subjunctive forms in formal contexts.',[
+  gp('Choose the subjunctive form.','If I {were|was|am} you, I would go.'),
+  gp('Choose the subjunctive form.','The teacher insisted that he {be|is|was} quiet.'),
+  gp('Choose the subjunctive form.','It is vital that she {attend|attends|attended} the meeting.',{d:3}),
+  gp('Choose the subjunctive form.','If he {were|was|is} taller, he could reach the shelf.',{d:1}),
+  gp('Choose the subjunctive form.','I wish it {were|was|is} Saturday.'),
+  gp('Choose the subjunctive form.','The judge demanded that the man {tell|tells|told} the truth.',{d:3}),
+  gp('The subjunctive is mostly used in','{formal|informal|spoken only} writing.')]],
+ ['Understand and identify sentence subjects and objects.',[
+  tg('Tap the subject.','[The dog] chased the ball.','part of the subject',{d:1}),
+  tg('Tap the subject.','[My little sister] loves ice cream.','part of the subject'),
+  tg('Tap the subject.','[Ben and Ali] built a den in the woods.','part of the subject'),
+  tg('Tap the object.','Sam kicked [the ball].','part of the object',{d:1}),
+  tg('Tap the object.','The teacher praised [the class].','part of the object'),
+  tg('Tap the object.','We watched [a brilliant film] last night.','part of the object',{d:3}),
+  gp('In "The cat ate the fish", the subject is','{the cat|the fish|ate}.'),
+  gp('In "Mia read a book", the object is','{a book|Mia|read}.')]],
+ ['Use active and passive forms appropriately.',[
+  gp('Choose the active sentence.','{The chef cooked the meal.|The meal was cooked by the chef.|The meal was cooked.}',{long:true,d:1}),
+  gp('Choose the passive sentence that hides who did it.','{My wallet was stolen.|Someone stole my wallet.|A thief stole my wallet.}',{long:true}),
+  gp('The passive is useful when','{the doer is unknown or unimportant|you want to sound chatty|you are listing items}',{long:true}),
+  gp('Choose the passive sentence.','{The match was cancelled.|The referee cancelled the match.|They cancelled the match.}',{long:true}),
+  bn('Active or passive?',['Active','Passive'],[['The farmer planted the seeds.',0],['The seeds were planted by the farmer.',1],['A storm flooded the town.',0],['The town was flooded.',1],['We built a den.',0],['A den was built.',1]],{d:3})]]],
+text:[
+ ['Link ideas across paragraphs using a wider range of cohesive devices.',[
+  gp('Choose the cohesive device.','{In contrast|Nearby|Firstly}, the second team played well.'),
+  gp('Choose the cohesive device.','{Furthermore|Underneath|Yesterday}, the costs would be enormous.'),
+  gp('Choose the cohesive device.','{Consequently|Nearby|Earlier}, the river flooded.'),
+  gp('Choose the cohesive device.','{Despite this|Meanwhile|Beside}, the plan went ahead.',{d:3}),
+  bn('What does the device do?',['Adding','Contrasting','Concluding'],[['moreover',0],['on the other hand',1],['in conclusion',2],['in addition',0],['however',1],['to sum up',2]])]],
+ ['Use repetition of words and phrases for cohesion.',[
+  tg('Tap the repeated word that links the ideas.','The *forest was silent. Deep in the *forest, something stirred.','the repeated linking word'),
+  tg('Tap the repeated word that links the ideas.','Nobody wanted the *job. The *job was dirty and dangerous.','the repeated linking word',{d:1}),
+  tg('Tap the repeated phrase that links the ideas.','[The old clock] struck twelve. [The old clock] had never been wrong.','part of the repeated linking phrase',{d:3}),
+  gp('Repeating a word across sentences can help with','{cohesion|ambiguity|the subjunctive}.'),
+  gp('Which repeated word links these sentences? "Rain fell all day. Rain was all we had seen for weeks."','{Rain|day|weeks}')]],
+ ['Use grammatical connections and contrasting adverbials to connect ideas.',[
+  gp('Choose the contrasting adverbial.','On the one hand, it is cheap. {On the other hand|Therefore|Nearby}, it is slow.'),
+  gp('Choose the connecting word.','Some people love winter. {Others|Nearby|Firstly}, however, prefer summer.'),
+  gp('Choose the connecting phrase.','The first plan failed. {The second|Firstly|Underneath}, however, worked.',{d:3}),
+  gp('Choose the contrasting adverbial.','The sun was shining. {Nevertheless|Therefore|Similarly}, it felt cold.'),
+  bn('Contrasting or not?',['Contrasting','Not contrasting'],[['however',0],['therefore',1],['on the other hand',0],['in addition',1],['whereas',0],['also',1]])]],
+ ['Use ellipsis as a cohesive device.',[
+  gp('Which sentence uses ellipsis (words left out)?','{I like tea; she, coffee.|I like tea and she likes coffee.|I like tea.}',{long:true}),
+  gp('Add the ellipsis.','He opened the door and gasped{…}',{punct:true,d:1}),
+  gp('Ellipsis means','{leaving out words that are understood|adding extra words|repeating words}',{long:true}),
+  gp('"Ali can swim and Jo can too." Fill in the words left out.','Jo can {swim|run|jump} too.'),
+  gp('"Mia likes pizza; Ben, pasta." Which word has been left out?','{likes|and|pizza}',{d:3})]],
+ ['Use layout devices such as headings, subheadings, columns, bullet points and tables.',[
+  bn('Heading, subheading or bullet point?',['Heading','Subheading','Bullet point'],[['How to Care for Rabbits',0],['Food',1],['• carrots',2],['The Solar System',0],['Mars',1],['• the red planet',2]]),
+  gp('Which layout device would you use for a list of equipment?','{bullet points|a heading|a table of figures}'),
+  gp('Which layout device shows data in rows and columns?','{a table|a heading|bullet points}',{d:1}),
+  gp('Which layout device introduces a section?','{a subheading|a bullet point|a column}'),
+  gp('Which layout device splits text into side-by-side blocks?','{columns|bullet points|a heading}',{d:3})]]],
+punct:[
+ ['Use semicolons between closely related independent clauses.',[
+  gp('Add the semicolon.','It was raining{;} we stayed inside.',{punct:true,d:1}),
+  gp('Add the semicolon.','The sun set{;} the stars appeared.',{punct:true}),
+  gp('Add the semicolon.','I love reading{;} my brother prefers films.',{punct:true}),
+  gp('Which is punctuated correctly?','{The sun set; the stars appeared.|The sun set; and the stars appeared.|The sun set; appearing.}',{long:true}),
+  gp('A semicolon can join two','{independent clauses|single words|adjectives}.',{d:3})]],
+ ['Use colons to mark boundaries between independent clauses.',[
+  gp('Add the colon.','She had one wish{:} she wanted to fly.',{punct:true}),
+  gp('Add the colon.','The verdict was clear{:} he was guilty.',{punct:true}),
+  gp('Add the colon.','I knew the answer{:} it was Paris.',{punct:true,d:1}),
+  gp('Which is punctuated correctly?','{There was only one problem: nobody had a key.|There was only one problem nobody: had a key.|There was only: one problem nobody had a key.}',{long:true,d:3})]],
+ ['Use dashes to mark boundaries between independent clauses.',[
+  gp('Add the dash.','I love reading {–~;} it takes me to other worlds.',{punct:true}),
+  gp('Add the dash.','The door creaked open {–~;} nobody was there.',{punct:true,d:1}),
+  gp('Add the dash.','We ran all the way {–~;} we still missed the bus.',{punct:true}),
+  gp('Which is punctuated correctly?','{The race was over – we had lost.|The race was over we – had lost.|The – race was over we had lost.}',{long:true})]],
+ ['Use a colon to introduce a list.',[
+  gp('Add the colon.','You will need{:} flour, eggs and milk.',{punct:true,d:1}),
+  gp('Add the colon.','There are three primary colours{:} red, blue and yellow.',{punct:true}),
+  gp('Add the colon.','Pack these things{:} a hat, sunscreen and water.',{punct:true}),
+  gp('Which is punctuated correctly?','{Bring the following: a pen, a ruler and a book.|Bring the following, a pen: a ruler and a book.|Bring: the following a pen, a ruler and a book.}',{long:true})]],
+ ['Use semicolons to separate complex list items.',[
+  gp('Add the semicolons.','We visited Paris, France{;} Rome, Italy{;} and Madrid, Spain.',{punct:true}),
+  gp('Add the semicolons.','Bring a pen, for writing{;} a ruler, for measuring{;} and a book, for reading.',{punct:true,d:3}),
+  gp('Add the semicolons.','The team includes Sam, the captain{;} Jo, the keeper{;} and Ali, the striker.',{punct:true}),
+  gp('Which list needs semicolons?','{a list where the items already contain commas|a list of single words|a list of numbers}',{long:true,d:1})]],
+ ['Punctuate bullet-point lists consistently.',[
+  gp('Which list is punctuated consistently?','{• a hat • a coat • a scarf|• a hat, • a coat. • a scarf|• A hat • a coat, • A scarf.}',{long:true}),
+  gp('Bullet points in a list should','{all be punctuated the same way|each use different punctuation|never use capital letters}',{long:true,d:1}),
+  bn('Consistent or inconsistent?',['Consistent','Inconsistent'],[['• apples • pears • plums',0],['• apples, • Pears. • plums',1],['• Wash up. • Dry up. • Put away.',0],['• wash up • Dry up, • put away.',1]]),
+  gp('Which list is punctuated consistently?','{• Wash the dishes. • Dry the dishes. • Put them away.|• Wash the dishes • Dry the dishes. • put them away|• wash the dishes, • Dry the dishes • Put them away.}',{long:true,d:3})]],
+ ['Use hyphens to avoid ambiguity.',[
+  gp('Add the hyphen (a shark that eats people).','a man{-}eating shark',{punct:true}),
+  gp('Add the hyphen.','twenty{-}five children',{punct:true,d:1}),
+  gp('Choose the right form (to cover again).','I need to {re-cover|recover} the sofa with new fabric.'),
+  gp('Choose the right form.','The {well-known|well known} singer waved to the crowd.',{d:3}),
+  gp('Choose the right form (a road that is rarely used).','a {little-used|little used} road'),
+  gp('Which means a chair made by hand?','{a hand-made chair|a hand made chair|a hand, made chair}',{long:true})]]],
+term:[
+ ['Use the terms: subject, object, active, passive, synonym, antonym, ellipsis, hyphen, colon, semicolon, bullet points.',[
+  gp('Choose the term.','The person or thing doing the verb is the {subject|object|active}.'),
+  gp('Choose the term.','The person or thing the verb is done to is the {object|subject|passive}.'),
+  gp('Choose the term.','"The cat chased the mouse" is {active|passive|subjunctive}.'),
+  gp('Choose the term.','"The mouse was chased by the cat" is {passive|active|ellipsis}.'),
+  gp('Choose the term.','Words with similar meanings are {synonyms|antonyms|hyphens}.',{d:1}),
+  gp('Choose the term.','Words with opposite meanings are {antonyms|synonyms|colons}.',{d:1}),
+  gp('Choose the term.','Leaving out words that are understood is {ellipsis|cohesion|parenthesis}.'),
+  gp('Choose the term.','This mark - joins words together. It is a {hyphen|colon|semicolon}.'),
+  gp('Choose the term.','This mark : is a {colon|semicolon|hyphen}.'),
+  gp('Choose the term.','This mark ; is a {semicolon|colon|hyphen}.'),
+  gp('Choose the term.','A list with • before each item uses {bullet points|a colon|hyphens}.'),
+  bn('Name the mark.',['Colon','Semicolon','Hyphen'],[[':',0],[';',1],['-',2]],{d:1})]]]}
+};
+
+/* =====================================================================
+   Modes (answer methods) and engine
+   ===================================================================== */
+const STRAND={word:['Word grammar','var(--s-word)','Words'],sent:['Sentence grammar','var(--s-sent)','Sentences'],text:['Tense & text','var(--s-text)','Text'],punct:['Punctuation','var(--s-punct)','Punctuation'],term:['Terminology','var(--s-term)','Terms'],mix:['Mixed practice','var(--s-mix)','Mixed']};
+const ORDER=['word','sent','text','punct','term'];
+const YEARS=[1,2,3,4,5,6];
+/* five levels per year: how likely each difficulty of item is */
+const LEVELS=[{1:3,2:1,3:.2},{1:2,2:2,3:.5},{1:1,2:2,3:1},{1:.5,2:2,3:2},{1:.3,2:1,3:3}];
+const LEVEL_UP=6,LEVEL_DOWN=-3;
+const MODES={
+  tap:     {icon:'👆',name:'Tap the words',    tech:'Precise clicking', how:'Tap every word that fits. Tap a word again to un-pick it.'},
+  tiles:   {icon:'🧩',name:'Punctuation tiles',tech:'Drag & drop',      how:'Drag a tile into a gap, or tap a tile and then tap a gap. Tap a filled gap to clear it. You can also type the mark.'},
+  type:    {icon:'⌨️',name:'Type it',          tech:'Typing & Tab',     how:'Click the box and type. Tab jumps to the next box; Enter checks.'},
+  choice:  {icon:'🅰️',name:'Multiple choice',  tech:'Choosing',         how:'Read every option before you choose. Tap the one that is right.'},
+  cards:   {icon:'🃏',name:'Word cards',       tech:'Drag & drop',      how:'Drag a card into a gap, or tap a card and then tap a gap. Some cards are tricks!'},
+  dropdown:{icon:'🔽',name:'Dropdown menu',    tech:'Menus',            how:'Click the ▾ box and pick an answer. On a keyboard use ↑ ↓ and Enter.'},
+  wheel:   {icon:'🎡',name:'Word wheel',       tech:'Scroll wheel',     how:'Click ▲ or ▼ to turn the wheel, or point at it and roll the mouse wheel. Arrow keys work too.'},
+  order:   {icon:'↕️',name:'Put in order',     tech:'Sorting',          how:'Drag the items into the right order, or use the ▲ ▼ buttons. You can also tap one item and then tap where it should go.'},
+  build:   {icon:'🔨',name:'Sentence builder', tech:'Tap to build',     how:'Tap the words in order to build your answer. Tap a word in your answer to send it back.'},
+  bins:    {icon:'🗂️',name:'Sort into groups', tech:'Drag & drop',      how:'Drag each word into the right group, or tap a word and then tap a group. Drag it back to the pile to change your mind.'},
+  judge:   {icon:'🕵️',name:'Check the work',   tech:'Swipe & decide',   how:'Is this answer right? Tap ✓ or swipe it right. If it is wrong, tap ✗ or swipe it left, then fix it.'}
+};
+/* how often each method is offered at each level: more scaffolding early, more typing and judging later */
+const MODE_LEVEL={choice:[3,2,1.5,1,.7],dropdown:[2.5,2,1.5,1,.7],cards:[2,2,1.5,1,.8],wheel:[2,2,1.5,1,.8],tiles:[2,2,1.5,1.2,1],tap:[1.5,1.5,1.5,1.5,1.5],order:[1.5,1.5,1.5,1.5,1.5],build:[1,1.2,1.5,1.5,1.5],bins:[1.5,1.5,1.5,1.5,1.5],type:[.6,1,1.5,2,3],judge:[.5,1,1.5,2,3]};
+const PASSPORT=Object.keys(MODES);const BADGE=5;
+
+function lsGet(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+const state={year:1,strand:'mix',seed:1000+Math.floor(Math.random()*9000),notes:false,card:[],ans:[],results:[],revealed:false,done:false,finished:0,sel:null,zoom:null,cardId:0,prog:lsGet('grammix-progress',{}),skills:lsGet('grammix-skills',{}),uses:lsGet('grammix-uses',{})};
+function prog(){return state.prog[state.year]||(state.prog[state.year]={lv:0,pts:0})}
+function realStrands(){const y=CURR[state.year]||{};return ORDER.filter(s=>(y[s]||[]).length)}
+function strandsFor(){const r=realStrands();return r.length>1?['mix',...r]:r}
+function objsFor(year,strand){const y=CURR[year]||{};const ss=strand==='mix'?ORDER:[strand];return ss.flatMap(s=>(y[s]||[]).map(o=>({t:o[0],bank:o[1],s,y:year})))}
+function weighted(items,w){const ws=items.map(w),tot=ws.reduce((a,b)=>a+b,0);let r=R()*tot;for(let i=0;i<items.length;i++){r-=ws[i];if(r<0)return items[i]}return items[items.length-1]}
+function pickItem(bank,lv){const w=LEVELS[lv];return JSON.parse(JSON.stringify(weighted(bank,it=>w[it.d]||.3)))}
+
+/* which answer methods suit an item */
+const choosy=p=>/^(Choose|Which|What type|Singular or plural|Is it|In ")/.test(p.q)||p.gaps&&p.gaps.every(g=>g.a[0].length<=2);
+function eligible(p){
+  const k=p.kind;let L=[];
+  if(k==='tag'){L=['tap','judge'];const span=p.target.length>1&&p.target.every((t,i)=>!i||t===p.target[i-1]+1);if(!span&&p.words.length-p.target.length>=3)L.push('choice')}
+  else if(k==='gap'){const n=p.gaps.length;
+    if(p.long)L=['choice','judge'];
+    else{L=['judge'];const hasOpts=p.gaps.every(g=>g.o.length>=1);
+      if(p.punct){L.push('tiles');if(n<=2)L.push('type');L.push('dropdown','wheel');if(n===1)L.push('choice')}
+      else{if(!choosy(p)||!hasOpts)L.push('type');if(hasOpts){L.push('dropdown','wheel','cards');if(n===1&&p.gaps[0].o.length>=2)L.push('choice')}}}}
+  else if(k==='order'){L=['order','judge'];if(p.items.length<=9&&Math.max(...p.items.map(x=>x.length))<=12)L.push('build')}
+  else if(k==='bins'){L=['bins','judge'];const n=p.items.length;const ok=p.bins.some((_,b)=>{const c=p.groups.filter(g=>g===b).length;return c>=1&&n-c>=3});if(n>=4&&ok)L.push('choice')}
+  return L;
+}
+function tileSet(p){const s=['.','?','!',','];if(CY>=2)s.push("'",'"');if(CY>=5)s.push('–','(',')');if(CY>=6)s.push(':',';','-','…');p.gaps.forEach(g=>g.a.forEach(x=>{if(!s.includes(x))s.push(x)}));return s}
+function innerMode(p){return p.kind==='tag'?'tap':p.kind==='gap'?(choosy(p)&&p.gaps.every(g=>g.o.length)?'dropdown':'type'):p.kind==='order'?'order':'binpick'}
+function setupMode(p,m){
+  p.mode=m;
+  if(p.kind==='tag'){const non=p.words.map((_,i)=>i).filter(i=>!p.target.includes(i));
+    if(m==='choice')p.opts=shuffle([pick(p.target),...shuffle(non).slice(0,3)]);
+    if(m==='judge'){p.claim=R()<.5||!non.length?pick(p.target):pick(non);p.claimRight=p.target.includes(p.claim)}}
+  if(p.kind==='gap'){
+    if(p.punct)p.tiles=tileSet(p);
+    p.gaps.forEach(g=>{g.list=p.punct?p.tiles.slice():shuffle(uniq([g.a[0],...g.o]))});
+    if(m==='choice'){const g=p.gaps[0];p.opts=p.punct?shuffle([g.a[0],...shuffle(p.tiles.filter(t=>!g.a.includes(t))).slice(0,3)]):shuffle(uniq([g.a[0],...g.o.slice(0,3)]))}
+    if(m==='cards'){const ans=p.gaps.map(g=>g.a[0]);const dis=[];p.gaps.forEach(g=>g.o.forEach(x=>{if(!ans.includes(x)&&!dis.includes(x))dis.push(x)}));p.pool=shuffle([...ans,...shuffle(dis).slice(0,Math.max(2,6-ans.length))])}
+    if(m==='judge'){p.shown=p.gaps.map(g=>g.a[0]);p.claimRight=R()<.5;if(!p.claimRight){const j=rnd(0,p.gaps.length-1),g=p.gaps[j];const alt=(p.punct?p.tiles:g.o).filter(x=>!g.a.includes(x));if(alt.length)p.shown[j]=pick(alt);else p.claimRight=true}}
+  }
+  if(p.kind==='order'){let s,t=0;do{s=shuffle(p.items.map((_,i)=>i))}while(++t<20&&s.every((v,i)=>v===i)&&p.items.length>1);p.start=s;
+    if(m==='judge'){p.claimRight=R()<.5;const sq=p.items.map((_,i)=>i);if(!p.claimRight){const a=rnd(0,sq.length-2),b=a+1;[sq[a],sq[b]]=[sq[b],sq[a]]}p.shownSeq=sq}}
+  if(p.kind==='bins'){
+    if(m==='choice'){const bs=p.bins.map((_,b)=>b).filter(b=>{const c=p.groups.filter(g=>g===b).length;return c>=1&&p.items.length-c>=3});p.binQ=pick(bs);const ins=p.items.map((_,i)=>i).filter(i=>p.groups[i]===p.binQ),outs=p.items.map((_,i)=>i).filter(i=>p.groups[i]!==p.binQ);p.opts=shuffle([pick(ins),...shuffle(outs).slice(0,3)])}
+    if(m==='judge'){p.claim=rnd(0,p.items.length-1);p.claimRight=R()<.5;p.claimBin=p.claimRight?p.groups[p.claim]:pick(p.bins.map((_,b)=>b).filter(b=>b!==p.groups[p.claim]))}
+    p.order=shuffle(p.items.map((_,i)=>i));
+  }
+}
+function initAns(p,m){
+  if(m==='judge')return{verdict:null,fix:initAns(p,'fix')};
+  if(p.kind==='tag')return{sel:[]};
+  if(p.kind==='gap')return{g:p.gaps.map(()=>null),c:{}};
+  if(p.kind==='order')return{seq:m==='build'?[]:p.start.slice(),moved:false};
+  if(p.kind==='bins')return{bin:p.items.map(()=>null)};
+}
+/* the canonical answer, used by Show answers */
+function answerKey(p,m){
+  if(m==='judge')return{verdict:p.claimRight?'right':'wrong',fix:p.claimRight?initAns(p,'fix'):answerKey(p,'fix')};
+  if(p.kind==='tag')return{sel:m==='choice'?[p.opts.find(i=>p.target.includes(i))]:m==='fix'?[p.target[0]]:p.target.slice()};
+  if(p.kind==='gap'){const a={g:p.gaps.map(g=>g.a[0]),c:{}};if(m==='cards'){const used=new Set();p.gaps.forEach((g,j)=>{const k=p.pool.findIndex((x,i)=>x===g.a[0]&&!used.has(i));if(k>=0){used.add(k);a.c[j]=k}})}return a}
+  if(p.kind==='order')return{seq:p.items.map((_,i)=>i),moved:true};
+  if(p.kind==='bins'){const bin=p.items.map(()=>null);if(m==='choice'){const i=p.opts.find(i=>p.groups[i]===p.binQ);bin[i]=p.groups[i]}else if(m==='fix'||m==='binpick')bin[p.claim]=p.groups[p.claim];else p.groups.forEach((g,i)=>bin[i]=g);return{bin}}
+}
+const norm=s=>String(s).trim().replace(/\s+/g,' ').replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/\u2014/g,'\u2013');
+function matchGap(p,g,v){if(v==null)return false;const x=norm(v);if(x==='')return false;return g.a.some(a=>{const y=norm(a);return p.cs||p.punct?x===y:x.toLowerCase()===y.toLowerCase()})}
+function isRight(p,a,m){
+  const any=m==='choice'||m==='fix'||m==='binpick';
+  if(p.kind==='tag'){if(!a.sel.length)return null;return any?a.sel.every(x=>p.target.includes(x)):setEq(a.sel,p.target)}
+  if(p.kind==='gap'){if(a.g.some(v=>v==null||String(v).trim()===''))return null;return p.gaps.every((g,j)=>matchGap(p,g,a.g[j]))}
+  if(p.kind==='order'){if(a.seq.length<p.items.length||(m!=='build'&&!a.moved))return null;return a.seq.every((v,k)=>v===k)}
+  if(p.kind==='bins'){const set=a.bin.map((b,i)=>[b,i]).filter(x=>x[0]!=null);if(!set.length)return null;if(!any&&set.length<p.items.length)return null;return set.every(([b,i])=>b===p.groups[i])}
+}
+function resultFor(p,a){
+  if(p.mode==='judge'){if(!a.verdict)return'todo';if(a.verdict==='right')return p.claimRight?'ok':'bad';if(p.claimRight)return'bad';const r=isRight(p,a.fix,'fix');return r==null?'todo':r?'ok':'bad'}
+  const r=isRight(p,a,p.mode);return r==null?'todo':r?'ok':'bad';
+}
+function buildCard(){
+  CY=+state.year;const lv=prog().lv;
+  R=mulberry32(state.seed*7919+strHash(state.year+state.strand)+lv*101);
+  const objs=objsFor(state.year,state.strand);if(!objs.length)return[];
+  const prev=lv>=2?objsFor(state.year-1,state.strand):[];
+  const picks=shuffle(objs),used=new Set(),probs=[];
+  for(let n=0;n<4;n++){
+    let o=prev.length&&R()<.2?pick(prev):(picks.find(x=>!used.has(x.t))||pick(objs));
+    used.add(o.t);const p=pickItem(o.bank,lv);p.obj=o.t;p.strand=o.s;p.year=o.y;p.review=o.y!==CY;probs.push(p);
+  }
+  return probs;
+}
+function assignModes(){
+  const lv=prog().lv,usedOnCard=new Set();
+  state.ans=[];
+  state.card.forEach(p=>{
+    const el=eligible(p);const fresh=el.filter(x=>!usedOnCard.has(x)),pool=fresh.length?fresh:el;
+    const m=weighted(pool,x=>(MODE_LEVEL[x][lv]||1)/(1+(state.uses[x]||0)));
+    usedOnCard.add(m);state.uses[m]=(state.uses[m]||0)+1;setupMode(p,m);state.ans.push(initAns(p,m));
+  });
+  lsSet('grammix-uses',state.uses);
+}
+function newCardCore(keepSeed){
+  const ss=strandsFor();if(!ss.includes(state.strand))state.strand=ss[0];
+  if(!keepSeed)state.seed=1000+Math.floor(Math.random()*9000);
+  state.cardId++;state.card=buildCard();state.results=[];state.revealed=false;state.done=false;state.sel=null;state.zoom=null;assignModes();
+}
+</script>
+
+<script id="ui">
+/* =====================================================================
+   UI — rendering and interaction
+   ===================================================================== */
+const $=id=>document.getElementById(id);
+const rf=s=>{const[i,pre,j]=String(s).split('|');return{i:+i,pre:pre||'',j:j==null||j===''?null:(isNaN(+j)?j:+j)}};
+const ansOf=(i,pre)=>pre==='f'?state.ans[i].fix:state.ans[i];
+const modeOf=(p,pre)=>pre==='f'?innerMode(p):p.mode;
+function announce(t){$('sr').textContent=t}
+let toastT;function toast(t){const el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),3000)}
+const isSel=(kind,i,val,from)=>state.sel&&state.sel.kind===kind&&state.sel.i===i&&String(state.sel.val)===String(val)&&String(state.sel.from)===String(from);
+const dg=(kind,i,pre,val,from)=>`data-dg="${kind}" data-dgi="${i}" data-dgpre="${pre}" data-dgval="${esc(val)}" data-dgfrom="${from==null?'':from}"`;
+const dt=(kind,i,pre,j)=>`data-dt="${i}|${pre}|${j}" data-dtk="${kind}"`;
+const tgt=(kind,i)=>state.sel&&state.sel.kind===kind&&state.sel.i===i?' target':'';
+
+/* ---------- side, head ---------- */
+function renderSide(){
+  $('years').innerHTML=YEARS.map(y=>`<button type="button" class="year-btn" data-year="${y}" aria-pressed="${y===state.year}" aria-label="Year ${y}" title="Year ${y}">${y}</button>`).join('');
+  $('strands').innerHTML=strandsFor().map(s=>`<li><button type="button" class="strand-btn" data-strand="${s}" style="--c:${STRAND[s][1]}" aria-pressed="${s===state.strand}"><span class="sw"></span>${STRAND[s][0]}<span class="n">${objsFor(state.year,s).length}</span></button></li>`).join('');
+  $('notes').checked=state.notes;
+}
+function renderLevel(){
+  const el=$('lvl'),g=prog(),max=LEVELS.length,need=Math.max(0,LEVEL_UP-g.pts);
+  el.innerHTML=`<span class="pips" aria-hidden="true">${[...Array(max)].map((_,k)=>`<i class="${k<g.lv?'done':k===g.lv?'now':''}"></i>`).join('')}</span><span class="lvl-txt">${g.lv>=max-1?'Top level. Brilliant work!':`${need} more right to reach Level ${g.lv+2}`}</span>`;
+  el.setAttribute('aria-label',`Level ${g.lv+1} of ${max}`);
+}
+function renderFsNav(){
+  $('fs-year').textContent='Year '+state.year;$('fs-terms').textContent=`Level ${prog().lv+1}`;
+  $('fs-strand').innerHTML=strandsFor().map(s=>`<option value="${s}" ${s===state.strand?'selected':''}>${STRAND[s][2]}</option>`).join('');
+}
+function renderCurr(){
+  const objs=objsFor(state.year,state.strand);
+  $('curr-count').textContent=`(${objs.length})`;
+  $('curr-list').innerHTML=objs.map(o=>`<li>${esc(o.t)}<span class="chipn">${o.bank.length} items</span></li>`).join('');
+}
+function renderStyles(){
+  const done=PASSPORT.filter(m=>(state.skills[m]||0)>=BADGE).length;
+  $('passport').innerHTML=PASSPORT.map(m=>{const n=Math.min(state.skills[m]||0,BADGE);return`<span class="stamp${n>=BADGE?' earned':''}" style="--p:${n/BADGE*100}" title="${MODES[m].name} (${MODES[m].tech}): ${n} of ${BADGE} correct${n>=BADGE?' · stamp earned!':''}" role="img" aria-label="${MODES[m].name}: ${n} of ${BADGE}"><span>${MODES[m].icon}</span></span>`}).join('');
+  $('passport-count').textContent=`${done} of ${PASSPORT.length} stamps`;
+}
+
+/* ---------- problem rendering ---------- */
+function tokens(p,i,a,pre,live){return`<div class="sent toks">${p.words.map((w,k)=>live?`<button type="button" class="tok${a.sel.includes(k)?' sel':''}" data-tok="${i}|${pre}|${k}" aria-pressed="${a.sel.includes(k)}">${esc(w)}</button>`:`<span class="tok plain">${esc(w)}</span>`).join('')}</div>`}
+function optsHTML(items,sel,ref,long){return`<div class="opts${long?' multi':''}" role="group" aria-label="Options">${items.map((t,n)=>`<button type="button" class="opt${sel===n?' sel':''}" data-opt="${ref}|${n}" aria-pressed="${sel===n}"><span class="key">${'ABCD'[n]}</span><span class="oval">${esc(t)}</span></button>`).join('')}</div>`}
+function tagHTML(p,i,a,pre,m){
+  if(m==='choice'){const sel=p.opts.findIndex(k=>a.sel.includes(k));return tokens(p,i,a,pre,false)+optsHTML(p.opts.map(k=>p.words[k]),sel,`${i}|${pre}`)}
+  return tokens(p,i,a,pre,true);
+}
+function gapSlot(p,i,a,pre,m,j){
+  const g=p.gaps[j],v=a.g?a.g[j]:null,ref=`${i}|${pre}|${j}`,fk=`g${ref}`;
+  if(m==='type'){const w=Math.max(2,...g.a.map(x=>x.length));return`<input class="ans-in${p.punct?' pk':''}" data-in="${ref}" data-fk="${fk}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Answer box" style="--w:${w}" value="${esc(v??'')}">`}
+  if(m==='dropdown')return`<select class="ans-sel" data-in="${ref}" data-fk="${fk}" aria-label="Choose the answer"><option value="">?</option>${g.list.map(o=>`<option value="${esc(o)}"${v===o?' selected':''}>${esc(o)}</option>`).join('')}</select>`;
+  if(m==='wheel')return`<span class="wheel" tabindex="0" data-wheel="${ref}" data-fk="${fk}" role="spinbutton" aria-label="Word wheel" aria-valuetext="${esc(v??'empty')}"><button type="button" tabindex="-1" data-wh="${ref}" data-d="1" aria-label="Turn up">▲</button><b>${v==null?'·':esc(v)}</b><button type="button" tabindex="-1" data-wh="${ref}" data-d="-1" aria-label="Turn down">▼</button></span>`;
+  if(m==='tiles'||m==='cards'){const kind=m==='tiles'?'tile':'card',filled=v!=null;return`<button type="button" class="drop${p.punct?' pk':''}${filled?' filled':' empty'}${filled?'':tgt(kind,i)}${filled&&isSel(kind,i,v,j)?' sel':''}" ${dt(kind,i,pre,j)} ${filled?dg(kind,i,pre,v,j)+` data-dgcard="${a.c[j]??''}"`:''} data-fk="${fk}" aria-label="${filled?'Gap filled with '+esc(v)+', tap to clear':'Empty gap'}">${filled?esc(v):''}</button>`}
+  if(m==='shown')return`<span class="shown">${esc(p.shown[j])}</span>`;
+  return`<span class="blank${v==null?' empty':''}">${v==null?'?':esc(v)}</span>`;
+}
+function gapSent(p,i,a,pre,m){return`<div class="sent">${p.segs.map((s,j)=>`<span class="seg">${esc(s)}</span>`+(j<p.gaps.length?gapSlot(p,i,a,pre,m,j):'')).join('')}</div>`}
+function gapWidget(p,i,a,pre,m){
+  if(m==='tiles'){const NAME={'.':'full stop','?':'question mark','!':'exclamation mark',',':'comma',"'":'apostrophe','"':'inverted comma','–':'dash','(':'bracket',')':'bracket',':':'colon',';':'semicolon','-':'hyphen','…':'ellipsis'};return`<div class="widget" role="group" aria-label="Punctuation tiles">${p.tiles.map(t=>`<button type="button" class="tile${isSel('tile',i,t,null)?' sel':''}" ${dg('tile',i,pre,t,null)} aria-label="${NAME[t]||t} tile" title="${NAME[t]||t}">${esc(t)}<small>${NAME[t]?NAME[t].split(' ')[0]:''}</small></button>`).join('')}</div>`}
+  if(m==='cards'){const used=new Set(Object.values(a.c));return`<div class="cpile" ${dt('card',i,pre,-1)} role="group" aria-label="Word cards"><span class="tray-lbl">Answer cards</span>${p.pool.map((t,k)=>`<button type="button" class="achip${used.has(k)?' used':''}${isSel('card',i,t,null)&&state.sel.card===k?' sel':''}" ${dg('card',i,pre,t,null)} data-dgcard="${k}" ${used.has(k)?'disabled':''}>${esc(t)}</button>`).join('')}</div>`}
+  if(m==='choice'){const sel=p.opts.findIndex(o=>a.g[0]===o);return optsHTML(p.opts,sel,`${i}|${pre}`,p.long)}
+  return'';
+}
+function gapHTML(p,i,a,pre,m){
+  if(p.long&&m==='choice')return`<div class="prow">${gapWidget(p,i,a,pre,m)}</div>`;
+  return`<div class="prow">${gapSent(p,i,a,pre,m)}${gapWidget(p,i,a,pre,m)}</div>`;
+}
+function orderHTML(p,i,a,pre){
+  const n=a.seq.length;
+  return`<ol class="olist" aria-label="Items to put in order">${a.seq.map((idx,pos)=>`<li class="oitem${isSel('ord',i,pos,pos)?' sel':''}" ${dg('ord',i,pre,pos,pos)} ${dt('ord',i,pre,pos)}><span class="ogrip" aria-hidden="true">⋮⋮</span><span class="otext">${esc(p.items[idx])}</span><span class="obtns"><button type="button" data-ord="${i}|${pre}|${pos}" data-d="-1" aria-label="Move up" ${pos===0?'disabled':''}>▲</button><button type="button" data-ord="${i}|${pre}|${pos}" data-d="1" aria-label="Move down" ${pos===n-1?'disabled':''}>▼</button></span></li>`).join('')}</ol>`;
+}
+function buildHTML(p,i,a,pre){
+  const used=new Set(a.seq);
+  return`<div class="prow"><div class="bline" aria-label="Your answer">${a.seq.map((idx,pos)=>`<button type="button" class="bword" data-bl="${i}|${pre}|${pos}" aria-label="Remove ${esc(p.items[idx])}">${esc(p.items[idx])}</button>`).join('')}</div><div class="pool" role="group" aria-label="Words to use">${p.start.map(idx=>`<button type="button" class="bword${used.has(idx)?' used':''}" data-bw="${i}|${pre}|${idx}" ${used.has(idx)?'disabled':''}>${esc(p.items[idx])}</button>`).join('')}</div></div>`;
+}
+function binsHTML(p,i,a,pre){
+  const chip=(idx,inBin)=>`<button type="button" class="chip${isSel('chip',i,idx,null)?' sel':''}" ${dg('chip',i,pre,idx,inBin?a.bin[idx]:null)}>${esc(p.items[idx])}</button>`;
+  const left=p.order.filter(idx=>a.bin[idx]==null);
+  return`<div class="prow"><div class="bins">${p.bins.map((b,k)=>`<div class="bin${tgt('chip',i)}" ${dt('chip',i,pre,k)}><h4>${esc(b)}</h4><div class="chips">${p.order.filter(idx=>a.bin[idx]===k).map(idx=>chip(idx,true)).join('')}</div></div>`).join('')}</div><div class="pool" ${dt('chip',i,pre,-1)} role="group" aria-label="Words to sort">${left.length?left.map(idx=>chip(idx,false)).join(''):'<span class="tray-lbl">All sorted. Drag a word back here to change your mind.</span>'}</div></div>`;
+}
+function binsChoice(p,i,a,pre){const sel=p.opts.findIndex(idx=>a.bin[idx]!=null);return`<p class="claim">Which of these belongs in the group <b>${esc(p.bins[p.binQ])}</b>?</p>`+optsHTML(p.opts.map(idx=>p.items[idx]),sel,`${i}|${pre}`)}
+function binPick(p,i,a,pre){return`<div class="binpick"><span class="word">${esc(p.items[p.claim])}</span>${p.bins.map((b,k)=>`<button type="button" class="opt${a.bin[p.claim]===k?' sel':''}" data-bin="${i}|${pre}|${k}" aria-pressed="${a.bin[p.claim]===k}"><span class="oval">${esc(b)}</span></button>`).join('')}</div>`}
+function claimHTML(p,i,a){
+  const strip=w=>w.replace(/^["'(\[]+|[.,!?"')\]]+$/g,'');
+  if(p.kind==='tag')return tokens(p,i,a,'',false)+`<p class="claim">“<b>${esc(strip(p.words[p.claim]))}</b>” is ${esc(p.label)}.</p>`;
+  if(p.kind==='gap')return gapSent(p,i,a,'','shown');
+  if(p.kind==='order'){const inline=p.items.every(x=>x.length<=12);return`<ol class="olist shownlist${inline?' inline':''}">${p.shownSeq.map(idx=>`<li class="oitem plain"><span class="otext">${esc(p.items[idx])}</span></li>`).join('')}</ol>`}
+  return`<p class="claim">“<b>${esc(p.items[p.claim])}</b>” goes in the group <b>${esc(p.bins[p.claimBin])}</b>.</p>`;
+}
+function judgeHTML(p,i,a){
+  const v=a.verdict,tag=v==='wrong'?'You said this was wrong. Now fix it below.':v==='right'?'You said this answer is right.':"Here is someone's answer. Is it right?";
+  const fixLbl=p.kind==='tag'?'Tap a word that really fits:':p.kind==='gap'?(innerMode(p)==='type'?'Type the correct answer:':'Choose the correct answer:'):p.kind==='order'?'Put them in the right order:':'Choose the right group:';
+  return`<div class="jwrap${v?' v-'+v:''}" data-swipe="${i}"><span class="jtag">📝 ${tag}</span>${claimHTML(p,i,a)}<div class="judge"><button type="button" class="jbtn r" data-judge="${i}|right" aria-pressed="${v==='right'}">✓ Right</button><button type="button" class="jbtn w" data-judge="${i}|wrong" aria-pressed="${v==='wrong'}">✗ Wrong — fix it</button><span class="hint">or swipe the card ← →</span></div></div>`+(v==='wrong'?`<div class="fix"><p class="fixlbl">${fixLbl}</p>${areaHTML(p,i,a.fix,'f',innerMode(p))}</div>`:'');
+}
+function areaHTML(p,i,a,pre,m){
+  if(m==='judge')return judgeHTML(p,i,a);
+  if(p.kind==='tag')return tagHTML(p,i,a,pre,m);
+  if(p.kind==='gap')return gapHTML(p,i,a,pre,m);
+  if(p.kind==='order')return m==='build'?buildHTML(p,i,a,pre):orderHTML(p,i,a,pre);
+  if(p.kind==='bins')return m==='choice'?binsChoice(p,i,a,pre):m==='binpick'?binPick(p,i,a,pre):binsHTML(p,i,a,pre);
+  return'';
+}
+function probHTML(p,i,pill,r){
+  const M=MODES[p.mode];
+  const stag=(state.strand==='mix'?`<span class="stag">${STRAND[p.strand][2]}</span>`:'')+(p.review?`<span class="stag rev">Review · Year ${p.year}</span>`:'');
+  const chip=`<p class="mchip">${stag}<b>${M.icon} ${M.name}</b><span>${M.how}</span></p>`;
+  const q=p.mode==='choice'&&p.kind==='bins'?p.q.replace(/^Sort /,'Think about: '):p.q;
+  return`<li class="prob mode-${p.mode}${state.zoom===i?' zoom':''}" data-state="${r||''}" style="--accent:${STRAND[p.strand][1]}"><div class="fit"><span class="pnum" data-zoom="${i}" title="Full screen: click to enlarge this question">${i+1}</span><div class="pbody"><p class="obj" ${state.notes?'':'hidden'}>${esc(p.obj)}</p>${chip}<p class="q">${esc(q)}</p>${areaHTML(p,i,state.ans[i],'',p.mode)}</div><div class="pmark">${pill}</div></div></li>`;
+}
+function renderQnav(){
+  const el=$('qnav'),on=fsOn&&state.card.length>1;el.hidden=!on;if(!on){el.innerHTML='';return}
+  el.innerHTML=state.card.map((p,i)=>{const r=state.results[i];return`<button type="button" data-zoom="${i}" class="${r==='ok'?'ok':r==='bad'?'bad':''}" aria-pressed="${state.zoom===i}" aria-label="Question ${i+1}">${i+1}</button>`}).join('')+`<button type="button" class="all" data-zoom="-1" aria-pressed="${state.zoom==null}" aria-label="Show all questions">All</button>`;
+}
+function renderCard(){
+  const color=STRAND[state.strand][1];
+  $('card').style.setProperty('--accent',color);document.documentElement.style.setProperty('--accent',color);
+  $('card-eyebrow').textContent=`Year ${state.year} · Level ${prog().lv+1} of ${LEVELS.length}`;renderLevel();
+  $('card-title').textContent=STRAND[state.strand][0];
+  $('card-no').textContent=state.seed;
+  renderFsNav();
+  const afk=document.activeElement?.dataset?.fk;
+  const box=$('probs');
+  if(!state.card.length)box.innerHTML=`<li class="prob"><div class="pbody"><p class="q">There are no objectives in this category yet. Choose another category.</p></div></li>`;
+  else box.innerHTML=state.card.map((p,i)=>{const r=state.results[i];const pill=r==='ok'?`<span class="pill ok">${state.revealed?'Answer':'Correct'}</span>`:r==='bad'?'<span class="pill bad">Try again</span>':r==='todo'?'<span class="pill todo">Not finished</span>':'';return probHTML(p,i,pill,r)}).join('');
+  box.classList.toggle('zoomed',fsOn&&state.zoom!=null);
+  renderQnav();
+  if(afk){const el=document.querySelector(`[data-fk="${CSS.escape(afk)}"]`);el&&el.focus()}
+  const st=$('status');
+  if(state.revealed){st.textContent='Answers shown. Start a new card to try again.';st.className='status'}
+  else if(state.done){st.textContent='Card complete. Well done!';st.className='status win'}
+  else if(state.results.some(r=>r)){st.textContent=`${state.results.filter(r=>r==='ok').length} of ${state.card.length} correct`;st.className='status'}
+  else{st.textContent='';st.className='status'}
+}
+function renderAll(){renderSide();renderStyles();renderCard();renderCurr()}
+function newCard(keepSeed){newCardCore(keepSeed);try{history.replaceState(null,'',`#y${state.year}-${state.strand}-${state.seed}`)}catch(e){}if(fsOn&&state.card.length>1)state.zoom=0;renderAll()}
+
+/* ---------- checking ---------- */
+function touchP(i,soft){
+  if(state.revealed){state.revealed=false;state.results=[];soft=false}else state.results[i]=undefined;
+  if(soft){const li=document.querySelectorAll('#probs > .prob')[i];if(li){li.dataset.state='';const pm=li.querySelector('.pmark');if(pm)pm.innerHTML=''}}
+}
+function check(){
+  state.results=state.card.map((p,i)=>resultFor(p,state.ans[i]));
+  const stamps=[];
+  if(!state.revealed){
+    state.results.forEach((r,i)=>{const p=state.card[i];if(r==='ok'&&!p.counted){p.counted=true;state.skills[p.mode]=(state.skills[p.mode]||0)+1;if(state.skills[p.mode]===BADGE)stamps.push(p.mode)}});
+    lsSet('grammix-skills',state.skills);renderStyles();
+    const g=prog(),before=g.lv;
+    state.results.forEach((r,i)=>{const p=state.card[i];if(p.scored||(r!=='ok'&&r!=='bad'))return;p.scored=true;g.pts+=r==='ok'?1:-1});
+    if(g.pts>=LEVEL_UP&&g.lv<LEVELS.length-1){g.lv++;g.pts=0}else if(g.pts<=LEVEL_DOWN&&g.lv>0){g.lv--;g.pts=0}
+    g.pts=Math.max(g.lv===0?0:LEVEL_DOWN+1,Math.min(g.pts,LEVEL_UP));lsSet('grammix-progress',state.prog);
+    if(g.lv>before)toast(`⬆️ Level up! Level ${g.lv+1}: the next card gives you less help.`);
+    else if(g.lv<before)toast(`Level ${g.lv+1} next: a bit more practice before moving on.`);
+  }
+  if(stamps.length)toast(stamps.map(m=>`${MODES[m].icon} Passport stamp: ${MODES[m].name}!`).join('  '));
+  if(!state.revealed&&!state.done&&state.card.length&&state.results.every(r=>r==='ok')){state.done=true;state.finished++}
+  renderCard();announce($('status').textContent);
+}
+function showAnswers(){state.ans=state.card.map(p=>answerKey(p,p.mode));state.results=state.card.map(()=>'ok');state.revealed=true;state.sel=null;renderCard()}
+function clearAnswers(){state.ans=state.card.map(p=>initAns(p,p.mode));state.results=[];state.revealed=false;state.sel=null;renderCard()}
+
+/* ---------- drop logic (shared by drag and tap-then-tap) ---------- */
+function doDrop(s,t){
+  const{i,pre,j}=t;if(s.i!==i)return;const p=state.card[i],a=ansOf(i,pre);
+  if(s.kind==='tile'||s.kind==='card'){
+    if(j===-1){if(s.from!=null){a.g[s.from]=null;delete a.c[s.from]}}
+    else if(s.from!==j){const prev=a.g[j],prevC=a.c[j];a.g[j]=s.val;if(s.kind==='card')a.c[j]=s.card;if(s.from!=null){a.g[s.from]=prev??null;if(s.kind==='card'){if(prevC!=null)a.c[s.from]=prevC;else delete a.c[s.from]}}}
+  }else if(s.kind==='chip'){a.bin[s.val]=j===-1?null:j}
+  else if(s.kind==='ord'){if(s.from!==j&&j!==-1){const[x]=a.seq.splice(s.from,1);a.seq.splice(j,0,x);a.moved=true}}
+  state.sel=null;touchP(i);renderCard();
+}
+function clearSlot(el){const r=rf(el.dataset.dt),a=ansOf(r.i,r.pre);if(a.g&&a.g[r.j]!=null){a.g[r.j]=null;delete a.c[r.j];touchP(r.i);renderCard();announce('Gap cleared')}}
+function srcOf(el){return{kind:el.dataset.dg,i:+el.dataset.dgi,pre:el.dataset.dgpre,val:isNaN(+el.dataset.dgval)||el.dataset.dg==='tile'||el.dataset.dg==='card'?el.dataset.dgval:+el.dataset.dgval,from:el.dataset.dgfrom===''?null:+el.dataset.dgfrom,card:el.dataset.dgcard===''||el.dataset.dgcard==null?null:+el.dataset.dgcard}}
+
+/* ---------- events ---------- */
+let suppressClick=false;
+document.addEventListener('click',e=>{
+  if(suppressClick){suppressClick=false;return}
+  const T=e.target;
+  const yb=T.closest('[data-year]');if(yb){state.year=+yb.dataset.year;newCard();return}
+  const sb=T.closest('[data-strand]');if(sb){state.strand=sb.dataset.strand;newCard();return}
+  const st=T.closest('[data-step]');if(st){const ss=strandsFor(),k=ss.indexOf(state.strand);state.strand=ss[(k+ +st.dataset.step+ss.length)%ss.length];newCard();return}
+  const z=T.closest('[data-zoom]');if(z&&fsOn){const i=+z.dataset.zoom;state.zoom=i<0?null:(state.zoom===i&&!z.closest('.qnav')?null:i);renderCard();return}
+  const tok=T.closest('[data-tok]');if(tok){const r=rf(tok.dataset.tok),p=state.card[r.i],a=ansOf(r.i,r.pre),m=modeOf(p,r.pre);const k=r.j;if(a.sel.includes(k))a.sel=a.sel.filter(x=>x!==k);else a.sel=m==='fix'?[k]:[...a.sel,k];touchP(r.i);renderCard();return}
+  const op=T.closest('[data-opt]');if(op){const r=rf(op.dataset.opt),p=state.card[r.i],a=ansOf(r.i,r.pre),n=r.j;
+    if(p.kind==='tag')a.sel=[p.opts[n]];else if(p.kind==='gap')a.g[0]=p.opts[n];else{p.items.forEach((_,k)=>a.bin[k]=null);a.bin[p.opts[n]]=p.binQ}
+    touchP(r.i);renderCard();return}
+  const bp=T.closest('[data-bin]');if(bp){const r=rf(bp.dataset.bin),p=state.card[r.i],a=ansOf(r.i,r.pre);a.bin[p.claim]=r.j;touchP(r.i);renderCard();return}
+  const wh=T.closest('[data-wh]');if(wh){spinWheel(rf(wh.dataset.wh),+wh.dataset.d);document.querySelector(`[data-fk="g${wh.dataset.wh}"]`)?.focus();return}
+  const ob=T.closest('[data-ord]');if(ob){const r=rf(ob.dataset.ord),a=ansOf(r.i,r.pre),d=+ob.dataset.d,to=r.j+d;if(to<0||to>=a.seq.length)return;[a.seq[r.j],a.seq[to]]=[a.seq[to],a.seq[r.j]];a.moved=true;touchP(r.i);renderCard();document.querySelector(`[data-ord="${r.i}|${r.pre}|${to}"][data-d="${d}"]`)?.focus();return}
+  const bw=T.closest('[data-bw]');if(bw&&!bw.disabled){const r=rf(bw.dataset.bw),a=ansOf(r.i,r.pre);a.seq.push(r.j);touchP(r.i);renderCard();return}
+  const bl=T.closest('[data-bl]');if(bl){const r=rf(bl.dataset.bl),a=ansOf(r.i,r.pre);a.seq.splice(r.j,1);touchP(r.i);renderCard();return}
+  const jd=T.closest('[data-judge]');if(jd){const[i,v]=jd.dataset.judge.split('|');setVerdict(+i,v);return}
+  const src=T.closest('[data-dg]');const dst=T.closest('[data-dt]');
+  if(src&&!src.disabled){const s=srcOf(src);
+    if(state.sel&&state.sel.kind===s.kind&&state.sel.i===s.i&&String(state.sel.val)===String(s.val)&&String(state.sel.from)===String(s.from)&&state.sel.card===s.card){state.sel=null;renderCard();return}
+    if(state.sel&&dst&&state.sel.kind===dst.dataset.dtk){doDrop(state.sel,rf(dst.dataset.dt));return}
+    if(s.from!=null&&(s.kind==='tile'||s.kind==='card')&&!state.sel){clearSlot(src);return}
+    state.sel=s;renderCard();announce('Selected. Now tap where it should go.');return}
+  if(dst){const r=rf(dst.dataset.dt);
+    if(state.sel&&state.sel.kind===dst.dataset.dtk)doDrop(state.sel,r);
+    else if(dst.classList.contains('drop')){dst.classList.remove('shake');void dst.offsetWidth;dst.classList.add('shake');announce('Pick a tile or card first, or type into the gap')}
+    return}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;if(!t.matches('[data-in]'))return;const r=rf(t.dataset.in),a=ansOf(r.i,r.pre);
+  if(t.tagName==='SELECT'){a.g[r.j]=t.value===''?null:t.value;touchP(r.i,true)}else{a.g[r.j]=t.value;touchP(r.i,true)}
+});
+function spinWheel(r,d){const p=state.card[r.i],a=ansOf(r.i,r.pre),list=p.gaps[r.j].list,v=a.g[r.j];let k=list.indexOf(v);k=k<0?(d>0?0:list.length-1):(k+d+list.length)%list.length;a.g[r.j]=list[k];touchP(r.i);renderCard()}
+let wheelAcc=0;
+document.addEventListener('wheel',e=>{const w=e.target.closest?.('.wheel');if(!w)return;e.preventDefault();wheelAcc+=e.deltaY;if(Math.abs(wheelAcc)<25)return;const d=wheelAcc<0?1:-1;wheelAcc=0;spinWheel(rf(w.dataset.wheel),d);document.querySelector(`[data-fk="g${w.dataset.wheel}"]`)?.focus()},{passive:false});
+document.addEventListener('keydown',e=>{
+  const w=e.target.closest?.('.wheel');
+  if(w){const r=rf(w.dataset.wheel);if(e.key==='ArrowUp'||e.key==='ArrowRight'){e.preventDefault();spinWheel(r,1);document.querySelector(`[data-fk="g${w.dataset.wheel}"]`)?.focus()}else if(e.key==='ArrowDown'||e.key==='ArrowLeft'){e.preventDefault();spinWheel(r,-1);document.querySelector(`[data-fk="g${w.dataset.wheel}"]`)?.focus()}return}
+  const sl=e.target.closest?.('.drop');
+  if(sl&&sl.dataset.dtk==='tile'){const r=rf(sl.dataset.dt),p=state.card[r.i],a=ansOf(r.i,r.pre);
+    if(p.tiles.includes(e.key)){e.preventDefault();a.g[r.j]=e.key;touchP(r.i);renderCard();document.querySelector(`[data-fk="g${sl.dataset.dt}"]`)?.focus()}
+    else if(e.key==='Backspace'||e.key==='Delete'){e.preventDefault();a.g[r.j]=null;touchP(r.i);renderCard();document.querySelector(`[data-fk="g${sl.dataset.dt}"]`)?.focus()}
+    return}
+  if(e.key==='Enter'&&e.target.closest?.('.ans-in')){e.preventDefault();check()}
+  if(e.key==='Escape'){if(state.sel){state.sel=null;renderCard()}else if(fsOn&&!document.fullscreenElement)setFs(false)}
+});
+function setVerdict(i,v){const p=state.card[i],a=state.ans[i];a.verdict=v;a.fix=initAns(p,'fix');touchP(i);renderCard();if(v==='wrong'){const el=document.querySelector(`#probs > .prob:nth-child(${i+1}) .fix [data-fk], #probs > .prob:nth-child(${i+1}) .fix button`);el&&el.focus()}}
+
+/* ---------- pointer drag (tiles, cards, chips, order items) and judge swipe ---------- */
+let drag=null,ghost=null,hoverEl=null,swipe=null;
+document.addEventListener('pointerdown',e=>{
+  if(e.button>0)return;
+  const sw=e.target.closest('[data-swipe]');
+  if(sw&&!e.target.closest('input,button,select')){swipe={el:sw,i:+sw.dataset.swipe,x:e.clientX,dx:0};return}
+  const src=e.target.closest('[data-dg]');if(!src||src.disabled)return;
+  if(e.target.closest('[data-ord]'))return;
+  drag={...srcOf(src),x:e.clientX,y:e.clientY,moved:false,src};
+});
+window.addEventListener('pointermove',e=>{
+  if(swipe){swipe.dx=e.clientX-swipe.x;swipe.el.style.transform=`translateX(${swipe.dx}px) rotate(${swipe.dx/40}deg)`;swipe.el.classList.toggle('lean-r',swipe.dx>40);swipe.el.classList.toggle('lean-l',swipe.dx<-40);return}
+  if(!drag)return;
+  if(!drag.moved){if(Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<6)return;drag.moved=true;ghost=drag.src.cloneNode(true);ghost.classList.add('drag-ghost');ghost.classList.remove('sel');ghost.style.width=drag.src.offsetWidth+'px';document.body.appendChild(ghost);drag.src.style.opacity='.35'}
+  e.preventDefault();ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';
+  const over=[...document.elementsFromPoint(e.clientX,e.clientY)].find(el=>el.dataset&&el.dataset.dt&&el.dataset.dtk===drag.kind);
+  if(hoverEl!==over){hoverEl?.classList.remove('hover');over?.classList.add('hover');hoverEl=over}
+},{passive:false});
+function endDrag(e,cancel){
+  if(swipe){const s=swipe;swipe=null;s.el.style.transform='';s.el.classList.remove('lean-r','lean-l');if(!cancel&&Math.abs(s.dx)>70)setVerdict(s.i,s.dx>0?'right':'wrong');return}
+  if(!drag)return;const d=drag;drag=null;if(!d.moved)return;
+  suppressClick=true;setTimeout(()=>suppressClick=false,0);
+  ghost?.remove();ghost=null;hoverEl?.classList.remove('hover');hoverEl=null;d.src.style.opacity='';
+  if(cancel)return;
+  const t=[...document.elementsFromPoint(e.clientX,e.clientY)].find(el=>el.dataset&&el.dataset.dt&&el.dataset.dtk===d.kind);
+  if(t)doDrop(d,rf(t.dataset.dt));
+  else if(d.from!=null&&(d.kind==='tile'||d.kind==='card'))doDrop(d,{i:d.i,pre:d.pre,j:-1});
+  else if(d.kind==='chip'&&d.from!=null)doDrop(d,{i:d.i,pre:d.pre,j:-1});
+}
+window.addEventListener('pointerup',e=>endDrag(e,false));
+window.addEventListener('pointercancel',e=>endDrag(e,true));
+
+/* ---------- full screen ---------- */
+let fsOn=false;
+function setFs(on){
+  fsOn=on;document.body.classList.toggle('fs',on);state.zoom=on&&state.card.length>1?0:null;
+  const b=$('btn-fs');b.setAttribute('aria-pressed',on);b.querySelector('span').textContent=on?'Exit full screen':'Full screen';
+  try{if(on&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});if(!on&&document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{})}catch(e){}
+  renderCard();
+}
+$('btn-fs').onclick=()=>setFs(!fsOn);
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&fsOn)setFs(false)});
+$('fs-strand').addEventListener('change',e=>{state.strand=e.target.value;newCard()});
+$('notes').addEventListener('change',e=>{state.notes=e.target.checked;try{localStorage.setItem('grammix-notes',state.notes?'1':'0')}catch(err){}renderCard()});
+$('btn-check').onclick=check;
+$('btn-new').onclick=()=>newCard();
+$('btn-clear').onclick=clearAnswers;
+$('btn-show').onclick=showAnswers;
+
+/* ---------- start ---------- */
+try{const m=location.hash.match(/^#y([1-6])-([a-z]+)-(\d{1,6})$/i);if(m){state.year=+m[1];state.strand=m[2].toLowerCase();state.seed=+m[3]}}catch(e){}
+try{if(localStorage.getItem('grammix-notes')==='1')state.notes=true}catch(e){}
+newCard(true);
+</script>
+</body>
+</html>
