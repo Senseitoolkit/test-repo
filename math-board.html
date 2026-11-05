@@ -432,6 +432,31 @@ input.wrong{color:var(--warn)!important;background:var(--warn-soft)!important}
 .csum{font-family:var(--num);font-weight:700;font-size:17px;color:var(--accent);margin-top:10px}
 .ldv .cr{z-index:2}
 .ldv.chunkbox{position:static}
+/* sentence bar rows, representation chips, navigation */
+.sbar{flex-wrap:wrap;row-gap:6px;white-space:normal}
+.sbrow{display:flex;align-items:center;gap:8px;flex:1 1 100%;min-width:0}
+.sbrow.reps{flex-wrap:wrap;row-gap:5px}
+.sbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);flex:none;min-width:76px;border:0;background:transparent;padding:0;text-align:left;font-family:var(--ui)}
+button#sbmode.on{color:var(--accent);cursor:pointer}
+button#sbmode.on:hover{text-decoration:underline}
+.rep{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 6px;border:1px solid var(--line);border-radius:15px;background:var(--widget);cursor:pointer;font-size:12.5px;color:var(--muted);flex:none;transition:background .12s,border-color .12s}
+.rep:hover{border-color:var(--accent);color:var(--ink)}
+.rep[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink);font-weight:500}
+.rep .gi{width:24px;height:22px;display:grid;place-items:center;flex:none}
+.rep[aria-pressed="false"] .gi{opacity:.45;filter:grayscale(1)}
+.rep .tick{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;flex:none;font-size:10px;line-height:1;color:transparent}
+.rep[aria-pressed="true"] .tick{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.rep.all{padding:0 12px;border-style:dashed}
+.gtype[aria-pressed="false"] .gi{opacity:.45;filter:grayscale(1)}
+.pstack{display:flex;flex-direction:column;gap:6px;align-items:flex-start;width:100%}
+.widget.gsel{border-color:var(--accent)}
+.widget.gsel.sel{border-color:var(--sel)}
+#app.panning,#app.panning #board,#app.panning .item,#app.panning #ink{cursor:grabbing!important}
+#app.spacepan #board,#app.spacepan #ink{cursor:grab!important}
+.kbd{display:inline-block;font-family:var(--num);font-size:12px;padding:1px 7px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--panel);white-space:nowrap;flex:none}
+.helpl{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:7px 14px;font-size:13px}
+.helpl li{display:flex;align-items:center;gap:8px}
+@media (max-width:820px){.sbrow.reps{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}.helpl{grid-template-columns:1fr}.sbin{flex:1 1 160px}}
 /* overlay */
 .overlay{position:fixed;inset:0;background:rgba(10,20,18,.45);display:grid;place-items:center;z-index:50;padding:16px}
 .dlg{background:var(--widget);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:20px;width:min(440px,100%);max-height:90%;overflow:auto;display:flex;flex-direction:column;gap:12px}
@@ -462,7 +487,7 @@ input.wrong{color:var(--warn)!important;background:var(--warn-soft)!important}
   <div class="sbar" id="sbar"></div>
   <div class="main">
     <aside id="lib" aria-label="Tool library"></aside>
-    <div class="empty" id="empty" aria-hidden="true"><div class="emptyin"><b>A blank board, ready to go</b><span>Add a tool from <em>Workspace tools</em>, or type a number sentence in the bar above, like <span class="num">7 + 5</span>, and press Enter.</span><span>Pick up the pen to draw anywhere.</span></div></div>
+    <div class="empty" id="empty" aria-hidden="true"><div class="emptyin"><b>A blank board, ready to go</b><span>Type a number sentence in the bar above, like <span class="num">7 + 5</span>, and press Enter. It appears as digit cards, number shapes, counters, a number line and a bar model at once — switch any of them off under <em>Show it as</em>.</span><span>Drag empty space to move around, hold Ctrl and scroll to zoom, or press <span class="num">?</span> for all the shortcuts.</span></div></div>
     <div id="scroller">
       <div id="sizer">
         <div id="board">
@@ -483,7 +508,7 @@ const $=s=>document.querySelector(s);
 const h=(t,a={},...c)=>{const e=document.createElement(t);for(const k in a){const v=a[k];if(k==='class')e.className=v;else if(k==='style'&&typeof v==='object')Object.assign(e.style,v);else if(k.startsWith('on')&&typeof v==='function')e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,'');else if(v!==false&&v!=null)e.setAttribute(k,v)}for(const x of c.flat())if(x!=null&&x!==false)e.append(x.nodeType?x:document.createTextNode(x));return e};
 const NS='http://www.w3.org/2000/svg';
 const sv=(t,a={},...c)=>{const e=document.createElementNS(NS,t);for(const k in a){const v=a[k];if(k.startsWith('on')&&typeof v==='function')e.addEventListener(k.slice(2),v);else if(v!=null&&v!==false)e.setAttribute(k,v)}for(const x of c.flat())if(x!=null&&x!==false)e.append(x.nodeType?x:document.createTextNode(x));return e};
-const IC={move:'M6 3l13 8-6 1.5L10 19z',pen:'M4 20l4-1L19 8l-3-3L5 16z',hl:'M5 20h7M8 16l8-12 4 3-8 12H8z',erase:'M9 20h11M5 15l9-9 5 5-7 7H8z',undo:'M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3',redo:'M15 14l5-5-5-5M20 9H9a5 5 0 000 10h3',rot:'M20 12a8 8 0 11-2.4-5.7M20 4v5h-5',flip:'M12 3v18M9 7L3 17h6zM15 7l6 10h-6z',copy:'M9 9h11v11H9zM5 15V4h11',trash:'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',plus:'M12 5v14M5 12h14',minus:'M5 12h14',x:'M6 6l12 12M18 6L6 18',gear:'M12 9a3 3 0 100 6 3 3 0 000-6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1',grip:'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',menu:'M4 6h16M4 12h16M4 18h16',folder:'M3 6h6l2 2h10v11H3z',full:'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',search:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4',blocks:'M4 13h7v7H4zM13 13h7v7h-7zM8.5 4h7v7h-7z',clear:'M5 5l14 14M19 5L5 19',bomb:'M10 22a7 7 0 100-14 7 7 0 000 14zM12.6 8.5l1.8-1.8 2.9 2.9-1.8 1.8M16 7.9c.6-2.2 2.2-3.4 4.2-3.1M20.5 1.5v1.2M23 4.2h-1.2M22.3 2.2l-.9.9M7 15a3 3 0 012.4-2.6'};
+const IC={move:'M6 3l13 8-6 1.5L10 19z',pen:'M4 20l4-1L19 8l-3-3L5 16z',hl:'M5 20h7M8 16l8-12 4 3-8 12H8z',erase:'M9 20h11M5 15l9-9 5 5-7 7H8z',undo:'M9 14L4 9l5-5M4 9h11a5 5 0 010 10h-3',redo:'M15 14l5-5-5-5M20 9H9a5 5 0 000 10h3',rot:'M20 12a8 8 0 11-2.4-5.7M20 4v5h-5',flip:'M12 3v18M9 7L3 17h6zM15 7l6 10h-6z',copy:'M9 9h11v11H9zM5 15V4h11',trash:'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',plus:'M12 5v14M5 12h14',minus:'M5 12h14',x:'M6 6l12 12M18 6L6 18',gear:'M12 9a3 3 0 100 6 3 3 0 000-6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1',grip:'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',menu:'M4 6h16M4 12h16M4 18h16',folder:'M3 6h6l2 2h10v11H3z',full:'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',search:'M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-4-4',blocks:'M4 13h7v7H4zM13 13h7v7h-7zM8.5 4h7v7h-7z',clear:'M5 5l14 14M19 5L5 19',fit:'M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4M9 9h6v6H9z',help:'M12 3a9 9 0 100 18 9 9 0 000-18zM9.5 9.5a2.5 2.5 0 015 0c0 1.6-2.5 2-2.5 3.5M12 17h.01',bomb:'M10 22a7 7 0 100-14 7 7 0 000 14zM12.6 8.5l1.8-1.8 2.9 2.9-1.8 1.8M16 7.9c.6-2.2 2.2-3.4 4.2-3.1M20.5 1.5v1.2M23 4.2h-1.2M22.3 2.2l-.9.9M7 15a3 3 0 012.4-2.6'};
 const icon=n=>{const s=sv('svg',{viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':n==='grip'?3:2,'stroke-linecap':'round','stroke-linejoin':'round','aria-hidden':'true'});s.append(sv('path',{d:IC[n]}));return s};
 const fmt=n=>{const v=+(+n).toFixed(3);return (v<0?'−':'')+String(Math.abs(v))};
 const fmtK=k=>fmt(k/1000);
@@ -496,7 +521,10 @@ let S={items:[],strokes:[],bg:'squares',gens:{}};let nextId=1,zoom=1,mode='move'
 const hist=[];let hi=-1;
 const snap=()=>JSON.stringify({items:S.items,strokes:S.strokes,bg:S.bg,gens:S.gens});
 function pushHistory(){setEmpty();const j0=snap();if(hist[hi]===j0)return;hist.splice(hi+1);hist.push(snap());if(hist.length>120)hist.shift();hi=hist.length-1;store.set('mathboard.current',hist[hi]);syncBar()}
-function restore(j){const o=JSON.parse(j);S.items=(o.items||[]).filter(it=>it.kind==='piece'||TOOLS[it.type]);S.items.forEach(it=>{if(it.kind==='widget')it.st=Object.assign(TOOLS[it.type].d(),it.st||{})});S.strokes=o.strokes||[];S.bg=o.bg||'squares';S.gens=o.gens||{};if(activeGen!=null&&!S.gens[activeGen])activeGen=null;nextId=Math.max(0,...S.items.map(i=>i.id),...S.strokes.map(s=>s.id))+1;if(!S.items.some(i=>i.id===sel))sel=null;renderAll();syncSB()}
+function restore(j){const o=JSON.parse(j);S.items=(o.items||[]).filter(it=>it.kind==='piece'||TOOLS[it.type]);S.items.forEach(it=>{if(it.kind==='widget')it.st=Object.assign(TOOLS[it.type].d(),it.st||{})});S.strokes=o.strokes||[];S.bg=o.bg||'squares';S.gens=o.gens||{};
+  Object.values(S.gens).forEach(g=>{if(!g.reps){g.reps={};if(g.type)g.reps[g.type]=1;if(g.cards&&g.type!=='cards')g.reps.cards=1;delete g.type;delete g.cards}});
+  S.items.forEach(it=>{if(it.st&&it.st.gen!=null&&!it.st.rep){const g=S.gens[it.st.gen];it.st.rep=it.kind==='widget'?(it.type==='numberline'?'nline':'bar'):(it.st.t==='card'&&g&&g.reps.cards?'cards':(repsOf(g).find(k=>k!=='cards')||'shapes'))}});
+  if(activeGen!=null&&!S.gens[activeGen])activeGen=null;nextId=Math.max(0,...S.items.map(i=>i.id),...S.strokes.map(s=>s.id))+1;if(!S.items.some(i=>i.id===sel))sel=null;renderAll();syncSB()}
 const find=id=>S.items.find(i=>i.id===id);
 
 /* ---------- pieces ---------- */
@@ -521,10 +549,11 @@ function pieceGeom(st){
   if(st.t==='counter'){const col=st.c==='y'?'#f5c542':'#e04848';return{w:U,h:U,draw(g){g.append(sv('circle',{cx:U/2,cy:U/2,r:U/2-1,fill:col,stroke:shade(col,-.3),'stroke-width':1.5}),sv('circle',{cx:U/2,cy:U/2,r:U/2-6,fill:'none',stroke:'rgba(255,255,255,.35)','stroke-width':1.5}))}}}
   if(st.t==='pvc'){const d=40,col=PVC_COL[st.n]||'#c7d3da',t=fmt(st.n);return{w:d,h:d,draw(g){g.append(sv('circle',{cx:d/2,cy:d/2,r:d/2-1,fill:col,stroke:shade(col,-.3),'stroke-width':1.5}),sv('text',{x:d/2,y:d/2+(t.length>3?4:5),'text-anchor':'middle','font-size':t.length>3?11:t.length>2?13:15,'font-weight':700,style:'fill:#1b2a31'},t))}}}
   if(st.t==='card'){const w=Math.round(U*1.5),hh=2*U;return{w,h:hh,draw(g){g.append(sv('rect',{x:.5,y:.5,width:w-1,height:hh-1,rx:5,fill:'#fffdf6',stroke:'#b9b29c','stroke-width':1.5}),sv('text',{x:w/2,y:hh/2+11,'text-anchor':'middle','font-size':30,'font-weight':700,style:'fill:#1b2a31'},st.c))}}}
+  if(st.t==='tag'){const txt=String(st.c||''),w=Math.max(40,Math.round(txt.length*7.4+20)),hh=22;return{w,h:hh,draw(g){g.append(sv('rect',{x:.5,y:.5,width:w-1,height:hh-1,rx:11,style:'fill:var(--accent-soft);stroke:var(--accent);stroke-width:1'}),sv('text',{x:w/2,y:15,'text-anchor':'middle','font-size':12,'font-weight':600,style:'fill:var(--ink);font-family:var(--ui)'},txt))}}}
 }
 const PVC_COL={1000:'#c9a7ec',100:'#f7a8a8',10:'#8fc3f7',1:'#f7d771',0.1:'#9edcb6',0.01:'#f5b98a'};
-const pieceValue=st=>st.t==='counter'?1:st.t==='card'?(/^\d$/.test(st.c)?+st.c:0):st.n;
-const pieceName=st=>st.t==='shape'?`${st.n} shape`:st.t==='rod'?`${st.n} rod`:st.t==='b10'?`Base ten ${st.n}`:st.t==='counter'?'Counter (double-click to flip)':st.t==='pvc'?`${fmt(st.n)} place value counter`:`Card ${st.c}`;
+const pieceValue=st=>st.t==='counter'?1:st.t==='card'?(/^\d$/.test(st.c)?+st.c:0):st.t==='tag'?0:st.n;
+const pieceName=st=>st.t==='shape'?`${st.n} shape`:st.t==='rod'?`${st.n} rod`:st.t==='b10'?`Base ten ${st.n}`:st.t==='counter'?'Counter (double-click to flip)':st.t==='pvc'?`${fmt(st.n)} place value counter`:st.t==='tag'?`Label: ${st.c}`:`Card ${st.c}`;
 function pieceSvg(st,fit){
   const {w,h:hh,draw}=pieceGeom(st);const rot=(((st.rot||0)%360)+360)%360;const W=rot%180?hh:w,H=rot%180?w:hh;
   const k=fit?Math.min(1,fit/Math.max(W,H)):1;
@@ -1031,19 +1060,23 @@ let libTab=store.get('mathboard.tab')==='manip'?'manip':'tools';
 function buildLib(){const L=$('#lib');L.innerHTML='';
   if(libTab==='tools'){
     LIB.forEach(([name,keys])=>L.append(h('section',{class:'lsec'},h('h3',{},name),h('div',{class:'wtiles'},keys.map(k=>h('button',{type:'button',class:'tile',onclick:()=>{addWidget(k);closeLibMobile()}},TOOLS[k].title))))));
-    L.append(h('p',{class:'hint'},'Click a tool to add it to the board. Drag it by its title bar and resize it from the corner. Manipulatives are on the Manipulatives tab.'))}
+    L.append(h('p',{class:'hint'},'Click a tool to add it to the board. Drag it by its title bar and resize it from the corner. To show a number sentence in several ways at once, type it in the bar above the board.'))}
   else buildGen(L);
   syncTabs()}
 
 /* ---------- manipulative generator ---------- */
-const GEN={type:'shapes',q:'7 + 5',cards:true,reveal:false,replace:true,last:null};
-try{Object.assign(GEN,JSON.parse(store.get('mathboard.gen')||'{}'))}catch(e){}
+const GEN={reps:{cards:1,shapes:1,counters:1,nline:1,bar:1},q:'7 + 5',reveal:false,replace:true,last:null};
+try{const o=JSON.parse(store.get('mathboard.gen')||'{}');if(o.type&&!o.reps){o.reps={[o.type]:1};if(o.cards&&o.type!=='cards')o.reps.cards=1}delete o.type;delete o.cards;Object.assign(GEN,o)}catch(e){}
 const saveGen=()=>store.set('mathboard.gen',JSON.stringify(GEN));
+const EST={numberline:340,bar:240};
+const repsOf=c=>GTYPES.map(g=>g[0]).filter(k=>c&&c.reps&&c.reps[k]);
+const repIcon=k=>{const t=GTYPES.find(g=>g[0]===k)[2];return typeof t==='function'?t():pieceSvg(t,22)};
 const miniNL=()=>{const s=sv('svg',{width:28,height:20,viewBox:'0 0 28 20'});s.append(sv('path',{d:'M1 16 H27 M4 13 v6 M14 13 v6 M24 13 v6',style:'stroke:var(--ink);stroke-width:1.5;fill:none'}),sv('path',{d:'M4 13 Q9 2 14 13 Q19 2 24 13',style:'stroke:var(--accent);stroke-width:1.8;fill:none'}));return s};
 const miniBar=()=>{const s=sv('svg',{width:28,height:20,viewBox:'0 0 28 20'});s.append(sv('rect',{x:1,y:5,width:15,height:11,style:'fill:#cfe8dc;stroke:var(--ink);stroke-width:1.3'}),sv('rect',{x:16,y:5,width:11,height:11,style:'fill:#f9e3b5;stroke:var(--ink);stroke-width:1.3'}));return s};
-const GTYPES=[['shapes','Number shapes',{t:'shape',n:5}],['rods','Number rods',{t:'rod',n:3}],['b10','Base ten',{t:'b10',n:100}],['pvc','Place value counters',{t:'pvc',n:100}],['counters','Counters',{t:'counter',c:'r'}],['cards','Digit cards',{t:'card',c:'7'}],['nline','Number line',miniNL],['bar','Bar model',miniBar]];
+const GTYPES=[['cards','Number sentence',{t:'card',c:'7'}],['shapes','Number shapes',{t:'shape',n:5}],['rods','Number rods',{t:'rod',n:3}],['counters','Counters',{t:'counter',c:'r'}],['b10','Base ten',{t:'b10',n:100}],['pvc','Place value counters',{t:'pvc',n:100}],['nline','Number line',miniNL],['bar','Bar model',miniBar]];
+const REPL=Object.fromEntries(GTYPES.map(g=>[g[0],g[1]]));
 const WTYPES={nline:'numberline',bar:'bar'};
-const GEX={shapes:['7 + 5','13 − 6','3 × 4','12 ÷ 3','? + 4 = 9','8 + 7 = 15'],rods:['3 + 4','9 − 5','2 × 4','12 ÷ 5','? + 6 = 10','6 < 8'],b10:['347','125 + 248','400 − 165','4 × 23','96 ÷ 4','1205'],counters:['8 + 5','15 − 7','3 × 5','20 ÷ 4','17 ÷ 5','? × 4 = 24'],cards:['47 + 25 = 72','8 × 7 = ?','? − 19 = 30','100 > 99'],pvc:['3426','245 + 137','500 − 128','3 × 124','846 ÷ 2','1000'],nline:['7 + 5','34 + 28','15 − 8','3 × 4','20 ÷ 5','? + 6 = 15'],bar:['7 + 5','15 − 6','4 × 3','12 ÷ 3','? + 8 = 20','17 ÷ 5']};
+const GEX=['7 + 5','13 − 6','3 × 4','12 ÷ 3','? + 4 = 9','34 + 28','8 × 7 = ?','17 ÷ 5','125 + 248'];
 const CW=Math.round(U*1.5),CH=2*U;
 const SYM={'+':'+','-':'−','×':'×','÷':'÷','=':'=','<':'<','>':'>'};
 function parseSentence(src){
@@ -1140,76 +1173,108 @@ function sentenceTokens(P){const {vals,n,op,rel,unk,rem}=P;const t=i=>i===unk&&!
 function layoutGen(P,type){const toks=sentenceTokens(P);if(type==='cards')return tokensG(toks);
   const items=genModel(P,type);const maxW=Math.max(700,scroller.clientWidth/zoom-100);const rows=[];let cur=[],w=0;
   items.forEach(g=>{if(cur.length&&w+g.w>maxW){rows.push(cur);cur=[];w=0}cur.push(g);w+=g.w+18});if(cur.length)rows.push(cur);
-  const blocks=[];if(CUR.cards)blocks.push(tokensG(toks));rows.forEach(r=>blocks.push(row(r,18,'center')));return col(blocks,30)}
+  return col(rows.map(r=>row(r,18,'center')),30)}
 let CUR=GEN,activeGen=null;
-function genPlan(cfg){CUR=cfg||GEN;const P=parseSentence(CUR.q);if(P.empty)return{msg:'Type a number sentence to see it built.'};if(P.err)return{err:P.err};
-  const say0=sentenceTokens({...P}).join(' ');
-  if(WTYPES[CUR.type]){if(P.vals.some(v=>v!=null&&v>1e6))return{err:'Use numbers up to 1,000,000.'};const wt=WTYPES[CUR.type];let st;
-    if(wt==='numberline'){st=nlState(P,CUR.reveal);if(!st)return{err:'That makes too many jumps for one number line. Try smaller numbers.'}}
-    else{st=TOOLS.bar.d();if(!TOOLS.bar.applyP(st,P,CUR.reveal))return{err:'Bar models here show up to 12 parts. Try a smaller number of groups.'}}
-    st.sent=CUR.q;return{P,W:{type:wt,st},msg:`${say0}  ·  ${wt==='numberline'?'number line':'bar model'}`,warn:P.warn}}
-  const cap=CUR.type==='b10'||CUR.type==='pvc'?9999:CUR.type==='cards'?9999999:100;
-  if(P.vals.some(v=>v!=null&&v>cap))return{err:CUR.type==='b10'?'Base ten goes up to 9999 here.':CUR.type==='pvc'?'Place value counters go up to 9999 here.':`${GTYPES.find(g=>g[0]===CUR.type)[1]} go up to 100 here. Try base ten for bigger numbers.`};
-  const L=layoutGen(P,CUR.type);if(L.p.length>450)return{err:'That would make too many pieces. Try smaller numbers, or base ten.'};
-  const say=sentenceTokens({...P}).join(' ');return{P,L,msg:`${say}  ·  ${L.p.length} piece${L.p.length===1?'':'s'}`,warn:P.warn}}
+function repPlan(P,k){
+  if(WTYPES[k]){if(P.vals.some(v=>v!=null&&v>1e6))return{err:'numbers up to 1,000,000'};const wt=WTYPES[k];let st;
+    if(wt==='numberline'){st=nlState(P,CUR.reveal);if(!st)return{err:'too many jumps'}}
+    else{st=TOOLS.bar.d();if(!TOOLS.bar.applyP(st,P,CUR.reveal))return{err:'more than 12 parts'}}
+    st.sent=CUR.q;return{rep:k,W:{type:wt,st}}}
+  const cap=k==='b10'||k==='pvc'?9999:k==='cards'?9999999:100;
+  if(P.vals.some(v=>v!=null&&v>cap))return{err:`numbers up to ${fmt(cap)}`};
+  const L=layoutGen(P,k);if(L.p.length>450)return{err:'too many pieces'};return{rep:k,L}}
+function genPlan(cfg){CUR=cfg||GEN;const P=parseSentence(CUR.q);if(P.empty)return{msg:'Type a number sentence to see it shown in different ways.'};if(P.err)return{err:P.err};
+  const reps=repsOf(CUR);if(!reps.length)return{err:'Switch on at least one way of showing it.'};
+  const blocks=[],skipped=[];reps.forEach(k=>{const r=repPlan(P,k);if(r.err)skipped.push(`${REPL[k]} (${r.err})`);else blocks.push(r)});
+  if(!blocks.length)return{err:'Those numbers are too big for '+skipped.join(', ')+'.'};
+  const n=blocks.reduce((a,b)=>a+(b.L?b.L.p.length:0),0);const say=sentenceTokens(P).join(' ');
+  const msg=`${say}  ·  ${blocks.length} way${blocks.length===1?'':'s'}`+(n?`, ${n} piece${n===1?'':'s'}`:'');
+  const warn=[P.warn,skipped.length?'Not shown: '+skipped.join(', ')+'.':''].filter(Boolean).join(' ');
+  return{P,blocks,msg,warn}}
 function buildGen(L){
-  const types=h('div',{class:'gtypes',role:'group','aria-label':'Manipulative'},GTYPES.map(([k,l,st])=>h('button',{type:'button',class:'gtype','aria-pressed':String(GEN.type===k),onclick:()=>{GEN.type=k;saveGen();buildLib();const q=$('#genq');if(q)q.focus()}},h('span',{class:'gi'},typeof st==='function'?st():pieceSvg(st,26)),l)));
+  const types=h('div',{class:'gtypes',role:'group','aria-label':'Ways to show it'},GTYPES.map(([k,l])=>h('button',{type:'button',class:'gtype','aria-pressed':String(!!GEN.reps[k]),onclick:()=>{GEN.reps[k]=GEN.reps[k]?0:1;saveGen();buildLib();syncSB();const q=$('#genq');if(q)q.focus()}},h('span',{class:'gi'},repIcon(k)),l)));
   const q=h('input',{type:'search',id:'genq',value:GEN.q,placeholder:'e.g. 7 + 5 or ? × 3 = 12',autocomplete:'off',spellcheck:'false','aria-label':'Number sentence'});
-  q.addEventListener('input',()=>{GEN.q=q.value;saveGen();updateGen()});q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addGen()}});
-  const chips=h('div',{class:'gchips'},(GEX[GEN.type]||[]).map(x=>h('button',{type:'button',class:'gchip',onclick:()=>{q.value=x;GEN.q=x;saveGen();updateGen();q.focus()}},x)));
-  const opt=(k,l)=>{const id='gopt_'+k;const c=h('input',{type:'checkbox',id,checked:!!GEN[k]});c.onchange=()=>{GEN[k]=c.checked;saveGen();updateGen()};return h('label',{for:id},c,l)};
-  L.append(h('section',{class:'lsec'},h('h3',{},'1. Choose a manipulative'),types),
-    h('section',{class:'lsec'},h('h3',{},'2. Type a number sentence'),h('div',{class:'gsearch'},icon('search'),q),chips,h('div',{class:'gmsg',id:'gmsg',role:'status'}),h('div',{class:'gprev',id:'gprev','aria-label':'Preview'}),
+  const sync=()=>{GEN.q=q.value;saveGen();updateGen();if(activeGen==null){const s=$('#sbq');if(s&&s.value!==q.value)s.value=q.value;sbShow(genPlan(),false);CUR=GEN}};
+  q.addEventListener('input',sync);q.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addGen()}});
+  const chips=h('div',{class:'gchips'},GEX.map(x=>h('button',{type:'button',class:'gchip',onclick:()=>{q.value=x;sync();q.focus()}},x)));
+  const opt=(k,l)=>{const id='gopt_'+k;const c=h('input',{type:'checkbox',id,checked:!!GEN[k]});c.onchange=()=>{GEN[k]=c.checked;saveGen();updateGen();syncSB()};return h('label',{for:id},c,l)};
+  L.append(h('section',{class:'lsec'},h('h3',{},'1. Type a number sentence'),h('div',{class:'gsearch'},icon('search'),q),chips),
+    h('section',{class:'lsec'},h('h3',{},'2. Choose the ways to show it'),types,h('p',{class:'hint',style:{marginTop:'6px'}},'Every way that is switched on is added together as one set. You can switch any of them off later from the bar above the board.')),
+    h('section',{class:'lsec'},h('h3',{},'3. Add it'),h('div',{class:'gmsg',id:'gmsg',role:'status'}),h('div',{class:'gprev',id:'gprev','aria-label':'Preview'}),
       h('button',{type:'button',class:'wbtn pri gadd',id:'gadd',onclick:addGen},'Add to board'),
-      h('div',{class:'gopts'},opt('cards','Show the sentence as cards'),opt('reveal','Show the answer to ?'),opt('replace','Replace the last set I made'))),
+      h('div',{class:'gopts'},opt('reveal','Show the answer to ?'),opt('replace','Replace the last set I made'))),
     h('section',{class:'lsec'},h('h3',{},'Add one piece at a time'),...PIECES.map(([name,list])=>[h('div',{class:'lsub'},name),h('div',{class:'ptiles'},list.map(st=>h('button',{type:'button',class:'ptile',title:'Add '+pieceName(st),'aria-label':'Add '+pieceName(st),onclick:()=>addPiece(st)},pieceSvg(st,32))))]).flat()),
     h('p',{class:'hint'},'Pieces snap onto baseboards and rod tracks, and weigh themselves on the pan balance. Double-click a counter to flip it.'));
   updateGen()}
-function updateGen(){const box=$('#gprev'),msg=$('#gmsg'),add=$('#gadd');if(!box)return;const G=genPlan();box.innerHTML='';
-  msg.className='gmsg'+(G.err||G.warn?' bad':'');msg.textContent=G.err||G.warn||G.msg||'';add.disabled=!(G.L||G.W);
+function previewBlock(bk){
+  if(bk.W){const T=TOOLS[bk.W.type];const inner=h('div',{class:'wbody pvw'});T.render.call(T,inner,JSON.parse(JSON.stringify(bk.W.st)),{id:'pv',update(){},live(){},soon(){},commit(){}});const wrap=h('div',{class:'pvwrap',inert:true},inner);
+    requestAnimationFrame(()=>{const w=inner.scrollWidth,hh=inner.scrollHeight;const k=Math.min(1,196/w,150/hh);inner.style.transform=`scale(${k})`;wrap.style.width=w*k+'px';wrap.style.height=hh*k+'px'});return wrap}
+  const {w,h:hh,p}=bk.L;const k=Math.min(1,196/Math.max(1,w+4),120/Math.max(1,hh+4));const s=sv("svg",{width:Math.max(1,(w+4)*k),height:Math.max(1,(hh+4)*k),viewBox:`-2 -2 ${w+4} ${hh+4}`,style:'overflow:visible;display:block'});
+  p.forEach(q=>{const g=sv('g',{transform:`translate(${q.x} ${q.y})`});pieceGeom(q.st).draw(g);s.append(g)});return s}
+function updateGen(){const box=$('#gprev'),msg=$('#gmsg'),add=$('#gadd');if(!box)return;const G=genPlan();CUR=GEN;box.innerHTML='';
+  msg.className='gmsg'+(G.err||G.warn?' bad':'');msg.textContent=G.err||G.warn||G.msg||'';add.disabled=!G.blocks;
   if(G.warn&&G.msg)msg.append(h('div',{class:'gsub'},G.msg));
-  add.disabled=!(G.L||G.W);
-  if(G.W){const T=TOOLS[G.W.type];const inner=h('div',{class:'wbody pvw'});T.render.call(T,inner,JSON.parse(JSON.stringify(G.W.st)),{id:'pv',update(){},live(){},soon(){},commit(){}});const wrap=h('div',{class:'pvwrap',inert:true},inner);box.append(wrap);
-    requestAnimationFrame(()=>{const w=inner.scrollWidth,hh=inner.scrollHeight;const k=Math.min(1,196/w,200/hh);inner.style.transform=`scale(${k})`;wrap.style.width=w*k+'px';wrap.style.height=hh*k+'px'});return}
-  if(!G.L){box.append(h('span',{class:'hint'},G.err?'Nothing to show yet.':'Your manipulatives will appear here.'));return}
-  const {w,h:hh,p}=G.L;const k=Math.min(1,190/Math.max(1,w+4),180/Math.max(1,hh+4));const s=sv("svg",{width:Math.max(1,(w+4)*k),height:Math.max(1,(hh+4)*k),viewBox:`-2 -2 ${w+4} ${hh+4}`,style:'overflow:visible;display:block'});
-  p.forEach(q=>{const g=sv('g',{transform:`translate(${q.x} ${q.y})`});pieceGeom(q.st).draw(g);s.append(g)});box.append(s)}
+  if(!G.blocks){box.append(h('span',{class:'hint'},G.err?'Nothing to show yet.':'Your set will appear here.'));return}
+  const stack=h('div',{class:'pstack'});
+  G.blocks.forEach(bk=>{if(bk.rep!=='cards')stack.append(h('div',{class:'lsub',style:{margin:'2px 0 0'}},REPL[bk.rep]));stack.append(previewBlock(bk))});box.append(stack)}
 const genItems=gid=>S.items.filter(it=>it.st&&it.st.gen!=null&&it.st.gen===gid);
 function itemBottom(i){if(i.kind==='piece'){const g=pieceGeom(i.st);return i.y+((i.st.rot||0)%180?g.w:g.h)}const el=board.querySelector(`.item[data-id="${i.id}"]`);return i.y+(el?el.offsetHeight*(i.s||1):300)}
-function placeGen(G,gid,x0,y0){let first=null;
-  if(G.W){const it={id:nextId++,kind:'widget',type:G.W.type,x:x0,y:y0,s:1,st:Object.assign(TOOLS[G.W.type].d(),G.W.st,{gen:gid})};S.items.push(it);return[it]}
-  return G.L.p.map(q=>{const it={id:nextId++,kind:'piece',type:'piece',x:x0+q.x,y:y0+q.y,st:Object.assign({rot:0,flip:false,gen:gid},q.st)};S.items.push(it);return it})}
-function addGen(fresh){const G=genPlan();if(!G.L&&!G.W)return;
+function placeGen(G,gid,x0,y0){const made=[];let y=y0;
+  G.blocks.forEach(bk=>{const k=bk.rep;
+    if(k!=='cards'){const t={id:nextId++,kind:'piece',type:'piece',x:x0,y,st:{t:'tag',c:REPL[k],rot:0,flip:false,gen:gid,rep:k}};S.items.push(t);made.push(t);y+=30}
+    if(bk.W){const it={id:nextId++,kind:'widget',type:bk.W.type,x:x0,y,s:1,st:Object.assign(TOOLS[bk.W.type].d(),bk.W.st,{gen:gid,rep:k})};S.items.push(it);made.push(it);y+=EST[bk.W.type]||300}
+    else{bk.L.p.forEach(q=>{const it={id:nextId++,kind:'piece',type:'piece',x:x0+q.x,y:y+q.y,st:Object.assign({rot:0,flip:false,gen:gid,rep:k},q.st)};S.items.push(it);made.push(it)});y+=bk.L.h}
+    y+=28});return made}
+function reflowSet(gid){const its=genItems(gid);if(!its.length)return;const order=GTYPES.map(t=>t[0]);const groups=order.map(k=>its.filter(i=>i.st.rep===k)).filter(a=>a.length);let y=Math.min(...its.map(i=>i.y));
+  groups.forEach(gr=>{const top=Math.min(...gr.map(i=>i.y));const dy=y-top;gr.forEach(i=>{i.y+=dy;const el=board.querySelector(`.item[data-id="${i.id}"]`);if(el)el.style.top=i.y+'px'});y=Math.max(...gr.map(itemBottom))+28});scheduleBal()}
+function setBox(gid){const its=genItems(gid);if(!its.length)return null;return{x:Math.min(...its.map(i=>i.x)),y:Math.min(...its.map(i=>i.y)),b:Math.max(...its.map(itemBottom))}}
+function scrollToSet(gid){const b=setBox(gid);if(!b)return;scroller.scrollTo({left:Math.max(0,(b.x-40)*zoom),top:Math.max(0,(b.y-40)*zoom),behavior:'smooth'})}
+function addGen(fresh){const G=genPlan();if(!G.blocks)return;
   const prev=GEN.last!=null?genItems(GEN.last):[];let x0=Math.round(scroller.scrollLeft/zoom+40),y0=Math.round(scroller.scrollTop/zoom+30);
   if(!fresh&&GEN.replace&&prev.length){S.items=S.items.filter(it=>!prev.includes(it));delete S.gens[GEN.last];x0=Math.min(...prev.map(i=>i.x));y0=Math.min(...prev.map(i=>i.y))}
   else if(prev.length){x0=Math.min(...prev.map(i=>i.x));y0=Math.max(...prev.map(itemBottom))+50}
-  const gid=Date.now();GEN.last=gid;saveGen();S.gens[gid]={q:GEN.q,type:GEN.type,cards:GEN.cards,reveal:GEN.reveal};
-  const made=placeGen(G,gid,x0,y0);sel=null;renderAll();setSel(made[0].id);pushHistory();closeLibMobile();toast('Added '+sentenceTokens(G.P).join(' ')+'. Type in the bar above to change it.')}
-function regenSet(gid){const g=S.gens[gid];if(!g)return null;const G=genPlan(g);CUR=GEN;if(!G.L&&!G.W)return G;
+  const gid=Date.now();GEN.last=gid;saveGen();S.gens[gid]={q:GEN.q,reps:{...GEN.reps},reveal:GEN.reveal};
+  const made=placeGen(G,gid,x0,y0);sel=null;renderAll();reflowSet(gid);setSel(made[0].id);pushHistory();closeLibMobile();scrollToSet(gid);
+  toast('Added '+sentenceTokens(G.P).join(' ')+' in '+G.blocks.length+' way'+(G.blocks.length===1?'':'s')+'. Use the chips above the board to switch ways on or off.')}
+function regenSet(gid){const g=S.gens[gid];if(!g)return null;const G=genPlan(g);CUR=GEN;if(!G.blocks)return G;
   const old=genItems(gid);if(old.length){g.x=Math.min(...old.map(i=>i.x));g.y=Math.min(...old.map(i=>i.y))}
   if(g.x==null){g.x=Math.round(scroller.scrollLeft/zoom+40);g.y=Math.round(scroller.scrollTop/zoom+30)}
   old.forEach(it=>board.querySelector(`.item[data-id="${it.id}"]`)?.remove());S.items=S.items.filter(it=>!old.includes(it));
-  const made=placeGen(G,gid,g.x,g.y);made.forEach(it=>layerOf(it).append(buildItem(it)));
+  const made=placeGen(G,gid,g.x,g.y);made.forEach(it=>layerOf(it).append(buildItem(it)));reflowSet(gid);
   sel=made[0].id;board.querySelectorAll('.item.sel').forEach(e=>e.classList.remove('sel'));board.querySelector(`.item[data-id="${sel}"]`)?.classList.add('sel');markSet();scheduleBal();return G}
-function markSet(){pl.querySelectorAll('.gsel').forEach(e=>e.classList.remove('gsel'));if(activeGen==null)return;S.items.forEach(it=>{if(it.kind==='piece'&&it.st.gen===activeGen)pl.querySelector(`.item[data-id="${it.id}"]`)?.classList.add('gsel')})}
+function markSet(){board.querySelectorAll('.gsel').forEach(e=>e.classList.remove('gsel'));if(activeGen==null)return;S.items.forEach(it=>{if(it.st&&it.st.gen===activeGen)board.querySelector(`.item[data-id="${it.id}"]`)?.classList.add('gsel')})}
+function jumpToSet(gid){const its=genItems(gid);if(!its.length){toast('That set has been taken apart.');return}setSel(its[0].id);scrollToSet(gid)}
 /* sentence bar */
 function buildSB(){const B=$('#sbar');B.innerHTML='';
-  B.append(h('span',{id:'sbmode'},'New set'),
-    h('select',{id:'sbtype',class:'sbsel','aria-label':'Manipulative',onchange:sbChange},GTYPES.map(([k,l])=>h('option',{value:k},l))),
-    h('div',{class:'sbin',id:'sbin'},icon('search'),h('input',{id:'sbq',type:'search',placeholder:'Type a number sentence, e.g. 7 + 5 or ? × 3 = 12',autocomplete:'off',spellcheck:'false','aria-label':'Number sentence for the manipulatives',oninput:sbChange,onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();sbEnter()}}})),
+  B.append(h('div',{class:'sbrow'},h('button',{type:'button',id:'sbmode',class:'sbl',title:'Click to go back to making a new set',onclick:()=>{if(activeGen!=null)setSel(null)}},'New set'),
+    h('div',{class:'sbin',id:'sbin'},icon('search'),h('input',{id:'sbq',type:'search',placeholder:'Type a number sentence, e.g. 7 + 5 or ? × 3 = 12, then press Enter',autocomplete:'off',spellcheck:'false','aria-label':'Number sentence',oninput:sbChange,onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();sbEnter()}}})),
     h('button',{type:'button',class:'tb',id:'sbrev',title:'Show or hide the answer to ?','aria-label':'Show the answer to ?',onclick:sbReveal},h('span',{class:'qmark'},'?'),h('span',{class:'lbl'},'Show answer')),
     h('button',{type:'button',class:'tb',id:'sbnew',title:'Add this sentence as a new set',onclick:()=>sbNew()},icon('plus'),h('span',{class:'lbl'},'New set')),
     h('button',{type:'button',class:'tb',id:'sbdel',title:'Remove the selected set',onclick:sbDelete},icon('trash'),h('span',{class:'lbl'},'Remove set')),
-    h('span',{id:'sbmsg',class:'sbmsg',role:'status'}),h('button',{type:'button',class:'tb danger sbclear',title:'Clear the board','aria-label':'Clear all',onclick:clearBoard},icon('clear'),h('span',{class:'lbl'},'Clear all')));syncSB()}
+    h('select',{id:'sbjump',class:'sbsel','aria-label':'Jump to a set on the board',onchange:e=>{const v=e.target.value;e.target.value='';if(v)jumpToSet(+v)}}),
+    h('span',{id:'sbmsg',class:'sbmsg',role:'status'}),h('button',{type:'button',class:'tb danger sbclear',title:'Clear the board','aria-label':'Clear all',onclick:clearBoard},icon('clear'),h('span',{class:'lbl'},'Clear all'))),
+   h('div',{class:'sbrow reps',id:'sbreps',role:'group','aria-label':'Ways to show the sentence'},h('span',{class:'sbl'},'Show it as'),
+    ...GTYPES.map(([k,l])=>h('button',{type:'button',class:'rep','data-rep':k,'aria-pressed':'false',title:'Switch '+l.toLowerCase()+' on or off',onclick:()=>toggleRep(k)},h('span',{class:'gi'},repIcon(k)),l,h('span',{class:'tick','aria-hidden':'true'},'✓'))),
+    h('button',{type:'button',class:'rep all',title:'Switch every way on',onclick:()=>setAllReps()},'All on')));syncSB()}
 function sbShow(G,editing){const m=$('#sbmsg');if(!m)return;m.className='sbmsg'+(G&&(G.err||G.warn)?' bad':'');m.textContent=!G?'':G.err||G.warn||(editing?G.msg:(G.msg?G.msg+'  ·  press Enter to add':''))}
 function syncSB(){const q=$('#sbq');if(!q)return;const g=activeGen!=null?S.gens[activeGen]:null;const src=g||GEN;
-  q.value=src.q;$('#sbtype').value=src.type;$('#sbmode').textContent=g?'Editing selected set':'New set';$('#sbmode').classList.toggle('on',!!g);$('#sbin').classList.toggle('edit',!!g);
-  $('#sbrev').setAttribute('aria-pressed',String(!!src.reveal));$('#sbdel').hidden=!g;$('#sbnew').querySelector('.lbl').textContent=g?'Copy as new set':'New set';sbShow(g?genPlan(g):genPlan(),!!g);CUR=GEN}
-function sbChange(){const q=$('#sbq').value,type=$('#sbtype').value;const g=activeGen!=null?S.gens[activeGen]:null;
-  if(g){g.q=q;g.type=type;const G=regenSet(activeGen);sbShow(G,true);soon()}
-  else{const typeChanged=GEN.type!==type;GEN.q=q;GEN.type=type;saveGen();sbShow(genPlan(),false);CUR=GEN;if(libTab==='manip'){if(typeChanged)buildLib();else{const gq=$('#genq');if(gq)gq.value=q;updateGen()}}}}
+  q.value=src.q;$('#sbmode').textContent=g?'Editing set ✕':'New set';$('#sbmode').classList.toggle('on',!!g);$('#sbin').classList.toggle('edit',!!g);
+  $('#sbrev').setAttribute('aria-pressed',String(!!src.reveal));$('#sbdel').hidden=!g;$('#sbnew').querySelector('.lbl').textContent=g?'Copy as new set':'New set';
+  document.querySelectorAll('#sbreps .rep[data-rep]').forEach(b=>b.setAttribute('aria-pressed',String(!!(src.reps&&src.reps[b.dataset.rep]))));
+  const j=$('#sbjump');const ids=Object.keys(S.gens).filter(id=>genItems(+id).length);j.innerHTML='';j.hidden=!ids.length;
+  j.append(h('option',{value:''},`Jump to a set (${ids.length})`));ids.forEach((id,i)=>j.append(h('option',{value:id},`${i+1}. ${(S.gens[id].q||'').slice(0,28)}`)));
+  sbShow(g?genPlan(g):genPlan(),!!g);CUR=GEN}
+function sbChange(){const q=$('#sbq').value;const g=activeGen!=null?S.gens[activeGen]:null;
+  if(g){g.q=q;const G=regenSet(activeGen);sbShow(G,true);soon()}
+  else{GEN.q=q;saveGen();sbShow(genPlan(),false);CUR=GEN;if(libTab==='manip'){const gq=$('#genq');if(gq&&gq.value!==q)gq.value=q;updateGen()}}}
+function toggleRep(k){const g=activeGen!=null?S.gens[activeGen]:null;
+  if(g){if(!g.reps)g.reps={};if(g.reps[k]&&repsOf(g).length===1){toast('Keep at least one way switched on, or use Remove set.');return}
+    g.reps[k]=g.reps[k]?0:1;const G=regenSet(activeGen);if(!G.blocks){g.reps[k]=g.reps[k]?0:1;toast(G.err||'That cannot be shown here.')}else pushHistory();sbShow(G,true)}
+  else{GEN.reps[k]=GEN.reps[k]?0:1;saveGen();if(libTab==='manip')buildLib()}syncSB()}
+function setAllReps(){const g=activeGen!=null?S.gens[activeGen]:null;const tgt=g||GEN;if(!tgt.reps)tgt.reps={};GTYPES.forEach(([k])=>tgt.reps[k]=1);
+  if(g){const G=regenSet(activeGen);sbShow(G,true);pushHistory()}else{saveGen();if(libTab==='manip')buildLib()}syncSB()}
 function sbEnter(){if(activeGen!=null&&S.gens[activeGen]){pushHistory();toast('Updated')}else sbNew()}
-function sbNew(){GEN.q=$('#sbq').value;GEN.type=$('#sbtype').value;const g=activeGen!=null?S.gens[activeGen]:null;if(g){GEN.reveal=g.reveal;GEN.cards=g.cards}saveGen();const G=genPlan();if(!G.L&&!G.W){sbShow(G,false);return}activeGen=null;addGen(true);if(libTab==='manip')buildLib()}
+function sbNew(){GEN.q=$('#sbq').value;const g=activeGen!=null?S.gens[activeGen]:null;if(g){GEN.reveal=g.reveal;GEN.reps={...(g.reps||{})}}saveGen();const G=genPlan();if(!G.blocks){sbShow(G,false);return}activeGen=null;addGen(true);if(libTab==='manip')buildLib()}
 function sbReveal(){const g=activeGen!=null?S.gens[activeGen]:null;if(g){g.reveal=!g.reveal;regenSet(activeGen);pushHistory()}else{GEN.reveal=!GEN.reveal;saveGen();if(libTab==='manip')buildLib()}syncSB()}
 function sbDelete(){const gid=activeGen;if(gid==null)return;S.items=S.items.filter(it=>!(it.st&&it.st.gen===gid));delete S.gens[gid];activeGen=null;sel=null;renderAll();pushHistory();syncSB()}
 const libHidden=()=>matchMedia('(max-width:820px)').matches?!app.classList.contains('libopen'):app.classList.contains('nolib');
@@ -1223,7 +1288,7 @@ function mkctx(it){return{id:it.id,update(fn){fn&&fn(it.st);renderItem(it);pushH
 function buildItem(it){
   if(it.kind==='piece'){const el=h('div',{class:'item piece'+(sel===it.id?' sel':'')+(activeGen!=null&&it.st.gen===activeGen?' gsel':''),'data-id':it.id,title:pieceName(it.st),style:{left:it.x+'px',top:it.y+'px'}},pieceSvg(it.st));
     if(it.st.t==='counter')el.addEventListener('dblclick',()=>{it.st.c=it.st.c==='y'?'r':'y';renderItem(it);pushHistory()});return el}
-  const T=TOOLS[it.type];const el=h('div',{class:'item widget '+(T.cls||'')+(sel===it.id?' sel':''),'data-id':it.id,style:{left:it.x+'px',top:it.y+'px',transform:`scale(${it.s||1})`}});
+  const T=TOOLS[it.type];const el=h('div',{class:'item widget '+(T.cls||'')+(sel===it.id?' sel':'')+(activeGen!=null&&it.st.gen===activeGen?' gsel':''),'data-id':it.id,style:{left:it.x+'px',top:it.y+'px',transform:`scale(${it.s||1})`}});
   const open=openSet.has(it.id);
   const head=h('div',{class:'whead'},h('div',{class:'grip',title:'Drag to move'},icon('grip'),T.title),
     T.settings?h('button',{type:'button',class:'hb','aria-label':'Settings','aria-pressed':open?'true':'false',title:'Settings',onclick:()=>{open?openSet.delete(it.id):openSet.add(it.id);renderItem(it)}},icon('gear')):null,
@@ -1263,7 +1328,10 @@ function addWidget(type,x,y,st,s){const c=viewCenter();cascade=(cascade+1)%6;con
   S.items.push(it);if(x==null){renderItem(it);setSel(it.id);pushHistory()}return it}
 function addPiece(st,x,y){const c=viewCenter();const it={id:nextId++,kind:'piece',type:'piece',x:Math.round(x??c.x-20+(Math.random()*160-80)),y:Math.round(y??c.y-20+(Math.random()*120-60)),st:Object.assign({rot:0,flip:false},JSON.parse(JSON.stringify(st)))};
   S.items.push(it);if(x==null){renderItem(it);setSel(it.id);pushHistory()}return it}
-function removeItem(id){S.items=S.items.filter(i=>i.id!==id);board.querySelector(`.item[data-id="${id}"]`)?.remove();openSet.delete(id);if(sel===id)sel=null;scheduleBal();pushHistory()}
+function detachRep(it){if(!it.st||it.st.gen==null)return;const gid=it.st.gen,k=it.st.rep,g=S.gens[gid];
+  if(it.kind==='widget'&&k){S.items=S.items.filter(i=>!(i.kind==='piece'&&i.st.t==='tag'&&i.st.gen===gid&&i.st.rep===k));if(g&&g.reps){g.reps[k]=0;if(!repsOf(g).length)delete S.gens[gid]}}
+  delete it.st.gen;delete it.st.rep;if(activeGen!=null&&!S.gens[activeGen])activeGen=null}
+function removeItem(id){const it=find(id);if(it&&it.kind==='widget'&&it.st.gen!=null){detachRep(it);S.items=S.items.filter(i=>i.id!==id);sel=null;renderAll();syncSB();pushHistory();return}S.items=S.items.filter(i=>i.id!==id);board.querySelector(`.item[data-id="${id}"]`)?.remove();openSet.delete(id);if(sel===id)sel=null;scheduleBal();pushHistory()}
 const BLANK={
   balance:s=>{s.left='';s.right=''},
   numberline:s=>{s.jumps=[];s.marks=[];s.pend=null;s.cap='';s.sent=''},
@@ -1289,20 +1357,27 @@ function bombWidget(it){const el=board.querySelector(`.item[data-id="${it.id}"]`
   S.items=S.items.filter(i=>!gone.has(i.id));
   const x0=(r.left-br.left)/zoom,y0=(r.top-br.top)/zoom,x1=(r.right-br.left)/zoom,y1=(r.bottom-br.top)/zoom;
   S.strokes=S.strokes.filter(s=>s.pts.filter(p=>p[0]>=x0&&p[0]<=x1&&p[1]>=y0&&p[1]<=y1).length<s.pts.length/2);
-  if(it.st.gen!=null){delete S.gens[it.st.gen];delete it.st.gen}if(activeGen!=null&&!S.gens[activeGen])activeGen=null;
+  detachRep(it);
   (BLANK[it.type]||(()=>{}))(it.st);sel=null;renderAll();syncSB();pushHistory();
   const n=board.querySelector(`.item[data-id="${it.id}"]`);if(n){n.classList.add('boom');setTimeout(()=>n.classList.remove('boom'),450)}
   toast(TOOLS[it.type].title+' cleared. Press Undo to bring it back.')}
-function duplicate(it){const c=JSON.parse(JSON.stringify(it));if(c.st)delete c.st.gen;c.id=nextId++;c.x+=30;c.y+=30;S.items.push(c);renderItem(c);setSel(c.id);pushHistory()}
+function duplicate(it){const c=JSON.parse(JSON.stringify(it));if(c.st){delete c.st.gen;delete c.st.rep}c.id=nextId++;c.x+=30;c.y+=30;S.items.push(c);renderItem(c);setSel(c.id);pushHistory()}
 function setSel(id){sel=id;board.querySelectorAll('.item.sel').forEach(e=>e.classList.remove('sel'));if(id!=null)board.querySelector(`.item[data-id="${id}"]`)?.classList.add('sel');
   const it=id!=null?find(id):null;const ng=it&&it.st&&it.st.gen!=null&&S.gens&&S.gens[it.st.gen]?it.st.gen:null;const changed=ng!==activeGen;activeGen=ng;markSet();if(changed)syncSB();syncBar()}
 function transformSel(fn){const it=find(sel);if(!it||it.kind!=='piece')return;fn(it.st);renderItem(it);setSel(it.id);pushHistory()}
 
 /* ---------- pointer: move, scale ---------- */
 const bp=e=>{const r=board.getBoundingClientRect();return{x:(e.clientX-r.left)/zoom,y:(e.clientY-r.top)/zoom}};
+let spaceDown=false;
+function startPan(e){if(e.pointerType==='touch')return;const sx=e.clientX,sy=e.clientY,l0=scroller.scrollLeft,t0=scroller.scrollTop;app.classList.add('panning');
+  const mv=ev=>{scroller.scrollLeft=l0-(ev.clientX-sx);scroller.scrollTop=t0-(ev.clientY-sy)};
+  const up=()=>{window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);app.classList.remove('panning')};
+  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up)}
 board.addEventListener('pointerdown',e=>{
-  if(mode!=='move')return;const t=e.target;const el=t.closest('.item');
-  if(!el){setSel(null);return}
+  if(e.target.closest('#ink'))return;
+  if(e.button===1||(spaceDown&&e.button===0)){e.preventDefault();startPan(e);return}
+  if(mode!=='move'||e.button!==0)return;const t=e.target;const el=t.closest('.item');
+  if(!el){setSel(null);startPan(e);return}
   const it=find(+el.dataset.id);if(!it)return;
   if(t.closest('.scale-handle')){e.preventDefault();startScale(e,it,el);return}
   if(el.classList.contains('piece')||(t.closest('.grip'))){e.preventDefault();startDrag(e,it,el);return}
@@ -1326,7 +1401,7 @@ function startScale(e,it,el){const p0=bp(e),s0=it.s||1,w=el.offsetWidth;
 
 /* ---------- pointer: ink ---------- */
 let cur=null,curEl=null,erasing=false,erased=false;
-ink.addEventListener('pointerdown',e=>{if(mode==='move')return;e.preventDefault();try{ink.setPointerCapture(e.pointerId)}catch(_){}
+ink.addEventListener('pointerdown',e=>{if(mode==='move')return;if(e.button===1||spaceDown){e.preventDefault();startPan(e);return}e.preventDefault();try{ink.setPointerCapture(e.pointerId)}catch(_){}
   const p=bp(e);if(mode==='erase'){erasing=true;erased=false;eraseAt(p);return}
   const hl=mode==='hl';cur={id:nextId++,c:penColor,w:hl?penSize*3+10:penSize,a:hl?.35:1,pts:[[Math.round(p.x),Math.round(p.y)]]};curEl=strokeEl(cur);inkg.append(curEl)});
 ink.addEventListener('pointermove',e=>{const p=bp(e);if(erasing){eraseAt(p);return}if(!cur)return;const l=cur.pts[cur.pts.length-1];if(Math.hypot(p.x-l[0],p.y-l[1])<1.5)return;cur.pts.push([Math.round(p.x*10)/10,Math.round(p.y*10)/10]);curEl.setAttribute('d',pathD(cur.pts))});
@@ -1346,9 +1421,9 @@ function buildBar(){const B=$('#bar');B.innerHTML='';
     h('span',{class:'sep'}),tb('undo','Undo',undo,{id:'bundo'}),tb('redo','Redo',redo,{id:'bredo'}),h('span',{class:'sep'}),
     tb('rot','Rotate',()=>transformSel(s=>s.rot=((s.rot||0)+90)%360),{id:'brot'}),tb('flip','Flip',()=>transformSel(s=>s.flip=!s.flip),{id:'bflip'}),
     tb('copy','Duplicate',()=>{const it=find(sel);if(it)duplicate(it)},{id:'bdup'}),tb('trash','Delete',()=>{if(sel!=null)removeItem(sel)},{id:'bdel'}),h('span',{class:'sep'}),
-    h('button',{type:'button',class:'tb',title:'Zoom out','aria-label':'Zoom out',onclick:()=>setZoom(zoom-.1)},icon('minus')),h('span',{class:'zl',id:'zl'},'100%'),h('button',{type:'button',class:'tb',title:'Zoom in','aria-label':'Zoom in',onclick:()=>setZoom(zoom+.1)},icon('plus')),
+    h('button',{type:'button',class:'tb',title:'Zoom out','aria-label':'Zoom out',onclick:()=>setZoom(zoom-.1)},icon('minus')),h('button',{type:'button',class:'tb zl',id:'zl',title:'Back to 100%','aria-label':'Zoom level, click for 100%',onclick:()=>setZoom(1)},'100%'),h('button',{type:'button',class:'tb',title:'Zoom in','aria-label':'Zoom in',onclick:()=>setZoom(zoom+.1)},icon('plus')),tb('fit','Fit all',fitAll),
     h('select',{class:'tbsel',id:'bgsel','aria-label':'Board background',onchange:e=>{S.bg=e.target.value;board.className='bg-'+S.bg;pushHistory()}},[['squares','Squared'],['dots','Dotted'],['lines','Lined'],['plain','Plain']].map(([v,l])=>h('option',{value:v},l))),
-    h('span',{class:'sep'}),tb('folder','Workspaces',openWS),tb('clear','Clear all',clearBoard,{id:'bclear',class:'tb danger'}),tb('full','Full screen',()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(_){}}));
+    h('span',{class:'sep'}),tb('folder','Workspaces',openWS),tb('clear','Clear all',clearBoard,{id:'bclear',class:'tb danger'}),tb('full','Full screen',()=>{try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}catch(_){}}),tb('help','Help',openHelp));
   syncBar()}
 function syncBar(){document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===mode));
   document.querySelectorAll('[data-col]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.col===penColor));
@@ -1356,7 +1431,18 @@ function syncBar(){document.querySelectorAll('[data-mode]').forEach(b=>b.setAttr
   const it=sel!=null?find(sel):null;const set=(id,v)=>{const b=document.getElementById(id);if(b)b.disabled=!v};
   set('bundo',hi>0);set('bredo',hi<hist.length-1);set('brot',it&&it.kind==='piece');set('bflip',it&&it.kind==='piece');set('bdup',!!it);set('bdel',!!it)}
 function setMode(m){mode=m;app.classList.toggle('drawing',m==='pen'||m==='hl');app.classList.toggle('erasing',m==='erase');syncBar()}
-function setZoom(z){const c=viewCenter();zoom=Math.round(Math.max(.4,Math.min(2.5,z))*10)/10;board.style.transform=`scale(${zoom})`;sizer.style.width=BW*zoom+'px';sizer.style.height=BH*zoom+'px';$('#zl').textContent=Math.round(zoom*100)+'%';scroller.scrollLeft=c.x*zoom-scroller.clientWidth/2;scroller.scrollTop=c.y*zoom-scroller.clientHeight/2;scheduleBal()}
+function setZoom(z,anchor){const ax=anchor?anchor.x:scroller.clientWidth/2,ay=anchor?anchor.y:scroller.clientHeight/2;const bx=(scroller.scrollLeft+ax)/zoom,by=(scroller.scrollTop+ay)/zoom;
+  zoom=Math.round(Math.max(.25,Math.min(3,z))*100)/100;board.style.transform=`scale(${zoom})`;sizer.style.width=BW*zoom+'px';sizer.style.height=BH*zoom+'px';$('#zl').textContent=Math.round(zoom*100)+'%';scroller.scrollLeft=bx*zoom-ax;scroller.scrollTop=by*zoom-ay;scheduleBal()}
+scroller.addEventListener('wheel',e=>{if(!(e.ctrlKey||e.metaKey))return;e.preventDefault();const r=scroller.getBoundingClientRect();setZoom(zoom*(e.deltaY<0?1.1:1/1.1),{x:e.clientX-r.left,y:e.clientY-r.top})},{passive:false});
+function contentBox(){let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;const add=(a,b,c,d)=>{x0=Math.min(x0,a);y0=Math.min(y0,b);x1=Math.max(x1,c);y1=Math.max(y1,d)};
+  S.items.forEach(it=>{const el=board.querySelector(`.item[data-id="${it.id}"]`);if(!el)return;add(it.x,it.y,it.x+el.offsetWidth*(it.s||1),it.y+el.offsetHeight*(it.s||1))});
+  S.strokes.forEach(st=>st.pts.forEach(q=>add(q[0],q[1],q[0],q[1])));return x0===Infinity?null:{x0,y0,x1,y1}}
+function fitAll(){const b=contentBox();if(!b){setZoom(1);scroller.scrollTo(0,0);toast('Nothing on the board yet.');return}const w=b.x1-b.x0+80,hh=b.y1-b.y0+80;setZoom(Math.min(2,scroller.clientWidth/w,scroller.clientHeight/hh));scroller.scrollLeft=(b.x0-40)*zoom;scroller.scrollTop=(b.y0-40)*zoom}
+function openHelp(){const ov=$('#wsov');ov.innerHTML='';const K=(k,l)=>h('li',{},h('span',{class:'kbd'},k),l);
+  ov.append(h('div',{class:'dlg',role:'dialog','aria-label':'Help and shortcuts'},h('h2',{},'Getting around'),
+    h('p',{class:'muted'},'Type a number sentence in the bar at the top and press Enter. It is shown in every way that is switched on under “Show it as”. Switch a way on or off at any time, and the selected set rebuilds itself. Click a set to edit it; click empty space to start a new one.'),
+    h('ul',{class:'helpl'},K('/','Go to the number sentence bar'),K('Enter','Add the set, or update the selected one'),K('Drag','Move around the board (on empty space)'),K('Ctrl + scroll','Zoom in and out'),K('Space + drag','Move around while drawing'),K('Arrows','Nudge the selected item (Shift for bigger steps)'),K('Delete','Remove the selected item'),K('R / F','Rotate or flip a piece'),K('V P H E','Move, pen, highlighter, eraser'),K('Ctrl + Z','Undo (add Shift to redo)'),K('?','Open this guide'),K('Esc','Back to the move tool, or close')),
+    h('div',{class:'row',style:{justifyContent:'flex-end'}},btn('Close',()=>ov.hidden=true))));ov.hidden=false}
 function undo(){if(hi>0){hi--;restore(hist[hi]);store.set('mathboard.current',hist[hi]);syncBar()}}
 function redo(){if(hi<hist.length-1){hi++;restore(hist[hi]);store.set('mathboard.current',hist[hi]);syncBar()}}
 function doClear(what){
@@ -1398,10 +1484,18 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#wsov').hidden)
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!typing){e.preventDefault();e.shiftKey?redo():undo();return}
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'&&!typing){e.preventDefault();redo();return}
   if(typing||e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='/'){e.preventDefault();const q=$('#sbq');if(q){q.focus();q.select()}return}
+  if(e.key==='?'){e.preventDefault();openHelp();return}
+  if(e.key===' '){e.preventDefault();spaceDown=true;app.classList.add('spacepan');return}
+  if(e.key.startsWith('Arrow')&&sel!=null){const it=find(sel);if(!it)return;e.preventDefault();const step=it.kind==='piece'?(e.shiftKey?U*4:U):(e.shiftKey?50:10);
+    if(e.key==='ArrowLeft')it.x-=step;else if(e.key==='ArrowRight')it.x+=step;else if(e.key==='ArrowUp')it.y-=step;else it.y+=step;
+    const el=board.querySelector(`.item[data-id="${it.id}"]`);if(el){el.style.left=it.x+'px';el.style.top=it.y+'px'}scheduleBal();soon();return}
   if((e.key==='Delete'||e.key==='Backspace')&&sel!=null){e.preventDefault();removeItem(sel)}
   else if(e.key==='r')transformSel(s=>s.rot=((s.rot||0)+90)%360);else if(e.key==='f')transformSel(s=>s.flip=!s.flip);
   else if(e.key==='v'||e.key==='Escape')setMode('move');else if(e.key==='p')setMode('pen');else if(e.key==='h')setMode('hl');else if(e.key==='e')setMode('erase')});
-window.addEventListener('resize',scheduleBal);scroller.addEventListener('scroll',()=>{},{passive:true});
+document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;app.classList.remove('spacepan')}});
+window.addEventListener('blur',()=>{spaceDown=false;app.classList.remove('spacepan')});
+window.addEventListener('resize',scheduleBal);
 
 /* ---------- sample board ---------- */
 function sample(){
@@ -1427,6 +1521,7 @@ try{const o=lastBoard&&JSON.parse(lastBoard);if(o&&((o.items&&o.items.length)||(
     h('button',{type:'button',class:'hb','aria-label':'Dismiss',onclick:()=>bar.remove()},icon('x')));
   document.body.append(bar);setTimeout(()=>bar.remove(),15000)}}catch(e){}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(scheduleBal);
+if(!matchMedia('(max-width:820px)').matches){const q=$('#sbq');if(q)q.focus()}
 })();
 </script>
 </body>
