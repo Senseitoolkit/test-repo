@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Double Booked</title>
+<style>
+/* Layout: a phone running a dating app called Triangle. Onboarding → match reveals → Matches tab → chats → match report. */
+:root{
+  --bg:#ebe6ee; --frame:#ffffff; --fg:#1b1521; --muted:#8b8294; --line:#ece7f0; --soft:#f6f2f8;
+  --brand:#ff5a6e; --brand2:#ff8a4c; --grad:linear-gradient(135deg,#ff5a6e,#ff8a4c);
+  --me:#ff5a6e; --me-fg:#fff; --them:#f1edf3; --them-fg:#1b1521; --chip:#f6f2f8; --chip-on:#1b1521; --chip-on-fg:#fff;
+  --good:#2fb37a; --bad:#e23b55; --r:#ff6a6a; --s:#5b8def;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Rounded","SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#000; --frame:#15121a; --fg:#f4f0f6; --muted:#9a90a3; --line:#2a2531; --soft:#1e1a24;
+  --them:#272230; --them-fg:#f4f0f6; --chip:#272230; --chip-on:#f4f0f6; --chip-on-fg:#15121a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#000; --frame:#15121a; --fg:#f4f0f6; --muted:#9a90a3; --line:#2a2531; --soft:#1e1a24;
+  --them:#272230; --them-fg:#f4f0f6; --chip:#272230; --chip-on:#f4f0f6; --chip-on-fg:#15121a; color-scheme:dark}
+html,body{height:100%}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.35;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+#phone{max-width:420px;height:100%;margin:0 auto;background:var(--frame);display:flex;flex-direction:column;position:relative;overflow:hidden}
+@media(min-width:500px){body{padding-block:16px}#phone{border-radius:34px;border:8px solid #111;max-height:860px;box-shadow:0 20px 60px rgba(0,0,0,.35)}}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+button:focus-visible,input:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+h1,h2,h3{margin:0;font-weight:800;letter-spacing:-.01em}
+.screen{flex:1;min-height:0;display:flex;flex-direction:column}
+.scroll{flex:1;min-height:0;overflow-y:auto}
+.status{display:flex;justify-content:space-between;align-items:center;padding:8px 18px 2px;font-size:14px;font-weight:600}
+.status .bat{width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px;position:relative;display:inline-block;vertical-align:-1px;margin-left:6px}
+.status .bat::after{content:"";position:absolute;inset:1.5px;right:5px;background:currentColor;border-radius:1px}
+.logo{font-weight:900;font-size:24px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.03em;display:inline-flex;align-items:center;gap:4px}
+.flame{width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-bottom:20px solid var(--brand);display:inline-block;margin-right:2px}
+.btn{display:block;width:100%;padding:15px 16px;border-radius:999px;background:var(--grad);color:#fff;font-weight:800;text-align:center;font-size:16px;box-shadow:0 8px 24px rgba(255,90,110,.3)}
+.btn.ghost{background:transparent;color:var(--fg);border:2px solid var(--line);box-shadow:none}
+.btn.red{background:var(--bad);box-shadow:none}
+.btn[disabled]{opacity:.4;cursor:default;box-shadow:none}
+.pad{padding:16px 20px}
+.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:800}
+/* onboarding */
+.ob h1{font-size:30px;margin:4px 0 6px}.ob p{color:var(--muted);margin:0 0 18px;font-size:15px}
+.prog{display:flex;gap:6px;margin:10px 0 18px}.prog i{flex:1;height:5px;border-radius:3px;background:var(--line)}.prog i.on{background:var(--grad)}
+.rulecards{display:grid;gap:10px}.rule{background:var(--soft);border-radius:16px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;font-size:14px}.rule .n{width:30px;height:30px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:900;flex-shrink:0}
+.q{margin:14px 0 8px;font-weight:800;font-size:15px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button,.pill{padding:12px 10px;border-radius:14px;border:2px solid var(--line);font-weight:700;font-size:14px;text-align:center}
+.seg button.on,.pill.on{border-color:var(--brand);background:var(--brand);color:#fff}
+.pills{display:flex;flex-wrap:wrap;gap:8px}.pill{padding:9px 14px;border-radius:999px}
+input.name{width:100%;font:inherit;font-size:18px;font-weight:700;padding:12px 14px;border-radius:14px;border:2px solid var(--line);background:var(--frame);color:var(--fg)}
+/* profile card */
+.pcard{border-radius:24px;overflow:hidden;background:var(--frame);box-shadow:0 12px 40px rgba(0,0,0,.14);border:1px solid var(--line)}
+.pcard .photo{height:260px;display:flex;align-items:flex-end;padding:16px;color:#fff;position:relative}
+.pcard .photo .big{font-size:120px;font-weight:900;position:absolute;inset:0;display:grid;place-items:center;opacity:.35}
+.pcard .photo h2{font-size:30px;position:relative}.pcard .photo small{display:block;font-size:14px;opacity:.9;position:relative}
+.pcard .photo.riley{background:linear-gradient(160deg,#ff6a6a,#ffb36a)}.pcard .photo.sam{background:linear-gradient(160deg,#5b8def,#7ad0ff)}.pcard .photo.you{background:linear-gradient(160deg,#7b5bff,#ff5ad0)}
+.pcard .body{padding:14px 16px;display:grid;gap:12px}
+.prompt{background:var(--soft);border-radius:14px;padding:10px 12px}.prompt .pq{font-size:12px;color:var(--muted);font-weight:700}.prompt .pa{font-size:17px;font-weight:700;margin-top:2px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}.tag{padding:6px 11px;border-radius:999px;background:var(--soft);font-size:13px;font-weight:700}
+.tag.warn{background:#ffe4e8;color:#b2213a}
+/* match overlay */
+.matchov{flex:1;min-height:0;background:var(--grad);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;gap:16px;text-align:center;overflow-y:auto}
+.matchov h1{font-size:42px;font-style:italic;font-weight:900;text-shadow:0 6px 30px rgba(0,0,0,.2)}
+.matchov p{margin:0;opacity:.95}
+.avs{display:flex;align-items:center}.avs .av{width:92px;height:92px;font-size:38px;border:4px solid #fff;box-shadow:0 8px 24px rgba(0,0,0,.25)}.avs .av+.av{margin-left:-18px}
+.matchov .btn{background:#fff;color:var(--brand);box-shadow:none;max-width:320px}.matchov .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+/* app shell */
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 10px}
+.daypill{font-size:12px;font-weight:800;padding:6px 10px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.tabs{display:flex;justify-content:space-around;border-top:1px solid var(--line);padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px))}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:700;color:var(--muted);padding:4px 14px}
+.tabs button.on{color:var(--brand)}.tabs .ic{font-size:22px}
+.sec{padding:6px 16px;font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.newm{display:flex;gap:14px;padding:6px 16px 14px;overflow-x:auto}
+.newm button{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:700}
+.av{border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;background:var(--muted);flex-shrink:0}
+.av.riley{background:linear-gradient(160deg,#ff6a6a,#ffb36a)}.av.sam{background:linear-gradient(160deg,#5b8def,#7ad0ff)}.av.you{background:linear-gradient(160deg,#7b5bff,#ff5ad0)}
+.ring{padding:3px;border-radius:50%;background:var(--grad)}.ring .av{border:3px solid var(--frame)}
+.row{display:flex;gap:12px;align-items:center;padding:12px 16px;width:100%;text-align:left}
+.row.off{opacity:.45}.row .av{width:56px;height:56px;font-size:22px}
+.row .meta{flex:1;min-width:0}.row .name{font-weight:800;display:flex;justify-content:space-between;gap:8px}.row .name .tm{font-size:12px;color:var(--muted);font-weight:600}
+.row .prev{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row .prev.un{color:var(--fg);font-weight:700}
+.row .nd{width:10px;height:10px;border-radius:50%;background:var(--brand);flex-shrink:0}
+.hearts{font-size:11px;letter-spacing:1px;color:var(--brand)}
+.banner{margin:8px 16px 0;border-radius:18px;padding:12px 14px;display:flex;gap:12px;align-items:center;width:calc(100% - 32px);text-align:left;background:var(--soft)}
+.banner.cta{background:var(--grad);color:#fff}.banner b{display:block;font-size:15px}.banner span{font-size:13px;opacity:.85}.banner .ic{font-size:24px}
+.banner[disabled]{opacity:.5;cursor:default}
+.empty{padding:40px 24px;text-align:center;color:var(--muted)}.empty .ic{font-size:48px}
+/* chat */
+.chead{display:flex;align-items:center;gap:10px;padding:6px 10px 10px;border-bottom:1px solid var(--line)}
+.chead .back{color:var(--fg);font-size:24px;padding:0 6px}.chead .av{width:40px;height:40px;font-size:16px}
+.chead .who{flex:1;min-width:0;text-align:left}.chead .who b{display:block}.chead .who span{font-size:12px;color:var(--muted)}
+.chead .more{font-size:22px;padding:4px 8px;color:var(--muted);letter-spacing:1px}
+.msgs{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.m{max-width:78%;padding:9px 13px;border-radius:20px;font-size:15px;line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}
+.m.them{align-self:flex-start;background:var(--them);color:var(--them-fg);border-bottom-left-radius:6px}
+.m.me{align-self:flex-end;background:var(--me);color:var(--me-fg);border-bottom-right-radius:6px}
+.t{align-self:center;font-size:11px;color:var(--muted);font-weight:700;margin:10px 0 4px}
+.rr{align-self:flex-end;font-size:11px;color:var(--muted);margin:0 6px 4px 0;font-weight:700}
+.sys{align-self:center;text-align:center;font-size:12px;color:var(--muted);padding:6px 10px;max-width:85%;margin:4px 0}
+.typing{align-self:flex-start;background:var(--them);border-radius:20px;border-bottom-left-radius:6px;padding:12px 14px;display:flex;gap:4px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:block}
+@media(prefers-reduced-motion:no-preference){.typing i{animation:bl 1s infinite}.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}@keyframes bl{0%,60%,100%{opacity:.35}30%{opacity:1}}
+  .m{animation:pop .16s ease-out}@keyframes pop{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .matchov h1{animation:zoom .5s cubic-bezier(.2,.9,.3,1.3)}@keyframes zoom{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}}
+.compose{border-top:1px solid var(--line);padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+.sug{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:2px 2px 6px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 10px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
+.chip{flex-shrink:0;background:var(--chip);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:600;white-space:nowrap;max-width:85vw;text-overflow:ellipsis;overflow:hidden;border:1.5px solid transparent}
+.chip.dim{color:var(--muted)}.chip.send{background:var(--grad);color:#fff}
+.field{display:flex;gap:8px;align-items:center}
+.field .in{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:999px;padding:10px 14px;color:var(--muted);font-size:15px;background:var(--soft)}
+.field .go{width:38px;height:38px;border-radius:50%;background:var(--grad);color:#fff;display:grid;place-items:center;font-weight:900;opacity:.5}
+.hint{font-size:12px;color:var(--muted);text-align:center;padding:2px 0 6px}
+.sheet{position:absolute;inset:auto 0 0 0;background:var(--frame);border-radius:24px 24px 0 0;padding:14px 16px calc(18px + env(safe-area-inset-bottom,0px));display:grid;gap:8px;box-shadow:0 -12px 40px rgba(0,0,0,.25);z-index:5}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 6px}
+.sheet h3{font-size:20px;margin-bottom:2px}.sheet p{margin:0 0 8px;color:var(--muted);font-size:14px}
+.sheet .opt{text-align:left;padding:13px 14px;border-radius:14px;background:var(--soft);font-weight:700;font-size:15px}
+.sheet .opt.red{color:var(--bad)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:4}
+/* report */
+.report .hero{background:var(--grad);color:#fff;padding:22px 20px 26px;text-align:center}
+.report .hero .eyebrow{color:#fff;opacity:.85}.report .hero h1{font-size:34px;margin-top:6px}.report .hero p{margin:8px auto 0;max-width:34ch;font-size:15px;opacity:.95}
+.scene{margin:16px;border-radius:18px;background:var(--soft);padding:12px;display:flex;flex-direction:column;gap:4px}
+.scene .m{font-size:14px}
+.cmp{display:grid;grid-template-columns:1fr auto 1fr;gap:6px 10px;font-size:13px;align-items:center;font-weight:600}
+.cmp .k{text-align:center;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+.cmp .k.ok{background:#dff6ea;color:#1c7a4e}.cmp .k.same{background:#ffe4e8;color:#b2213a}
+.cmp .hd{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.box{margin:0 16px 16px;border:1px solid var(--line);border-radius:18px;padding:14px}
+.box h3{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+.box p{margin:10px 0 0;font-size:14px}
+</style>
+
+<div id="phone"></div>
+
+<script>
+// ---------- content ----------
+const AXES=[
+  {k:'time',q:'When are you actually alive?',a:['morning','night'],l:{morning:'Morning person',night:'Night owl'},p:{morning:['My alarm','6:00. Sorry in advance.'],night:['My 2am move','Ramen. Ask me about the vending machine.']}},
+  {k:'plan',q:'How do your weekends happen?',a:['planner','spontaneous'],l:{planner:'Planner',spontaneous:'Spontaneous'},p:{planner:['Fair warning','I will send a calendar invite.'],spontaneous:['Fair warning','Plans? We’ll see what’s happening.']}},
+  {k:'social',q:'Ideal Friday night?',a:['home','out'],l:{home:'Homebody',out:'Always out'},p:{home:['Perfect night','Couch. Noodles. Same show, 4th time.'],out:['Perfect night','There’s a thing, then a thing after the thing.']}},
+  {k:'talk',q:'In a conversation you’re the…',a:['talker','listener'],l:{talker:'Talker',listener:'Listener'},p:{talker:['Green flag','I have a story for everything.'],listener:['Green flag','Tell me the long version.']}},
+];
+const PEEVES={late:'Always late',double:'Double-texts',cancel:'Cancels last minute',emoji:'Emoji overload',phone:'Never off their phone',read:'Leaves you on read',oneword:'One-word replies',ex:'Brings up their ex'};
+const NAMES={riley:'Riley',sam:'Sam'};
+const AGES={riley:27,sam:26};
+const OPEN={
+  morning:{t:'6:12 AM',m:'morning!! already did a run and a smoothie. what does your day look like?',f:['a run before 7am is unhinged and i respect it. teach me?','sounds nice! mine starts with coffee in about 3 hours','it is 6am. why are you awake.'],r:['deal. saturday 6:30. i’ll bring the coffee you’ll bring the complaints','3 hours!! ok that’s fair. text me when you’re human','lol fair. i’ll text you at a reasonable hour']},
+  night:{t:'1:47 AM',m:'ok you’re probably asleep but i just found the best 2am ramen spot. we need to go',f:['i’m awake now. tell me everything about this ramen','ha i was asleep. but ramen sounds good, in daylight?','1:47am is not a texting hour'],r:['it has a vending machine for broth. a VENDING MACHINE. i’m taking you','daylight ramen is a compromise i can live with','noted. my brain doesn’t have an off switch sorry']},
+  planner:{t:'10:05 AM',m:'so i looked at both our weeks. saturday 7pm works for both of us. i already put a hold on a table',f:['you looked at my week?? that’s the most romantic spreadsheet thing anyone’s ever done. saturday 7','saturday 7 should work! thanks for sorting it','i don’t really do “holds on tables”'],r:['i also have a backup restaurant if the first one is loud. don’t worry about it','perfect. confirmation email coming your way (i’m joking) (i’m not)','ok. no holds. just vibes. i can try']},
+  spontaneous:{t:'4:40 PM',m:'im outside a weird antique shop and there’s a taxidermy owl. come here right now',f:['send me the pin. i’m leaving now. for the owl, obviously','ha i wish, i’m at work. send a photo?','i can’t just leave. that’s not how days work'],r:['pin sent. the owl is named gerald now. hurry','photo sent. gerald says hi. next time you come','ok. next time i’ll give you a 4 minute warning']},
+  home:{t:'8:30 PM',m:'perfect night = couch, noodles, the same show for the 4th time. you in?',f:['only if i get the good side of the couch','that sounds cozy honestly. maybe this weekend?','i’d go insane staying in'],r:['the good side is MY side but for you… fine','saturday. i’ll make the noodles. you bring nothing, it’s the rule','we can go out too!! sometimes!! occasionally']},
+  out:{t:'9:15 PM',m:'there’s a rooftop thing tonight and then a thing after that thing. say yes',f:['yes. what do i wear. and don’t say “a hat” again','maybe the first thing? the second thing sounds like a 3am thing','two things on a weeknight? i’ll pass'],r:['the jacket from your second photo. and yes, also the hat','first thing it is. i’ll get you home before you turn into a pumpkin','ok homebody. next time i’ll pick a one-thing night']},
+  talker:{t:'12:10 PM',m:'ok my coworker said the WILDEST thing today and i need to tell you the whole story. do you have 20 min',f:['i have 20 min and a snack. go','ha give me the short version?','20 minutes is a lot for a coworker story'],r:['ok SO. it starts on tuesday. actually it starts last year. ok so—','short version: she licked the stapler. long version later','ok ok. the 2 minute version. it’s still pretty good']},
+  listener:{t:'12:10 PM',m:'you mentioned your sister yesterday. how did that go? i want the whole version',f:['you remembered that? ok now i want to tell you everything','it went ok! long story, tell you later','not much to say really'],r:['i remember everything you say. that’s not a threat','i have time whenever. i’m a good listener, it’s my whole thing','ok. i’m here if there’s ever a longer version']},
+};
+const FLAW={
+  late:{t:'7:22 PM',m:'ok don’t be mad. i’m gonna be like 15 min late to our thing. 20 max. traffic (i was watching a video)'},
+  double:{t:'3:02 PM',m:'hey\nhey\nhello?? did you die\nok kidding but also please answer'},
+  cancel:{t:'5:58 PM',m:'soooo tonight. can we rain check? something came up. i know i know. next week i swear'},
+  emoji:{t:'2:20 PM',m:'omg todayyyy 😭😭🙏✨💀💀🔥🥹 how are u 💕🌈🦋'},
+  phone:{t:'9:48 PM',m:'sorry i was replying to you and then got sucked into a 40 min scroll. anyway what were we saying'},
+  read:{t:'2:14 PM',m:'sorry!! saw your text and then my brain just. didn’t. anyway hi',readFirst:true},
+  oneword:{t:'6:30 PM',m:'k\nlol\nnice'},
+  ex:{t:'8:05 PM',m:'my ex used to do that exact thing haha. anyway not comparing. definitely not comparing'},
+};
+const FLAW_REPLY=['honestly? kind of into it. you’re a disaster and i’m here for it','ha you’re fine. all good','yeah that’s kind of a thing for me. not loving it'];
+const FLAW_FOLLOW=['ok i was scared for a sec. you’re a good one','phew 😅 ok','oh. ok. noted i guess'];
+const LEADER=['ok i’m just gonna say it. i look forward to your texts more than i look forward to lunch. and i LOVE lunch','i told my friend about you. she said “you never tell me about anyone.” so.','i deleted the app btw. well. everyone except you. you know what i mean'];
+const TRAIL=['you’ve been kinda dry lately. everything ok?','feels like i’m texting a wall sometimes. am i being annoying','ok i’m gonna stop texting first for a bit. not mad. just taking the hint'];
+const WARN={riley:'random q. who’s sam? you said “sam says” twice yesterday lol',sam:'my friend swears she saw you at a ramen place with someone. wasn’t you right? haha'};
+const BUST={riley:'so sam and i compared notes. you sent us the exact same “you’re a disaster and i’m here for it” text. word for word. unmatching.',sam:'riley showed me your chats. same jokes. same timestamps. gerald the owl saw everything. unmatching.'};
+const DECIDE={riley:'so. where is this going? i’m not asking for a lot. i’m asking if it’s just me. also my mom asked.',sam:'genuine question. is there someone else on here? you can tell me. i’d rather know.'};
+const LINES={
+  friends:{label:'Let’s just be friends',text:'i think we should just be friends. you’re great. i mean that.',hi:'friends. right. ok. i’ll be a great friend. i’ll be the best friend you’ve ever had and you’ll think about this moment forever 🙂',lo:'lol i was about to send the same text. friends!'},
+  someone:{label:'I met someone else',text:'i have to be honest. i met someone else and it’s getting serious.',hi:'wow. ok. i hope they’re worth it. (they’re not) (that’s not me talking that’s the hurt) (it’s also me)',lo:'congrats honestly. was it sam? it was sam wasn’t it'},
+  europe:{label:'I’m moving to Europe',text:'so this is random but i’m moving to europe. soon. so i don’t think this works.',hi:'which country?\n\nyou don’t know which country. you just said “europe” like it’s a town.',lo:'ok have fun in “europe” 🙄'},
+  career:{label:'Focusing on my career',text:'i’m just really focusing on my career right now. it’s not you.',hi:'you texted me at 1am about ramen three days ago. what career',lo:'respect. go get that promotion from your couch. tell your boss (the cat) i said hi'},
+};
+const GOSSIP={friends:'{x} said you “want to be friends.” with THEM. so what am i 👀',someone:'{x} messaged me. “met someone else.” is that… me? 🙂',europe:'{x} thinks you’re moving to europe. i told them you can’t even commit to a dinner spot. so. am i coming to europe or',career:'{x} said you’re “focusing on your career.” you’ve sent me 11 memes today. i’m flattered honestly'};
+const MIRROR={morning:'we were both asleep by 9:30. every night. forever.',night:'we were both awake at 3am and nobody ever made breakfast.',planner:'we made a shared spreadsheet for a picnic.',spontaneous:'we never booked anything so nothing ever happened.',home:'neither of us left the apartment for 9 days.',out:'we went out every night and never had one real conversation.',talker:'we talked over each other for an hour straight.',listener:'we sat in silence waiting for the other one to start.'};
+const STILL={late:'running 10 late to our 6-month dinner. you know this about me 🙃 love you',double:'hey\nhey\nhappy 6 months\nanswer me',cancel:'ok i’m NOT cancelling tonight. growth. 6 months. love you',emoji:'6 MONTHS 😭😭🥹💕🔥✨🦋 love u 🌈',phone:'sorry got distracted scrolling. anyway. 6 months. still into you',read:'sorry!! saw this and then. yeah. 6 months. love you',oneword:'6 months\nnice\nlove u',ex:'my ex never made it to 6 months lol. anyway. not comparing. you win'};
+const RULES=['Your best match is someone different from you. Sameness feels like chemistry. It isn’t.','Nobody’s perfect. Both of your matches do one thing you can’t stand.','Lean toward one and they both notice. Flirt with both and they find each other.','To make it official, end it with the other one in writing. Then unmatch and block. Only then do you find out.'];
+
+// ---------- state ----------
+let S,timer=null;const RANGE=5,START=30;
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+const opp=(k,v)=>{const ax=AXES.find(x=>x.k===k);return ax.a[0]===v?ax.a[1]:ax.a[0]};
+function fresh(){return{screen:'ob',step:0,you:{name:'',peeves:[]},m:null,day:0,ending:null,warned:false,tab:'matches',view:null,typing:null,sheet:null,reveal:0}}
+function newMatches(){
+  const y=S.you,one=rnd(['riley','sam']),other=one==='riley'?'sam':'riley',flip=rnd(AXES).k;
+  const mk=(id,isOne)=>{const tr={};AXES.forEach(a=>{tr[a.k]=isOne?opp(a.k,y[a.k]):(a.k===flip?opp(a.k,y[a.k]):y[a.k])});return{id,tr,one:isOne,aff:START,log:[],opts:null,blocked:false,unread:0,cold:false,last:'',tm:'New match'}};
+  S.m={[one]:mk(one,true),[other]:mk(other,false)};S.m[one].flaw=y.peeves[0];S.m[other].flaw=y.peeves[1];
+}
+const list=()=>['riley','sam'].map(id=>S.m[id]);
+function push(c,msg){c.log.push(msg);if(msg.from==='them'){c.unread++;c.last=msg.text.split('\n')[0]}if(msg.from==='me')c.last='You: '+msg.text;if(msg.from==='t')c.tm=msg.text.replace(/^Day \d+ · /,'')}
+function startDay(){
+  const day=S.day,axis=['time','plan','flaw','social','talk'][day-1];
+  list().forEach(c=>{
+    if(c.blocked)return;const o=list().find(x=>x!==c);
+    if(day>1&&!o.blocked){const g=c.aff-o.aff;
+      if(g>=25){push(c,{from:'t',text:'Day '+day+' · 11:20 PM'});push(c,{from:'them',text:LEADER[Math.min(2,day-2)]})}
+      else if(g<=-45){push(c,{from:'t',text:'Day '+day+' · 11:20 PM'});push(c,{from:'them',text:TRAIL[2]});c.cold=true}
+      else if(g<=-25){push(c,{from:'t',text:'Day '+day+' · 11:20 PM'});push(c,{from:'them',text:TRAIL[Math.min(1,day-2)]})}
+      if(S.warned==='pending')push(c,{from:'them',text:WARN[c.id]})}
+    if(axis==='flaw'){const f=FLAW[c.flaw];push(c,{from:'t',text:'Day '+day+' · '+f.t});if(f.readFirst){push(c,{from:'me',text:'morning :)'});push(c,{from:'rr',text:'Seen 2:14 PM'});push(c,{from:'t',text:'7:30 PM'})}f.m.split('\n').forEach(t=>push(c,{from:'them',text:t}));c.opts={kind:'flaw'}}
+    else{const o2=OPEN[c.tr[axis]];push(c,{from:'t',text:'Day '+day+' · '+o2.t});push(c,{from:'them',text:o2.m});c.opts={kind:'open',key:c.tr[axis]}}
+  });
+  if(S.warned==='pending')S.warned=true;
+}
+function reply(c,i){
+  const o=c.opts;let d,me,fol;
+  if(i===3){d=-10;me=null;fol='ok 🙂'}else if(o.kind==='flaw'){d=[10,4,-14][i];me=FLAW_REPLY[i];fol=FLAW_FOLLOW[i]}else{const op=OPEN[o.key];d=[14,6,-12][i];me=op.f[i];fol=op.r[i]}
+  if(c.cold&&d>0)d=Math.round(d/2);
+  if(me){push(c,{from:'me',text:me});push(c,{from:'rr',text:'Sent'})}else push(c,{from:'sys',text:'You left '+NAMES[c.id]+' on read.'});
+  c.aff=Math.max(0,Math.min(100,c.aff+d));c.opts=null;c.unread=0;
+  later(c.id,()=>{const rr=c.log.findLast(m=>m.from==='rr');if(rr)rr.text='Seen';push(c,{from:'them',text:fol});c.unread=0});
+}
+function later(id,fn,ms=1100){S.typing=id;render();clearTimeout(timer);timer=setTimeout(()=>{S.typing=null;fn();render()},ms)}
+function endDay(){
+  const[a,b]=list();const live=list().filter(c=>!c.blocked);
+  if(live.length===2){
+    if(a.aff>=55&&b.aff>=55){list().forEach(c=>{push(c,{from:'t',text:'11:52 PM'});push(c,{from:'them',text:BUST[c.id]});push(c,{from:'sys',text:NAMES[c.id]+' unmatched you.'})});S.ending='busted';S.screen='report';return}
+    if(!S.warned&&a.aff>=42&&b.aff>=42)S.warned='pending';
+  }
+  S.day++;
+  if(S.day>RANGE){
+    if(live.length===2&&a.aff<35&&b.aff<35){S.ending='ghosted';S.screen='report';return}
+    live.forEach(c=>{push(c,{from:'t',text:'Day 6 · 10:30 PM'});push(c,{from:'them',text:DECIDE[c.id]})});return;
+  }
+  startDay();
+}
+function breakup(c,key){
+  const L=LINES[key];push(c,{from:'me',text:L.text});push(c,{from:'rr',text:'Sent'});c.opts=null;c.pendingBlock=key;S.sheet=null;S.screen='chat';S.view=c.id;
+  later(c.id,()=>{const rr=c.log.findLast(m=>m.from==='rr');if(rr)rr.text='Seen';(c.aff>=55?L.hi:L.lo).split('\n\n').forEach((t,i)=>{if(i===1)push(c,{from:'me',text:'…uh. europe.'});push(c,{from:'them',text:t})});c.unread=0});
+}
+function block(c){
+  c.blocked=true;c.unread=0;S.sheet=null;push(c,{from:'sys',text:'You unmatched and blocked '+NAMES[c.id]+'. They can’t see your profile anymore.'});
+  const o=list().find(x=>x!==c);
+  if(o.blocked){S.ending='alone';S.screen='report';return}
+  push(o,{from:'t',text:'Later that night'});push(o,{from:'them',text:GOSSIP[c.pendingBlock].replace('{x}',NAMES[c.id])});o.ready=true;S.screen='app';
+}
+function finale(){const o=list().find(c=>!c.blocked);S.ending=o.aff<50?'read':(o.one?'one':'mirror');S.screen='report'}
+const hearts=a=>{const n=Math.round(a/20);return'♥'.repeat(n)+'♡'.repeat(5-n)};
+const clock=()=>{const d=new Date();return(d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')};
+const you=()=>S.you.name||'You';
+
+// ---------- render ----------
+const P=document.getElementById('phone');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function render(){
+  P.innerHTML={ob:vOb,match:vMatch,app:vApp,chat:vChat,profile:vProfile,report:vReport}[S.screen]();
+  P.querySelectorAll('[data-act]').forEach(el=>el.addEventListener('click',()=>act(...el.dataset.act.split(':'))));
+  const nm=P.querySelector('#nm');if(nm)nm.addEventListener('input',e=>{S.you.name=e.target.value.slice(0,14)});
+  const ms=P.querySelector('.msgs');if(ms)ms.scrollTop=ms.scrollHeight;
+  try{window.claude?.hot?.snapshot?.(S)}catch(e){}
+}
+const status=(w)=>`<div class="status" ${w?'style="color:#fff"':''}><span>${clock()}</span><span>●●●● <span class="bat"></span></span></div>`;
+function card(id,tr,flaw,name,age,showFlaw){
+  const ps=AXES.map(a=>a.p[tr[a.k]]);
+  return`<div class="pcard"><div class="photo ${id}"><div class="big">${name[0]}</div><div><h2>${esc(name)}, ${age}</h2><small>2 km away</small></div></div>
+   <div class="body"><div class="tags">${AXES.map(a=>`<span class="tag">${a.l[tr[a.k]]}</span>`).join('')}${showFlaw?`<span class="tag warn">${PEEVES[flaw]}</span>`:''}</div>
+   ${ps.slice(0,2).map(p=>`<div class="prompt"><div class="pq">${p[0]}</div><div class="pa">${p[1]}</div></div>`).join('')}</div></div>`;
+}
+function vOb(){
+  const i=S.step,prog=`<div class="prog">${[0,1,2,3].map(k=>`<i class="${k<=i?'on':''}"></i>`).join('')}</div>`;
+  let body;
+  if(i===0)body=`<div class="ob pad scroll"><div class="logo"><span class="flame"></span>triangle</div>${prog}<h1>Two matches. One keeper.</h1><p>You matched with Riley and Sam last night. Six days of chat. How it works:</p>
+    <div class="rulecards">${RULES.map((r,k)=>`<div class="rule"><span class="n">${k+1}</span><span>${r}</span></div>`).join('')}</div></div><div class="pad"><button class="btn" data-act="step:1">Create my profile</button></div>`;
+  else if(i===1)body=`<div class="ob pad scroll">${prog}<h1>About you</h1><p>Be honest. They will be.</p><input id="nm" class="name" placeholder="First name" value="${esc(S.you.name)}" aria-label="First name">
+    ${AXES.map(a=>`<div class="q">${a.q}</div><div class="seg">${a.a.map(v=>`<button class="${S.you[a.k]===v?'on':''}" data-act="pick:${a.k}:${v}">${a.l[v]}</button>`).join('')}</div>`).join('')}</div>
+    <div class="pad"><button class="btn" data-act="step:2" ${AXES.every(a=>S.you[a.k])?'':'disabled'}>Next</button></div>`;
+  else if(i===2){const ps=S.you.peeves;body=`<div class="ob pad scroll">${prog}<h1>Dealbreakers</h1><p>Pick two things you can’t stand. ${ps.length}/2.</p>
+    <div class="pills">${Object.entries(PEEVES).map(([k,v])=>`<button class="pill ${ps.includes(k)?'on':''}" data-act="peeve:${k}">${v}</button>`).join('')}</div></div>
+    <div class="pad"><button class="btn" data-act="step:3" ${ps.length===2?'':'disabled'}>Preview my profile</button></div>`}
+  else body=`<div class="ob pad scroll">${prog}<h1>Looking good.</h1><p>This is what Riley and Sam see.</p>${card('you',S.you,null,you(),25,false)}</div><div class="pad"><button class="btn" data-act="go">Go live 🔥</button></div>`;
+  return`${status()}<div class="screen">${body}</div>`;
+}
+function vMatch(){
+  const id=['riley','sam'][S.reveal],c=S.m[id];
+  return`${status(true)}<div class="matchov"><h1>It’s a match!</h1><p>You and ${NAMES[id]} liked each other.</p><div class="avs"><div class="av you">${you()[0]}</div><div class="av ${id}">${NAMES[id][0]}</div></div>
+   <div style="width:100%;max-width:340px;text-align:left">${card(id,c.tr,c.flaw,NAMES[id],AGES[id],false)}</div>
+   <button class="btn" data-act="reveal">${S.reveal===0?'Nice. Who else?':'Open my matches'}</button></div>`;
+}
+function vApp(){
+  const decide=S.day>RANGE,ready=list().find(c=>c.ready),done=list().every(c=>c.blocked||!c.opts);
+  let main;
+  if(S.tab==='matches'){
+    const rows=list().map(c=>`<button class="row ${c.blocked?'off':''}" data-act="open:${c.id}"><div class="av ${c.id}">${NAMES[c.id][0]}</div><div class="meta"><div class="name"><span>${NAMES[c.id]}${c.blocked?'':' <span class="hearts">'+hearts(c.aff)+'</span>'}</span><span class="tm">${c.blocked?'Unmatched':esc(c.tm)}</span></div><div class="prev ${c.unread?'un':''}">${esc(c.last||'Say hi')}</div></div>${c.unread?'<span class="nd"></span>':''}</button>`).join('');
+    let banner='';
+    if(ready)banner=`<button class="banner cta" data-act="finale"><span class="ic">💘</span><div><b>See how it ends</b><span>One chat left. No going back.</span></div></button>`;
+    else if(decide)banner=`<div class="banner"><span class="ic">⏳</span><div><b>Day 6. They both asked.</b><span>Open a chat, tap ⋯, end it with one of them.</span></div></div>`;
+    else banner=`<button class="banner ${done?'cta':''}" data-act="next" ${done?'':'disabled'}><span class="ic">🌙</span><div><b>${done?'Call it a night':'Reply to both first'}</b><span>${done?'End Day '+S.day:'They’re both waiting'}</span></div></button>`;
+    const warn=S.warned?`<div class="banner" style="background:#ffe4e8;color:#b2213a"><span class="ic">👀</span><div><b>People talk.</b><span>Riley and Sam have a mutual friend.</span></div></div>`:'';
+    main=`<div class="sec">New matches</div><div class="newm">${list().filter(c=>!c.blocked).map(c=>`<button data-act="profile:${c.id}"><span class="ring"><span class="av ${c.id}" style="width:64px;height:64px;font-size:24px">${NAMES[c.id][0]}</span></span>${NAMES[c.id]}</button>`).join('')}</div>
+      <div class="sec">Messages</div>${rows}${warn}`;
+    return`${status()}<div class="screen"><div class="appbar"><span class="logo"><span class="flame"></span>triangle</span><span class="daypill">Day ${Math.min(S.day,6)} of 6</span></div><div class="scroll">${main}</div><div style="padding-bottom:8px">${banner}</div>${tabs()}</div>`;
+  }
+  if(S.tab==='discover')main=`<div class="empty"><div class="ic">🫠</div><h2>No one new nearby</h2><p>You already matched with everyone worth matching. Go talk to them.</p></div>`;
+  else main=`<div class="pad">${card('you',S.you,null,you(),25,false)}<div class="box" style="margin:16px 0 0"><h3>Your dealbreakers</h3><div class="tags">${S.you.peeves.map(k=>`<span class="tag warn">${PEEVES[k]}</span>`).join('')}</div></div></div>`;
+  return`${status()}<div class="screen"><div class="appbar"><span class="logo"><span class="flame"></span>triangle</span><span class="daypill">Day ${Math.min(S.day,6)} of 6</span></div><div class="scroll">${main}</div>${tabs()}</div>`;
+}
+const tabs=()=>`<div class="tabs">${[['discover','🔥','Discover'],['matches','💬','Matches'],['me','👤','Profile']].map(([k,i,l])=>`<button class="${S.tab===k?'on':''}" data-act="tab:${k}"><span class="ic">${i}</span>${l}</button>`).join('')}</div>`;
+const bubbles=log=>log.map(m=>m.from==='t'?`<div class="t">${esc(m.text)}</div>`:m.from==='rr'?`<div class="rr">${esc(m.text)}</div>`:m.from==='sys'?`<div class="sys">${esc(m.text)}</div>`:`<div class="m ${m.from}">${esc(m.text)}</div>`).join('');
+function vChat(){
+  const c=S.m[S.view],id=c.id;let chips='',hint='',label='';
+  if(S.typing===id){}
+  else if(c.blocked)hint='Unmatched. This one’s over.';
+  else if(c.pendingBlock)hint='They’ve said their piece. Tap ⋯ to unmatch and block.';
+  else if(c.ready)chips=`<button class="chip send" data-act="finale">See how it ends</button>`;
+  else if(c.opts){const op=c.opts.kind==='flaw'?FLAW_REPLY:OPEN[c.opts.key].f;label='Suggested replies';chips=op.map((t,i)=>`<button class="chip" data-act="reply:${id}:${i}">${esc(t)}</button>`).join('')+`<button class="chip dim" data-act="reply:${id}:3">Leave on read</button>`}
+  else if(S.day>RANGE)hint='No more small talk. Tap ⋯ to end it.';
+  else hint='Replied. Check your other match, then call it a night.';
+  let sheet='';
+  if(S.sheet==='menu')sheet=`<div class="scrim" data-act="sheet:0"></div><div class="sheet"><div class="grab"></div><button class="opt" data-act="profile:${id}">View profile</button>${c.pendingBlock?`<button class="opt red" data-act="block:${id}">Unmatch & block ${NAMES[id]}</button>`:`<button class="opt red" data-act="sheet:end">End things with ${NAMES[id]}</button>`}<button class="opt" data-act="sheet:0">Cancel</button></div>`;
+  else if(S.sheet==='end')sheet=`<div class="scrim" data-act="sheet:0"></div><div class="sheet"><div class="grab"></div><h3>End it with ${NAMES[id]}</h3><p>Pick your line. They’ll have something to say. Then you block, for good.</p>${Object.entries(LINES).map(([k,v])=>`<button class="opt" data-act="line:${id}:${k}">${v.label}</button>`).join('')}<button class="opt" data-act="sheet:0">Never mind</button></div>`;
+  return`${status()}<div class="screen"><div class="chead"><button class="back" data-act="back">‹</button><button class="av ${id}" data-act="profile:${id}" aria-label="View profile">${NAMES[id][0]}</button><button class="who" data-act="profile:${id}"><b>${NAMES[id]}</b><span>${c.blocked?'Unmatched':'Matched on Day 1 · '+hearts(c.aff)}</span></button>${c.blocked?'':`<button class="more" data-act="sheet:menu" aria-label="More">⋯</button>`}</div>
+   <div class="msgs"><div class="sys">You matched with ${NAMES[id]}. Say something.</div>${bubbles(c.log)}${S.typing===id?'<div class="typing"><i></i><i></i><i></i></div>':''}</div>
+   <div class="compose">${label?`<div class="sug">${label}</div>`:''}${chips?`<div class="chips">${chips}</div>`:''}${hint?`<div class="hint">${hint}</div>`:''}<div class="field"><div class="in">${chips?'Or type something…':'…'}</div><span class="go">↑</span></div></div>${sheet}</div>`;
+}
+function vProfile(){
+  const c=S.m[S.view],id=c.id;
+  return`${status()}<div class="screen"><div class="chead"><button class="back" data-act="open:${id}">‹</button><div class="who"><b>${NAMES[id]}</b><span>${c.blocked?'Unmatched':hearts(c.aff)}</span></div></div>
+   <div class="scroll pad">${card(id,c.tr,c.flaw,NAMES[id],AGES[id],S.day>=3)}<div class="box" style="margin:16px 0 0"><h3>What you’ve noticed</h3>${AXES.map(a=>`<p>${a.q.replace('you’re','they’re').replace('you','they')} <b>${a.l[c.tr[a.k]]}</b></p>`).join('')}${S.day>=3?`<p>Their thing: <b>${PEEVES[c.flaw]}</b></p>`:'<p style="color:var(--muted)">You’ll find out their thing by Day 3.</p>'}</div>
+   ${c.blocked||c.ready?'':`<div style="padding:16px 0 0"><button class="btn ghost" data-act="open:${id}">Back to chat</button></div>`}</div></div>`;
+}
+function vReport(){
+  const e=S.ending,o=list().find(c=>!c.blocked)||list()[0],x=list().find(c=>c!==o),one=list().find(c=>c.one);
+  const B=(t,w)=>`<div class="m ${w}">${esc(t)}</div>`;
+  let eyebrow,title,lead,scene='';
+  if(e==='one'){eyebrow='the one';title='It’s official.';lead=`Six months later, ${NAMES[o.id]} still texts like ${NAMES[o.id]}. Gerald the owl came to the party.`;scene=`<div class="t">6 months later · ${o.tr.time==='night'?'12:58 AM':'6:04 AM'}</div>${STILL[o.flaw].split('\n').map(t=>B(t,'them')).join('')}${B('see you there','me')}`}
+  else if(e==='mirror'){eyebrow='dating yourself';title='Too alike.';const shared=AXES.filter(a=>S.you[a.k]===o.tr[a.k]).map(a=>MIRROR[o.tr[a.k]]).slice(0,3).join(' ');lead=`Three weeks in, ${NAMES[o.id]} ended it. ${NAMES[x.id]} was the one. You told them “${LINES[x.pendingBlock].label.toLowerCase()}.”`;scene=`<div class="t">3 weeks later · 11:40 PM</div>${B('honestly? we’re too similar. '+shared+' i think i’m dating myself.','them')}${B('also i met someone else. they wake up at 6 and own a label maker. it’s awful. i love it.','them')}`}
+  else if(e==='read'){eyebrow='left on read';title='Nothing back.';lead=`You unmatched ${NAMES[x.id]} for ${NAMES[o.id]}, who never warmed up to you.${o.one?' They were the one, too. You just never gave them a reason.':''}`;scene=`<div class="t">Tuesday · 9:12 PM</div>${B('so. it’s just us now 🙂','me')}<div class="rr">Seen 9:14 PM</div><div class="t">Friday</div>${B('hello?','me')}<div class="rr">Seen</div>`}
+  else if(e==='busted'){eyebrow='busted';title='They found each other.';lead='You kept both of them happy for exactly as long as it took them to compare screenshots. Unmatched by two people in one night. A record.';scene=`<div class="t">11:52 PM</div>${B(BUST.riley,'them')}${B(BUST.sam,'them')}`}
+  else if(e==='ghosted'){eyebrow='ghosted';title='Both faded.';lead='Nobody got a reason to stay. Six days of “k” and seen receipts, then quiet.'}
+  else{eyebrow='solo';title='Just you.';lead='You unmatched both. Focusing on your career, presumably. From the couch.'}
+  const cmp=(e==='one'||e==='mirror'||e==='read')?`<div class="box"><h3>Compatibility · ${you()} & ${NAMES[o.id]}</h3><div class="cmp"><div class="hd">You</div><div></div><div class="hd">${NAMES[o.id]}</div>${AXES.map(a=>{const same=S.you[a.k]===o.tr[a.k];return`<div>${a.l[S.you[a.k]]}</div><div class="k ${same?'same':'ok'}">${same?'same':'balance'}</div><div>${a.l[o.tr[a.k]]}</div>`}).join('')}</div><p>Their thing: <b>${PEEVES[o.flaw].toLowerCase()}</b>. You said you couldn’t stand it.${e==='one'?' You kept them anyway. That’s the whole thing.':''}</p></div>`
+    :`<div class="box"><h3>The answer</h3><p style="margin:0">${NAMES[one.id]} was your match: your opposite on all four counts, plus ${PEEVES[one.flaw].toLowerCase()}.</p></div>`;
+  return`${status(true)}<div class="screen report"><div class="scroll"><div class="hero"><div class="eyebrow">Match report · ${eyebrow}</div><h1>${title}</h1><p>${lead}</p></div>${scene?`<div class="scene">${scene}</div>`:''}${cmp}<div class="pad"><button class="btn" data-act="restart">Play again</button></div></div></div>`;
+}
+
+function act(a,b,c){
+  const m=S.m&&S.m[b];
+  if(a==='step')S.step=+b;
+  else if(a==='pick')S.you[b]=c;
+  else if(a==='peeve'){const p=S.you.peeves;p.includes(b)?p.splice(p.indexOf(b),1):p.length<2&&p.push(b)}
+  else if(a==='go'){newMatches();S.day=1;startDay();S.reveal=0;S.screen='match'}
+  else if(a==='reveal'){if(S.reveal===0)S.reveal=1;else{S.screen='app';S.tab='matches'}}
+  else if(a==='tab')S.tab=b;
+  else if(a==='open'){S.view=b;m.unread=0;S.screen='chat';S.sheet=null}
+  else if(a==='profile'){S.view=b;S.screen='profile';S.sheet=null}
+  else if(a==='back'){S.screen='app';S.sheet=null}
+  else if(a==='reply')reply(m,+c);
+  else if(a==='next')endDay();
+  else if(a==='sheet')S.sheet=b==='0'?null:b;
+  else if(a==='line')breakup(m,c);
+  else if(a==='block')block(m);
+  else if(a==='finale')finale();
+  else if(a==='restart')S=fresh();
+  render();
+}
+function boot(saved){S=saved&&saved.screen?saved:fresh();S.typing=null;render();setInterval(()=>{const el=P.querySelector('.status span');if(el)el.textContent=clock()},30000)}
+window.claude?.hot?.ready?window.claude.hot.ready(boot):boot(window.claude?.hot?.data);
+</script>
+
+</html>
