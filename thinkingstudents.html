@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Creating Thinking Students</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a staffroom reference — tabbed sections, each a stack of cards a teacher
+   can scan in a free period. Colour follows the four stages of the printed cards:
+   Think (blue) · Challenge (green) · Support (magenta) · Routine (amber). */
+:root{
+  --bg:#faf4dd; --surface:#fffdf3; --surface-2:#f5eed6;
+  --ink:#282420; --ink-2:#4a4238; --muted:#6d6555; --line:#e0d5b4; --line-2:#ece3c8;
+  --think:#15539f; --challenge:#0a6637; --support:#8a2a82; --routine:#815600;
+  --think-wash:#e6edf9; --challenge-wash:#e1efe5; --support-wash:#f6e6f3; --routine-wash:#f6ead0;
+  --accent:#15539f; --warn:#9f4408; --warn-wash:#fae7d6;
+  --font-display:'Atkinson Hyperlegible','Verdana',system-ui,sans-serif;
+  --font-ui:'Atkinson Hyperlegible','Verdana',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --r:11px; --shadow:0 1px 2px rgba(60,48,20,.07), 0 6px 18px rgba(60,48,20,.06);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#1a1814; --surface:#231f1a; --surface-2:#2b2620;
+  --ink:#f1ece2; --ink-2:#cdc6b8; --muted:#9d9484; --line:#3a342b; --line-2:#322d26;
+  --think:#79b1f8; --challenge:#5ac98d; --support:#e290da; --routine:#e0b45c;
+  --think-wash:#1b2735; --challenge-wash:#17281d; --support-wash:#2b1d28; --routine-wash:#2d2616;
+  --accent:#79b1f8; --warn:#f0a35e; --warn-wash:#2d2114;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1a1814; --surface:#231f1a; --surface-2:#2b2620;
+  --ink:#f1ece2; --ink-2:#cdc6b8; --muted:#9d9484; --line:#3a342b; --line-2:#322d26;
+  --think:#79b1f8; --challenge:#5ac98d; --support:#e290da; --routine:#e0b45c;
+  --think-wash:#1b2735; --challenge-wash:#17281d; --support-wash:#2b1d28; --routine-wash:#2d2616;
+  --accent:#79b1f8; --warn:#f0a35e; --warn-wash:#2d2114;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);font-size:16.5px;line-height:1.65;letter-spacing:.005em;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--surface)}
+h1,h2,h3,h4,h5{font-family:var(--font-display);font-weight:700;margin:0;text-wrap:balance;letter-spacing:-.005em}
+p{margin:0}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.gutter{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* ---------- header ---------- */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding-block:11px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand b{font-family:var(--font-display);font-weight:800;font-size:20px;letter-spacing:-.025em;white-space:nowrap}
+.brand span{font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+@media (max-width:560px){.brand span{display:none}}
+
+.tabs{max-width:1180px;margin:0 auto;display:flex;gap:4px;overflow-x:auto;padding-block:0 9px;scrollbar-width:thin}
+.tabs button{flex:0 0 auto;background:transparent;border:1px solid transparent;border-radius:999px;padding:6px 14px;cursor:pointer;color:var(--muted);font-size:13.5px;font-weight:600;white-space:nowrap;transition:background .15s,color .15s}
+.tabs button:hover{background:var(--surface-2);color:var(--ink)}
+.tabs button[aria-current="true"]{background:var(--tc,var(--accent));color:#fff;border-color:var(--tc,var(--accent))}
+:root[data-theme="dark"] .tabs button[aria-current="true"]{color:#0d1117}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tabs button[aria-current="true"]{color:#0d1117}}
+
+main{max-width:1180px;margin:0 auto;padding-block:26px 90px}
+section.view[hidden]{display:none}
+
+/* ---------- section heads ---------- */
+.shead{margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid var(--step,var(--line))}
+.eyebrow{font-size:10.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--step,var(--muted));font-weight:700;margin-bottom:6px}
+.shead h2{font-size:clamp(27px,5vw,38px);font-weight:800;line-height:1.03}
+.shead .lede{margin-top:8px;color:var(--ink-2);font-size:16px;max-width:65ch}
+.shead .lede b{color:var(--ink)}
+.lede-top{margin-bottom:22px}
+.lede-top h1{font-size:clamp(26px,4.6vw,36px);font-weight:800;line-height:1.05}
+.lede-top p{margin-top:7px;color:var(--ink-2);font-size:15.5px;max-width:60ch}
+
+/* ---------- generic ---------- */
+.stack{display:flex;flex-direction:column;gap:18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.pad{padding:17px 18px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:12px}
+.sec-t{font-family:var(--font-display);font-weight:700;font-size:16.5px;margin-bottom:9px;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.sec-t small{font-family:var(--font-ui);font-weight:500;font-size:12.5px;color:var(--muted)}
+.k{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.hint{font-size:13.5px;color:var(--muted);line-height:1.5}
+ul.tidy{margin:0;padding-left:19px;display:grid;gap:6px}
+ul.tidy li{padding-left:2px;font-size:14.2px;line-height:1.5;max-width:78ch}
+.tag{display:inline-block;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--step-wash,var(--line-2));color:var(--step,var(--muted));border:1px solid color-mix(in srgb,var(--step,var(--muted)) 26%,transparent);white-space:nowrap;flex:0 0 auto}
+.tag.plain{background:var(--line-2);color:var(--muted);border-color:transparent}
+.tagrow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--surface-2);border-color:var(--muted)}
+.btn.primary{background:var(--step,var(--accent));border-color:var(--step,var(--accent));color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#0d1117}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.primary{color:#0d1117}}
+.btn.small{padding:5px 11px;font-size:12.5px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);background:var(--surface-2)}
+.copy{border:1px solid var(--line);background:var(--surface-2);color:var(--muted);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;text-transform:uppercase}
+.copy:hover{color:var(--ink);border-color:var(--muted)}
+
+.note{border-left:3px solid var(--step,var(--accent));background:var(--step-wash,var(--surface-2));padding:12px 14px;border-radius:0 9px 9px 0;font-size:14.5px;line-height:1.55;max-width:72ch}
+.note b{color:var(--ink)}
+.warnbox{border-left:3px solid var(--warn);background:var(--warn-wash);padding:12px 14px;border-radius:0 9px 9px 0;font-size:14px}
+.tryit{border:1.5px dashed color-mix(in srgb,var(--step,var(--accent)) 45%,var(--line));background:var(--step-wash,var(--surface-2));border-radius:9px;padding:12px 14px}
+.tryit .k{color:var(--step,var(--muted));margin-bottom:4px}
+.tryit p{font-size:14.2px;line-height:1.5}
+
+/* essentials (guide cards) */
+.gcard{border:1px solid var(--line);border-left:4px solid var(--step,var(--line));border-radius:11px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow);display:flex;flex-direction:column}
+.gh{display:flex;gap:12px;align-items:center;padding:13px 15px;background:var(--step-wash,var(--surface-2));border-bottom:1px solid var(--line)}
+.gh>div{min-width:0}
+.gh b{font-family:var(--font-display);font-size:17.5px;font-weight:800;display:block;line-height:1.2}
+.gh span{font-size:13.6px;color:var(--ink-2);display:block;margin-top:2px;line-height:1.4}
+.gn{flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--step,var(--muted));color:#fff;font-family:var(--font-display);font-weight:800;font-size:15px}
+:root[data-theme="dark"] .gn{color:#0d1117}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .gn{color:#0d1117}}
+.gb{padding:14px 15px;display:grid;gap:11px;align-content:start;flex:1}
+.gone{font-size:15.2px;line-height:1.52}
+
+/* expandable rows */
+details.ex{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+details.ex+details.ex{margin-top:12px}
+details.ex[hidden]{display:none}
+details.ex>summary{list-style:none;cursor:pointer;padding:15px 17px;display:flex;gap:13px;align-items:flex-start}
+details.ex>summary::-webkit-details-marker{display:none}
+details.ex>summary:hover{background:var(--surface-2)}
+details.ex[open]>summary{border-bottom:1px solid var(--line-2);background:var(--step-wash,var(--surface-2))}
+.sum-main{flex:1;min-width:0}
+.sum-main h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.sum-main .verbs{font-size:13px;color:var(--muted);font-style:italic;margin-top:1px}
+.sum-main .blurb{font-size:13.8px;color:var(--ink-2);margin-top:5px;line-height:1.45}
+.sum-main .tagrow{margin-top:8px}
+.chev{flex:0 0 auto;color:var(--muted);font-size:13px;font-weight:700;margin-top:4px;transition:transform .18s}
+details.ex[open] .chev{transform:rotate(90deg)}
+.ex-body{padding:16px 17px;display:grid;gap:16px}
+
+/* steps */
+ol.steps{margin:0;padding-left:0;list-style:none;display:grid;gap:9px;counter-reset:st}
+ol.steps li{counter-increment:st;display:block;padding-left:34px;position:relative;font-size:14.3px;line-height:1.5;max-width:78ch}
+ol.steps li::before{content:counter(st);position:absolute;left:0;top:1px;width:23px;height:23px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:11.5px;font-weight:800;font-family:var(--font-display);color:var(--muted)}
+ol.steps li b{font-weight:700}
+.say{border-left:2px solid var(--step,var(--line));padding-left:11px;font-style:italic;color:var(--ink-2)}
+ol.steps .say{display:block;margin-top:3px}
+
+/* progression strip */
+.prog{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.prog>div{background:var(--surface);padding:11px 12px;display:grid;gap:5px;align-content:start}
+.prog .yr{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--step,var(--muted));text-transform:uppercase}
+.prog p{font-size:13.2px;line-height:1.42;color:var(--ink-2)}
+@media (max-width:760px){.prog{grid-template-columns:1fr}}
+
+/* two-band */
+.bands{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.bands>div{background:var(--surface);padding:12px 14px}
+.bands h5{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--step,var(--muted));margin:0 0 7px;font-weight:700;font-family:var(--font-ui)}
+.bands h5.lo{color:var(--warn)}
+@media (max-width:560px){.bands{grid-template-columns:1fr}}
+
+/* swap ladder */
+.cold{display:grid;grid-template-columns:1fr 22px 1fr;gap:9px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px}
+.cold .r1{text-align:right}.cold .r2{grid-column:3}
+.ladder{display:grid;gap:4px}
+.rung{display:grid;grid-template-columns:1fr 22px 1fr;gap:9px;align-items:center;font-size:13.8px;padding:7px 0;border-top:1px solid var(--line-2)}
+.rung:first-child{border-top:0}
+.rung .lo{text-align:right;color:var(--muted);min-width:0}
+.rung .ar{text-align:center;color:var(--step,var(--accent));font-weight:800}
+.rung .hi{font-weight:600;min-width:0}
+@media (max-width:560px){.cold{display:none}.rung{grid-template-columns:1fr;gap:2px}.rung .lo{text-align:left}.rung .ar{display:none}}
+
+/* chips */
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13.2px}
+.chip.quote{font-style:italic}
+
+/* filters */
+.filters{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.filters button{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+.filters button[aria-pressed="true"]{background:var(--step,var(--accent));border-color:var(--step,var(--accent));color:#fff}
+:root[data-theme="dark"] .filters button[aria-pressed="true"]{color:#0d1117}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .filters button[aria-pressed="true"]{color:#0d1117}}
+.fieldlab{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+
+/* phrase cards */
+.vtr{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;display:grid;gap:7px;box-shadow:var(--shadow);align-content:start}
+.vtr[hidden]{display:none}
+.vtr h4{font-size:17px;font-weight:800;line-height:1.3}
+.vtr .how{font-size:13.6px;color:var(--ink-2);line-height:1.47}
+.vtr .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+
+/* reflection timeline */
+.blk{display:grid;grid-template-columns:76px 1fr;gap:14px;padding:14px 18px;border-top:1px solid var(--line-2)}
+.blk:first-child{border-top:0}
+.blk .t{text-align:right}
+.blk .t .m{font-family:var(--font-display);font-size:21px;font-weight:800;line-height:1;color:var(--step,var(--ink))}
+.blk .t .u{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.blk .t .w{font-size:11px;color:var(--muted);margin-top:4px}
+.blk h4{font-size:16.5px;font-weight:700;margin-bottom:4px}
+.blk .body{font-size:14.6px;line-height:1.55;color:var(--ink-2);display:grid;gap:7px;min-width:0;max-width:78ch}
+.blk .body b{color:var(--ink);font-weight:700}
+.blk ul.pts{margin:0;padding-left:0;list-style:none;display:grid;gap:6px}
+.blk ul.pts li{display:grid;grid-template-columns:7px 1fr;gap:9px;align-items:start}
+.blk ul.pts li::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--line);margin-top:8px}
+@media (max-width:560px){.blk{grid-template-columns:54px 1fr;gap:10px;padding-inline:14px}}
+
+.mini{padding:11px 13px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:9px}
+.mini b{display:block;font-weight:700;font-size:15px;margin-bottom:3px}
+.mini p{font-size:13.8px;color:var(--ink-2);line-height:1.47}
+.mini .say{margin-top:6px;font-size:13.6px}
+
+/* weeks */
+.step{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--step,var(--line));border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.step-head{display:flex;align-items:center;gap:12px;padding:14px 15px}
+.step-n{width:25px;height:25px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:13px;background:var(--step-wash,var(--line-2));color:var(--step,var(--muted))}
+.step-title{font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:-.015em}
+.step-body{padding:0 17px 16px}
+
+/* checks */
+.checks{display:grid;gap:7px}
+.check{display:flex;gap:11px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+.check:hover{background:var(--surface-2)}
+.check input{margin:3px 0 0;width:16px;height:16px;flex:0 0 auto;accent-color:var(--step,var(--accent))}
+.check.on{border-color:var(--step,var(--accent));background:var(--step-wash,var(--surface-2))}
+.check .ct{font-size:14px;line-height:1.45;min-width:0}
+.check .ct .d{color:var(--muted);font-size:12.8px;display:block;margin-top:1px}
+.nextrow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding-top:3px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:13.5px;font-weight:600;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.foot{max-width:1180px;margin:40px auto 0;padding-top:18px;border-top:1px solid var(--line);font-size:12.8px;color:var(--muted);line-height:1.65}
+.foot a{color:var(--muted)}
+@media print{header.top,.tabs,.top-actions,.filters,.nextrow .btn{display:none}body{background:#fff}.card,.vtr,.gcard,.step,details.ex{box-shadow:none}section.view[hidden]{display:block!important}details.ex .ex-body{display:grid!important}.vtr[hidden],details.ex[hidden]{display:grid!important}section.view{break-before:page}section.view:first-of-type{break-before:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in gutter">
+    <div class="brand"><b>Creating Thinking Students</b><span>The Thinking Toolkit &middot; Reception to Year 6</span></div>
+    <div class="top-actions">
+      <button class="btn small ghost" id="btn-print">Print</button>
+      <button class="btn small ghost" id="btn-theme">Theme</button>
+    </div>
+  </div>
+  <div class="tabs gutter" id="tabs">
+    <button data-tab="essentials" style="--tc:var(--think)">Essentials</button>
+    <button data-tab="phrases" style="--tc:var(--challenge)">Phrases</button>
+    <button data-tab="routines" style="--tc:var(--routine)">Routines</button>
+    <button data-tab="reflection" style="--tc:var(--support)">Reflection points</button>
+    <button data-tab="habits" style="--tc:var(--think)">Habits</button>
+    <button data-tab="start" style="--tc:var(--challenge)">Start here</button>
+    <button data-tab="selfcheck" style="--tc:var(--routine)">Self-check</button>
+  </div>
+</header>
+
+<main class="gutter">
+
+<!-- ================= ESSENTIALS ================= -->
+<section class="view" id="essentials" style="--step:var(--think);--step-wash:var(--think-wash)">
+  <div class="lede-top">
+    <h1>Creating Thinking Students</h1>
+    <p>The essentials, and only the essentials: the phrases to use, the routines to run, the reflection points to fix in every lesson, and the habits that make students do the thinking instead of waiting for you to do it for them.</p>
+  </div>
+  <div class="shead">
+    <div class="eyebrow">Think &middot; the five essentials</div>
+    <h2>If you only change five things, change these</h2>
+    <p class="lede">Everything else in this guide is a way of doing one of these five things. Each comes with a <b>Try this week</b> you can start tomorrow.</p>
+  </div>
+  <div class="grid2">
+    <div class="gcard">
+      <div class="gh"><span class="gn">1</span><div><b>Wait, then wait again</b><span>Three to five seconds, both directions</span></div></div>
+      <div class="gb">
+        <p class="gone">Leave three to five seconds of silence after you ask a question, and the same after a student answers. Most of the thinking in a classroom happens in the pause, and most teachers fill it inside one second.</p>
+        <div class="tryit"><div class="k">Try this week</div><p>Count to five in your head before you call on anyone. After an answer, say nothing and look expectant. Students will add more.</p></div>
+      </div>
+    </div>
+    <div class="gcard">
+      <div class="gh"><span class="gn">2</span><div><b>Ask for the reasoning, not the answer</b><span>After right answers as often as wrong ones</span></div></div>
+      <div class="gb">
+        <p class="gone">An answer ends thinking; a reason starts it. Ask <i>"What makes you say that?"</i> after every answer, right or wrong, so that giving a reason becomes normal rather than a sign you've made a mistake.</p>
+        <div class="tryit"><div class="k">Try this week</div><p>For one week, never say "correct" or "no" straight away. Ask for the reasoning first, then let the class judge.</p></div>
+      </div>
+    </div>
+    <div class="gcard">
+      <div class="gh"><span class="gn">3</span><div><b>Use a few routines, often</b><span>Four to six, until students can lead them</span></div></div>
+      <div class="gb">
+        <p class="gone">A familiar structure frees working memory for the content, and students start reaching for the routine themselves. Depth comes from repetition, not variety.</p>
+        <div class="tryit"><div class="k">Try this week</div><p>One routine per week for the first month. Display the steps. Don't introduce a new one until the last one runs without you.</p></div>
+      </div>
+    </div>
+    <div class="gcard">
+      <div class="gh"><span class="gn">4</span><div><b>Fix the reflection points</b><span>Start, hinge and close, every lesson</span></div></div>
+      <div class="gb">
+        <p class="gone">Reflection happens when it has a slot. Build three fixed points into every lesson and reflection stops being the thing that gets dropped when time runs short.</p>
+        <div class="tryit"><div class="k">Try this week</div><p>Put the closing reflection in your plan <i>before</i> the main activity, and give it a fixed time. Protect it.</p></div>
+      </div>
+    </div>
+    <div class="gcard">
+      <div class="gh"><span class="gn">5</span><div><b>Make not-knowing safe</b><span>"I don't know yet" is a legitimate first answer</span></div></div>
+      <div class="gb">
+        <p class="gone">Students will not think out loud where it is risky. Mistakes are information, and changing your mind is something to be proud of.</p>
+        <div class="tryit"><div class="k">Try this week</div><p>Share your own changed mind in front of the class: "I used to think... but now I think..." Then celebrate the first student who does the same.</p></div>
+      </div>
+    </div>
+    <div class="gcard">
+      <div class="gh"><span class="gn">&#10003;</span><div><b>The test</b><span>One question at the end of any lesson</span></div></div>
+      <div class="gb">
+        <p class="gone"><b>Who did the thinking?</b> If you explained, demonstrated, answered and summarised, the thinking was yours. The goal is a lesson where students notice, reason, argue, revise and sum up, and you mostly ask.</p>
+      </div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:18px"><b>Why this works.</b> Thinking is a habit before it is a skill. Students learn what a classroom values from what happens hundreds of times a day, not from what is on the wall. Wait time, "what makes you say that?", a repeated routine and a fixed reflection slot are small, but they happen every lesson, and that is the point.</div>
+</section>
+
+<!-- ================= PHRASES ================= -->
+<section class="view" id="phrases" hidden style="--step:var(--challenge);--step-wash:var(--challenge-wash)">
+  <div class="shead">
+    <div class="eyebrow">Challenge &middot; the phrase bank</div>
+    <h2>What you say shapes what students do with their minds</h2>
+    <p class="lede">Filter by what you need the phrase to do, then pick <b>two or three</b> to use until they're automatic. Tap <i>copy</i> to grab a set for your planner.</p>
+  </div>
+  <div class="card pad" style="margin-bottom:16px">
+    <div class="fieldlab">What do you need the phrase to do?</div>
+    <div class="filters" id="pf">
+      <button data-f="" aria-pressed="true">All</button>
+      <button data-f="open">Open up thinking</button>
+      <button data-f="press">Press for reasoning</button>
+      <button data-f="extend">Extend</button>
+      <button data-f="connect">Connect students</button>
+      <button data-f="meta">Metacognition</button>
+      <button data-f="reflect">Reflect</button>
+      <button data-f="stuck">When stuck</button>
+    </div>
+    <div class="nextrow" style="margin-top:10px"><p class="hint" id="pcount"></p><button class="copy" id="pcopy">Copy shown phrases</button></div>
+  </div>
+  <div class="pgrid" id="plist">
+    <div class="vtr" data-cat="open"><div class="top"><h4>What do you notice?</h4><span class="tag">Open up</span></div><p class="how">Low-risk entry point. There is no wrong noticing, so everyone can start, and the noticings become the raw material for the real question.</p></div>
+    <div class="vtr" data-cat="open"><div class="top"><h4>What might be going on here?</h4><span class="tag">Open up</span></div><p class="how">"Might" signals that you want possibilities, not the answer. It invites tentative thinking from students who would stay silent for "What is happening?"</p></div>
+    <div class="vtr" data-cat="open"><div class="top"><h4>What are some possibilities?</h4><span class="tag">Open up</span></div><p class="how">"Some" asks for more than one. It stops the first answer from closing the discussion.</p></div>
+    <div class="vtr" data-cat="open"><div class="top"><h4>What's your first thought? It doesn't have to be right.</h4><span class="tag">Open up</span></div><p class="how">Lowers the stakes explicitly. Useful for a class that has learned to wait for the clever student.</p></div>
+    <div class="vtr" data-cat="press"><div class="top"><h4>What makes you say that?</h4><span class="tag">Press</span></div><p class="how">The single most useful phrase in this guide. Asks for reasoning without judging the answer. Use it after right answers as often as wrong ones.</p></div>
+    <div class="vtr" data-cat="press"><div class="top"><h4>How do you know?</h4><span class="tag">Press</span></div><p class="how">Shifts from opinion to evidence. Works in maths, reading, science and the playground.</p></div>
+    <div class="vtr" data-cat="press"><div class="top"><h4>Can you walk me through your thinking?</h4><span class="tag">Press</span></div><p class="how">Asks for the process, not the product. Reveals where understanding is solid and where it is a guess.</p></div>
+    <div class="vtr" data-cat="press"><div class="top"><h4>Convince me.</h4><span class="tag">Press</span></div><p class="how">Playful but demanding. Students must build an argument rather than wait for you to confirm.</p></div>
+    <div class="vtr" data-cat="extend"><div class="top"><h4>Say more about that.</h4><span class="tag">Extend</span></div><p class="how">Keeps the student talking past their first, usually thin, answer. Pair with silence.</p></div>
+    <div class="vtr" data-cat="extend"><div class="top"><h4>What else?</h4><span class="tag">Extend</span></div><p class="how">Two words. Says "that was good and I think there is more". Keep asking until the ideas run dry.</p></div>
+    <div class="vtr" data-cat="extend"><div class="top"><h4>Is that always true?</h4><span class="tag">Extend</span></div><p class="how">Pushes toward generalisation and counter-examples. The engine of mathematical and scientific thinking.</p></div>
+    <div class="vtr" data-cat="extend"><div class="top"><h4>What would happen if...?</h4><span class="tag">Extend</span></div><p class="how">Turns a fact into a model students can run. Change one variable and ask them to predict.</p></div>
+    <div class="vtr" data-cat="connect"><div class="top"><h4>Who can add to what Yuki said?</h4><span class="tag">Connect</span></div><p class="how">Makes ideas belong to the class, not to you. Students listen to each other when they know they'll be asked to build on it.</p></div>
+    <div class="vtr" data-cat="connect"><div class="top"><h4>Do you agree or disagree with Ken? Why?</h4><span class="tag">Connect</span></div><p class="how">Forces a position and a reason. "Why" is not optional; without it this is a vote.</p></div>
+    <div class="vtr" data-cat="connect"><div class="top"><h4>Can you say what Mia said in your own words?</h4><span class="tag">Connect</span></div><p class="how">Checks listening and understanding at once, and gives the original speaker the experience of being heard.</p></div>
+    <div class="vtr" data-cat="connect"><div class="top"><h4>Who thought something different?</h4><span class="tag">Connect</span></div><p class="how">Protects disagreement. Without it, the first confident answer becomes the class answer.</p></div>
+    <div class="vtr" data-cat="meta"><div class="top"><h4>What strategy did you use?</h4><span class="tag">Metacognition</span></div><p class="how">Names the thinking so it can be reused. Students who can name a strategy can choose it next time.</p></div>
+    <div class="vtr" data-cat="meta"><div class="top"><h4>Where did you get stuck, and what did you do?</h4><span class="tag">Metacognition</span></div><p class="how">Treats being stuck as a normal, discussable event with moves attached, rather than a failure.</p></div>
+    <div class="vtr" data-cat="meta"><div class="top"><h4>How confident are you, and why?</h4><span class="tag">Metacognition</span></div><p class="how">Separates knowing from guessing. A student who says "about half sure, because I didn't check" has told you exactly what to teach.</p></div>
+    <div class="vtr" data-cat="meta"><div class="top"><h4>What would you do differently next time?</h4><span class="tag">Metacognition</span></div><p class="how">The question that turns an experience into learning. Ask it after successes too.</p></div>
+    <div class="vtr" data-cat="reflect"><div class="top"><h4>What did you used to think? What do you think now?</h4><span class="tag">Reflect</span></div><p class="how">The clearest way to make learning visible to the learner. Works at the end of a lesson, a week or a unit.</p></div>
+    <div class="vtr" data-cat="reflect"><div class="top"><h4>What's one thing that changed in your thinking today?</h4><span class="tag">Reflect</span></div><p class="how">"One thing" is achievable for every student. "Changed" signals that changing your mind is the goal.</p></div>
+    <div class="vtr" data-cat="reflect"><div class="top"><h4>What's still puzzling you?</h4><span class="tag">Reflect</span></div><p class="how">Legitimises unfinished understanding and gives you tomorrow's starting point.</p></div>
+    <div class="vtr" data-cat="reflect"><div class="top"><h4>What would you tell someone who missed today?</h4><span class="tag">Reflect</span></div><p class="how">A summary in the student's words, framed as helping rather than being tested.</p></div>
+    <div class="vtr" data-cat="stuck"><div class="top"><h4>What do you know for sure?</h4><span class="tag">Stuck</span></div><p class="how">Finds solid ground. Most stuck students know more than they think; they've lost the thread, not the knowledge.</p></div>
+    <div class="vtr" data-cat="stuck"><div class="top"><h4>What's one small thing you could try?</h4><span class="tag">Stuck</span></div><p class="how">Shrinks the task to a single move. The move doesn't need to work; it needs to restart thinking.</p></div>
+    <div class="vtr" data-cat="stuck"><div class="top"><h4>What would you tell a friend who was stuck here?</h4><span class="tag">Stuck</span></div><p class="how">Students can often coach a friend through a problem they "can't" do themselves. Borrow that.</p></div>
+    <div class="vtr" data-cat="stuck"><div class="top"><h4>What question would help you right now?</h4><span class="tag">Stuck</span></div><p class="how">Hands the next step back to the student. Asking for the right question is itself a thinking skill.</p></div>
+  </div>
+
+  <div class="card pad" style="margin-top:22px">
+    <div class="sec-t">Instead of &rarr; try <small>the eight swaps that change a classroom fastest</small></div>
+    <div class="cold"><span class="r1">Instead of</span><span></span><span class="r2">Try</span></div>
+    <div class="ladder">
+      <div class="rung"><span class="lo">Does everyone understand?</span><span class="ar">&rarr;</span><span class="hi">Tell your partner one thing you understand and one thing you're not sure about.</span></div>
+      <div class="rung"><span class="lo">Any questions?</span><span class="ar">&rarr;</span><span class="hi">What's one question you have? Thirty seconds to think of it.</span></div>
+      <div class="rung"><span class="lo">Who knows the answer?</span><span class="ar">&rarr;</span><span class="hi">Think quietly for twenty seconds. Then I'll ask anyone.</span></div>
+      <div class="rung"><span class="lo">Good job!</span><span class="ar">&rarr;</span><span class="hi">You went back to the text to check. That's what readers do.</span></div>
+      <div class="rung"><span class="lo">Is that right?</span><span class="ar">&rarr;</span><span class="hi">Convince me. Then we'll see if the class agrees.</span></div>
+      <div class="rung"><span class="lo">No, that's wrong.</span><span class="ar">&rarr;</span><span class="hi">Interesting. What makes you say that? Who sees it differently?</span></div>
+      <div class="rung"><span class="lo">Let me explain it again.</span><span class="ar">&rarr;</span><span class="hi">Who can explain it a different way?</span></div>
+      <div class="rung"><span class="lo">"I don't know." (from a student)</span><span class="ar">&rarr;</span><span class="hi">You don't know yet. What's your best guess, or who could help you start?</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ROUTINES ================= -->
+<section class="view" id="routines" hidden style="--step:var(--routine);--step-wash:var(--routine-wash)">
+  <div class="shead">
+    <div class="eyebrow">Routine &middot; the core eight</div>
+    <h2>Eight routines that cover the whole inquiry cycle</h2>
+    <p class="lede">Open any routine for the steps, what to say, what to watch for, and how it changes from Reception to Year 6. You don't need all eight; <b>four used weekly beat eight used once.</b></p>
+  </div>
+  <div class="card pad" style="margin-bottom:16px">
+    <div class="fieldlab">Stage of inquiry</div>
+    <div class="filters" id="rf">
+      <button data-f="" aria-pressed="true">All</button>
+      <button data-f="introduce">Introducing</button>
+      <button data-f="explore">Exploring</button>
+      <button data-f="deepen">Deepening</button>
+      <button data-f="reflect">Reflecting</button>
+      <button data-f="quick">Under 5 min</button>
+    </div>
+  </div>
+  <div id="rlist">
+
+    <details class="ex" data-stage="introduce explore">
+      <summary><div class="sum-main"><h3>See &ndash; Think &ndash; Wonder</h3><div class="verbs">observe, interpret, question</div><p class="blurb">Slow looking at an image, object, text or data before anyone is asked to explain it. The best way into a new topic.</p>
+        <div class="tagrow"><span class="tag">Introducing</span><span class="tag">Exploring</span><span class="tag plain">10&ndash;15 min</span><span class="tag plain">Whole class or pairs</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li><b>See.</b> Collect observations; push for detail with "What else?" <span class="say">"What do you see? Only what is actually there, no guessing yet."</span></li>
+            <li><b>Think.</b> Every interpretation must point back to something seen. <span class="say">"What do you think is going on? What makes you say that?"</span></li>
+            <li><b>Wonder.</b> Record every wonder; these become the unit's questions. <span class="say">"What does this make you wonder?"</span></li>
+            <li>Keep the wonders visible. Revisit them at the midpoint and end of the unit and tick off the ones answered.</li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>Students jumping to "think" during "see". Gently send them back: "Is that something you see, or something you think?"</li><li>You answering the wonders. Don't. Park them.</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>Oral, one step at a time, with a single striking image. Use "I see... I think... I wonder..." as a chant. Draw the wonders.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Three-column chart, pairs talk before sharing. Sentence stems on the board.</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Written individually first, then shared. Sort wonders into "we can find out" and "we can only argue about". Use with primary sources, graphs and poems.</p></div>
+          </div></div>
+      </div>
+    </details>
+
+    <details class="ex" data-stage="introduce explore deepen reflect quick">
+      <summary><div class="sum-main"><h3>Think &ndash; Pair &ndash; Share (done properly)</h3><div class="verbs">think alone, rehearse, report</div><p class="blurb">The most used and most misused routine. Done well, every student thinks, every student speaks, and sharing reports the pair's thinking, not one person's.</p>
+        <div class="tagrow"><span class="tag">Any stage</span><span class="tag plain">3&ndash;5 min</span><span class="tag plain">Pairs</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li><b>Think, silently.</b> This is the step that gets skipped, and the one that matters. <span class="say">"Thirty seconds on your own. No talking, no hands."</span></li>
+            <li><b>Pair.</b> Give a sentence starter if needed. <span class="say">"Partner A goes first. Partner B, your job is to listen and then say what you heard."</span></li>
+            <li><b>Share.</b> Reporting the partner's idea makes listening matter. <span class="say">"Tell me what your partner thinks."</span></li>
+            <li>Cold call for the share. Everyone has something because everyone has talked.</li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>Pairs where one talks and one nods. Rotate who goes first, and ask the listener to report.</li><li>Asking "Who wants to share?" This undoes the point. Call on anyone.</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>"Knee to knee, eye to eye". One short question. Model a pair conversation with a puppet or a colleague first.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Add a timer the children can see. Teach "Can you say more?" as the listener's job.</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Think step becomes a quick written jot. Share step can be "Did your partner change your mind at all?"</p></div>
+          </div></div>
+      </div>
+    </details>
+
+    <details class="ex" data-stage="deepen quick">
+      <summary><div class="sum-main"><h3>What Makes You Say That?</h3><div class="verbs">claim, reason, compare</div><p class="blurb">A routine small enough to be a reflex. Every claim is followed by a request for the reasoning behind it.</p>
+        <div class="tagrow"><span class="tag">Deepening</span><span class="tag plain">1 min, any time</span><span class="tag plain">Whole class</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li>A student makes a claim, gives an answer or shares an opinion.</li>
+            <li>Keep your face neutral. Do not confirm or deny the claim first. <span class="say">"What makes you say that?"</span></li>
+            <li>Accept the reasoning, then open it up. <span class="say">"Does anyone see it differently? What makes <i>you</i> say that?"</span></li>
+            <li>Only now, if needed, add your own view, as one more voice with reasons.</li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>Using it only on wrong answers. Students will learn it means "you're wrong" and stop answering. Use it most on right answers.</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>Rephrase as "How do you know?" or "Show me". Accept pointing, drawing and acting out as reasons.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Teach the stem "I think... because..." Make a poster. Praise the "because", not the answer.</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Students ask it of each other in group work. Distinguish types of reasons: evidence, experience, logic, authority.</p></div>
+          </div></div>
+      </div>
+    </details>
+
+    <details class="ex" data-stage="reflect quick">
+      <summary><div class="sum-main"><h3>I Used to Think... Now I Think...</h3><div class="verbs">recall, compare, explain the change</div><p class="blurb">The reflection routine that shows students their own learning. Essential at the end of a unit; useful at the end of a lesson.</p>
+        <div class="tagrow"><span class="tag">Reflecting</span><span class="tag plain">5&ndash;10 min</span><span class="tag plain">Individual then pairs</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li>Remind students what they thought at the start. Show their original See-Think-Wonder, 3-2-1 Bridge or first draft if you have it.</li>
+            <li>Write or say it. <span class="say">"Finish this sentence: I used to think..."</span></li>
+            <li><span class="say">"Now finish this one: Now I think..."</span></li>
+            <li>Pairs share. <span class="say">"What changed your mind? Was it something you read, saw, did or heard someone say?"</span></li>
+            <li>Collect a few publicly and celebrate the biggest shifts.</li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>"I used to think nothing, now I know everything." Push for a specific before and after: "What exactly did you think a shadow was?"</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>Oral, with you scribing. Pair with a "before" drawing and an "after" drawing of the same thing.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Two-box template. Add a third box: "What changed my mind was..."</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Written reflection in the learning journal. Ask also: "What do I still think, and why hasn't that changed?"</p></div>
+          </div></div>
+      </div>
+    </details>
+
+    <details class="ex" data-stage="deepen reflect">
+      <summary><div class="sum-main"><h3>Connect &ndash; Extend &ndash; Challenge</h3><div class="verbs">link, stretch, question</div><p class="blurb">For processing new input: a text, a video, a visitor, an experiment. Links the new to the known and surfaces what doesn't fit.</p>
+        <div class="tagrow"><span class="tag">Deepening</span><span class="tag">Reflecting</span><span class="tag plain">10 min</span><span class="tag plain">Individual then groups</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li><b>Connect.</b> <span class="say">"How does this connect to what you already knew?"</span></li>
+            <li><b>Extend.</b> <span class="say">"What new ideas pushed your thinking further or in a new direction?"</span></li>
+            <li><b>Challenge.</b> <span class="say">"What is still confusing, or what do you want to argue with?"</span></li>
+            <li>Collect the challenges. They are the best questions for the next lesson.</li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>Empty "challenge" boxes. Model one yourself: "What challenged me was that the author never says why..."</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>Two steps only: "That reminds me of..." and "I didn't know that..." Oral, in a circle.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Three sticky notes in three colours, posted on a class chart.</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Written after reading, used as the basis for a discussion. Students respond to each other's challenges.</p></div>
+          </div></div>
+      </div>
+    </details>
+
+    <details class="ex" data-stage="deepen">
+      <summary><div class="sum-main"><h3>Claim &ndash; Support &ndash; Question</h3><div class="verbs">assert, evidence, test</div><p class="blurb">The reasoning routine for maths, science and reading: say what you think is true, back it up, then ask what would test it.</p>
+        <div class="tagrow"><span class="tag">Deepening</span><span class="tag plain">15 min</span><span class="tag plain">Pairs or groups</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li><b>Claim.</b> <span class="say">"What do you think is true here? Say it in one sentence."</span></li>
+            <li><b>Support.</b> <span class="say">"What have you seen, read, measured or worked out that supports it?"</span></li>
+            <li><b>Question.</b> <span class="say">"What's still uncertain? What would make you change your claim?"</span></li>
+            <li>Pairs swap and try to find a hole in each other's support.</li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>Support that is just the claim repeated louder. Ask "Where could I see that for myself?"</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>"I think... because I saw..." with a real object or experiment in front of them. Skip the question step.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Three-row table. In maths: "I think the answer is... because... but I'm not sure about..."</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Students evaluate the strength of each other's support. Introduce "That's an example, not a proof."</p></div>
+          </div></div>
+      </div>
+    </details>
+
+    <details class="ex" data-stage="explore">
+      <summary><div class="sum-main"><h3>Chalk Talk</h3><div class="verbs">write, respond, connect</div><p class="blurb">A silent written conversation on large paper. Every student contributes, quiet students lead, and ideas build in a way talk rarely allows.</p>
+        <div class="tagrow"><span class="tag">Exploring</span><span class="tag plain">15 min</span><span class="tag plain">Whole class, moving</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li>Write a question or provocation in the centre of each of four to six large sheets.</li>
+            <li><span class="say">"No talking. Write a response, or draw one. Then move to another sheet."</span></li>
+            <li>Second pass. <span class="say">"Now respond to what someone else wrote. Draw a line to connect ideas. Add a question."</span></li>
+            <li>End with a gallery walk and a spoken debrief. <span class="say">"What surprised you on the sheets?"</span></li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>Breaking the silence yourself. Point, don't speak.</li><li>Sheets with one idea written five times. Prompt "Respond, don't repeat."</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>One sheet, drawings and single words, you scribe what children tell you quietly. Five minutes.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Three sheets with picture prompts. Teach the "connecting line" and the "question mark" moves.</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Use for contested questions and unit reflections. Require every student to add one connection and one question.</p></div>
+          </div></div>
+      </div>
+    </details>
+
+    <details class="ex" data-stage="introduce reflect quick">
+      <summary><div class="sum-main"><h3>3 &ndash; 2 &ndash; 1 Bridge</h3><div class="verbs">snapshot, repeat, bridge</div><p class="blurb">A before-and-after snapshot. Done at the start of a unit and again at the end, the gap between the two is the learning.</p>
+        <div class="tagrow"><span class="tag">Introducing</span><span class="tag">Reflecting</span><span class="tag plain">5 min each time</span><span class="tag plain">Individual</span></div></div><span class="chev">&#9656;</span></summary>
+      <div class="ex-body">
+        <div><div class="k" style="margin-bottom:7px">Steps</div>
+          <ol class="steps">
+            <li><b>At the start.</b> <span class="say">"Three words that come to mind about this topic. Two questions. One picture or comparison: this topic is like..."</span></li>
+            <li>Keep it. Don't discuss it much.</li>
+            <li><b>At the end.</b> Repeat all three, on a new sheet.</li>
+            <li><b>Bridge.</b> Put the two side by side. <span class="say">"How did your thinking change? Which of your questions got answered?"</span></li>
+          </ol></div>
+        <div><div class="k" style="margin-bottom:7px">Watch for</div>
+          <ul class="tidy"><li>Forgetting to do the second half. Put it in the plan now.</li></ul></div>
+        <div><div class="k" style="margin-bottom:7px">What it looks like, Reception to Year 6</div>
+          <div class="prog">
+            <div><span class="yr">Reception &ndash; Year 1</span><p>One word, one question, one drawing. You scribe the word and question.</p></div>
+            <div><span class="yr">Year 2 &ndash; Year 3</span><p>Simple three-row template, kept in the learning journal.</p></div>
+            <div><span class="yr">Year 4 &ndash; Year 6</span><p>Full version. The "bridge" reflection becomes a short paragraph and a self-assessment of a thinking skill.</p></div>
+          </div></div>
+      </div>
+    </details>
+
+  </div>
+  <p class="hint" id="rcount" style="margin-top:12px"></p>
+</section>
+
+<!-- ================= REFLECTION ================= -->
+<section class="view" id="reflection" hidden style="--step:var(--support);--step-wash:var(--support-wash)">
+  <div class="shead">
+    <div class="eyebrow">Support &middot; reflection points</div>
+    <h2>Reflection is not a mood; it is a slot in the plan</h2>
+    <p class="lede">Three fixed points in every lesson, three in every unit, and one for you. <b>Each point needs two minutes and one question.</b></p>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <div class="pad" style="padding-bottom:0"><div class="sec-t">Every lesson <small>three points, protected</small></div></div>
+    <div class="blk">
+      <div class="t"><div class="m">1</div><div class="u">Opening</div><div class="w">first 2&ndash;3 min</div></div>
+      <div><h4>Surface what they already think</h4>
+        <div class="body">
+          <span class="say">"What do we already think we know about this?" &middot; "What did we leave puzzling last time?"</span>
+          <ul class="pts"><li>One-word whip-round</li><li>Quick sketch of the idea</li><li>Thumb for confidence, then "why that thumb?"</li><li>Re-read yesterday's exit tickets aloud</li></ul>
+        </div></div>
+    </div>
+    <div class="blk">
+      <div class="t"><div class="m">2</div><div class="u">Hinge</div><div class="w">after input, before practice</div></div>
+      <div><h4>Decide: move on, or reteach?</h4>
+        <div class="body">
+          <span class="say">"Explain it to your partner. Partner, does it hold up?" &middot; "Which of these four answers is right, and what's wrong with the others?"</span>
+          <ul class="pts"><li>Mini whiteboards, all up at once</li><li>One hinge question with four options, show fingers</li><li>"Convince your partner" in 60 seconds</li></ul>
+        </div></div>
+    </div>
+    <div class="blk">
+      <div class="t"><div class="m">3</div><div class="u">Close</div><div class="w">last 3&ndash;5 min</div></div>
+      <div><h4>Name the learning and the strategy</h4>
+        <div class="body">
+          <span class="say">"One thing you learned, one thing you're unsure about, one question." &middot; "What strategy worked today? When could you use it again?"</span>
+          <ul class="pts"><li>Exit ticket (3 lines)</li><li>I used to think / now I think</li><li>Traffic light with a reason</li><li>"What would you tell someone who missed today?"</li></ul>
+        </div></div>
+    </div>
+    <div class="blk" style="background:var(--surface-2)">
+      <div class="t"><div class="m" style="color:var(--muted)">+</div><div class="u">You</div><div class="w">60 seconds after</div></div>
+      <div><h4>Your minute</h4>
+        <div class="body">
+          <span class="say">"Who did the thinking today, me or them?" &middot; "Which students did I not hear from?" &middot; "What did the exit tickets tell me to start with tomorrow?"</span>
+          <ul class="pts"><li>Tally of who spoke</li><li>Sort exit tickets into three piles</li><li>One line in your planner</li></ul>
+        </div></div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-bottom:18px">
+    <div class="vtr"><div class="top"><h4>Tuning in</h4><span class="tag">Unit &middot; week 1</span></div><p class="how">Capture the starting thinking.</p><ul class="tidy"><li>See-Think-Wonder or 3-2-1 Bridge, kept</li><li>Wonder wall goes up and stays up</li><li>Students set one personal question</li></ul></div>
+    <div class="vtr"><div class="top"><h4>Midpoint</h4><span class="tag">Unit &middot; halfway</span></div><p class="how">Revisit and redirect.</p><ul class="tidy"><li>Tick off wonders answered; star the ones still open</li><li>Connect-Extend-Challenge on what's been learned so far</li><li><i>"Has your personal question changed?"</i></li></ul></div>
+    <div class="vtr"><div class="top"><h4>End</h4><span class="tag">Unit &middot; final week</span></div><p class="how">Bridge back.</p><ul class="tidy"><li>I used to think / now I think, against the week 1 record</li><li>Self-assess one thinking skill with evidence</li><li><i>"What's a question this unit gave you that you didn't have before?"</i></li></ul></div>
+  </div>
+
+  <div class="card pad">
+    <div class="sec-t">Reflection stems for students <small>on the wall and in journals</small></div>
+    <p class="hint" style="margin-bottom:12px">Students reflect better when they don't have to invent the sentence as well as the thought.</p>
+    <div class="prog">
+      <div><span class="yr">Reception &ndash; Year 1</span><div class="chips"><span class="chip quote">I learned...</span><span class="chip quote">I was surprised when...</span><span class="chip quote">It was tricky when...</span><span class="chip quote">Next time I will...</span><span class="chip quote">I helped by...</span></div></div>
+      <div><span class="yr">Year 2 &ndash; Year 3</span><div class="chips"><span class="chip quote">I used to think... now I think...</span><span class="chip quote">The strategy I used was...</span><span class="chip quote">I got stuck when... so I...</span><span class="chip quote">I'm still wondering...</span><span class="chip quote">I'm proud that I...</span></div></div>
+      <div><span class="yr">Year 4 &ndash; Year 6</span><div class="chips"><span class="chip quote">My thinking changed when... because...</span><span class="chip quote">The evidence that convinced me was...</span><span class="chip quote">A mistake that taught me something was...</span><span class="chip quote">I'm about ___% confident because...</span><span class="chip quote">If I did this again I would... instead of...</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HABITS ================= -->
+<section class="view" id="habits" hidden style="--step:var(--think);--step-wash:var(--think-wash)">
+  <div class="shead">
+    <div class="eyebrow">Think &middot; classroom habits</div>
+    <h2>The habits that make it stick</h2>
+    <p class="lede">Phrases and routines only work inside a culture where thinking is expected of everyone, every time. Introduce these explicitly and <b>name them when you use them.</b></p>
+  </div>
+  <div class="grid2">
+    <div class="mini"><b>Wait time, both directions</b><p>Three to five seconds after your question. Three to five seconds after their answer. Teach the class that silence means thinking is happening, not that something has gone wrong.</p><p class="say">"I'm going to give you proper thinking time. Don't put your hand up; just think."</p></div>
+    <div class="mini"><b>No hands up (except to ask)</b><p>Hands up lets half the class opt out. Think time, then call on anyone, warmly. Hands are for asking a question, not answering one.</p><p class="say">"Hands down. Everyone's thinking about this. I'll come to a few of you in a moment."</p></div>
+    <div class="mini"><b>No opting out</b><p>"I don't know" is a legitimate start, not an end. Give a scaffold, or take an answer from someone else and come back, so the first student finishes by saying something.</p><p class="say">"You don't know yet. What's your best guess? ... Ken, can you help? ... Now, Mia, say it in your own words."</p></div>
+    <div class="mini"><b>Talk partners that rotate</b><p>Every student has a partner, partners change every two weeks, and the partner's job is defined: listen, then say it back. Pair talk is where most of the thinking gets rehearsed.</p><p class="say">"Partner B, your only job is to listen so well you could say it for them."</p></div>
+    <div class="mini"><b>Build on, don't repeat</b><p>Teach the listening moves: track the speaker, add to what was said, disagree with a reason, say it back. Discussion is a chain, not a list.</p><p class="say">"Before you share yours, tell us how it connects to what Yuki said."</p></div>
+    <div class="mini"><b>A thinking vocabulary</b><p>Students can only do thinking they have words for. Teach, display and use: notice, wonder, predict, evidence, reason, compare, perspective, revise, convince.</p><p class="say">"That's a prediction. What's your evidence for it?"</p></div>
+    <div class="mini"><b>Celebrate changed minds</b><p>Make changing your mind the most praised thing in the room. Model it yourself. Students praised for being right will defend wrong answers; students praised for revising will think.</p><p class="say">"Ken just changed his mind because of Mia's evidence. That is exactly what good thinkers do."</p></div>
+    <div class="mini"><b>Mistakes are data</b><p>Put a wrong answer on the board and work on it together. Ask what the thinking behind it might have been. Nobody is named; everybody learns.</p><p class="say">"Here's an answer someone gave. It's wrong, but it's a sensible kind of wrong. What was the thinking?"</p></div>
+  </div>
+</section>
+
+<!-- ================= START HERE ================= -->
+<section class="view" id="start" hidden style="--step:var(--challenge);--step-wash:var(--challenge-wash)">
+  <div class="shead">
+    <div class="eyebrow">Challenge &middot; the first four weeks</div>
+    <h2>Add one thing a week</h2>
+    <p class="lede">Don't try to do all of this at once. Keep the previous weeks going, and by the end of the month <b>the classroom will feel different.</b></p>
+  </div>
+  <div class="stack" style="gap:12px">
+    <div class="step"><div class="step-head"><span class="step-n">1</span><span class="step-title">Two phrases and a pause</span></div>
+      <div class="step-body"><ul class="tidy"><li>Count to five after every question</li><li>"What makes you say that?" after every answer</li><li>One closing reflection, every lesson: one thing learned, one thing unsure</li></ul></div></div>
+    <div class="step"><div class="step-head"><span class="step-n">2</span><span class="step-title">One routine, done properly</span></div>
+      <div class="step-body"><ul class="tidy"><li>Introduce Think-Pair-Share with the silent think step and the "report your partner" share</li><li>Hands down becomes the default</li><li>Run See-Think-Wonder once, keep the wonders up</li></ul></div></div>
+    <div class="step"><div class="step-head"><span class="step-n">3</span><span class="step-title">The hinge and the swap</span></div>
+      <div class="step-body"><ul class="tidy"><li>Add a mid-lesson hinge check with mini whiteboards</li><li>Pick three swaps from the phrase bank and tape them to your desk</li><li>Friday: "I used to think / now I think" on the week</li></ul></div></div>
+    <div class="step"><div class="step-head"><span class="step-n">4</span><span class="step-title">Hand it over</span></div>
+      <div class="step-body"><ul class="tidy"><li>A student leads one routine</li><li>Students use "What makes you say that?" on each other in group work</li><li>Do your sixty-second teacher reflection after every lesson</li></ul></div></div>
+  </div>
+  <div class="note" style="margin-top:18px"><b>After the first month,</b> add one new routine every two or three weeks until you have four to six you use constantly. Then stop adding. Depth comes from repetition, not variety: the moment a Year 3 child says "Can we do See-Think-Wonder on this?" you have a thinking classroom.</div>
+</section>
+
+<!-- ================= SELF-CHECK ================= -->
+<section class="view" id="selfcheck" hidden style="--step:var(--routine);--step-wash:var(--routine-wash)">
+  <div class="shead">
+    <div class="eyebrow">Routine &middot; weekly self-check</div>
+    <h2>Ten questions for the end of a week</h2>
+    <p class="lede">Tick the ones you can answer <b>yes</b> to. Your ticks are saved on this device so you can come back and see what has changed.</p>
+  </div>
+  <div class="card pad">
+    <div class="nextrow" style="margin-bottom:12px"><span class="k">This week</span><span class="k" id="score" style="color:var(--step)">0 / 10</span></div>
+    <div class="checks" id="checks">
+      <label class="check"><input type="checkbox" data-k="c1"><span class="ct">I waited at least three seconds after my questions, most of the time.<span class="d">If you're not sure, you probably didn't. Record one lesson and listen.</span></span></label>
+      <label class="check"><input type="checkbox" data-k="c2"><span class="ct">I asked for reasoning after right answers, not just wrong ones.</span></label>
+      <label class="check"><input type="checkbox" data-k="c3"><span class="ct">Every student spoke to a partner in every lesson.</span></label>
+      <label class="check"><input type="checkbox" data-k="c4"><span class="ct">I called on students without hands up, and nobody was allowed to opt out.</span></label>
+      <label class="check"><input type="checkbox" data-k="c5"><span class="ct">I ran at least one thinking routine, and students knew its steps.</span></label>
+      <label class="check"><input type="checkbox" data-k="c6"><span class="ct">Every lesson ended with a reflection that I actually read.</span></label>
+      <label class="check"><input type="checkbox" data-k="c7"><span class="ct">I used a mid-lesson check and changed something because of it at least once.</span></label>
+      <label class="check"><input type="checkbox" data-k="c8"><span class="ct">A student changed their mind out loud, and I celebrated it.</span></label>
+      <label class="check"><input type="checkbox" data-k="c9"><span class="ct">I put a mistake on the board and we worked on the thinking behind it.</span></label>
+      <label class="check"><input type="checkbox" data-k="c10"><span class="ct">I can name a student I didn't hear from this week, and I have a plan for them.<span class="d">The last one is the one that matters most.</span></span></label>
+    </div>
+    <div class="nextrow" style="margin-top:14px"><p class="hint">Aim for one more tick than last week, not ten.</p><button class="btn small" id="reset-check">Reset ticks</button></div>
+  </div>
+</section>
+
+<div class="foot">
+  <b>Built on</b> the Think &middot; Challenge &middot; Support &middot; Routine planning routine.
+  Thinking routines are adapted from <a href="https://pz.harvard.edu/thinking-routines" target="_blank" rel="noopener">Harvard Project Zero</a>.
+  Practice notes draw on the <a href="https://educationendowmentfoundation.org.uk/education-evidence/guidance-reports/metacognition" target="_blank" rel="noopener">EEF guidance on metacognition</a>
+  and Rowe's work on wait time.
+</div>
+</main>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+
+  // ---- tabs ----
+  const tabs=$$('#tabs button'), views=$$('section.view');
+  function show(id,push){
+    if(!views.some(v=>v.id===id))id='essentials';
+    views.forEach(v=>v.hidden=v.id!==id);
+    tabs.forEach(b=>b.setAttribute('aria-current',b.dataset.tab===id?'true':'false'));
+    if(push!==false){try{history.replaceState(null,'','#'+id);}catch(e){}}
+  }
+  tabs.forEach(b=>b.addEventListener('click',()=>{show(b.dataset.tab);window.scrollTo({top:0,behavior:'smooth'});}));
+  show((location.hash||'#essentials').slice(1),false);
+  window.addEventListener('hashchange',()=>show(location.hash.slice(1),false));
+
+  // ---- filters ----
+  function setupFilter(wrapId,items,attr,countEl,noun){
+    const wrap=document.getElementById(wrapId); if(!wrap)return;
+    const btns=Array.from(wrap.querySelectorAll('button'));
+    function apply(f){
+      let n=0;
+      items.forEach(it=>{const cats=(it.getAttribute(attr)||'').split(/\s+/);const on=!f||cats.includes(f);it.hidden=!on;if(on)n++;});
+      btns.forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.f||'')===f)));
+      if(countEl)countEl.textContent=n+' '+noun+(n===1?'':'s');
+    }
+    btns.forEach(b=>b.addEventListener('click',()=>apply(b.dataset.f||'')));
+    apply('');
+  }
+  setupFilter('pf',$$('#plist .vtr'),'data-cat',$('#pcount'),'phrase');
+  setupFilter('rf',$$('#rlist details.ex'),'data-stage',$('#rcount'),'routine');
+
+  // ---- copy ----
+  let toastT=null;
+  function toast(msg){let t=$('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}t.textContent=msg;clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),1600);}
+  function copyText(txt,msg){
+    const done=()=>toast(msg||'Copied');
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(done,()=>fallback());}else fallback();
+    function fallback(){const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done();}catch(e){toast('Could not copy');}ta.remove();}
+  }
+  $('#pcopy').addEventListener('click',()=>{
+    const shown=$$('#plist .vtr').filter(v=>!v.hidden).map(v=>'“'+v.querySelector('h4').textContent.trim()+'”');
+    copyText(shown.join('\n'),shown.length+' phrases copied');
+  });
+
+  // ---- self-check ----
+  const boxes=$$('#checks input'), score=$('#score'), KEY='thinking-students-selfcheck';
+  let saved={}; try{saved=JSON.parse(localStorage.getItem(KEY)||'{}')||{};}catch(e){saved={};}
+  function update(){
+    let n=0,state={};
+    boxes.forEach(b=>{state[b.dataset.k]=b.checked;b.closest('.check').classList.toggle('on',b.checked);if(b.checked)n++;});
+    score.textContent=n+' / '+boxes.length;
+    try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
+  }
+  boxes.forEach(b=>{b.checked=!!saved[b.dataset.k];b.addEventListener('change',update);});
+  update();
+  $('#reset-check').addEventListener('click',()=>{boxes.forEach(b=>b.checked=false);update();});
+
+  // ---- theme & print ----
+  $('#btn-theme').addEventListener('click',()=>{
+    const cur=document.documentElement.getAttribute('data-theme');
+    const next=cur==='dark'?'light':(cur==='light'?'dark':(matchMedia('(prefers-color-scheme: dark)').matches?'light':'dark'));
+    document.documentElement.setAttribute('data-theme',next);
+    try{localStorage.setItem('tt-theme',next);}catch(err){}
+  });
+  try{const th=localStorage.getItem('tt-theme');if(th)document.documentElement.setAttribute('data-theme',th);}catch(e){}
+  $('#btn-print').addEventListener('click',()=>{views.forEach(v=>v.hidden=false);$$('details.ex').forEach(d=>d.open=true);setTimeout(()=>{window.print();show(location.hash.slice(1)||'essentials',false);},50);});
+})();
+</script>
+</body>
+</html>
