@@ -565,12 +565,18 @@ function voiceFor(p){if(!p)return null;const n=p.name||p.n||'';const g=GENDER[n]
   return {voice:list.length?list[h%list.length]:null,pitch:Math.max(.3,Math.min(1.8,base+shift+((h>>>3)%5-2)*.06)),rate:.96+((h>>>6)%4)*.04}}
 function robotVoice(){const rv=ALLV.find(v=>/zarvox|trinoids|robot/i.test(v.name))||ALLV.find(v=>/albert|ralph|fred/i.test(v.name));return {voice:rv||null,pitch:rv?1:.25,rate:.78,robot:true}}
 function narratorVoice(){if(voice===null&&VOICES.length)voice=VOICES.find(v=>MALE.test(v.name)&&!FEMALE.test(v.name))||VOICES[0];return voice}
+// split into sentences, but never after an abbreviation (Mr. Axel, Dr. Lin) or inside a number (3.5)
+function sentences(t,re){
+  const P='\u0001';
+  t=t.replace(/\b(Mr|Mrs|Ms|Dr|Jr|Sr|St|No|vs|etc)\./g,'$1'+P).replace(/(\d)\.(\d)/g,'$1'+P+'$2');
+  return (t.match(re)||[]).map(p=>p.split(P).join('.').trim()).filter(Boolean);
+}
 function say(text,prof){
   if(!S.voice||!hasTTS)return;
   try{
     speechSynthesis.cancel();
     if(prof&&prof.robot){[1200,800,1500].forEach((f,i)=>setTimeout(()=>tone(f,.07,'square'),i*70))}
-    const parts=speakable(text).match(/[^.!?]+[.!?]+["”']?|[^.!?]+$/g)||[];
+    const parts=sentences(speakable(text),/[^.!?]+[.!?]+["”']?|[^.!?]+$/g);
     parts.forEach((p,i)=>{p=p.trim();if(!p)return;
       const u=new SpeechSynthesisUtterance(p);
       // a profile that only names a character (like the mayor) gets its full voice, pitch and pace from voiceFor; its own fields win
