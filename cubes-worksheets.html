@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   /* Layout: a builder panel on the left, an A4 paper preview on the right. The paper is always white
      (it is what gets printed); only the chrome around it follows the viewer's theme. */
@@ -80,6 +81,15 @@
 
   .primary{border:0;border-radius:12px;padding:11px 16px;background:var(--accent);color:var(--accent-ink);font:600 1rem var(--display);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
   .primary:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+  .actions{display:flex;flex-direction:column;gap:8px}
+  .secondary{border:1.5px solid var(--line);border-radius:12px;padding:10px 16px;background:var(--field);color:var(--fg);font:600 .95rem var(--display);cursor:pointer}
+  .secondary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .primary[disabled]{opacity:.65;cursor:progress}
+  .status{min-height:1.2em;font-size:.78rem;color:var(--muted);font-weight:700;margin:0}
+  #pages{display:contents}
+  body.exporting #pages{display:block;width:190mm}
+  body.exporting .sheet{width:190mm;max-width:none;min-height:0;box-shadow:none;padding:0;margin:0}
+  body.exporting .sheet-head img{mix-blend-mode:normal;filter:none}
   .note{border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;font-size:.78rem;color:var(--muted)}
   .note b{color:var(--fg)}
   .note kbd{font:600 .74rem var(--display);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--fg)}
@@ -245,15 +255,25 @@
       <label class="sw"><span class="t">Answer key page <small>number sentences, answers, solved bar models</small></span><input type="checkbox" id="optKey" checked><span class="k"></span></label>
     </div>
 
-    <button type="button" class="primary" id="shuffle">↻ New set of questions</button>
+    <button type="button" class="secondary" id="shuffle">↻ New set of questions</button>
 
-    <div class="note"><b>To print:</b> press <kbd>Ctrl</kbd> + <kbd>P</kbd> (or <kbd>⌘</kbd> + <kbd>P</kbd>) and turn on “Background graphics” so the grid and colours print. The builder panel is hidden automatically.</div>
+    <div class="group">
+      <span class="lab">Export</span>
+      <div class="actions">
+        <button type="button" class="primary" id="pdfBtn">⬇ Download PDF</button>
+        <button type="button" class="secondary" id="printBtn">Print / Save as PDF</button>
+        <p class="status" id="pdfStatus" aria-live="polite"></p>
+      </div>
+      <div class="note"><b>Download PDF</b> builds an A4 file with the worksheet and (if on) the answer key on its own page. <b>Print</b> opens the browser dialog — turn on “Background graphics” to keep the grid and colours.</div>
+    </div>
   </aside>
 
   <main class="stage">
     <div class="stage-info"><span id="infoCount"></span><span>A4 preview</span></div>
-    <section class="sheet" id="sheet" aria-label="Worksheet"></section>
-    <section class="sheet key" id="keySheet" aria-label="Answer key"></section>
+    <div id="pages">
+      <section class="sheet" id="sheet" aria-label="Worksheet"></section>
+      <section class="sheet key" id="keySheet" aria-label="Answer key"></section>
+    </div>
   </main>
 </div>
 
@@ -549,6 +569,37 @@ function renderKey(){
   k.innerHTML=h+'</ol>';
 }
 function update(){ save(); buildControls(); renderSheet(); renderKey(); }
+
+// ---------- Export ----------
+function pdfName(){
+  const t=S.title.trim().replace(/[^\w]+/g,'-').replace(/^-|-$/g,'');
+  return `CUBES-worksheet-Y${S.year}${t?'-'+t:''}.pdf`;
+}
+async function downloadPDF(){
+  const btn=$('pdfBtn'), st=$('pdfStatus');
+  if(!window.html2pdf){ st.textContent='The PDF library did not load. Use Print / Save as PDF instead.'; return; }
+  btn.disabled=true; btn.textContent='Preparing PDF…'; st.textContent='';
+  document.body.classList.add('exporting');
+  try{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    await html2pdf().set({
+      margin:[10,10,12,10],
+      filename:pdfName(),
+      image:{type:'jpeg',quality:0.96},
+      html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'},
+      pagebreak:{mode:['css','legacy'],before:'.key',avoid:['.q','.key li','.legend','.sheet-head']}
+    }).from($('pages')).save();
+    st.textContent='Saved '+pdfName();
+  }catch(e){
+    st.textContent='Could not build the PDF. Use Print / Save as PDF instead.';
+  }finally{
+    document.body.classList.remove('exporting');
+    btn.disabled=false; btn.textContent='⬇ Download PDF';
+  }
+}
+$('pdfBtn').addEventListener('click',downloadPDF);
+$('printBtn').addEventListener('click',()=>window.print());
 
 wireControls();
 update();
