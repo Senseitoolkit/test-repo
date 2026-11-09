@@ -162,10 +162,8 @@ body:not(.locked) .check-del-btn:hover{color:var(--red);}
 .group-label.writing{background:var(--blue);}
 .group-label.reading{background:var(--gold);color:var(--ink);}
 .group-place{font-weight:700;font-size:.8em;color:var(--soft-ink);border-radius:5px;padding:.04em .4em;line-height:1.35;white-space:nowrap;
-  background:#fff;border:1.5px solid var(--yellow-border);display:inline-flex;align-items:center;gap:.2em;flex:0 0 auto;cursor:pointer;
-  transition:background .12s,border-color .12s;margin-top:.05em;}
+  background:#fff;border:1.5px solid var(--yellow-border);display:inline-flex;align-items:center;gap:.2em;flex:0 0 auto;margin-top:.05em;}
 .group-place.outside{background:#e9f6ec;border-color:#9fd3b0;color:#1e6a3a;}
-.group-place:hover{border-color:var(--soft-ink);}
 .group-instr{font-weight:600;color:var(--ink);flex:1;outline:none;border-radius:4px;min-width:0;}
 body:not(.locked) .group-instr:hover{background:rgba(200,180,60,.12);}
 body:not(.locked) .group-instr:focus{background:rgba(200,180,60,.18);box-shadow:inset 0 0 0 2px rgba(200,180,60,.5);}
@@ -345,13 +343,15 @@ body.in-setup .setup{display:block;}
 
       <div class="panel">
         <h2>Colour groups</h2>
-        <div class="sub">Six colours, two groups each. Type up to six students per group — leave a name blank to hide it. Turn a whole colour off with its switch. (Inside / outside is set on the Writing and Reading groups on the board: click the tag next to A or B.)</div>
+        <div class="sub">Six colours, two groups each. The class is shared evenly across the colours that are on — 22 students over six colours is 4 per colour, 2 in each group, with two places empty. Switch a colour off and its students are shared out again. Leave a name blank to hide it. (Group A works inside and Group B works outside; the wheel shows which colours are A and B.)</div>
         <div class="paste-box">
-          <textarea id="pasteNames" placeholder="Paste your class list here — one name per line, or separated by commas. Then click Fill groups. The names go in order: Red 1, Red 2, Orange 1, Orange 2 … six per group."></textarea>
+          <textarea id="pasteNames" placeholder="Paste your class list here — one name per line, or separated by commas. Then click Fill groups. The names are shared evenly across the colours that are on, in order: Red 1, Red 2, Orange 1, Orange 2 …"></textarea>
           <div class="paste-side">
             <button class="btn primary" id="pasteFill" style="font-size:1em;padding:.5em 1.2em">Fill groups</button>
             <button class="btn ghost" id="pasteShuffle">Shuffle, then fill</button>
             <div class="paste-note" id="pasteNote">You can also paste a list straight into any name box — it fills that group from there.</div>
+          <button class="btn ghost" id="pasteShare">Share out evenly</button>
+          <div class="paste-note" id="shareInfo"></div>
           </div>
         </div>
         <div class="cg-edit-grid" id="cgEdit"></div>
@@ -604,12 +604,12 @@ body.in-setup .setup{display:block;}
         S.colours=S.colours.map(function(c,i){
           var sc=saved.colours[i]||{};var out={key:c.key,name:sc.name||c.name,on:sc.on!==false,namesOn:sc.namesOn!==false,subs:[]};
           for(var k=0;k<2;k++){var ss=(sc.subs&&sc.subs[k])||{};var d=c.subs[k];
-            var names=(ss.names||d.names).slice(0,6);while(names.length<6)names.push('');
+            var names=(ss.names||d.names).slice();
             out.subs.push({label:ss.label!=null?ss.label:d.label,names:names});}
           return out;});
       }
       // the wheel's Groups third holds two colours, so the guide has two groups: A and B
-      function twoGroups(list,def){if(!list)return def;return list.slice(0,2).map(function(g,i){return {label:['A','B'][i],place:g.place||def[i].place,instr:g.instr||''};});}
+      function twoGroups(list,def){if(!list)return def;return list.slice(0,2).map(function(g,i){return {label:['A','B'][i],place:['inside','outside'][i],instr:g.instr||''};});}
       S.writingGroups=twoGroups(saved.writingGroups,S.writingGroups);
       S.readingGroups=twoGroups(saved.readingGroups,S.readingGroups);
       if(saved.traitIdx)S.traitIdx=saved.traitIdx;
@@ -720,7 +720,7 @@ body.in-setup .setup{display:block;}
     });
   }
   /* which activity a colour (by index 0–5) is on right now */
-  function activityForColour(i){var third=Math.floor(i/2);var a=WHEEL_ACTS[(((third-S.spins)%3)+3)%3];return a==='Groups'?'Groups '+(i%2?'B':'A'):a;}
+  function activityForColour(i){var third=Math.floor(i/2);var a=WHEEL_ACTS[(((third-S.spins)%3)+3)%3];return a==='Groups'?(i%2?'Groups B 🌳':'Groups A 🏠'):a;}
   /* colours sitting under the Groups third: first half is group A, second half is group B */
   function groupColours(){var k=S.spins;return [S.colours[(2+2*k)%6],S.colours[(3+2*k)%6]];}
   function spinWheel(){
@@ -744,14 +744,22 @@ body.in-setup .setup{display:block;}
   function sizeWheel(){
     var area=$('wheelArea'),row=$('bodyRow');
     if(!area||area.classList.contains('feat-hidden'))return;
-    var fs=parseFloat(getComputedStyle($('board')).fontSize)||16;
-    var rowH=row.clientHeight||0;
+    var bd=$('board'),cs=getComputedStyle(bd),fs=parseFloat(cs.fontSize)||16;
+    /* room for the row = board height minus everything else in the board (so a stale wheel size can't inflate it) */
+    var used=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom),visible=0;
+    Array.prototype.forEach.call(bd.children,function(ch){
+      if(ch.classList.contains('feat-hidden')||getComputedStyle(ch).display==='none')return;
+      visible++;if(ch!==row)used+=ch.offsetHeight;
+    });
+    used+=Math.max(0,visible-1)*parseFloat(cs.rowGap||cs.gap||0);
+    var rowH=Math.max(0,bd.clientHeight-used);
     var px=Math.max(6*fs,Math.min(rowH,window.innerWidth*0.42,38*fs));
     if(window.innerWidth<=900){area.style.width='';area.style.height='';return;}
     area.style.width=px+'px';area.style.height=px+'px';
   }
   window.addEventListener('resize',sizeWheel);
-  if(window.ResizeObserver){var ro=new ResizeObserver(sizeWheel);ro.observe($('board'));ro.observe($('cgSection'));}
+  if(window.ResizeObserver){var ro=new ResizeObserver(sizeWheel);ro.observe($('board'));
+    Array.prototype.forEach.call($('board').children,function(ch){if(ch.id!=='bodyRow')ro.observe(ch);});}
 
   /* ---------------- timer ---------------- */
   var DEFAULT_SECS=15*60;
@@ -787,10 +795,10 @@ body.in-setup .setup{display:block;}
       var lbl=el('span','group-label '+cls,g.label);
       var col=gc[gi];
       if(col&&col.on){var meta=colourMeta(col.key);lbl.style.background=meta.hex;lbl.style.color=meta.light?'#2a2410':'#fff';
-        lbl.textContent=g.label+' · '+(col.name||meta.name);lbl.title='Group '+g.label+' is the '+(col.name||meta.name)+' colour on the wheel';}
-      var p=placeById(g.place||'inside');
-      var tag=el('button','group-place '+p.id,p.icon+' '+p.name);tag.type='button';tag.title='Click to switch inside / outside';
-      tag.addEventListener('click',function(){g.place=(g.place==='outside')?'inside':'outside';saveState();renderGroups();});
+        lbl.title='Group '+g.label+' is '+(col.name||meta.name)+' on the wheel';}
+      g.place=gi===0?'inside':'outside';                // A works inside, B works outside
+      var p=placeById(g.place);
+      var tag=el('span','group-place '+p.id,p.icon+' '+p.name);tag.title='Group '+g.label+' works '+p.name.toLowerCase();
       var instr=el('span','group-instr',g.instr);instr.setAttribute('data-edit','');
       instr.contentEditable=document.body.classList.contains('locked')?'false':'true';
       instr.addEventListener('input',function(){g.instr=instr.textContent;saveState();});
@@ -874,8 +882,20 @@ body.in-setup .setup{display:block;}
   $('featAll').addEventListener('click',function(){FEATS.forEach(function(f){S.feats[f.id]=true;});saveState();renderFeatList();applyFeats();});
   $('featMin').addEventListener('click',function(){FEATS.forEach(function(f){S.feats[f.id]=(f.id==='wheel'||f.id==='colours'||f.id==='timer');});saveState();renderFeatList();applyFeats();});
 
+  /* every name on the board, in colour order — the class roster */
+  function currentRoster(){var r=[];S.colours.forEach(function(c){c.subs.forEach(function(sub){sub.names.forEach(function(n){if(n&&n.trim())r.push(n.trim());});});});return r;}
+  /* how many places each colour and each group gets when the class is shared across the colours that are on */
+  function shareSizes(total){
+    var onCount=S.colours.filter(function(c){return c.on;}).length||1;
+    var perColour=Math.max(1,Math.ceil(total/onCount));
+    var perSub=Math.max(1,Math.ceil(perColour/2));
+    return {onCount:onCount,perColour:perColour,perSub:perSub,split:perSub===perColour-perSub?(perSub+' in each group'):(perSub+' + '+(perColour-perSub)+' in the two groups')};
+  }
   function renderColourEditor(){
     var wrap=$('cgEdit');wrap.innerHTML='';
+    var perSub=shareSizes(currentRoster().length).perSub;
+    var info=$('shareInfo');if(info){var sz=shareSizes(currentRoster().length),n=currentRoster().length;
+      info.textContent=n?(n+' students · '+sz.onCount+' colour'+(sz.onCount===1?'':'s')+' on → '+sz.perColour+' per colour, '+sz.split):'No students yet';}
     S.colours.forEach(function(c,ci){
       var meta=colourMeta(c.key);
       var card=el('div','cge'+(meta.light?' light':'')+(c.on?'':' off'));card.style.setProperty('--c',meta.hex);
@@ -885,7 +905,8 @@ body.in-setup .setup{display:block;}
       head.appendChild(nameIn);
       var sw=el('label','switch');sw.title=c.on?'Shown on board':'Hidden on board';
       var inp=document.createElement('input');inp.type='checkbox';inp.checked=c.on;
-      inp.addEventListener('change',function(){c.on=inp.checked;card.classList.toggle('off',!c.on);sw.title=c.on?'Shown on board':'Hidden on board';saveState();renderColourBoard();});
+      inp.addEventListener('change',function(){c.on=inp.checked;var roster=currentRoster();
+        if(roster.length){fillAll(roster);}else{saveState();renderColourEditor();renderColourBoard();}});
       sw.appendChild(inp);sw.appendChild(el('span','track'));head.appendChild(sw);
       card.appendChild(head);
       c.subs.forEach(function(s,si){
@@ -897,9 +918,12 @@ body.in-setup .setup{display:block;}
         top.appendChild(lab);
         sub.appendChild(top);
         var ng=el('div','names-grid');
-        for(var k=0;k<6;k++){(function(k){
-          var ni=document.createElement('input');ni.value=s.names[k]||'';ni.placeholder='Student '+(k+1);ni.maxLength=24;
+        var filled=s.names.filter(function(n){return n&&n.trim();}).length;
+        var slots=Math.max(filled,perSub)+1;            // one spare box so another student can always be added
+        for(var k=0;k<slots;k++){(function(k){
+          var ni=document.createElement('input');ni.value=s.names[k]||'';ni.placeholder=k<perSub?'Student '+(k+1):'+ add';ni.maxLength=24;
           ni.addEventListener('input',function(){s.names[k]=ni.value;saveState();renderColourBoard();});
+          ni.addEventListener('change',function(){if(k===slots-1&&ni.value.trim()){renderColourEditor();}});
           ni.addEventListener('paste',function(e){
             var txt=(e.clipboardData||window.clipboardData).getData('text');
             var names=parseNames(txt);
@@ -908,7 +932,8 @@ body.in-setup .setup{display:block;}
             var subs=[];S.colours.forEach(function(c){c.subs.forEach(function(x){subs.push(x);});});
             var start=subs.indexOf(s),j=0;
             for(var gi=start;gi<subs.length&&j<names.length;gi++){
-              for(var kk=(gi===start?k:0);kk<6&&j<names.length;kk++){subs[gi].names[kk]=names[j++];}
+              var cap=Math.max(perSub,subs[gi].names.length);
+              for(var kk=(gi===start?k:0);kk<cap&&j<names.length;kk++){subs[gi].names[kk]=names[j++];}
             }
             saveState();renderColourEditor();renderColourBoard();
           });
@@ -922,7 +947,7 @@ body.in-setup .setup{display:block;}
   }
   $('cgClear').addEventListener('click',function(){
     if(!confirm('Clear every student name?'))return;
-    S.colours.forEach(function(c){c.subs.forEach(function(s){s.names=['','','','','',''];});});
+    S.colours.forEach(function(c){c.subs.forEach(function(s){s.names=[];});});
     saveState();renderColourEditor();renderColourBoard();
   });
   $('cgReset').addEventListener('click',function(){
@@ -935,15 +960,28 @@ body.in-setup .setup{display:block;}
     return String(text||'').split(/[\n\r,;\t]+/).map(function(n){return n.replace(/^[\s\-•*\d.)]+/,'').trim();}).filter(Boolean);
   }
   function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t;}return a;}
+  /* Share the class across the colours that are on: each colour gets ceil(total / colours on) places,
+     split between its two groups, filled in order. 22 students over 6 colours → 4 per colour (2 + 2), two places empty. */
   function fillAll(names){
-    var slots=[];S.colours.forEach(function(c){c.subs.forEach(function(sub){slots.push(sub);});});
-    var i=0;
-    slots.forEach(function(sub){sub.names=[];for(var k=0;k<6;k++){sub.names.push(names[i]||'');i++;}});
+    var sz=shareSizes(names.length),i=0;
+    S.colours.forEach(function(c){
+      if(!c.on){c.subs.forEach(function(sub){sub.names=[];});return;}
+      var chunk=names.slice(i,i+sz.perColour);i+=sz.perColour;
+      var cut=Math.min(sz.perSub,Math.ceil(chunk.length/2));   // a short last colour still splits across both groups
+      c.subs[0].names=chunk.slice(0,cut);
+      c.subs[1].names=chunk.slice(cut);
+    });
     saveState();renderColourEditor();renderColourBoard();
-    var note=$('pasteNote');var used=Math.min(names.length,72);
-    note.innerHTML='<b>'+used+'</b> name'+(used===1?'':'s')+' placed into '+Math.ceil(used/6)+' group'+(Math.ceil(used/6)===1?'':'s')+'.'+
-      (names.length>72?' <b>'+(names.length-72)+'</b> extra name'+(names.length-72===1?' was':'s were')+' left out — there are 72 places.':'');
+    var note=$('pasteNote'),n=names.length,empty=sz.onCount*sz.perColour-n;
+    note.innerHTML=n?('<b>'+n+'</b> students across <b>'+sz.onCount+'</b> colour'+(sz.onCount===1?'':'s')+': <b>'+sz.perColour+'</b> per colour, '+sz.split+
+      (empty>0?' — '+empty+' place'+(empty===1?'':'s')+' left empty.':'.')):'No students yet.';
   }
+  $('pasteShare').addEventListener('click',function(){
+    var roster=currentRoster();
+    if(!roster.length){$('pasteNote').innerHTML='<b>Nothing to share out</b> — add or paste some names first.';return;}
+    if(!confirm('Share the '+roster.length+' students evenly across the colours that are on?'))return;
+    fillAll(roster);
+  });
   $('pasteFill').addEventListener('click',function(){
     var names=parseNames($('pasteNames').value);
     if(!names.length){$('pasteNote').innerHTML='<b>Nothing to place</b> — paste some names first.';return;}
