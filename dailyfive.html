@@ -155,8 +155,12 @@ body:not(.locked) .check-del-btn:hover{color:var(--red);}
 .gtab.active-reading{background:#fff8e0;border-color:var(--gold);color:#7a5800;}
 .gtab.active-off{background:#f0efea;border-color:#aaa;color:#888;}
 .groups-body{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;}
-.group-row{display:flex;align-items:flex-start;gap:.45em;font-size:.95em;line-height:1.25;padding:.12em 0;border-bottom:1px solid #e8e0b0;}
-.group-row:last-child{border-bottom:none;}
+.group-task{font-weight:700;font-size:1em;line-height:1.3;color:var(--ink);padding:.1em 0 .3em;outline:none;border-radius:4px;}
+body:not(.locked) .group-task:hover{background:rgba(200,180,60,.12);}
+body:not(.locked) .group-task:focus{background:rgba(200,180,60,.18);box-shadow:inset 0 0 0 2px rgba(200,180,60,.5);}
+.group-places{display:flex;gap:.5em;flex-wrap:wrap;border-top:1px solid #e8e0b0;padding-top:.3em;}
+.group-place-cell{display:flex;align-items:center;gap:.3em;font-size:.95em;flex:1 1 0;min-width:0;}
+.group-colour{font-weight:700;font-size:.85em;color:var(--soft-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .group-label{font-weight:700;min-width:1.5em;color:#fff;border-radius:5px;white-space:nowrap;
   padding:.06em .45em;text-align:center;flex:0 0 auto;}
 .group-label.writing{background:var(--blue);}
@@ -534,7 +538,7 @@ body.in-setup .setup{display:block;}
     {id:'goals',       name:"This week's goals",      desc:'Essential and further goals'},
     {id:'wheel',       name:'Activity wheel',         desc:'Tap or press Enter to turn: Writing · Groups · Word Work'},
     {id:'priorities',  name:'Top priorities',         desc:'Editable checklist'},
-    {id:'instructions',name:'Group instructions',     desc:'Writing / Reading group steps A · B'},
+    {id:'instructions',name:'Group instructions',     desc:'One task; A works inside, B outside'},
     {id:'colours',     name:'Colour groups',          desc:'Six colours, one group of names each'},
     {id:'timer',       name:'Timer',                  desc:'Countdown with start, pause and ±1 min'}
   ];
@@ -569,14 +573,8 @@ body.in-setup .setup{display:block;}
     feats:defaultFeats(),
     colours:defaultColours(),
     groupMode:'writing',
-    writingGroups:[
-      {label:'A',place:'inside', instr:'Get your writing folder and join your group. Have a pencil and eraser.'},
-      {label:'B',place:'outside',instr:'Read over and double check recent work while waiting.'}
-    ],
-    readingGroups:[
-      {label:'A',place:'inside', instr:"Join your reading group. Discuss what you know or want to know about the topic and the author's possible purpose."},
-      {label:'B',place:'outside',instr:'Review the 3 pillars of fluency.'}
-    ],
+    writingTask:'Meet with your writing group and bring your book box, pencil and eraser.',
+    readingTask:'Meet with your reading group and bring your book box.',
     traitIdx:[0,1],
     checkItems:['Unfinished work','Reading Slips','Writing task'],
     spins:0
@@ -597,10 +595,11 @@ body.in-setup .setup{display:block;}
           return {key:c.key,name:sc.name||c.name,on:sc.on!==false,namesOn:sc.namesOn!==false,
                   names:names.filter(function(n){return n&&n.trim();})};});
       }
-      // the wheel's Groups third holds two colours, so the guide has two groups: A and B
-      function twoGroups(list,def){if(!list)return def;return list.slice(0,2).map(function(g,i){return {label:['A','B'][i],place:['inside','outside'][i],instr:g.instr||''};});}
-      S.writingGroups=twoGroups(saved.writingGroups,S.writingGroups);
-      S.readingGroups=twoGroups(saved.readingGroups,S.readingGroups);
+      // both groups do the same task; only the place differs. Carry over an edited line from the older versions.
+      if(typeof saved.writingTask==='string')S.writingTask=saved.writingTask;
+      else if(saved.writingGroups&&saved.writingGroups[0]&&saved.writingGroups[0].instr)S.writingTask=saved.writingGroups[0].instr;
+      if(typeof saved.readingTask==='string')S.readingTask=saved.readingTask;
+      else if(saved.readingGroups&&saved.readingGroups[0]&&saved.readingGroups[0].instr)S.readingTask=saved.readingGroups[0].instr;
       if(saved.traitIdx)S.traitIdx=saved.traitIdx;
       if(saved.checkItems)S.checkItems=saved.checkItems;
       if(saved.groupMode)S.groupMode=saved.groupMode;
@@ -775,24 +774,28 @@ body.in-setup .setup{display:block;}
     var body=$('groupsBody'),title=$('groupsPanelTitle');
     body.innerHTML='';
     if(S.groupMode==='off'){title.textContent='Groups';var msg=el('div','groups-off-msg');msg.innerHTML='&#128218; Teachers are conferencing with students — please work independently.';body.appendChild(msg);return;}
-    var groups=S.groupMode==='writing'?S.writingGroups:S.readingGroups;
-    var cls=S.groupMode==='writing'?'writing':'reading';
-    title.textContent=S.groupMode==='writing'?'Writing Groups':'Reading Groups';
-    var gc=groupColours();
-    groups.forEach(function(g,gi){
-      var row=el('div','group-row');
-      var lbl=el('span','group-label '+cls,g.label);
-      var col=gc[gi];
-      if(col&&col.on){var meta=colourMeta(col.key);lbl.style.background=meta.hex;lbl.style.color=meta.light?'#2a2410':'#fff';
-        lbl.title='Group '+g.label+' is '+(col.name||meta.name)+' on the wheel';}
-      g.place=gi===0?'inside':'outside';                // A works inside, B works outside
-      var p=placeById(g.place);
-      var tag=el('span','group-place '+p.id,p.icon+' '+p.name);tag.title='Group '+g.label+' works '+p.name.toLowerCase();
-      var instr=el('span','group-instr',g.instr);instr.setAttribute('data-edit','');
-      instr.contentEditable=document.body.classList.contains('locked')?'false':'true';
-      instr.addEventListener('input',function(){g.instr=instr.textContent;saveState();});
-      row.appendChild(lbl);row.appendChild(tag);row.appendChild(instr);body.appendChild(row);
+    var writing=S.groupMode==='writing',cls=writing?'writing':'reading';
+    title.textContent=writing?'Writing Groups':'Reading Groups';
+
+    /* both groups do the same task — only where they do it differs */
+    var task=el('div','group-task',writing?S.writingTask:S.readingTask);
+    task.setAttribute('data-edit','');
+    task.contentEditable=document.body.classList.contains('locked')?'false':'true';
+    task.addEventListener('input',function(){if(writing)S.writingTask=task.textContent;else S.readingTask=task.textContent;saveState();});
+    body.appendChild(task);
+
+    var gc=groupColours(),row=el('div','group-places');
+    [['A','inside'],['B','outside']].forEach(function(pair,gi){
+      var col=gc[gi],p=placeById(pair[1]);
+      var cell=el('div','group-place-cell');
+      var lbl=el('span','group-label '+cls,pair[0]);
+      if(col&&col.on){var meta=colourMeta(col.key);lbl.style.background=meta.hex;lbl.style.color=meta.light?'#2a2410':'#fff';}
+      cell.appendChild(lbl);
+      cell.appendChild(el('span','group-place '+p.id,p.icon+' '+p.name));
+      if(col&&col.on)cell.appendChild(el('span','group-colour',col.name||colourMeta(col.key).name));
+      row.appendChild(cell);
     });
+    body.appendChild(row);
   }
   function setGroupTab(m){
     S.groupMode=m;
