@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Time Travel World Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: chunky kid atlas — century chips on top, big scrollable map, a "same time everywhere" list, and a story card for the chosen city (side column on desktop, bottom sheet on phones). */
+:root{
+  --bg:#fff6e3; --fg:#2b2440; --muted:#6c6485; --card:#ffffff; --line:#eadcc0;
+  --ocean:#8fd0ee; --ocean-deep:#5fb3dc; --land:#f5d98f; --land-edge:#c99a3c;
+  --accent:#ff6a45; --accent-ink:#ffffff; --sun:#ffd54a; --pop:#5a5bd8;
+  --tag1:#ff6a45; --tag2:#2aa876; --tag3:#5a5bd8; --tag4:#e0477a; --tag5:#d98c1f; --tag6:#1d9bc9;
+  --font-display:"Fredoka","Nunito","Arial Rounded MT Bold",sans-serif;
+  --font-body:"Nunito","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#1a1730; --fg:#f6f1ff; --muted:#b7afd1; --card:#27224a; --line:#3e3866;
+  --ocean:#1f3d66; --ocean-deep:#16304f; --land:#8a7246; --land-edge:#c9a564;
+  --accent:#ff7a58; --accent-ink:#1a1730; --sun:#ffd54a; --pop:#9a9bff;
+  --tag1:#ff7a58; --tag2:#3fc48f; --tag3:#9a9bff; --tag4:#ff6fa0; --tag5:#f0a53a; --tag6:#4fc0ea;
+  color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#1a1730; --fg:#f6f1ff; --muted:#b7afd1; --card:#27224a; --line:#3e3866;
+  --ocean:#1f3d66; --ocean-deep:#16304f; --land:#8a7246; --land-edge:#c9a564;
+  --accent:#ff7a58; --accent-ink:#1a1730; --sun:#ffd54a; --pop:#9a9bff;
+  --tag1:#ff7a58; --tag2:#3fc48f; --tag3:#9a9bff; --tag4:#ff6fa0; --tag5:#f0a53a; --tag6:#4fc0ea;
+  color-scheme:dark }
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:1180px;margin:0 auto;padding-block:12px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.1}
+header.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-bottom:10px}
+header.top h1{font-size:clamp(26px,4vw,38px);font-weight:700}
+header.top h1 span{color:var(--accent)}
+header.top p{margin:0;color:var(--muted);font-weight:700}
+
+/* century chips */
+.centuries{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px;margin-inline:-4px;padding-inline:4px}
+.chiprow{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+.chiprow::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;font-family:var(--font-display);font-weight:600;font-size:17px;padding:8px 16px;border-radius:999px;border:3px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer;transition:transform .12s}
+.chip:hover{transform:translateY(-2px)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip:focus-visible,.pin:focus-visible,.citybtn:focus-visible,button:focus-visible{outline:3px solid var(--pop);outline-offset:2px}
+.hint{font-size:14px;color:var(--muted);font-weight:700;margin:6px 0 0}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:20px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* map */
+.mapcard{background:var(--card);border-radius:22px;border:3px solid var(--line);padding:10px;overflow:hidden}
+.mapscroll{overflow-x:auto;overflow-y:hidden;border-radius:14px;background:var(--ocean)}
+.mapscroll svg{display:block;min-width:720px;width:100%;height:auto}
+.scrollnote{display:none;font-size:13px;color:var(--muted);font-weight:700;margin:6px 4px 0}
+@media (max-width:760px){.scrollnote{display:block}}
+.land{fill:var(--land);stroke:var(--land-edge);stroke-width:2;stroke-linejoin:round}
+.pin{cursor:pointer}
+.pin circle.dot{fill:var(--accent);stroke:#fff;stroke-width:3}
+.pin circle.ring{fill:none;stroke:var(--accent);stroke-width:3;opacity:0}
+.pin.on circle.ring{opacity:1;animation:pulse 1.4s ease-out infinite}
+@keyframes pulse{0%{r:9;opacity:.9}100%{r:22;opacity:0}}
+.pin rect{fill:var(--card);stroke:var(--line);stroke-width:2}
+.pin.on rect{fill:var(--accent);stroke:var(--accent)}
+.pin text{font-family:var(--font-display);font-weight:600;font-size:15px;fill:var(--fg);pointer-events:none}
+.pin.on text{fill:var(--accent-ink)}
+.pin line{stroke:var(--fg);stroke-width:1.5;opacity:.5}
+@media (prefers-reduced-motion:reduce){.pin.on circle.ring{animation:none;opacity:.6}.chip:hover{transform:none}}
+
+.citybtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.citybtn{font-family:var(--font-display);font-weight:600;font-size:15px;padding:6px 12px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+.citybtn[aria-pressed="true"]{background:var(--pop);border-color:var(--pop);color:#fff}
+
+/* everywhere list */
+.everywhere{margin-top:18px}
+.everywhere h2{font-size:22px;margin-bottom:8px}
+.everywhere h2 b{color:var(--accent)}
+.evlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;list-style:none;margin:0;padding:0}
+.evlist li{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;min-width:0}
+.evlist li:hover{border-color:var(--accent)}
+.evlist li strong{font-family:var(--font-display);font-weight:600;font-size:17px;display:block}
+.evlist li span{font-size:14px;color:var(--muted);font-weight:700}
+
+/* story panel */
+.panel{background:var(--card);border-radius:22px;border:3px solid var(--line);padding:14px;position:sticky;top:76px;max-height:calc(100vh - 90px);overflow-y:auto}
+.panel .empty{color:var(--muted);font-weight:700;text-align:center;padding:30px 10px}
+.panel .empty svg{width:120px;height:auto;display:block;margin:0 auto 8px}
+.ptop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.ptop h2{font-size:26px}
+.ptop .when{font-family:var(--font-display);font-weight:600;color:var(--accent);font-size:18px}
+.close{display:none;border:0;background:var(--line);color:var(--fg);width:38px;height:38px;border-radius:50%;font-size:22px;cursor:pointer;font-weight:800}
+.scene{display:block;width:100%;max-width:100%;height:auto;border-radius:16px;margin:10px 0;border:3px solid var(--line)}
+.headline{font-size:18px;font-weight:800;margin:0 0 6px}
+.navrow{display:flex;gap:8px;margin:8px 0 12px}
+.navrow button{flex:1;font-family:var(--font-display);font-weight:600;font-size:15px;padding:8px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.navrow button:disabled{opacity:.4;cursor:default}
+.sec{margin-top:14px}
+.sec h3{display:inline-block;font-size:15px;font-weight:600;padding:3px 10px;border-radius:999px;color:#fff;letter-spacing:.02em;margin-bottom:6px}
+.sec ul{margin:0;padding-left:20px}
+.sec li{margin:3px 0}
+.tl{list-style:none;padding:0;margin:0;border-left:4px solid var(--line);margin-left:6px}
+.tl li{position:relative;padding-left:16px;margin:0 0 8px}
+.tl li::before{content:"";position:absolute;left:-10px;top:7px;width:12px;height:12px;border-radius:50%;background:var(--accent);border:3px solid var(--card)}
+.tl b{font-family:var(--font-display);font-weight:600;font-variant-numeric:tabular-nums;color:var(--pop);margin-right:6px}
+.t1 h3{background:var(--tag1)}.t2 h3{background:var(--tag2)}.t3 h3{background:var(--tag3)}.t4 h3{background:var(--tag4)}.t5 h3{background:var(--tag5)}.t6 h3{background:var(--tag6)}
+.secret{background:var(--bg);border:2px dashed var(--tag5);border-radius:14px;padding:10px 12px}
+
+@media (max-width:860px){
+  .panel{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:85vh;border-radius:22px 22px 0 0;z-index:20;transform:translateY(110%);transition:transform .25s ease;padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.25)}
+  .panel.open{transform:none}
+  .panel .empty{display:none}
+  .close{display:inline-block}
+  @media (prefers-reduced-motion:reduce){.panel{transition:none}}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Time Travel <span>World Map</span></h1>
+    <p>Pick a century. Tap a city. See what was happening!</p>
+  </header>
+
+  <div class="centuries">
+    <div class="chiprow" id="chips" role="group" aria-label="Choose a century"></div>
+    <p class="hint" id="hint">You are looking at the 1500s. Tap a city on the map.</p>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="mapcard">
+        <div class="mapscroll">
+          <svg id="map" viewBox="0 30 1000 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="World map with cities to tap">
+            <defs><pattern id="waves" width="40" height="20" patternUnits="userSpaceOnUse"><path d="M0 10 q10 -6 20 0 t20 0" fill="none" stroke="var(--ocean-deep)" stroke-width="2" opacity=".5"/></pattern></defs>
+            <rect x="0" y="0" width="1000" height="500" fill="var(--ocean)"/>
+            <rect x="0" y="0" width="1000" height="500" fill="url(#waves)"/>
+            <g id="land"></g>
+            <g id="pins"></g>
+          </svg>
+        </div>
+        <p class="scrollnote">Slide the map sideways to see every city.</p>
+        <div class="citybtns" id="citybtns"></div>
+      </div>
+
+      <section class="everywhere">
+        <h2>Meanwhile, in the <b id="evcent">1500s</b>…</h2>
+        <ul class="evlist" id="evlist"></ul>
+      </section>
+    </div>
+
+    <aside class="panel" id="panel" aria-live="polite">
+      <div class="empty">
+        <svg viewBox="0 0 120 90" aria-hidden="true"><circle cx="60" cy="45" r="36" fill="var(--ocean)"/><path d="M38 30 q14 -14 30 -4 q10 8 -2 18 q-14 8 -24 0 q-10 -6 -4 -14z" fill="var(--land)"/><path d="M62 58 q12 -6 20 2 q4 8 -8 12 q-12 2 -12 -14z" fill="var(--land)"/><circle cx="92" cy="22" r="8" fill="var(--sun)"/></svg>
+        Tap a city on the map to open its story.
+      </div>
+      <div id="story" hidden></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+window.TIME_CITIES = window.TIME_CITIES || [];
+window.TIME_CITIES.push(
+{ id:'sf', name:'San Francisco', x:160, y:145, lx:-10, ly:-28, eras:{
+ 1500:{ name:'Ohlone villages', headline:'No city yet! Ohlone families fish, gather acorns and paddle reed boats on the bay.',
+  pic:{sky:'day',ground:'water',items:['hut','person','dhow']},
+  timeline:[[1500,'Ohlone villages sit all around the big foggy bay.'],[1542,'Spanish ships led by Cabrillo sail up the coast but miss the bay.'],[1579,'Sea captain Francis Drake lands on a beach nearby to fix his ship.']],
+  players:['Ohlone families, who have lived here for thousands of years.','Juan Rodríguez Cabrillo, a sailor who sailed right past.','Francis Drake, an English captain who stopped for repairs.'],
+  inventions:['Boats made from bundles of tule reeds that float like rafts.','Acorn flour: acorns are ground up and washed to make tasty mush.'],
+  events:['Cabrillo’s ships explore the California coast (1542).','Drake’s ship stops near the bay (1579).'],
+  trouble:['Thick fog hides the bay from sailors for a very long time.','Grizzly bears wander the hills, so people are careful!'],
+  culture:['Beautiful baskets woven so tightly they can hold water.','Shell beads are used like money.','Songs and dances at big feasts.'],
+  secret:'The fog hid the Golden Gate so well that ships sailed past it for more than 200 years without noticing the huge bay inside.' },
+ 1600:{ name:'Still Ohlone land', headline:'The bay stays a secret. Ohlone people keep living their quiet life by the water.',
+  pic:{sky:'dawn',ground:'grass',items:['tree','hut','kid']},
+  timeline:[[1602,'Explorer Sebastián Vizcaíno maps the coast and names Monterey, but still misses the bay.'],[1650,'Villages, fishing and acorn harvests carry on as before.']],
+  players:['Ohlone elders who know every trail and fishing spot.','Sebastián Vizcaíno, a Spanish map-maker.'],
+  inventions:['Watertight baskets for cooking with hot stones.','Clamshell beads carefully drilled and polished.'],
+  events:['Vizcaíno’s ships visit the coast (1602).','Big autumn acorn gatherings every year.'],
+  trouble:['Not much! Mostly grizzly bears and foggy mornings.'],
+  culture:['Storytelling around the fire.','Games played with sticks and small bones.'],
+  secret:'Grizzly bears roamed right where the city streets are today. The bear is now on the California flag.' },
+ 1700:{ name:'Spanish mission', headline:'Europeans finally find the bay! Spanish soldiers and priests build a mission and a fort.',
+  pic:{sky:'day',ground:'grass',items:['church','horse','person']},
+  timeline:[[1769,'Portolá’s expedition climbs a hill and sees the bay by surprise.'],[1776,'Mission Dolores and the Presidio fort are built.'],[1790,'A small village grows around the mission.']],
+  players:['Gaspar de Portolá, the explorer who found the bay.','Juan Bautista de Anza, who led families here on foot.','Ohlone people, whose lives changed a lot.'],
+  inventions:['Adobe bricks made from mud and straw, dried in the sun.','Cattle ranches with cowboys called vaqueros.'],
+  events:['Europeans see the bay for the first time (1769).','Mission and fort are founded (1776).'],
+  trouble:['New sicknesses brought by the newcomers made many Ohlone people very ill.','Life at the mission was hard for native families.'],
+  culture:['Mission bells ring across the hills.','Spanish songs and guitar music.'],
+  secret:'Mission Dolores is the oldest building in San Francisco, and it is still standing today.' },
+ 1800:{ name:'Gold Rush city', headline:'GOLD! A tiny village explodes into a busy city almost overnight.',
+  pic:{sky:'day',ground:'sand',items:['tent','person','sparkle','ship']},
+  timeline:[[1835,'A little village called Yerba Buena starts near the water.'],[1848,'Gold is found in the hills. Everyone rushes in!'],[1850,'California becomes a US state.'],[1873,'The first cable cars climb the steep hills.']],
+  players:['Levi Strauss, who sold tough blue jeans to miners.','Andrew Hallidie, who invented the cable car.','Emperor Norton, a friendly man who declared himself emperor.'],
+  inventions:['Blue jeans with metal rivets (1873).','Cable cars pulled by a moving cable under the street.','Sourdough bread with a special tangy taste.'],
+  events:['The Gold Rush (1849) brings 100,000 people.','The railroad links the city to the rest of America (1869).'],
+  trouble:['Big fires burned the wooden town several times.','So many people arrived that they lived in tents.'],
+  culture:['Chinatown grows into a lively neighbourhood.','Sailors and miners from every corner of the world.'],
+  secret:'Hundreds of ships were left to rot in the harbour. Many are still buried under downtown buildings today!' },
+ 1900:{ name:'Bridges & big ideas', headline:'An earthquake knocks the city down, and it bounces back with a famous orange bridge.',
+  pic:{sky:'dawn',ground:'water',items:['bridge','cablecar']},
+  timeline:[[1906,'A huge earthquake and fire destroy most of the city.'],[1927,'The first electronic TV picture is sent in a lab here.'],[1937,'The Golden Gate Bridge opens.'],[1945,'Countries meet here to start the United Nations.'],[1967,'The Summer of Love fills the streets with music and flowers.']],
+  players:['Joseph Strauss, chief engineer of the Golden Gate Bridge.','Philo Farnsworth, the young inventor of electronic TV.','Harvey Milk, a leader who stood up for fairness.'],
+  inventions:['The Golden Gate Bridge, painted a colour called International Orange.','Electronic television.','Personal computers built nearby in Silicon Valley.'],
+  events:['The 1906 earthquake.','The United Nations charter is signed (1945).'],
+  trouble:['Earthquakes in 1906 and 1989 shook the city hard.','Fog and cold summer winds!'],
+  culture:['Jazz clubs, poets and hippies.','Baseball and sourdough bread.'],
+  secret:'The Golden Gate Bridge is never finished being painted. Painters work on it all year round.' },
+ 2000:{ name:'Tech city', headline:'Phones, apps and robot cars: the city becomes the world’s tech playground.',
+  pic:{sky:'orange',ground:'water',items:['skyscraper','bridge','car']},
+  timeline:[[2007,'Smartphones and apps are dreamed up nearby.'],[2013,'A new Bay Bridge span opens.'],[2018,'Salesforce Tower becomes the tallest building in town.'],[2023,'Driverless taxis start carrying passengers.']],
+  players:['Software makers and inventors in Silicon Valley.','Firefighters who battle wildfire smoke.','Baseball stars of the Giants, who won three World Series.'],
+  inventions:['Ride-share apps.','Robot taxis with no driver.','Apps for almost everything.'],
+  events:['The Giants win the World Series (2010, 2012, 2014).','Salesforce Tower opens (2018).'],
+  trouble:['Houses became very expensive.','In 2020 wildfire smoke turned the sky orange.'],
+  culture:['Food trucks, the Pride parade, foggy beach days.','Cable cars still clang up the hills.'],
+  secret:'On 9 September 2020 the sky stayed dark orange all day because of smoke from faraway wildfires. Street lights came on at noon.' }
+}},
+{ id:'ny', name:'New York', x:294, y:137, lx:30, ly:28, eras:{
+ 1500:{ name:'Lenape island', headline:'Manhattan is an island of hills and streams where Lenape families live.',
+  pic:{sky:'day',ground:'grass',items:['hut','tree','dhow']},
+  timeline:[[1500,'Lenape people hunt, fish and farm on the island they call Manna-hata.'],[1524,'Explorer Giovanni da Verrazzano sails into the harbour and says hello.']],
+  players:['Lenape families and leaders.','Giovanni da Verrazzano, an Italian captain sailing for France.'],
+  inventions:['Dugout canoes carved from single tree trunks.','Wampum: beads made from shells, used for messages and trade.'],
+  events:['Verrazzano’s ship enters the harbour (1524).','Spring fish runs bring everyone to the rivers.'],
+  trouble:['Cold winters and hungry early springs.'],
+  culture:['Stories told in longhouses.','Corn, beans and squash grown together as the “three sisters.”'],
+  secret:'Broadway follows an old Lenape walking trail, which is why it bends while other streets stay straight.' },
+ 1600:{ name:'New Amsterdam', headline:'Dutch settlers build a little town with windmills and a wooden wall.',
+  pic:{sky:'day',ground:'water',items:['windmill','hut','ship']},
+  timeline:[[1609,'Henry Hudson sails up the river that now has his name.'],[1624,'Dutch families start the town of New Amsterdam.'],[1653,'A wooden wall is built across the island.'],[1664,'English ships arrive and rename it New York.']],
+  players:['Henry Hudson, the explorer.','Peter Stuyvesant, the strict Dutch governor with a wooden leg.'],
+  inventions:['Windmills to grind grain.','Canals, just like in Holland.'],
+  events:['New Amsterdam founded (1624).','The English take over (1664).'],
+  trouble:['Arguments and fights with the Lenape.','English warships in the harbour.'],
+  culture:['Dutch treats: cookies, waffles and doughnuts.','Words like “cookie” and “boss” come from Dutch.'],
+  secret:'Wall Street is named after a real wooden wall the Dutch built to protect the town.' },
+ 1700:{ name:'Revolution town', headline:'The city fights for freedom and becomes the first capital of the USA.',
+  pic:{sky:'dawn',ground:'water',items:['church','ship','person']},
+  timeline:[[1754,'King’s College (now Columbia University) opens.'],[1776,'The Declaration of Independence is read aloud to the troops.'],[1783,'The last British soldiers sail away.'],[1789,'George Washington becomes president right here.']],
+  players:['George Washington.','Alexander Hamilton, who started a bank and helped build the new country.'],
+  inventions:['The first New York bank (1784).','A stock market started under a buttonwood tree (1792).'],
+  events:['Washington’s inauguration (1789).','New York is the US capital for one year.'],
+  trouble:['A big fire during the war (1776).','British soldiers lived in the city for seven years.'],
+  culture:['Taverns full of news and songs.','Horse carts on cobbled streets.'],
+  secret:'New York was the very first capital of the United States, before Philadelphia and Washington.' },
+ 1800:{ name:'Gateway city', headline:'Ships of newcomers, a giant green statue and a bridge that amazes the world.',
+  pic:{sky:'day',ground:'water',items:['steamship','bridge','person']},
+  timeline:[[1811,'The city is planned as a neat grid of streets.'],[1858,'Central Park starts to grow.'],[1883,'The Brooklyn Bridge opens.'],[1886,'The Statue of Liberty arrives from France.'],[1892,'Ellis Island welcomes newcomers.']],
+  players:['Emily Roebling, who helped finish the Brooklyn Bridge.','Thomas Edison, who lit the first electric street in 1882.','Emma Lazarus, who wrote the poem on the statue.'],
+  inventions:['Safe elevators that can’t fall (1854).','Electric street lights.','Hot dogs sold at Coney Island.'],
+  events:['Brooklyn Bridge opens (1883).','Five boroughs join into one city (1898).'],
+  trouble:['A great fire (1835) and a giant blizzard (1888).','Crowded apartments for new arrivals.'],
+  culture:['Newspapers shouted by newsboys.','Ice skating in Central Park.'],
+  secret:'The Statue of Liberty was shiny brown when she arrived. Rain slowly turned her copper skin green.' },
+ 1900:{ name:'Skyscraper city', headline:'Towers race into the sky, subways rumble below, and music fills the streets.',
+  pic:{sky:'night',ground:'stone',items:['skyscraper','tallest','skyscraper']},
+  timeline:[[1904,'The subway opens.'],[1931,'The Empire State Building becomes the tallest in the world.'],[1947,'Jackie Robinson plays for Brooklyn and changes baseball.'],[1952,'The United Nations moves into its glass tower.'],[1973,'Hip-hop is born at a Bronx party.']],
+  players:['Babe Ruth, the baseball hero.','Jackie Robinson.','Shirley Chisholm, the first Black woman in Congress.'],
+  inventions:['Skyscrapers.','The teddy bear, first made in Brooklyn (1902).','The subway.'],
+  events:['The Empire State Building opens (1931).','The World’s Fair (1939).'],
+  trouble:['The stock market crash (1929) left many people poor.','A city-wide blackout (1977).'],
+  culture:['Broadway musicals.','Bagels, pizza and hot dogs.','Hip-hop and jazz.'],
+  secret:'The teddy bear was invented in Brooklyn in 1902 and named after President Teddy Roosevelt.' },
+ 2000:{ name:'The city that rebuilds', headline:'After a very sad day, New Yorkers rebuild, plant a park on old train tracks and keep going.',
+  pic:{sky:'day',ground:'stone',items:['tallest','tree','car']},
+  timeline:[[2001,'An attack destroys the Twin Towers. The city grieves and helps each other.'],[2009,'The High Line park opens on an old railway in the sky.'],[2012,'Hurricane Sandy floods the subway.'],[2014,'One World Trade Center opens.'],[2015,'The musical Hamilton opens on Broadway.']],
+  players:['Firefighters and helpers of 2001.','Lin-Manuel Miranda, who wrote Hamilton.','Michael Bloomberg, mayor for twelve years.'],
+  inventions:['A park built on old elevated train tracks.','Bike-share stations on every corner.'],
+  events:['One World Trade Center opens (2014).','The Mets and Yankees pack the stadiums every summer.'],
+  trouble:['The attacks of 2001.','Hurricane Sandy (2012) and the pandemic (2020).'],
+  culture:['Food from every country on Earth.','The giant New Year’s Eve ball drop in Times Square.'],
+  secret:'About 800 different languages are spoken in New York, more than any other city in the world.' }
+}},
+{ id:'london', name:'London', x:500, y:107, lx:-48, ly:-30, eras:{
+ 1500:{ name:'Tudor London', headline:'King Henry VIII, Queen Elizabeth I and a young writer called Shakespeare.',
+  pic:{sky:'day',ground:'water',items:['castle','ship','person']},
+  timeline:[[1509,'Henry VIII becomes king.'],[1558,'Elizabeth I becomes queen.'],[1588,'The Spanish Armada is beaten at sea.'],[1599,'Shakespeare’s Globe theatre opens.']],
+  players:['Henry VIII, the king with six wives.','Elizabeth I, the clever queen.','William Shakespeare, the famous playwright.'],
+  inventions:['The flush toilet, invented by John Harington (1596).','Printed books sold near St Paul’s.'],
+  events:['The Armada defeat (1588).','Plays at the Globe (1599).'],
+  trouble:['Plague sickness came back many summers.','Fear of invasion by Spain.'],
+  culture:['Plays, music and street markets.','Fairs on the frozen Thames in cold winters.'],
+  secret:'Old London Bridge had houses and shops built right on top of it, so it looked like a street over the river.' },
+ 1600:{ name:'Plague & fire', headline:'A terrible fire burns the city, and a brilliant architect rebuilds it with a great dome.',
+  pic:{sky:'smoky',ground:'stone',items:['dome','coffee','person']},
+  timeline:[[1605,'Guy Fawkes’ gunpowder plot is stopped.'],[1652,'The first coffee house opens.'],[1665,'The Great Plague.'],[1666,'The Great Fire of London.'],[1675,'St Paul’s Cathedral begins to rise again.']],
+  players:['Christopher Wren, the architect.','Samuel Pepys, who wrote a famous diary.','Isaac Newton, who worked out gravity.'],
+  inventions:['Coffee houses where people shared news.','Fire insurance and fire brigades.','The Royal Observatory at Greenwich (1675).'],
+  events:['The Great Fire (1666).','St Paul’s rebuilt with its huge dome.'],
+  trouble:['The plague (1665).','The Great Fire burned 13,000 houses.'],
+  culture:['Punch and Judy puppet shows (1662).','Diaries, pamphlets and gossip.'],
+  secret:'During the Great Fire, Samuel Pepys buried his cheese and wine in the garden to keep them safe.' },
+ 1700:{ name:'Georgian London', headline:'Dictionaries, museums and a sea clock that helps ships find their way.',
+  pic:{sky:'day',ground:'stone',items:['museum','book','horse']},
+  timeline:[[1750,'Westminster Bridge opens.'],[1755,'Samuel Johnson finishes his big dictionary.'],[1759,'The British Museum opens for free.'],[1796,'Edward Jenner tests the first vaccine.']],
+  players:['Samuel Johnson, the dictionary maker.','Handel, the composer.','Captain Cook, the explorer.'],
+  inventions:['A dictionary of English words.','John Harrison’s sea clock for finding your way at sea.','The smallpox vaccine.'],
+  events:['The British Museum opens (1759).','Handel’s Messiah is performed.'],
+  trouble:['Smoky air and muddy streets.','Lots of pickpockets!'],
+  culture:['Tea parties and pleasure gardens with fireworks.','Street sellers singing out their goods.'],
+  secret:'The British Museum was one of the first museums in the world that let anyone in for free.' },
+ 1800:{ name:'Victorian London', headline:'Steam, smog, sewers and the biggest city on Earth.',
+  pic:{sky:'smoky',ground:'stone',items:['bigben','train','factory']},
+  timeline:[[1829,'The first police officers walk the streets.'],[1840,'The first postage stamp, the Penny Black.'],[1851,'The Great Exhibition in a giant glass palace.'],[1859,'Big Ben rings for the first time.'],[1863,'The world’s first underground railway.']],
+  players:['Queen Victoria.','Charles Dickens, the storyteller.','Ada Lovelace, the first computer programmer.'],
+  inventions:['The Underground (Tube).','Postage stamps.','Sewers that made the river clean again.'],
+  events:['The Great Exhibition (1851).','Football rules written down (1863).'],
+  trouble:['The Great Stink of 1858, when the river smelled terrible.','Thick yellow fog called “pea-soupers.”'],
+  culture:['The first Christmas cards.','Dickens’ stories read aloud by gaslight.'],
+  secret:'Big Ben is actually the name of the giant bell, not the tower. The tower is called the Elizabeth Tower.' },
+ 1900:{ name:'Blitz & Beatles', headline:'The city survives bombing, then crowns a queen, wins a World Cup and rocks to the Beatles.',
+  pic:{sky:'night',ground:'stone',items:['bigben','car','plane']},
+  timeline:[[1936,'The first regular TV broadcasts start.'],[1940,'The Blitz: bombs fall on the city.'],[1953,'Queen Elizabeth II is crowned.'],[1966,'England wins the football World Cup at Wembley.'],[1989,'Londoner Tim Berners-Lee invents the World Wide Web.']],
+  players:['Winston Churchill.','Queen Elizabeth II.','Tim Berners-Lee, inventor of the web.'],
+  inventions:['Television broadcasts.','The famous Tube map (1933).','The World Wide Web.'],
+  events:['The Coronation (1953).','The 1966 World Cup.'],
+  trouble:['The Blitz (1940–41).','The Great Smog of 1952.'],
+  culture:['The Beatles and punk rock.','Paddington Bear (1958).','Wimbledon tennis.'],
+  secret:'During the Blitz, thousands of people slept in Tube stations every night to stay safe.' },
+ 2000:{ name:'Olympic London', headline:'The Olympics come to town, a new king is crowned and trains run under the whole city.',
+  pic:{sky:'day',ground:'water',items:['bigben','tallest','ship']},
+  timeline:[[2003,'The Oyster card lets you tap to ride.'],[2012,'London hosts the Olympics and Paralympics.'],[2012,'The Shard becomes the tallest building.'],[2022,'The Elizabeth line opens.'],[2023,'King Charles III is crowned.']],
+  players:['Mo Farah, the running champion.','Sadiq Khan, the mayor.','King Charles III.'],
+  inventions:['Tap-to-pay travel cards.','The Elizabeth line, a super-fast railway.'],
+  events:['The 2012 Olympics.','The Coronation of King Charles (2023).'],
+  trouble:['The pandemic (2020).','Floods from heavy rain.'],
+  culture:['Notting Hill Carnival.','Sandwiches and curry, fish and chips.'],
+  secret:'Ravens live at the Tower of London. An old legend says the kingdom will fall if they ever fly away, so they are looked after very carefully.' }
+}},
+{ id:'paris', name:'Paris', x:507, y:114, lx:40, ly:26, eras:{
+ 1500:{ name:'Renaissance Paris', headline:'Kings build palaces, the Mona Lisa arrives, and ballet is invented at court.',
+  pic:{sky:'day',ground:'water',items:['castle','horse','ship']},
+  timeline:[[1515,'Francis I becomes king and loves art.'],[1519,'Leonardo da Vinci dies in France, leaving the Mona Lisa behind.'],[1546,'The Louvre starts turning into a grand palace.'],[1578,'Work begins on the Pont Neuf bridge.'],[1581,'The first ballet is danced at court.']],
+  players:['Francis I, the art-loving king.','Catherine de’ Medici, the queen who brought forks to the table.','Leonardo da Vinci.'],
+  inventions:['Eating with forks (very new and strange!).','Ballet.'],
+  events:['The Louvre becomes a palace (1546).','Pont Neuf is started (1578).'],
+  trouble:['Fierce fighting between religious groups (1572).','Muddy, crowded streets.'],
+  culture:['Court feasts with dancing.','Poets and painters at the palace.'],
+  secret:'The Mona Lisa came to France with Leonardo da Vinci himself. That is why the famous painting lives in Paris.' },
+ 1600:{ name:'Sun King’s city', headline:'Louis XIV, the Sun King, lights the streets and starts the first bus service.',
+  pic:{sky:'night',ground:'stone',items:['castle','lantern','horse']},
+  timeline:[[1612,'A beautiful new square, now Place des Vosges, opens.'],[1643,'Louis XIV becomes king at age four.'],[1662,'The first horse-drawn buses start running.'],[1667,'Street lanterns light up the city.'],[1682,'The king moves his court to Versailles.']],
+  players:['Louis XIV, the Sun King.','Molière, who wrote funny plays.','Cardinal Richelieu, the powerful advisor.'],
+  inventions:['Street lamps.','Public buses pulled by horses.','Fountains and gardens at Versailles.'],
+  events:['Court moves to Versailles (1682).','Molière’s comedies make everyone laugh.'],
+  trouble:['Riots in the streets when the king was little (the Fronde).','Plague years.'],
+  culture:['Giant wigs and fancy shoes.','Ballet and opera.'],
+  secret:'The scientist Blaise Pascal started a bus service in 1662, 200 years before most cities had one.' },
+ 1700:{ name:'Balloons & revolution', headline:'The first balloon rides and a revolution that changes the world.',
+  pic:{sky:'dawn',ground:'grass',items:['castle','person','balloon']},
+  timeline:[[1765,'The first restaurant opens.'],[1783,'The Montgolfier brothers’ hot-air balloon flies over Paris.'],[1789,'The people storm the Bastille prison.'],[1795,'The metric system is invented.']],
+  players:['Voltaire, the writer.','Marie Antoinette, the queen.','The Montgolfier brothers, balloon inventors.'],
+  inventions:['Hot-air balloons.','The metric system (metres and kilograms).','Restaurants!'],
+  events:['The first balloon flight (1783).','The French Revolution (1789).'],
+  trouble:['Bread was expensive and people were hungry.','Years of revolution and fear.'],
+  culture:['Cafés where thinkers argued about ideas.','The Encyclopédie, a giant book of everything.'],
+  secret:'The first ever balloon passengers were a sheep, a duck and a rooster. They all landed safely.' },
+ 1800:{ name:'City of light', headline:'Wide boulevards, the Eiffel Tower, the first movies and painters who loved sunlight.',
+  pic:{sky:'day',ground:'stone',items:['eiffel','balloon']},
+  timeline:[[1836,'The Arc de Triomphe is finished.'],[1839,'Daguerre shows the world photography.'],[1853,'Haussmann starts building wide boulevards.'],[1889,'The Eiffel Tower opens.'],[1895,'The Lumière brothers show the first movies.']],
+  players:['Napoleon, the emperor.','Victor Hugo, who wrote Les Misérables.','Louis Pasteur, who made milk safe.','Marie Curie, who came to study science.'],
+  inventions:['Photography.','Cinema.','Pasteurised milk.','The Eiffel Tower.'],
+  events:['Eiffel Tower opens for the World’s Fair (1889).','The Metro opens (1900).'],
+  trouble:['The city was surrounded by an army in 1870.','Sickness spread in crowded old streets.'],
+  culture:['Impressionist painters like Monet.','Can-can dancers and cafés.'],
+  secret:'The Eiffel Tower was supposed to be taken down after 20 years. It was saved because it made a great radio antenna.' },
+ 1900:{ name:'Fashion & freedom', headline:'Floods, fashion, jazz and a glass pyramid in front of a palace.',
+  pic:{sky:'day',ground:'water',items:['eiffel','car','ship']},
+  timeline:[[1910,'The river floods and people row boats down the streets.'],[1924,'Paris hosts the Olympics.'],[1944,'Paris is freed at the end of World War II.'],[1977,'The colourful Pompidou Centre opens.'],[1989,'A glass pyramid is built at the Louvre.']],
+  players:['Marie Curie, who won two Nobel Prizes.','Coco Chanel, the fashion designer.','Charles de Gaulle, the general.'],
+  inventions:['The little black dress.','The TGV, a very fast train (1981).','New discoveries about atoms.'],
+  events:['The Olympics (1924).','The Liberation (1944).'],
+  trouble:['The great flood (1910).','Four hard years of occupation in World War II.'],
+  culture:['Jazz clubs and Josephine Baker.','Asterix comics (1959).'],
+  secret:'In the 1910 flood the water was so high that people took boats to work and a giant clock on the river was used to measure it.' },
+ 2000:{ name:'Green Paris', headline:'Bike lanes, beaches by the river, a rescued cathedral and Olympic boats on the Seine.',
+  pic:{sky:'dawn',ground:'water',items:['eiffel','church','ship']},
+  timeline:[[2007,'Vélib’ shared bikes appear on every street.'],[2015,'Countries meet in Paris to agree to protect the climate.'],[2019,'Notre-Dame cathedral catches fire.'],[2024,'The Olympics open with boats floating down the river.'],[2024,'Notre-Dame reopens, rebuilt by hand.']],
+  players:['Anne Hidalgo, the mayor who loves bikes.','Thomas Pesquet, the French astronaut.','The carpenters and builders who fixed Notre-Dame.'],
+  inventions:['City-wide bike sharing.','Car-free days.','Summer beaches on the riverbank.'],
+  events:['The Paris Climate Agreement (2015).','The 2024 Olympics.'],
+  trouble:['The Notre-Dame fire (2019).','The pandemic (2020).'],
+  culture:['Picnics by the Seine.','Croissants, crêpes and the smell of fresh bread.'],
+  secret:'Every summer, sand is poured along the river so Parisians can build sandcastles in the middle of the city.' }
+}}
+);
+
+window.TIME_CITIES = window.TIME_CITIES || [];
+window.TIME_CITIES.push(
+{ id:'cairo', name:'Cairo', x:587, y:167, lx:-20, ly:30, eras:{
+ 1500:{ name:'Ottoman Cairo', headline:'A new empire takes over, and a strange new drink called coffee arrives.',
+  pic:{sky:'day',ground:'sand',items:['pyramid','mosque','camel']},
+  timeline:[[1500,'Cairo is one of the biggest cities in the world, ruled by Mamluk sultans.'],[1517,'The Ottoman army wins and Cairo joins their empire.'],[1550,'Coffee houses open all over the city.']],
+  players:['Sultan Selim I of the Ottomans.','The Mamluk sultans, who lost the city.','Scholars at Al-Azhar, one of the oldest universities on Earth.'],
+  inventions:['Coffee drinking spreads from Yemen through Cairo.','Beautiful tiled mosques with tall minarets.'],
+  events:['The Ottoman conquest (1517).','Caravans of camels bring spices from the east.'],
+  trouble:['War between two empires.','Plague and hunger in some years.'],
+  culture:['Storytellers in the busy Khan el-Khalili market.','Lanterns lit for the month of Ramadan.'],
+  secret:'When coffee first arrived, some people worried it was dangerous and tried to ban it. It stayed anyway!' },
+ 1600:{ name:'City on the Nile', headline:'A giant river feeds the city, and a special well measures its floods.',
+  pic:{sky:'dawn',ground:'water',items:['mosque','dhow','palm']},
+  timeline:[[1600,'Cairo is the richest city in the Ottoman Empire after Istanbul.'],[1672,'The traveller Evliya Çelebi visits and writes about Cairo’s wonders.']],
+  players:['Ottoman governors sent from Istanbul.','Evliya Çelebi, a famous traveller.','Farmers who grew food along the Nile.'],
+  inventions:['The Nilometer, a well with marks to measure the flood.','Waterwheels turned by oxen.'],
+  events:['The Nile flood every summer.','Pilgrims gather here before the journey to Mecca.'],
+  trouble:['If the flood was too small, there was not enough food.','Sickness in hot summers.'],
+  culture:['Shadow puppet shows.','Sweet pastries and mint tea.'],
+  secret:'If the Nile flood was too small, no one had to pay taxes that year.' },
+ 1700:{ name:'Napoleon arrives', headline:'A French army marches in, and a stone is found that unlocks ancient writing.',
+  pic:{sky:'day',ground:'sand',items:['pyramid','horse','person']},
+  timeline:[[1760,'Ali Bey tries to make Egypt independent.'],[1798,'Napoleon’s army fights the Battle of the Pyramids.'],[1799,'The Rosetta Stone is discovered.'],[1801,'The French leave Egypt.']],
+  players:['Napoleon Bonaparte.','Ali Bey al-Kabir, the Mamluk leader.','French scientists who drew every temple they saw.'],
+  inventions:['The first printing press in Egypt.','A huge book describing Egypt, with thousands of drawings.'],
+  events:['The Battle of the Pyramids (1798).','The Rosetta Stone found (1799).'],
+  trouble:['Invasion by a foreign army.','Uprisings in the city.'],
+  culture:['Arabic poems and songs.','Markets full of spices, cloth and gold.'],
+  secret:'The Rosetta Stone has the same message in three kinds of writing, which helped people read hieroglyphs for the first time in 1,400 years.' },
+ 1800:{ name:'Paris on the Nile', headline:'A new ruler modernises Egypt with trains, a canal and an opera house.',
+  pic:{sky:'day',ground:'water',items:['steamship','mosque','palm']},
+  timeline:[[1805,'Muhammad Ali Pasha becomes ruler.'],[1854,'The first railway in Africa links Cairo and Alexandria.'],[1869,'The Suez Canal opens.'],[1869,'Cairo’s opera house opens.'],[1882,'British troops take control.']],
+  players:['Muhammad Ali Pasha, the moderniser.','Khedive Ismail, who wanted Cairo to look like Paris.','Auguste Mariette, who started the Egyptian Museum.'],
+  inventions:['Africa’s first railway.','The Suez Canal, a shortcut between two seas.','Electric trams (1896).'],
+  events:['The Suez Canal opens (1869).','The opera Aida is performed (1871).'],
+  trouble:['The country owed a lot of money.','Foreign soldiers took over in 1882.'],
+  culture:['Wide boulevards with cafés.','Khan el-Khalili market.'],
+  secret:'The opera Aida, about ancient Egypt, was written especially for Cairo and first sung there in 1871.' },
+ 1900:{ name:'Hollywood of the East', headline:'A golden pharaoh is found, movies are made, and a singer’s voice stops traffic.',
+  pic:{sky:'night',ground:'sand',items:['pyramid','skyscraper','car']},
+  timeline:[[1902,'The Egyptian Museum opens.'],[1922,'Tutankhamun’s tomb is discovered and his treasures come to Cairo.'],[1952,'A revolution ends the monarchy.'],[1961,'Cairo Tower opens.'],[1987,'Africa’s first metro opens.']],
+  players:['Umm Kulthum, the most loved singer in the Arab world.','Naguib Mahfouz, who won the Nobel Prize for his stories.','Howard Carter, who found Tutankhamun.'],
+  inventions:['The Cairo Metro.','Cairo Tower, shaped like a lotus flower.','The Aswan High Dam (1970).'],
+  events:['Tutankhamun’s treasures arrive (1922).','The revolution (1952).'],
+  trouble:['Wars with neighbours.','An earthquake in 1992.'],
+  culture:['Cairo made so many films it was called the Hollywood of the East.','Umm Kulthum’s concerts on the radio once a month.'],
+  secret:'When Umm Kulthum sang on the radio on Thursday nights, streets across the Arab world went quiet as everyone listened.' },
+ 2000:{ name:'Mother of the world', headline:'A huge new museum for the pharaohs, a whole new capital city and a football hero.',
+  pic:{sky:'day',ground:'sand',items:['museum','pyramid','car']},
+  timeline:[[2011,'Huge crowds gather in Tahrir Square asking for change.'],[2017,'Mo Salah becomes a world football star.'],[2023,'Cairo’s new monorail starts testing.'],[2025,'The Grand Egyptian Museum opens near the pyramids.']],
+  players:['Mo Salah, the footballer.','Zahi Hawass, the famous archaeologist.','Ahmed Zewail, a Nobel-winning scientist.'],
+  inventions:['The Grand Egyptian Museum, the biggest museum for one civilisation.','A brand-new capital city built in the desert.','A monorail above the traffic.'],
+  events:['The Tahrir Square protests (2011).','The Grand Egyptian Museum opens (2025).'],
+  trouble:['Years of unrest after 2011.','Traffic jams and crowded streets.'],
+  culture:['Koshari, a dish of rice, lentils and pasta.','Ramadan lanterns and football nights.'],
+  secret:'More than 20 million people live in greater Cairo. Donkey carts still share the roads with cars and buses.' }
+}},
+{ id:'dubai', name:'Dubai', x:654, y:180, lx:30, ly:30, eras:{
+ 1500:{ name:'Pearl divers', headline:'A tiny fishing village where brave divers hunt for pearls.',
+  pic:{sky:'day',ground:'water',items:['dhow','palm','hut']},
+  timeline:[[1507,'Portuguese ships arrive in the Gulf and build forts.'],[1580,'A jeweller from Venice writes down the name Dubai for the first time.']],
+  players:['Pearl divers and their boat captains.','Bedouin families who travel the desert.','Afonso de Albuquerque, a Portuguese admiral.'],
+  inventions:['Dhows, wooden sailing boats built without nails.','Falaj channels that carry water underground.'],
+  events:['The pearling season every summer.','Portuguese forts appear along the coast.'],
+  trouble:['Portuguese warships controlled the sea.','Scorching hot summers.'],
+  culture:['Hunting with trained falcons.','Pearl-diving songs sung on the boats.'],
+  secret:'Pearl divers held their breath for up to two minutes with a clip on their nose, diving again and again all day.' },
+ 1600:{ name:'Village by the creek', headline:'The Portuguese sail away, and dhows trade pearls with India.',
+  pic:{sky:'dawn',ground:'water',items:['dhow','camel','tent']},
+  timeline:[[1622,'The Portuguese lose their big fort at Hormuz.'],[1650,'Local tribes control the coast again.']],
+  players:['Pearl merchants.','Boat builders.','Camel herders.'],
+  inventions:['Fish traps made from palm fronds.','Date palms planted in rows for shade.'],
+  events:['Dhows sail to India carrying pearls and come back with rice and cloth.'],
+  trouble:['Sandstorms and dry years.','Pirates on the sea.'],
+  culture:['Camel races.','Poems recited by the fire.'],
+  secret:'Fresh dates, fish and camel milk were the main foods, and almost nothing else grew in the sand.' },
+ 1700:{ name:'Tribes of the desert', headline:'The Bani Yas tribe rules the coast, and houses get towers that catch the wind.',
+  pic:{sky:'day',ground:'sand',items:['tent','camel','palm']},
+  timeline:[[1700,'Dubai is a village of about 300 people by the creek.'],[1793,'The Bani Yas tribe settles in Abu Dhabi nearby.']],
+  players:['Bani Yas tribal leaders.','Boat captains who knew the stars.'],
+  inventions:['Barjeel wind towers that pull cool breezes into houses.','Houses built from coral stone and shells.'],
+  events:['Pearl boats leave together each June.','Trading trips to Persia and India.'],
+  trouble:['Years with no rain.','Arguments over water wells.'],
+  culture:['Storytelling under the stars.','Henna patterns for celebrations.'],
+  secret:'Dubai Creek was the whole town. Everyone lived along the water.' },
+ 1800:{ name:'The Maktoums arrive', headline:'A new family comes to lead the village, and the port opens to the world.',
+  pic:{sky:'dawn',ground:'water',items:['dhow','mosque','camel']},
+  timeline:[[1820,'A peace treaty with Britain.'],[1833,'The Maktoum family arrives with 800 people and starts to lead Dubai.'],[1894,'Dubai becomes a free port with no taxes, so traders flock in.']],
+  players:['Maktoum bin Butti, the first Maktoum ruler.','Merchants from Persia and India.'],
+  inventions:['Wind towers on every house.','Gold and spice markets called souks.'],
+  events:['The Maktoums settle (1833).','The free port opens (1894).'],
+  trouble:['Droughts.','Sickness spread in hot, crowded years.'],
+  culture:['Souks selling gold, spices and cloth.','Falcons and Arabian horses.'],
+  secret:'Houses were built from coral and shells pulled out of the sea, mixed with mud.' },
+ 1900:{ name:'Oil & new nation', headline:'Pearls stop selling, oil is found, and a brand-new country is born.',
+  pic:{sky:'day',ground:'sand',items:['crane','skyscraper','plane']},
+  timeline:[[1930,'Cheap pearls from Japan ruin the pearl trade.'],[1961,'The creek is dug deeper so big ships can enter.'],[1966,'Oil is discovered.'],[1971,'The United Arab Emirates is founded.'],[1999,'The sail-shaped Burj Al Arab hotel opens.']],
+  players:['Sheikh Rashid, who planned the modern city.','Sheikh Zayed, who helped found the UAE.','Sheikh Mohammed, who built the skyline.'],
+  inventions:['Air conditioning in every building.','A giant port at Jebel Ali.','Emirates airline (1985).'],
+  events:['Oil found (1966).','The UAE founded (1971).'],
+  trouble:['The pearl trade collapsed and families went hungry in the 1930s.'],
+  culture:['Camel racing.','The first schools and hospitals.'],
+  secret:'Dubai Creek was dredged in 1961 using a loan, a risky bet that paid off when big ships could finally dock.' },
+ 2000:{ name:'City of records', headline:'The tallest building, islands shaped like palm trees and a rocket to Mars.',
+  pic:{sky:'night',ground:'sand',items:['tallest','skyscraper','rocket']},
+  timeline:[[2005,'An indoor ski slope opens in the desert.'],[2006,'The Palm Jumeirah island is finished.'],[2009,'A driverless metro opens.'],[2010,'The Burj Khalifa becomes the tallest building on Earth.'],[2021,'The Hope probe reaches Mars.']],
+  players:['Sheikh Mohammed bin Rashid, the ruler.','Hazza Al Mansouri, the first Emirati astronaut.','Sarah Al Amiri, who led the Mars mission.'],
+  inventions:['Burj Khalifa, 828 metres tall.','Robot jockeys for camel races.','The Hope Mars probe.'],
+  events:['Burj Khalifa opens (2010).','Expo 2020 world fair (2021).'],
+  trouble:['A money crisis in 2008.','Huge floods in 2024.'],
+  culture:['Desert safaris and dune bashing.','Global Village with food from everywhere.'],
+  secret:'You can ski on real snow inside a shopping mall while it is 45°C outside.' }
+}},
+{ id:'beijing', name:'Beijing', x:823, y:139, lx:-14, ly:-30, eras:{
+ 1500:{ name:'Ming capital', headline:'Emperors rule from the Forbidden City, and the Great Wall gets rebuilt in brick.',
+  pic:{sky:'day',ground:'stone',items:['pagoda','castle','kite']},
+  timeline:[[1530,'The Temple of Heaven gets its famous name.'],[1550,'Mongol riders reach the city walls.'],[1570,'The Great Wall is rebuilt with strong bricks.'],[1592,'The story of the Monkey King is published.']],
+  players:['The Jiajing and Wanli emperors.','Li Shizhen, who wrote a giant book about medicine.','Qi Jiguang, the general who rebuilt the Wall.'],
+  inventions:['Brick Great Wall with watchtowers.','A medicine book listing 1,800 plants and animals.'],
+  events:['The Mongol raid (1550).','Journey to the West is printed (1592).'],
+  trouble:['Raids from the north.','Emperors who stopped seeing their ministers.'],
+  culture:['Kites, lanterns and opera.','The Monkey King stories.'],
+  secret:'The Forbidden City has 9,999 rooms, one less than heaven, which was said to have 10,000.' },
+ 1600:{ name:'New rulers', headline:'The Ming empire falls, new Qing rulers arrive, and clocks from Europe amaze the court.',
+  pic:{sky:'dawn',ground:'stone',items:['pagoda','horse','person']},
+  timeline:[[1601,'Matteo Ricci, a priest from Italy, is allowed into the city.'],[1644,'The Ming dynasty ends and Qing rulers take Beijing.'],[1661,'Kangxi becomes emperor at age seven.']],
+  players:['Kangxi, one of the longest-ruling emperors ever.','Matteo Ricci, who brought maps and clocks.','Li Zicheng, a rebel who ruled for a few weeks.'],
+  inventions:['Mechanical clocks from Europe.','A fixed calendar made with help from foreign astronomers.'],
+  events:['The fall of the Ming (1644).','Kangxi’s long reign begins (1661).'],
+  trouble:['War and a change of rulers.','Everyone had to wear a new hairstyle by law.'],
+  culture:['Lantern festivals.','Painted porcelain and silk.'],
+  secret:'European priests got jobs at the palace because they were good at fixing the calendar and predicting eclipses.' },
+ 1700:{ name:'Qianlong’s golden age', headline:'A palace with magic fountains, a giant library and the birth of Peking opera.',
+  pic:{sky:'day',ground:'grass',items:['pagoda','blossom','lantern']},
+  timeline:[[1736,'Qianlong becomes emperor.'],[1750,'European-style fountains are built at the Old Summer Palace.'],[1773,'Work starts on a library of 36,000 books.'],[1790,'Opera troupes come for the emperor’s birthday and Peking opera is born.'],[1793,'A British visitor refuses to bow to the emperor.']],
+  players:['Qianlong, the emperor who wrote 40,000 poems.','Cao Xueqin, who wrote Dream of the Red Chamber.','Lord Macartney, the British visitor.'],
+  inventions:['Water-clock fountains with 12 animal heads.','The Complete Library of the Four Treasuries.'],
+  events:['Peking opera begins (1790).','The Macartney visit (1793).'],
+  trouble:['A greedy official named Heshen stole huge amounts of money.'],
+  culture:['Peking opera with painted faces.','Dumplings and tea houses.'],
+  secret:'Peking opera started when opera troupes came to the city for Emperor Qianlong’s 80th birthday party.' },
+ 1800:{ name:'Troubled empire', headline:'Foreign armies burn a palace, an empress rules from behind a curtain, and trains arrive.',
+  pic:{sky:'smoky',ground:'stone',items:['pagoda','train','person']},
+  timeline:[[1860,'British and French soldiers burn the Old Summer Palace.'],[1861,'Empress Dowager Cixi begins to rule.'],[1897,'A railway links Beijing with Tianjin.'],[1900,'The Boxer uprising shakes the city.']],
+  players:['Empress Dowager Cixi.','Prince Gong, who talked with foreigners.','The Guangxu emperor, who tried to change things.'],
+  inventions:['The first railway to Beijing.','The telegraph.'],
+  events:['The burning of the palace (1860).','The Boxer uprising (1900).'],
+  trouble:['Wars lost to foreign powers.','Floods and hunger in the countryside.'],
+  culture:['Peking opera’s golden age.','Kite flying in spring.'],
+  secret:'Cixi had a boat made of marble built on a lake at the Summer Palace. It cannot float at all.' },
+ 1900:{ name:'Last emperor to new China', headline:'The last emperor leaves the palace, and a new country is announced at Tiananmen.',
+  pic:{sky:'day',ground:'stone',items:['castle','car','kite']},
+  timeline:[[1905,'The first Chinese film is made here.'],[1912,'The last emperor, Puyi, gives up the throne at age six.'],[1929,'Ancient “Peking Man” bones are found nearby.'],[1949,'The People’s Republic of China is declared at Tiananmen.'],[1959,'The Great Hall of the People is built in ten months.']],
+  players:['Puyi, the last emperor.','Mao Zedong, who founded the new China.','Mei Lanfang, the opera star.'],
+  inventions:['Chinese cinema.','Beijing’s first subway (1969).'],
+  events:['The end of the emperors (1912).','The founding ceremony (1949).'],
+  trouble:['War with Japan in the 1930s and 40s.','A big earthquake nearby in 1976.','Large protests in 1989.'],
+  culture:['Hutong lanes with courtyard homes.','Jianbing pancakes for breakfast.'],
+  secret:'The very first Chinese movie, made in Beijing in 1905, was a film of a Peking opera.' },
+ 2000:{ name:'Olympic Beijing', headline:'The Bird’s Nest stadium, astronauts, bullet trains and two Olympics.',
+  pic:{sky:'night',ground:'stone',items:['skyscraper','tallest','rocket']},
+  timeline:[[2003,'Yang Liwei becomes China’s first astronaut.'],[2008,'The Summer Olympics open in the Bird’s Nest.'],[2019,'Daxing, a giant starfish-shaped airport, opens.'],[2022,'Beijing hosts the Winter Olympics.']],
+  players:['Yang Liwei, the astronaut.','Eileen Gu, the skiing champion.','Liu Xiang, the hurdles champion.'],
+  inventions:['The world’s longest subway network.','High-speed trains at 350 km/h.','The Bird’s Nest stadium.'],
+  events:['The 2008 Olympics.','The 2022 Winter Olympics.'],
+  trouble:['Smoggy air that is slowly getting cleaner.','A big flood in 2012.'],
+  culture:['Hotpot dinners.','Peking duck and dumplings.'],
+  secret:'Beijing is the only city in the world that has hosted both the Summer and the Winter Olympics.' }
+}},
+{ id:'tokyo', name:'Tokyo', x:888, y:151, lx:-10, ly:32, eras:{
+ 1500:{ name:'Edo village', headline:'Just a swampy fishing village called Edo, until a powerful lord moves in.',
+  pic:{sky:'dawn',ground:'water',items:['hut','dhow','blossom']},
+  timeline:[[1543,'Guns arrive in Japan on a Portuguese ship.'],[1590,'Tokugawa Ieyasu is given the land and moves into Edo castle.']],
+  players:['Tokugawa Ieyasu, the lord who chose Edo.','Toyotomi Hideyoshi, the ruler of Japan.','Sen no Rikyu, master of the tea ceremony.'],
+  inventions:['Matchlock guns copied from the Portuguese.','Tall castles with stone walls.'],
+  events:['Ieyasu arrives in Edo (1590).','Wars between lords all over Japan.'],
+  trouble:['Years of fighting between rival lords.'],
+  culture:['The tea ceremony.','Simple, calm gardens.'],
+  secret:'Edo was a muddy fishing village when Ieyasu arrived. He had to drain swamps before he could build.' },
+ 1600:{ name:'Samurai capital', headline:'Edo becomes the shogun’s capital, with kabuki actors, poets and fire patrols.',
+  pic:{sky:'night',ground:'water',items:['castle','lantern','dhow']},
+  timeline:[[1603,'Ieyasu becomes shogun and rules from Edo.'],[1603,'A dancer named Okuni invents kabuki theatre.'],[1657,'A great fire burns most of the city.'],[1680,'Basho writes his famous haiku poems.']],
+  players:['Tokugawa Ieyasu, the first shogun.','Izumo no Okuni, who started kabuki.','Matsuo Basho, the haiku poet.'],
+  inventions:['Canals and moats around the castle.','Fire watchtowers with bells.'],
+  events:['Edo becomes the capital (1603).','The Meireki fire (1657).'],
+  trouble:['Fires were so common people called them “the flowers of Edo.”'],
+  culture:['Kabuki plays.','Sumo wrestling.','Haiku poems.'],
+  secret:'Firefighters in Edo did not use water. They tore down houses to stop the fire spreading.' },
+ 1700:{ name:'Biggest city on Earth', headline:'One million people, colour prints, fireworks and cherry blossom picnics.',
+  pic:{sky:'day',ground:'grass',items:['blossom','pagoda','kite']},
+  timeline:[[1720,'Edo may be the biggest city in the world.'],[1721,'The shogun puts up a suggestion box for ordinary people.'],[1733,'The first fireworks show on the Sumida river.'],[1765,'Full-colour woodblock prints are invented.'],[1776,'Hiraga Gennai builds a machine that makes static electricity.']],
+  players:['Tokugawa Yoshimune, the shogun who planted cherry trees.','Suzuki Harunobu, the colour print artist.','Hiraga Gennai, the inventor.'],
+  inventions:['Full-colour woodblock prints.','An electricity machine called the elekiter.','Organised fire brigades.'],
+  events:['The first Sumida fireworks (1733).','Cherry trees planted for everyone to enjoy.'],
+  trouble:['Big fires and some hungry years.'],
+  culture:['Cherry blossom picnics.','Kite flying and fireworks.'],
+  secret:'Around 1720, Edo probably had more people than any other city in the world, with over a million residents.' },
+ 1800:{ name:'Black ships & Meiji', headline:'American ships arrive, the emperor moves in, and Edo becomes Tokyo.',
+  pic:{sky:'day',ground:'water',items:['steamship','rickshaw','torii']},
+  timeline:[[1831,'Hokusai prints his famous giant wave.'],[1853,'Commodore Perry’s black ships sail into the bay.'],[1868,'Edo is renamed Tokyo and the emperor moves in.'],[1872,'Japan’s first railway opens.'],[1882,'Electric lights shine in Ginza.']],
+  players:['Hokusai, the artist.','Commodore Perry, the American sailor.','Emperor Meiji.'],
+  inventions:['The rickshaw (1869).','The first railway (1872).','Gas lamps and telegraph wires.'],
+  events:['The black ships (1853).','The Meiji Restoration (1868).'],
+  trouble:['A strong earthquake (1855).','Big changes that worried many samurai.'],
+  culture:['Woodblock prints of actors and mountains.','Sushi sold from street stalls.'],
+  secret:'The rickshaw, a cart pulled by a runner, was invented in Tokyo and spread across Asia.' },
+ 1900:{ name:'Rebuilt twice', headline:'Earthquakes and war knock the city down, then it rises with bullet trains and robots.',
+  pic:{sky:'day',ground:'stone',items:['train','skyscraper','plane']},
+  timeline:[[1923,'The Great Kanto earthquake.'],[1945,'The city is bombed in the war.'],[1958,'Tokyo Tower opens.'],[1964,'The Olympics and the first bullet train.'],[1979,'The Walkman lets you carry music anywhere.']],
+  players:['Akio Morita, who founded Sony.','Osamu Tezuka, the “father of manga.”','Hayao Miyazaki, the animator.'],
+  inventions:['The Shinkansen bullet train.','The Walkman.','The Tamagotchi pet (1996).'],
+  events:['The 1964 Olympics.','Tokyo Tower opens (1958).'],
+  trouble:['The 1923 earthquake.','World War II bombing.'],
+  culture:['Manga and anime.','Sushi loved around the world.'],
+  secret:'Tokyo Tower is painted orange and white and is 13 metres taller than the Eiffel Tower it was modelled on.' },
+ 2000:{ name:'Mega-city', headline:'The biggest city region on Earth, with a sky-high tower, robots and a famous crossing.',
+  pic:{sky:'night',ground:'stone',items:['tallest','robot','blossom']},
+  timeline:[[2003,'Hayao Miyazaki wins an Oscar for Spirited Away.'],[2011,'A huge earthquake far to the north shakes Tokyo too.'],[2012,'Tokyo Skytree opens, 634 metres tall.'],[2021,'The Olympics are held a year late because of the pandemic.']],
+  players:['Naomi Osaka, the tennis champion.','Hayao Miyazaki.','Engineers who build helpful robots.'],
+  inventions:['Tokyo Skytree.','Robot helpers in shops and hotels.','Super-fast trains that are almost never late.'],
+  events:['Skytree opens (2012).','The Tokyo Olympics (2021).'],
+  trouble:['The 2011 earthquake and tsunami.','The pandemic (2020).'],
+  culture:['Shibuya crossing, where thousands cross at once.','Harajuku fashion and anime.'],
+  secret:'More than 37 million people live in the Tokyo area, more than any other city region in the world.' }
+}}
+);
+
+</script>
+<script>
+(function(){
+  var CENTURIES=[1500,1600,1700,1800,1900,2000];
+  var CITIES=window.TIME_CITIES||[];
+  var state={c:0,city:null};
+
+  /* ---------- simplified world (equirectangular, 1000x500) ---------- */
+  var LAND=[
+    "42,69 111,56 194,50 250,61 306,83 347,111 319,128 292,144 278,167 272,181 258,192 268,224 284,230 272,230 248,206 226,192 208,196 196,172 178,156 160,146 153,116 125,89 83,83 42,83",
+    "375,19 444,56 375,83 333,42",
+    "283,228 333,236 361,250 403,264 394,286 389,311 367,328 356,344 328,361 317,389 306,403 292,383 300,347 306,306 278,264 278,244",
+    "472,131 475,147 486,150 508,131 528,128 533,144 550,139 561,147 575,136 600,150 597,158 594,167 619,214 644,206 661,189 656,178 639,167 667,181 686,183 700,194 714,228 722,208 750,189 769,206 789,244 786,225 803,217 803,189 839,167 828,142 839,139 861,133 856,144 864,131 889,103 933,106 950,83 1000,67 1000,50 889,47 778,33 694,47 667,58 625,64 597,69 569,53 528,75 514,89 528,100 500,111 486,117",
+    "483,111 506,106 500,89 478,89",
+    "861,164 892,153 894,133 903,128 889,122 878,147 867,156",
+    "453,192 453,208 478,236 522,239 528,256 539,283 533,300 550,344 572,344 597,317 614,278 642,222 622,217 606,194 597,167 586,164 556,161 528,147 500,150 483,153 472,167",
+    "622,286 639,294 631,319 619,314",
+    "817,311 839,300 861,283 878,283 894,281 900,292 906,303 919,317 925,328 917,353 889,356 861,339 828,347 817,333",
+    "964,378 983,364 994,356 981,347 978,367",
+    "0,470 1000,470 1000,500 0,500"
+  ];
+  var landG=document.getElementById('land');
+  landG.innerHTML=LAND.map(function(p){return '<polygon class="land" points="'+p+'"/>';}).join('');
+
+  /* ---------- picture kit (each thing drawn on a 240x160 canvas, ground line y=120) ---------- */
+  var K={
+    hut:function(x){return '<polygon points="'+(x-20)+',104 '+x+',84 '+(x+20)+',104" fill="#b5692d"/><rect x="'+(x-15)+'" y="104" width="30" height="16" fill="#e8b36a"/><rect x="'+(x-4)+'" y="108" width="8" height="12" fill="#5a3a1a"/>';},
+    tent:function(x){return '<polygon points="'+(x-22)+',120 '+x+',88 '+(x+22)+',120" fill="#f0e0c0"/><polygon points="'+(x-6)+',120 '+x+',100 '+(x+6)+',120" fill="#7a4a2a"/><line x1="'+(x-22)+'" y1="120" x2="'+(x+22)+'" y2="120" stroke="#7a4a2a" stroke-width="2"/>';},
+    castle:function(x){return '<rect x="'+(x-26)+'" y="92" width="52" height="28" fill="#b8b4a8"/><rect x="'+(x-30)+'" y="74" width="14" height="46" fill="#9c9888"/><rect x="'+(x+16)+'" y="74" width="14" height="46" fill="#9c9888"/><rect x="'+(x-30)+'" y="68" width="4" height="8" fill="#9c9888"/><rect x="'+(x-22)+'" y="68" width="4" height="8" fill="#9c9888"/><rect x="'+(x+18)+'" y="68" width="4" height="8" fill="#9c9888"/><rect x="'+(x+26)+'" y="68" width="4" height="8" fill="#9c9888"/><polygon points="'+(x-26)+',120 '+(x-18)+',120 '+(x-18)+',104 '+(x-22)+',100 '+(x-26)+',104" fill="#5a4a3a"/><path d="M'+(x-5)+' 70 l10 0 l-10 6z" fill="#e04040"/><line x1="'+(x-5)+'" y1="68" x2="'+(x-5)+'" y2="92" stroke="#5a4a3a" stroke-width="2"/>';},
+    church:function(x){return '<rect x="'+(x-22)+'" y="98" width="44" height="22" fill="#e8dcc0"/><polygon points="'+(x-24)+',98 '+x+',84 '+(x+24)+',98" fill="#8a5a3a"/><rect x="'+(x-8)+'" y="66" width="16" height="54" fill="#d8c8a8"/><polygon points="'+(x-10)+',66 '+x+',44 '+(x+10)+',66" fill="#8a5a3a"/><rect x="'+(x-3)+'" y="106" width="6" height="14" fill="#5a3a1a"/>';},
+    dome:function(x){return '<rect x="'+(x-30)+'" y="96" width="60" height="24" fill="#e8dcc0"/><path d="M'+(x-20)+' 96 a20 20 0 0 1 40 0z" fill="#7aa0a8"/><rect x="'+(x-3)+'" y="66" width="6" height="12" fill="#7aa0a8"/><rect x="'+(x-34)+'" y="80" width="10" height="40" fill="#d8c8a8"/><rect x="'+(x+24)+'" y="80" width="10" height="40" fill="#d8c8a8"/><rect x="'+(x-4)+'" y="104" width="8" height="16" fill="#5a3a1a"/>';},
+    museum:function(x){var s='<rect x="'+(x-32)+'" y="112" width="64" height="8" fill="#cfc4a8"/><polygon points="'+(x-34)+',86 '+x+',72 '+(x+34)+',86" fill="#d8c8a8"/><rect x="'+(x-30)+'" y="86" width="60" height="4" fill="#bfb49a"/>';for(var i=0;i<5;i++){s+='<rect x="'+(x-27+i*13)+'" y="90" width="5" height="22" fill="#efe6d0"/>';}return s;},
+    pagoda:function(x){var s='',w=[34,28,22],y=[104,86,68];for(var i=0;i<3;i++){s+='<rect x="'+(x-w[i]/2+4)+'" y="'+(y[i])+'" width="'+(w[i]-8)+'" height="16" fill="#e8c080"/><path d="M'+(x-w[i]/2-6)+' '+(y[i]+2)+' q'+(w[i]/2+6)+' -16 '+(w[i]+12)+' 0 z" fill="#b83a2a"/>';}return s+'<rect x="'+(x-2)+'" y="54" width="4" height="12" fill="#b83a2a"/>';},
+    torii:function(x){return '<rect x="'+(x-16)+'" y="80" width="5" height="40" fill="#d8402a"/><rect x="'+(x+11)+'" y="80" width="5" height="40" fill="#d8402a"/><rect x="'+(x-22)+'" y="76" width="44" height="5" fill="#d8402a"/><rect x="'+(x-16)+'" y="88" width="32" height="4" fill="#d8402a"/>';},
+    mosque:function(x){return '<rect x="'+(x-26)+'" y="98" width="52" height="22" fill="#f0e6d0"/><path d="M'+(x-16)+' 98 a16 16 0 0 1 32 0z" fill="#2a9d8f"/><rect x="'+(x-1)+'" y="76" width="2" height="8" fill="#c9a564"/><rect x="'+(x-34)+'" y="60" width="6" height="60" fill="#f0e6d0"/><polygon points="'+(x-36)+',60 '+(x-31)+',50 '+(x-26)+',60" fill="#2a9d8f"/><path d="M'+(x-6)+' 120 v-10 a6 6 0 0 1 12 0 v10z" fill="#5a3a1a"/>';},
+    pyramid:function(x){return '<polygon points="'+(x-34)+',120 '+x+',74 '+(x+34)+',120" fill="#e3b86a"/><polygon points="'+x+',74 '+(x+34)+',120 '+(x+4)+',120" fill="#c9962e"/>';},
+    ship:function(x){return '<path d="M'+(x-26)+' 108 h52 l-8 12 h-36z" fill="#7a4a2a"/><rect x="'+(x-1)+'" y="72" width="2" height="36" fill="#5a3a1a"/><path d="M'+(x+1)+' 74 q22 12 0 30z" fill="#f4efe0"/><path d="M'+(x-1)+' 78 q-16 10 0 24z" fill="#f4efe0"/><path d="M'+(x)+' 72 l8 3 l-8 3z" fill="#e04040"/>';},
+    dhow:function(x){return '<path d="M'+(x-28)+' 108 h52 l-6 12 h-40z" fill="#8a5a2a"/><line x1="'+(x-6)+'" y1="110" x2="'+(x+18)+'" y2="66" stroke="#5a3a1a" stroke-width="2"/><path d="M'+(x-6)+' 108 L'+(x+18)+' 68 L'+(x+22)+' 106z" fill="#f4efe0"/>';},
+    steamship:function(x){return '<path d="M'+(x-32)+' 106 h64 l-8 14 h-48z" fill="#3a3a4a"/><rect x="'+(x-18)+'" y="94" width="36" height="12" fill="#f0f0f0"/><rect x="'+(x-6)+'" y="78" width="10" height="18" fill="#c0392b"/>'+K._smoke(x-1,74);},
+    _smoke:function(x,y){return '<circle cx="'+x+'" cy="'+(y-4)+'" r="5" fill="#cfcfd6" opacity=".9"/><circle cx="'+(x+7)+'" cy="'+(y-12)+'" r="6" fill="#cfcfd6" opacity=".8"/><circle cx="'+(x+15)+'" cy="'+(y-21)+'" r="7" fill="#cfcfd6" opacity=".7"/>';},
+    factory:function(x){return '<rect x="'+(x-30)+'" y="94" width="60" height="26" fill="#9a6a4a"/><polygon points="'+(x-30)+',94 '+(x-15)+',82 '+(x-15)+',94 '+x+',82 '+x+',94 '+(x+15)+',82 '+(x+15)+',94 '+(x+30)+',82 '+(x+30)+',94" fill="#7a4a3a"/><rect x="'+(x+16)+'" y="62" width="9" height="32" fill="#6a4a3a"/>'+K._smoke(x+20,60)+'<rect x="'+(x-22)+'" y="102" width="8" height="8" fill="#ffd54a"/><rect x="'+(x-6)+'" y="102" width="8" height="8" fill="#ffd54a"/>';},
+    train:function(x){return '<rect x="'+(x-34)+'" y="96" width="46" height="16" fill="#2a6a4a"/><rect x="'+(x+12)+'" y="88" width="20" height="24" fill="#c0392b"/><rect x="'+(x-30)+'" y="84" width="8" height="12" fill="#333"/>'+K._smoke(x-26,80)+'<circle cx="'+(x-24)+'" cy="114" r="6" fill="#333"/><circle cx="'+(x-6)+'" cy="114" r="6" fill="#333"/><circle cx="'+(x+22)+'" cy="114" r="6" fill="#333"/><line x1="'+(x-40)+'" y1="120" x2="'+(x+40)+'" y2="120" stroke="#555" stroke-width="2"/>';},
+    skyscraper:function(x,h){h=h||70;var s='<rect x="'+(x-14)+'" y="'+(120-h)+'" width="28" height="'+h+'" fill="#6b7fa6"/>';for(var r=0;r<Math.floor(h/12);r++){for(var c=0;c<3;c++){s+='<rect x="'+(x-11+c*9)+'" y="'+(124-h+r*12)+'" width="5" height="6" fill="#ffe28a"/>';}}return s;},
+    tallest:function(x){return '<polygon points="'+(x-14)+',120 '+(x-8)+',40 '+(x+8)+',40 '+(x+14)+',120" fill="#8fa3c8"/><rect x="'+(x-2)+'" y="24" width="4" height="18" fill="#8fa3c8"/><line x1="'+(x-8)+'" y1="60" x2="'+(x+8)+'" y2="60" stroke="#fff" stroke-width="1"/><line x1="'+(x-10)+'" y1="80" x2="'+(x+10)+'" y2="80" stroke="#fff" stroke-width="1"/><line x1="'+(x-12)+'" y1="100" x2="'+(x+12)+'" y2="100" stroke="#fff" stroke-width="1"/>';},
+    eiffel:function(x){return '<path d="M'+(x-24)+' 120 Q'+(x-6)+' 90 '+(x-3)+' 50 L'+x+' 40 L'+(x+3)+' 50 Q'+(x+6)+' 90 '+(x+24)+' 120 M'+(x-16)+' 100 h32 M'+(x-9)+' 76 h18 M'+(x-5)+' 56 h10" fill="none" stroke="#8a5a2a" stroke-width="3" stroke-linecap="round"/>';},
+    bridge:function(x){return '<line x1="'+(x-60)+'" y1="104" x2="'+(x+60)+'" y2="104" stroke="#d1502b" stroke-width="4"/><rect x="'+(x-24)+'" y="70" width="6" height="50" fill="#d1502b"/><rect x="'+(x+18)+'" y="70" width="6" height="50" fill="#d1502b"/><path d="M'+(x-60)+' 104 Q'+(x-50)+' 72 '+(x-21)+' 72 Q'+x+' 100 '+(x+21)+' 72 Q'+(x+50)+' 72 '+(x+60)+' 104" fill="none" stroke="#d1502b" stroke-width="3"/>';},
+    bigben:function(x){return '<rect x="'+(x-9)+'" y="50" width="18" height="70" fill="#c8b48a"/><polygon points="'+(x-11)+',50 '+x+',32 '+(x+11)+',50" fill="#4a6a5a"/><circle cx="'+x+'" cy="62" r="7" fill="#fff" stroke="#333" stroke-width="1.5"/><line x1="'+x+'" y1="62" x2="'+x+'" y2="57" stroke="#333" stroke-width="1.5"/><line x1="'+x+'" y1="62" x2="'+(x+4)+'" y2="62" stroke="#333" stroke-width="1.5"/><rect x="'+(x+9)+'" y="96" width="30" height="24" fill="#c8b48a"/>';},
+    windmill:function(x){return '<polygon points="'+(x-14)+',120 '+(x-8)+',80 '+(x+8)+',80 '+(x+14)+',120" fill="#8a6a4a"/><g stroke="#f4efe0" stroke-width="5" stroke-linecap="round"><line x1="'+x+'" y1="80" x2="'+x+'" y2="52"/><line x1="'+x+'" y1="80" x2="'+(x+26)+'" y2="88"/><line x1="'+x+'" y1="80" x2="'+(x-26)+'" y2="88"/><line x1="'+x+'" y1="80" x2="'+x+'" y2="108"/></g><circle cx="'+x+'" cy="80" r="4" fill="#333"/>';},
+    crane:function(x){return '<rect x="'+(x-3)+'" y="40" width="6" height="80" fill="#e8a020"/><rect x="'+(x-30)+'" y="36" width="70" height="5" fill="#e8a020"/><line x1="'+(x+30)+'" y1="41" x2="'+(x+30)+'" y2="80" stroke="#555" stroke-width="1.5"/><rect x="'+(x+24)+'" y="80" width="12" height="10" fill="#6b7fa6"/>';},
+    camel:function(x){return '<ellipse cx="'+x+'" cy="104" rx="20" ry="9" fill="#c9924a"/><circle cx="'+(x-6)+'" cy="94" r="7" fill="#c9924a"/><circle cx="'+(x+7)+'" cy="94" r="7" fill="#c9924a"/><path d="M'+(x+16)+' 102 q10 -8 10 -22" stroke="#c9924a" stroke-width="6" fill="none" stroke-linecap="round"/><ellipse cx="'+(x+28)+'" cy="78" rx="6" ry="4" fill="#c9924a"/><g stroke="#c9924a" stroke-width="4"><line x1="'+(x-14)+'" y1="110" x2="'+(x-14)+'" y2="120"/><line x1="'+(x-5)+'" y1="110" x2="'+(x-5)+'" y2="120"/><line x1="'+(x+5)+'" y1="110" x2="'+(x+5)+'" y2="120"/><line x1="'+(x+14)+'" y1="110" x2="'+(x+14)+'" y2="120"/></g>';},
+    horse:function(x){return '<ellipse cx="'+x+'" cy="102" rx="18" ry="9" fill="#7a4a2a"/><path d="M'+(x+14)+' 98 q8 -6 8 -16" stroke="#7a4a2a" stroke-width="7" fill="none" stroke-linecap="round"/><ellipse cx="'+(x+26)+'" cy="80" rx="7" ry="4" fill="#7a4a2a"/><g stroke="#7a4a2a" stroke-width="4"><line x1="'+(x-12)+'" y1="108" x2="'+(x-14)+'" y2="120"/><line x1="'+(x-4)+'" y1="108" x2="'+(x-4)+'" y2="120"/><line x1="'+(x+6)+'" y1="108" x2="'+(x+6)+'" y2="120"/><line x1="'+(x+13)+'" y1="108" x2="'+(x+15)+'" y2="120"/></g><path d="M'+(x-18)+' 100 q-8 4 -6 14" stroke="#4a2a1a" stroke-width="3" fill="none"/>';},
+    person:function(x,c){c=c||'#e04040';return '<circle cx="'+x+'" cy="88" r="7" fill="#f1c9a5"/><path d="M'+(x-7)+' 96 h14 v18 h-14z" fill="'+c+'"/><line x1="'+(x-4)+'" y1="114" x2="'+(x-4)+'" y2="120" stroke="#333" stroke-width="4"/><line x1="'+(x+4)+'" y1="114" x2="'+(x+4)+'" y2="120" stroke="#333" stroke-width="4"/>';},
+    kid:function(x){return K.person(x,'#2aa876');},
+    tree:function(x){return '<rect x="'+(x-3)+'" y="100" width="6" height="20" fill="#7a4a2a"/><circle cx="'+x+'" cy="90" r="16" fill="#3fa65b"/><circle cx="'+(x-10)+'" cy="98" r="10" fill="#3fa65b"/><circle cx="'+(x+10)+'" cy="98" r="10" fill="#3fa65b"/>';},
+    blossom:function(x){return '<rect x="'+(x-3)+'" y="100" width="6" height="20" fill="#5a3a2a"/><circle cx="'+x+'" cy="88" r="16" fill="#ffb3c6"/><circle cx="'+(x-12)+'" cy="96" r="10" fill="#ffc6d4"/><circle cx="'+(x+12)+'" cy="96" r="10" fill="#ffc6d4"/><circle cx="'+(x+4)+'" cy="80" r="3" fill="#fff"/>';},
+    palm:function(x){return '<path d="M'+x+' 120 q4 -30 0 -50" stroke="#8a5a2a" stroke-width="5" fill="none"/><g stroke="#2e8b57" stroke-width="5" stroke-linecap="round" fill="none"><path d="M'+x+' 70 q-18 -4 -24 10"/><path d="M'+x+' 70 q18 -4 24 10"/><path d="M'+x+' 70 q-10 -14 -4 -22"/><path d="M'+x+' 70 q10 -14 4 -22"/></g>';},
+    car:function(x){return '<rect x="'+(x-22)+'" y="104" width="44" height="12" rx="3" fill="#2a7ad8"/><path d="M'+(x-12)+' 104 l6 -10 h14 l6 10z" fill="#2a7ad8"/><circle cx="'+(x-12)+'" cy="117" r="5" fill="#222"/><circle cx="'+(x+12)+'" cy="117" r="5" fill="#222"/>';},
+    cablecar:function(x){return '<line x1="'+(x-60)+'" y1="60" x2="'+(x+60)+'" y2="60" stroke="#555" stroke-width="2"/><rect x="'+(x-18)+'" y="66" width="36" height="22" rx="4" fill="#9b1b1b"/><rect x="'+(x-14)+'" y="70" width="8" height="8" fill="#ffe28a"/><rect x="'+(x-2)+'" y="70" width="8" height="8" fill="#ffe28a"/><rect x="'+(x+8)+'" y="70" width="6" height="8" fill="#ffe28a"/><rect x="'+(x-2)+'" y="60" width="4" height="6" fill="#555"/>';},
+    laptop:function(x){return '<rect x="'+(x-24)+'" y="112" width="48" height="8" rx="2" fill="#8a8f99"/><rect x="'+(x-20)+'" y="86" width="40" height="26" rx="2" fill="#333"/><rect x="'+(x-17)+'" y="89" width="34" height="20" fill="#5fd0ff"/>';},
+    robot:function(x){return '<rect x="'+(x-12)+'" y="92" width="24" height="22" rx="4" fill="#9aa7b8"/><rect x="'+(x-9)+'" y="78" width="18" height="14" rx="3" fill="#c7d0dc"/><circle cx="'+(x-4)+'" cy="85" r="2.5" fill="#1d9bc9"/><circle cx="'+(x+4)+'" cy="85" r="2.5" fill="#1d9bc9"/><line x1="'+x+'" y1="78" x2="'+x+'" y2="72" stroke="#9aa7b8" stroke-width="2"/><circle cx="'+x+'" cy="70" r="3" fill="#e04040"/><rect x="'+(x-8)+'" y="114" width="6" height="6" fill="#555"/><rect x="'+(x+2)+'" y="114" width="6" height="6" fill="#555"/>';},
+    book:function(x){return '<path d="M'+(x-22)+' 96 q22 -8 44 0 v24 q-22 -8 -44 0z" fill="#f8f3e6" stroke="#8a5a2a" stroke-width="2"/><line x1="'+x+'" y1="92" x2="'+x+'" y2="118" stroke="#8a5a2a" stroke-width="2"/><g stroke="#aaa" stroke-width="1.5"><line x1="'+(x-16)+'" y1="102" x2="'+(x-5)+'" y2="101"/><line x1="'+(x-16)+'" y1="108" x2="'+(x-5)+'" y2="107"/><line x1="'+(x+5)+'" y1="101" x2="'+(x+16)+'" y2="102"/></g>';},
+    coffee:function(x){return '<rect x="'+(x-14)+'" y="100" width="28" height="20" rx="4" fill="#f4efe0" stroke="#8a5a2a" stroke-width="2"/><path d="M'+(x+14)+' 104 a6 6 0 0 1 0 12" fill="none" stroke="#8a5a2a" stroke-width="2"/>'+K._smoke(x-4,98);},
+    lantern:function(x){return '<rect x="'+(x-2)+'" y="70" width="4" height="50" fill="#5a3a2a"/><rect x="'+(x-12)+'" y="56" width="24" height="26" rx="8" fill="#e8402a"/><rect x="'+(x-4)+'" y="52" width="8" height="4" fill="#5a3a2a"/><line x1="'+x+'" y1="56" x2="'+x+'" y2="82" stroke="#c02a1a" stroke-width="1"/>';},
+    sparkle:function(x){var s='';[[x-14,110],[x,96],[x+14,112],[x+8,104]].forEach(function(p){s+='<path d="M'+p[0]+' '+(p[1]-6)+' l2 4 l4 2 l-4 2 l-2 4 l-2 -4 l-4 -2 l4 -2z" fill="#ffd54a"/>';});return s;},
+    rickshaw:function(x){return '<rect x="'+(x-10)+'" y="92" width="24" height="18" rx="4" fill="#c0392b"/><circle cx="'+(x+2)+'" cy="114" r="7" fill="none" stroke="#333" stroke-width="3"/><line x1="'+(x-10)+'" y1="110" x2="'+(x-30)+'" y2="112" stroke="#5a3a2a" stroke-width="3"/>'+K.person(x-34,'#2a6a9a');},
+    plane:function(x,y){y=y||40;return '<path d="M'+(x-24)+' '+y+' h40 l8 4 l-8 4 h-40z" fill="#eee" stroke="#999" stroke-width="1"/><path d="M'+(x-6)+' '+y+' l-6 -12 h10 l4 12z" fill="#eee" stroke="#999" stroke-width="1"/><path d="M'+(x-4)+' '+(y+8)+' l-4 8 h10 l-2 -8z" fill="#eee" stroke="#999" stroke-width="1"/><path d="M'+(x-22)+' '+y+' l-4 -8 h6 l4 8z" fill="#e04040"/>';},
+    balloon:function(x,y){y=y||34;return '<ellipse cx="'+x+'" cy="'+y+'" rx="16" ry="20" fill="#f4a21c"/><path d="M'+(x-16)+' '+y+' q16 20 32 0" fill="#e04040"/><line x1="'+(x-8)+'" y1="'+(y+18)+'" x2="'+(x-5)+'" y2="'+(y+30)+'" stroke="#5a3a2a" stroke-width="1.5"/><line x1="'+(x+8)+'" y1="'+(y+18)+'" x2="'+(x+5)+'" y2="'+(y+30)+'" stroke="#5a3a2a" stroke-width="1.5"/><rect x="'+(x-6)+'" y="'+(y+30)+'" width="12" height="7" fill="#8a5a2a"/>';},
+    kite:function(x,y){y=y||36;return '<polygon points="'+x+','+(y-16)+' '+(x+12)+','+y+' '+x+','+(y+20)+' '+(x-12)+','+y+'" fill="#e8402a"/><line x1="'+x+'" y1="'+(y-16)+'" x2="'+x+'" y2="'+(y+20)+'" stroke="#fff" stroke-width="1"/><path d="M'+x+' '+(y+20)+' q-8 10 0 20 q8 10 -4 24" fill="none" stroke="#555" stroke-width="1.5"/>';},
+    rocket:function(x,y){y=y||40;return '<path d="M'+x+' '+(y-24)+' q12 14 8 40 h-16 q-4 -26 8 -40z" fill="#eee" stroke="#999"/><circle cx="'+x+'" cy="'+(y)+'" r="4" fill="#1d9bc9"/><path d="M'+(x-8)+' '+(y+10)+' l-8 10 h8z M'+(x+8)+' '+(y+10)+' l8 10 h-8z" fill="#e04040"/><path d="M'+(x-5)+' '+(y+16)+' q5 16 10 0z" fill="#f4a21c"/>';},
+    moon:function(x,y){return '<circle cx="'+x+'" cy="'+y+'" r="12" fill="#fff6c8"/><circle cx="'+(x+6)+'" cy="'+(y-4)+'" r="10" fill="var(--k-sky)"/>';}
+  };
+  var SKY_ITEMS={plane:1,balloon:1,kite:1,rocket:1};
+  var SKIES={
+    day:{top:'#9ad7f7',bottom:'#d9f1ff',sun:true},
+    dawn:{top:'#ffb089',bottom:'#ffe3b3',sun:true},
+    night:{top:'#1b2140',bottom:'#3b4a7a',moon:true},
+    smoky:{top:'#b5a994',bottom:'#e3d8c4'},
+    orange:{top:'#d9631c',bottom:'#f6a24c'}
+  };
+  var GROUNDS={grass:'#58b35c',sand:'#e9c77a',snow:'#f1f4f8',water:'#3f9ad6',stone:'#b7b3a4'};
+
+  function scene(p){
+    var sk=SKIES[p.sky]||SKIES.day,gr=GROUNDS[p.ground]||GROUNDS.grass;
+    var s='<svg class="scene" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A simple picture of this time and place" style="--k-sky:'+sk.top+'">';
+    s+='<defs><linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+sk.top+'"/><stop offset="1" stop-color="'+sk.bottom+'"/></linearGradient></defs>';
+    s+='<rect width="240" height="160" fill="url(#skyg)"/>';
+    if(sk.sun) s+='<circle cx="206" cy="30" r="14" fill="#ffd54a"/>';
+    if(sk.moon){ s+=K.moon(206,30); for(var i=0;i<14;i++){ s+='<circle cx="'+((i*53)%230+5)+'" cy="'+((i*37)%70+6)+'" r="1.5" fill="#fff"/>'; } }
+    if(p.sky!=='night'){ s+='<ellipse cx="60" cy="34" rx="18" ry="8" fill="#fff" opacity=".8"/><ellipse cx="74" cy="30" rx="12" ry="7" fill="#fff" opacity=".8"/>'; }
+    var items=p.items||[],ground=[],sky=[];
+    items.forEach(function(it){ (SKY_ITEMS[it]?sky:ground).push(it); });
+    if(p.ground==='water'){ s+='<rect x="0" y="118" width="240" height="42" fill="'+gr+'"/><path d="M0 132 q10 -5 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" fill="none" stroke="#fff" stroke-width="2" opacity=".5"/>'; }
+    else { s+='<ellipse cx="60" cy="124" rx="80" ry="14" fill="'+gr+'" opacity=".7"/><ellipse cx="190" cy="124" rx="90" ry="14" fill="'+gr+'" opacity=".7"/><rect x="0" y="120" width="240" height="40" fill="'+gr+'"/>'; }
+    var xs=[[120],[75,165],[46,120,194],[36,92,148,204]][Math.min(ground.length,4)-1]||[];
+    ground.forEach(function(it,i){ if(K[it]) s+=K[it](xs[i]); });
+    var sx=[150,60];
+    sky.forEach(function(it,i){ if(K[it]) s+=K[it](sx[i]||100); });
+    return s+'</svg>';
+  }
+
+  /* ---------- UI ---------- */
+  var chips=document.getElementById('chips');
+  chips.innerHTML=CENTURIES.map(function(c,i){return '<button class="chip" data-i="'+i+'" aria-pressed="'+(i===0)+'">'+c+'s</button>';}).join('');
+  chips.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;setCentury(+b.dataset.i);});
+
+  var pinsG=document.getElementById('pins');
+  pinsG.innerHTML=CITIES.map(function(c){
+    var lx=c.x+(c.lx||0),ly=c.y+(c.ly||-26),w=c.name.length*9+16;
+    return '<g class="pin" data-id="'+c.id+'" tabindex="0" role="button" aria-label="'+c.name+'">'+
+      '<line x1="'+c.x+'" y1="'+c.y+'" x2="'+lx+'" y2="'+ly+'"/>'+
+      '<circle class="ring" cx="'+c.x+'" cy="'+c.y+'" r="9"/><circle class="dot" cx="'+c.x+'" cy="'+c.y+'" r="7"/>'+
+      '<rect x="'+(lx-w/2)+'" y="'+(ly-12)+'" width="'+w+'" height="24" rx="12"/>'+
+      '<text x="'+lx+'" y="'+(ly+5)+'" text-anchor="middle">'+c.name+'</text></g>';
+  }).join('');
+  pinsG.addEventListener('click',function(e){var g=e.target.closest('.pin');if(g)openCity(g.dataset.id);});
+  pinsG.addEventListener('keydown',function(e){var g=e.target.closest('.pin');if(g&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openCity(g.dataset.id);}});
+
+  var cityBtns=document.getElementById('citybtns');
+  cityBtns.innerHTML=CITIES.map(function(c){return '<button class="citybtn" data-id="'+c.id+'" aria-pressed="false">'+c.name+'</button>';}).join('');
+  cityBtns.addEventListener('click',function(e){var b=e.target.closest('.citybtn');if(b)openCity(b.dataset.id);});
+
+  var evlist=document.getElementById('evlist');
+  evlist.addEventListener('click',function(e){var li=e.target.closest('li');if(li)openCity(li.dataset.id);});
+
+  var panel=document.getElementById('panel'),story=document.getElementById('story');
+  story.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    if(b.dataset.act==='close'){state.city=null;panel.classList.remove('open');story.hidden=true;syncSelection();}
+    if(b.dataset.act==='prev')setCentury(state.c-1);
+    if(b.dataset.act==='next')setCentury(state.c+1);
+  });
+
+  function setCentury(i){
+    if(i<0||i>=CENTURIES.length)return;
+    state.c=i;
+    chips.querySelectorAll('.chip').forEach(function(b){b.setAttribute('aria-pressed',String(+b.dataset.i===i));});
+    try{localStorage.setItem('tt-century',i);}catch(err){}
+    renderEverywhere();renderStory();
+  }
+  function openCity(id){
+    state.city=id;
+    renderStory();
+    panel.classList.add('open');
+    syncSelection();
+    if(window.innerWidth>860){ panel.scrollTop=0; }
+  }
+  function syncSelection(){
+    pinsG.querySelectorAll('.pin').forEach(function(g){g.classList.toggle('on',g.dataset.id===state.city);});
+    cityBtns.querySelectorAll('.citybtn').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.id===state.city));});
+  }
+  function renderEverywhere(){
+    var c=CENTURIES[state.c];
+    document.getElementById('evcent').textContent=c+'s';
+    document.getElementById('hint').textContent='You are looking at the '+c+'s. Tap a city on the map.';
+    evlist.innerHTML=CITIES.map(function(city){var e=city.eras[c];return '<li data-id="'+city.id+'"><strong>'+city.name+'</strong><span>'+(e?e.headline:'')+'</span></li>';}).join('');
+  }
+  function list(arr){return '<ul>'+arr.map(function(t){return '<li>'+t+'</li>';}).join('')+'</ul>';}
+  function sec(cls,title,arr){return '<div class="sec '+cls+'"><h3>'+title+'</h3>'+list(arr)+'</div>';}
+  function renderStory(){
+    if(!state.city){story.hidden=true;return;}
+    var city=CITIES.filter(function(c){return c.id===state.city;})[0];
+    var c=CENTURIES[state.c],e=city.eras[c];
+    if(!e){story.hidden=true;return;}
+    story.hidden=false;
+    story.innerHTML=
+      '<div class="ptop"><div><h2>'+city.name+'</h2><div class="when">'+c+'s · '+(e.name||'')+'</div></div><button class="close" data-act="close" aria-label="Close">×</button></div>'+
+      scene(e.pic)+
+      '<p class="headline">'+e.headline+'</p>'+
+      '<div class="navrow"><button data-act="prev" '+(state.c===0?'disabled':'')+'>◀ '+(state.c>0?CENTURIES[state.c-1]+'s':'')+'</button><button data-act="next" '+(state.c===CENTURIES.length-1?'disabled':'')+'>'+(state.c<CENTURIES.length-1?CENTURIES[state.c+1]+'s':'')+' ▶</button></div>'+
+      '<div class="sec t1"><h3>Timeline</h3><ul class="tl">'+e.timeline.map(function(t){return '<li><b>'+t[0]+'</b>'+t[1]+'</li>';}).join('')+'</ul></div>'+
+      sec('t3','Big names',e.players)+
+      sec('t2','Cool inventions',e.inventions)+
+      sec('t6','Big events',e.events)+
+      sec('t4','Trouble & worries',e.trouble)+
+      sec('t5','Fun & culture',e.culture)+
+      '<div class="sec t5"><h3>Did you know?</h3><div class="secret">'+e.secret+'</div></div>';
+  }
+
+  var saved=0;try{saved=+localStorage.getItem('tt-century')||0;}catch(err){}
+  setCentury(saved<CENTURIES.length?saved:0);
+})();
+</script>
+
+</body>
+</html>
