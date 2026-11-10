@@ -179,6 +179,11 @@ body.fs .bar{display:none}
 .stop .h{font-family:var(--f-display);font-weight:800;font-size:clamp(44px,8vw,120px);line-height:1;margin:16px 0 12px;letter-spacing:-.01em}
 .stop .s{font-size:clamp(22px,3vw,44px);font-weight:600}
 .stop .tap{margin-top:24px;font-size:16px;opacity:.75}
+.noise .mic select{flex:1;min-width:0;font:inherit;font-size:13px;color:var(--ink);background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:5px 6px}
+.noise .mic{margin-top:6px;color:var(--ink)}
+.noise .nstat{font-size:12px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.noise .nstat.warn{color:#c4363b;font-weight:600;white-space:normal}
+.noise.mini .nstat{display:none}
 .noise .spk{margin-top:6px;color:var(--ink);cursor:pointer}
 .noise .spk input{accent-color:var(--accent)}
 .noise .nh{display:flex;align-items:center;gap:8px;font-weight:600}
@@ -265,10 +270,12 @@ body.fs .bar{display:none}
 
 <div class="noise" id="noise" hidden aria-live="polite">
   <div class="nh"><span class="nt">🔊 Noise level</span><span class="face" id="nFace">🙂</span><button class="min" id="nSet" title="Voice level settings">⚙️</button><button class="min" id="nMin" title="Make smaller">–</button></div>
+  <div class="nstat" id="nStat">Starting…</div>
   <div class="meter" aria-hidden="true"><div class="fill" id="nFill"></div><div class="thr" id="nThr" title="Gentle reminder"></div><div class="thr hi" id="nThr2" title="Very loud signal"></div></div>
   <div class="cap nt">Allowed voice level</div>
   <div class="lvls" id="nLvls" role="group" aria-label="Allowed voice level"></div>
   <div class="row"><span>Stricter</span><input type="range" id="nSens" min="15" max="90" step="1" aria-label="Fine-tune the reminder point"><span>Looser</span></div>
+  <label class="row mic">🎤 <select id="nMic" aria-label="Microphone"><option value="">Default microphone</option></select></label>
   <label class="row spk"><input type="checkbox" id="nSpeak"> Say reminders out loud</label>
   <div class="msg" id="nMsg"></div>
 </div>
@@ -722,46 +729,118 @@ $('nMin').onclick = () => { S.mini = !S.mini; nEl.classList.toggle('mini', S.min
 const HINT = 'Listening through this computer’s microphone. Yellow line: gentle reminder. Red line: stop signal.';
 function msg(html, show){ $('nMsg').innerHTML = html; if (show) nEl.classList.add('open'); fitSoon(); }
 $('nSet').onclick = () => { nEl.classList.toggle('open'); fitSoon(); };
-async function noiseStart(){
+// Microphone handling. Plugging in an HDMI screen can change the computer's default microphone
+// (often to a silent "display audio" input), so we let the teacher pick a mic, remember it,
+// avoid HDMI/display inputs when choosing automatically, and restart when devices change.
+const BAD_MIC = /hdmi|display ?port|displayaudio|display audio|monitor|nvidia|amd high definition|intel.*display|tv|virtual|blackhole|soundflower|stereo mix|zoom|teams|loopback/i;
+const GOOD_MIC = /built-?in|internal|macbook|imac|microphone array|realtek|laptop|integrated|webcam|usb/i;
+let micList = [], silentFor = 0, starting = false;
+const stat = (t, warn) => { const e = $('nStat'); e.textContent = t; e.classList.toggle('warn', !!warn); };
+
+async function listMics(){
+  try { micList = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput'); }
+  catch(e){ micList = []; }
+  const sel = $('nMic'), keep = S.micLabel || '';
+  sel.innerHTML = '<option value="">Automatic (best guess)</option>' +
+    micList.filter(d => d.deviceId !== 'default' && d.deviceId !== 'communications')
+      .map(d => `<option value="${esc(d.label || d.deviceId)}">${esc(d.label || 'Microphone')}</option>`).join('');
+  sel.value = micList.some(d => d.label === keep) ? keep : '';
+}
+function pickMic(){
+  const real = micList.filter(d => d.deviceId !== 'default' && d.deviceId !== 'communications');
+  if (S.micLabel){ const m = real.find(d => d.label === S.micLabel); if (m) return m.deviceId; }
+  // automatic: prefer a built-in / USB mic, never an HDMI or display input
+  const ok = real.filter(d => !BAD_MIC.test(d.label));
+  const best = ok.find(d => GOOD_MIC.test(d.label)) || ok[0];
+  return best ? best.deviceId : null;
+}
+async function openMic(deviceId){
+  const audio = {echoCancellation:false, noiseSuppression:false, autoGainControl:false};
+  if (deviceId) audio.deviceId = {exact: deviceId};
+  return navigator.mediaDevices.getUserMedia({audio});
+}
+function closeMic(){
+  clearInterval(raf);
+  if (stream) stream.getTracks().forEach(t => { t.onended = null; t.stop(); });
+  if (actx) actx.close().catch(()=>{});
+  stream = actx = an = null;
+}
+async function noiseStart(restart){
   nEl.hidden = false;
-  if (stream) return;
+  if ((stream && !restart) || starting) return;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    msg('This browser can’t use the microphone here. Open the file in Chrome or Edge.', true); return;
+    stat('Microphone not available here', true);
+    msg('This page can’t use the microphone. Open the file directly in Chrome or Edge (not inside another app or preview).', true); return;
   }
-  msg('Asking to use the microphone…');
+  starting = true; closeMic(); stat('Starting microphone…');
   try {
-    stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+    // ask once with the default mic so the browser reveals mic names, then switch to the right one
+    if (!micList.some(d => d.label)){ const tmp = await openMic(); tmp.getTracks().forEach(t => t.stop()); }
+    await listMics();
+    const id = pickMic();
+    try { stream = await openMic(id); } catch(e){ stream = await openMic(); }
   } catch(e){
-    stream = null;
-    msg('Microphone blocked. Allow mic access (icon in the address bar), then<br><button class="btn" id="nRetry">Try again</button>', true);
-    $('nRetry').onclick = noiseStart; return;
+    starting = false; stream = null;
+    stat('Microphone blocked', true);
+    const why = e && e.name === 'NotFoundError'
+      ? 'No microphone found. If the laptop lid is closed while on HDMI, its built-in mic is off — open the lid or plug in a USB mic.'
+      : 'Microphone blocked. Click the 🔒 / camera icon in the address bar, allow the microphone, then';
+    msg(why + '<br><button class="btn" id="nRetry">Try again</button>', true);
+    $('nRetry').onclick = () => noiseStart(true); return;
   }
+  starting = false;
+  const track = stream.getAudioTracks()[0];
+  track.onended = () => setTimeout(() => S.opts.noise && noiseStart(true), 500);   // mic unplugged or taken over
+  stat('🎤 ' + (track.label || 'Microphone'));
   actx = new (window.AudioContext || window.webkitAudioContext)();
   const src = actx.createMediaStreamSource(stream);
   an = actx.createAnalyser(); an.fftSize = 2048; buf = new Float32Array(an.fftSize);
   src.connect(an);
+  silentFor = 0;
   if (actx.state === 'suspended'){
     msg('<button class="btn" id="nGo">Tap to start listening</button>', true);
     $('nGo').onclick = () => actx.resume().then(() => msg(HINT));
   } else msg(HINT);
-  last = performance.now(); loop();
+  last = performance.now();
+  raf = setInterval(loop, 50);   // a timer keeps listening even when the window isn't focused
 }
 function noiseStop(){
-  cancelAnimationFrame(raf);
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  if (actx) actx.close().catch(()=>{});
-  stream = actx = an = null; lvl = score1 = score2 = 0;
+  closeMic(); lvl = score1 = score2 = 0;
   nEl.hidden = true; $('shh').hidden = true; $('stop').hidden = true; nEl.classList.remove('loud','vloud');
 }
+$('nMic').onchange = () => { S.micLabel = $('nMic').value; save(); noiseStart(true); };
+// HDMI / USB plugged in or out: re-check the microphone
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener){
+  navigator.mediaDevices.addEventListener('devicechange', () => {
+    if (!S.opts.noise) return;
+    clearTimeout(window.__devT);
+    window.__devT = setTimeout(async () => {
+      const using = stream && stream.getAudioTracks()[0];
+      await listMics();
+      const want = pickMic();
+      if (!using || using.readyState === 'ended' || (want && using.getSettings().deviceId !== want)) noiseStart(true);
+    }, 800);
+  });
+}
+// browsers pause audio until someone interacts: resume on any click or key
+['pointerdown','keydown'].forEach(ev => addEventListener(ev, () => { if (actx && actx.state === 'suspended') actx.resume().then(() => msg(HINT)); }, true));
+document.addEventListener('visibilitychange', () => { if (!document.hidden && actx && actx.state === 'suspended') actx.resume(); });
 function noiseSet(on){ on ? noiseStart() : noiseStop(); }
 
 function loop(){
-  raf = requestAnimationFrame(loop);
   if (!an) return;
   const now = performance.now(), dt = Math.min(.1, (now - last) / 1000); last = now;
   an.getFloatTimeDomainData(buf);
   let sum = 0; for (let i = 0; i < buf.length; i++) sum += buf[i]*buf[i];
-  const db = 20 * Math.log10(Math.sqrt(sum / buf.length) + 1e-8);
+  const rms = Math.sqrt(sum / buf.length);
+  // a mic that gives pure digital silence is the wrong input (common after plugging in HDMI)
+  silentFor = rms < 1e-5 && actx && actx.state === 'running' ? silentFor + dt : 0;
+  if (silentFor > 4 && !$('nStat').classList.contains('warn')){
+    stat('No sound from this mic — choose another below', true); nEl.classList.add('open'); fitSoon();
+  } else if (silentFor === 0 && $('nStat').classList.contains('warn') && stream){
+    stat('🎤 ' + (stream.getAudioTracks()[0].label || 'Microphone'));
+  }
+  const db = 20 * Math.log10(rms + 1e-8);
   const target = Math.max(0, Math.min(100, (db + 60) * 2));    // about -60 dB → 0, -10 dB → 100
   lvl += (target - lvl) * (1 - Math.exp(-dt / (target > lvl ? 0.06 : 0.9)));  // rise fast, fall over ~1 s so chatter reads as steady
   $('nFill').style.width = lvl + '%';
