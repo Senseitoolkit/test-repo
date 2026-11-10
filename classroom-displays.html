@@ -102,7 +102,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 @media (min-width:1000px){ .cols2{display:grid;grid-template-columns:1.25fr 1fr;gap:clamp(20px,3vw,40px);align-items:start} }
 /* ---------- Page editor ---------- */
 .inner{position:relative}
-.editBtn{position:absolute;top:16px;right:16px;font-size:14px;padding:6px 12px}
+.editBtn{position:absolute;top:14px;right:14px;font-size:13px;padding:5px 10px;opacity:.55}
+.editBtn:hover,.editBtn:focus-visible{opacity:1}
+body.fs .editBtn{display:none}
 .editor h2{margin-bottom:18px}
 .fl{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:15px;margin:16px 0 8px}
 .editor input,.editor textarea{font:inherit;font-size:16px;font-weight:400;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:9px 11px;width:100%;min-width:0}
@@ -129,7 +131,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .noise.docked #nSet{display:inline}
 .noise.docked #nMin{display:none}
 .noise.docked .meter{height:24px}
-.noise.docked:not(.open) .cap,.noise.docked:not(.open) .lvls,.noise.docked:not(.open) .row,.noise.docked:not(.open) .msg{display:none!important}
+.noise.docked:not(.open) .cap,.noise.docked:not(.open) .lvls,.noise.docked:not(.open) .row,.noise.docked:not(.open) .nbtns,.noise.docked:not(.open) .msg{display:none!important}
 .noise.docked.open #nSet{filter:none;opacity:1}
 .noise.docked:not(.open) #nSet{opacity:.6}
 .rail .panel{flex:none}
@@ -181,6 +183,11 @@ body.fs .bar{display:none}
 .stop .tap{margin-top:24px;font-size:16px;opacity:.75}
 .noise .mic select{flex:1;min-width:0;font:inherit;font-size:13px;color:var(--ink);background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:5px 6px}
 .noise .mic{margin-top:6px;color:var(--ink)}
+.noise .nbtns{margin-top:6px;gap:6px}
+.noise .nbtns .btn{font-size:12px;padding:5px 8px;border-radius:8px;color:var(--ink);white-space:nowrap}
+.noise .nbtns #nCal{flex:1}
+.noise .calm{font-size:12px;font-weight:600;color:var(--done);margin-left:4px;white-space:nowrap}
+.noise.mini .nbtns{display:none!important}
 .noise .nstat{font-size:12px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .noise .nstat.warn{color:#c4363b;font-weight:600;white-space:normal}
 .noise.mini .nstat{display:none}
@@ -269,12 +276,13 @@ body.fs .bar{display:none}
 <button class="btn fsExit" id="fsExit" hidden>Exit full screen</button>
 
 <div class="noise" id="noise" hidden aria-live="polite">
-  <div class="nh"><span class="nt">🔊 Noise level</span><span class="face" id="nFace">🙂</span><button class="min" id="nSet" title="Voice level settings">⚙️</button><button class="min" id="nMin" title="Make smaller">–</button></div>
+  <div class="nh"><span class="nt">🔊 Noise level</span><span class="calm" id="nCalm"></span><span class="face" id="nFace">🙂</span><button class="min" id="nSet" title="Voice level settings">⚙️</button><button class="min" id="nMin" title="Make smaller">–</button></div>
   <div class="nstat" id="nStat">Starting…</div>
   <div class="meter" aria-hidden="true"><div class="fill" id="nFill"></div><div class="thr" id="nThr" title="Gentle reminder"></div><div class="thr hi" id="nThr2" title="Very loud signal"></div></div>
   <div class="cap nt">Allowed voice level</div>
   <div class="lvls" id="nLvls" role="group" aria-label="Allowed voice level"></div>
   <div class="row"><span>Stricter</span><input type="range" id="nSens" min="15" max="90" step="1" aria-label="Fine-tune the reminder point"><span>Looser</span></div>
+  <div class="row nbtns"><button type="button" class="btn" id="nCal" title="Sets the reminder just above the volume in the room right now">🎯 This volume is OK</button><button type="button" class="btn" id="nTest">▶ Test</button></div>
   <label class="row mic">🎤 <select id="nMic" aria-label="Microphone"><option value="">Default microphone</option></select></label>
   <label class="row spk"><input type="checkbox" id="nSpeak"> Say reminders out loud</label>
   <div class="msg" id="nMsg"></div>
@@ -289,6 +297,7 @@ body.fs .bar{display:none}
 <script>
 (() => {
 const $ = id => document.getElementById(id);
+const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');   // **bold**
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---------- Content from the three files ---------- */
@@ -301,17 +310,17 @@ const DISPLAYS = [
     items:[['🧽','Clean your desk'],['🧼','Wash your hands'],['🍏','Eat your snack quietly'],['📖','Read or draw quietly at your desk']] },
   { id:'recess', group:'Choices', icon:'🌧️', color:'#3b7dd8', title:'Indoor Recess Choices & Expectations',
     desc:'Building toys, crafts, reading, games or unfinished work.', style:'small',
-    items:[['🧱','Building Toys','Build in a quiet space — <b>not blocking doors or walkways</b>.'],
-           ['✂️','Crafts','Use the supplies carefully and <b>tidy up when you’re done</b>.'],
+    items:[['🧱','Building Toys','Build in a quiet space — **not blocking doors or walkways**.'],
+           ['✂️','Crafts','Use the supplies carefully and **tidy up when you’re done**.'],
            ['📚','Read a Book','Find a cozy spot and enjoy some quiet reading.'],
-           ['🎲','Board & Card Games','Play kindly and <b>return everything neatly</b> to the correct shelf.'],
-           ['🗂️','Unfinished Work','Finish something you started — <b>put it back where it belongs</b>.']] },
+           ['🎲','Board & Card Games','Play kindly and **return everything neatly** to the correct shelf.'],
+           ['🗂️','Unfinished Work','Finish something you started — **put it back where it belongs**.']] },
   { id:'ai', group:'Choices', icon:'🦊', color:'#d9622b', title:'Action Inquiry Choices',
     desc:'Nine creative activities to choose from.', style:'cols',
     items:[['🦢','Origami'],['📒','Mini book making'],['💬','Comic strips'],['✏️','Drawing'],['📖','Storytelling Activity Book'],
            ['🎨','Mr. Dave’s Art Goals Book'],['✂️','Paper crafts'],['🦸','Comic Making'],['🧱','Building toys']] },
   { id:'makeup', group:'Choices', icon:'🚫', color:'#7a5cd6', title:'Action Inquiry Friday: Make-Up Work',
-    desc:'Catch-up goals to finish before rejoining Action Inquiry.', style:'sections', editable:true,
+    desc:'Catch-up goals to finish before rejoining Action Inquiry.', style:'sections',
     itemsTitle:'✅ Goals to complete', itemsSub:'Work through these in order', expectTitle:'🧠 Expectations',
     intro:'Since you haven’t completed all of your required goals this week, you’ll be using this time to catch up and finish strong.',
     items:[['✍️','Work on Writing','Finish the current writing task(s).'],
@@ -365,7 +374,8 @@ renderSwitches($('optsHome')); renderSwitches($('optsBar')); syncSwitches();
 const EDIT_FIELDS = ['title','intro','items','expect','goal'];
 const ORIGINAL = {};
 S.custom = S.custom || {};
-DISPLAYS.filter(d => d.editable).forEach(d => {
+DISPLAYS.forEach(d => {
+  d.editable = true;
   ORIGINAL[d.id] = JSON.parse(JSON.stringify(Object.fromEntries(EDIT_FIELDS.map(f => [f, d[f]]))));
   if (S.custom[d.id]) Object.assign(d, JSON.parse(JSON.stringify(S.custom[d.id])));
 });
@@ -418,8 +428,8 @@ function render(){
 
   st.className = 'stage';
   if (editing){ renderEditor(); return; }
-  const E = d.editable ? esc : (x => x);
-  let h = `<div class="inner">${d.editable ? '<button class="btn editBtn" id="editBtn">✏️ Edit this page</button>' : ''}<h2><span>${d.icon}</span>${E(d.title)}</h2>`;
+  const E = rich;
+  let h = `<div class="inner">${d.editable ? '<button class="btn editBtn" id="editBtn" title="Edit this page">✏️ Edit</button>' : ''}<h2><span>${d.icon}</span>${E(d.title)}</h2>`;
   if (d.style === 'sections'){
     const items = d.items.map(([e,t,sub]) => [E(e), E(t), sub ? E(sub) : '']);
     h += d.intro ? `<p class="intro">${E(d.intro)}</p>` : '';
@@ -432,7 +442,7 @@ function render(){
     h += d.goal ? `<div class="goal"><b>🎯 Goal:</b> ${E(d.goal)}</div>` : '';
     h += '</div></div>';
   } else {
-    h += list(d.items, d.id, d.style);
+    h += list(d.items.map(([e,t,sub]) => [E(e), E(t), sub ? E(sub) : '']), d.id, d.style);
   }
   h += '</div>';
   st.innerHTML = h;
@@ -443,31 +453,31 @@ function render(){
 
 /* ---------- Page editor (for displays marked editable) ---------- */
 function renderEditor(){
-  const d = cur, st = $('stage');
+  const d = cur, st = $('stage'), sec = d.style === 'sections';
   const row = (cls, cells) => `<div class="erow ${cls}">${cells}<span class="eact"><button type="button" data-mv="-1" title="Move up">↑</button><button type="button" data-mv="1" title="Move down">↓</button><button type="button" data-del title="Remove">✕</button></span></div>`;
-  const itemRow = ([e,t,sub]) => row('gi', `<input class="emo" value="${esc(e)}" aria-label="Emoji" maxlength="4"><input class="t1" value="${esc(t)}" placeholder="Task" aria-label="Task"><input class="t2" value="${esc(sub||'')}" placeholder="Details (optional)" aria-label="Details">`);
+  const itemRow = ([e,t,sub]) => row('gi', `<input class="emo" value="${esc(e)}" aria-label="Emoji" maxlength="4"><input class="t1" value="${esc(t)}" placeholder="Text" aria-label="Text"><input class="t2" value="${esc(sub||'')}" placeholder="Details (optional)" aria-label="Details">`);
   const expRow = ([e,t]) => row('ex', `<input class="emo" value="${esc(e)}" aria-label="Emoji" maxlength="4"><input class="t1 wide" value="${esc(t)}" placeholder="Expectation" aria-label="Expectation">`);
   st.innerHTML = `<form class="inner editor" id="edForm">
     <h2><span>✏️</span>Edit page</h2>
     <label class="fl">Title<input id="eTitle" value="${esc(d.title)}" maxlength="80"></label>
-    <label class="fl">Intro<textarea id="eIntro" rows="2" maxlength="300">${esc(d.intro)}</textarea></label>
-    <div class="fl">${d.itemsTitle}</div>
+    ${sec ? `<label class="fl">Intro<textarea id="eIntro" rows="2" maxlength="300">${esc(d.intro)}</textarea></label>` : ''}
+    <div class="fl">${sec ? d.itemsTitle : 'Items'}</div>
     <div class="elist" id="eItems">${d.items.map(itemRow).join('')}</div>
-    <button type="button" class="btn addBtn" id="addItem">+ Add a task</button>
-    <div class="fl">${d.expectTitle}</div>
+    <button type="button" class="btn addBtn" id="addItem">+ Add an item</button>
+    ${sec ? `<div class="fl">${d.expectTitle}</div>
     <div class="elist" id="eExp">${d.expect.map(expRow).join('')}</div>
-    <button type="button" class="btn addBtn" id="addExp">+ Add an expectation</button>
-    <label class="fl">🎯 Goal<textarea id="eGoal" rows="2" maxlength="300">${esc(d.goal)}</textarea></label>
+    <button type="button" class="btn addBtn" id="addExp">+ Add a line</button>
+    <label class="fl">🎯 Goal<textarea id="eGoal" rows="2" maxlength="300">${esc(d.goal)}</textarea></label>` : ''}
     <div class="ebar">
       <button type="submit" class="btn primary">Save</button>
       <button type="button" class="btn" id="eCancel">Cancel</button>
       <button type="button" class="btn ghostRed" id="eReset">Reset to original</button>
     </div>
-    <p class="ehint">Changes are saved in this browser. Leave Details or Goal empty to hide them.</p>
+    <p class="ehint">Changes are saved in this browser. Leave Details empty to hide them. Put **stars** around words to make them bold.</p>
   </form>`;
   const tmp = document.createElement('div');
   $('addItem').onclick = () => { tmp.innerHTML = itemRow(['📝','','']); $('eItems').appendChild(tmp.firstChild); $('eItems').lastChild.querySelector('.t1').focus(); };
-  $('addExp').onclick = () => { tmp.innerHTML = expRow(['⭐','']); $('eExp').appendChild(tmp.firstChild); $('eExp').lastChild.querySelector('.t1').focus(); };
+  if (sec) $('addExp').onclick = () => { tmp.innerHTML = expRow(['⭐','']); $('eExp').appendChild(tmp.firstChild); $('eExp').lastChild.querySelector('.t1').focus(); };
   st.querySelector('.editor').addEventListener('click', e => {
     const r = e.target.closest('.erow'); if (!r) return;
     if (e.target.hasAttribute('data-del')) r.remove();
@@ -485,14 +495,13 @@ function renderEditor(){
     e.preventDefault();
     const v = el => el.value.trim();
     const items = [...$('eItems').children].map(r => [v(r.querySelector('.emo')) || '•', v(r.querySelector('.t1')), v(r.querySelector('.t2'))]).filter(x => x[1]);
-    if (!items.length){ alert('Add at least one task.'); return; }
-    const c = {
-      title: v($('eTitle')) || ORIGINAL[d.id].title,
+    if (!items.length){ alert('Add at least one item.'); return; }
+    const c = { title: v($('eTitle')) || ORIGINAL[d.id].title, items };
+    if (sec) Object.assign(c, {
       intro: v($('eIntro')),
-      items,
       expect: [...$('eExp').children].map(r => [v(r.querySelector('.emo')) || '•', v(r.querySelector('.t1'))]).filter(x => x[1]),
       goal: v($('eGoal')),
-    };
+    });
     Object.assign(d, c);
     S.custom[d.id] = c; delete S.ticks[d.id]; save();
     editing = false; buildNav(); render(); $('stage').scrollTop = 0;
@@ -500,10 +509,10 @@ function renderEditor(){
 }
 
 /* ---------- Fit everything on screen (no scrolling) ---------- */
-function fitZoom(targets, fits){
-  targets.forEach(t => t.style.zoom = 1);
+function fitZoom(targets, fits, max = 1){
+  targets.forEach(t => t.style.zoom = max);
   if (fits()) return;
-  let lo = 0.35, hi = 1;
+  let lo = 0.35, hi = max;
   for (let i = 0; i < 9; i++){
     const mid = (lo + hi) / 2;
     targets.forEach(t => t.style.zoom = mid);
@@ -516,7 +525,8 @@ function fitAll(){
   if ($('view').hidden) return;
   const st = $('stage'), inner = st.querySelector('.inner'), rail = $('rail');
   if (!wide()){ if (inner) inner.style.zoom = 1; [...rail.children].forEach(c => c.style.zoom = 1); return; }
-  if (inner && !editing) fitZoom([inner], () => st.scrollHeight <= st.clientHeight + 1);
+  if (inner && editing) inner.style.zoom = 1;
+  if (inner && !editing) fitZoom([inner], () => st.scrollHeight <= st.clientHeight + 1 && st.scrollWidth <= st.clientWidth + 1, 1.8);   // grow to fill spare room, shrink to fit
   if (!rail.hidden){
     const kids = [...rail.children].filter(c => !c.hidden);
     fitZoom(kids, () => rail.scrollHeight <= rail.clientHeight + 1);
@@ -808,6 +818,29 @@ function noiseStop(){
   closeMic(); lvl = score1 = score2 = 0;
   nEl.hidden = true; $('shh').hidden = true; $('stop').hidden = true; nEl.classList.remove('loud','vloud');
 }
+// "This volume is OK": listen for 3 s and put the reminder line just above the room's current level
+let cal = null;
+$('nCal').onclick = () => {
+  if (!an || cal) return;
+  cal = {sum:0, n:0, peak:0}; $('nCal').textContent = 'Listening… 3';
+  let left = 3;
+  const t = setInterval(() => {
+    left--;
+    if (left > 0){ $('nCal').textContent = 'Listening… ' + left; return; }
+    clearInterval(t);
+    const avg = cal.n ? cal.sum / cal.n : lvl; cal = null;
+    S.sens = Math.round(Math.max(15, Math.min(90, avg + 10))); S.level = -1; save(); drawThr();
+    score1 = score2 = 0;
+    $('nCal').textContent = '✓ Set'; setTimeout(() => $('nCal').textContent = '🎯 This volume is OK', 1500);
+  }, 1000);
+};
+$('nTest').onclick = () => {
+  const [e, h, t, say] = PHRASES[phrase++ % PHRASES.length];
+  $('shhE').textContent = e; $('shhH').textContent = h; $('shhS').textContent = t;
+  $('shh').hidden = false; shownAt = performance.now(); cool = 6; speak(say);
+  setTimeout(() => { $('shh').hidden = true; }, 4000);
+};
+let calmSince = performance.now();
 $('nMic').onchange = () => { S.micLabel = $('nMic').value; save(); noiseStart(true); };
 // HDMI / USB plugged in or out: re-check the microphone
 if (navigator.mediaDevices && navigator.mediaDevices.addEventListener){
@@ -844,10 +877,15 @@ function loop(){
   const target = Math.max(0, Math.min(100, (db + 60) * 2));    // about -60 dB → 0, -10 dB → 100
   lvl += (target - lvl) * (1 - Math.exp(-dt / (target > lvl ? 0.06 : 0.9)));  // rise fast, fall over ~1 s so chatter reads as steady
   $('nFill').style.width = lvl + '%';
+  if (cal){ cal.sum += lvl; cal.n++; }
   const t1 = S.sens, t2 = hiThr();
   $('nFace').textContent = lvl > t2 ? '😫' : lvl > t1 ? '😣' : lvl > t1 - 12 ? '😐' : '🙂';
   nEl.classList.toggle('loud', lvl > t1 && lvl <= t2);
   nEl.classList.toggle('vloud', lvl > t2);
+  // calm-time counter: how long the room has stayed under the reminder line
+  if (lvl > t1) calmSince = now;
+  const calm = Math.floor((now - calmSince) / 1000);
+  $('nCalm').textContent = calm >= 30 ? `⭐ Calm ${Math.floor(calm/60)}:${String(calm%60).padStart(2,'0')}` : '';
 
   // "loudness scores" build up while over a line and drain while under, so ordinary chatter gaps don't reset them
   score1 = Math.max(0, score1 + (lvl > t1 ? dt : -dt * .35));
