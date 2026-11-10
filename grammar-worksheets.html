@@ -203,11 +203,29 @@
     .q .qb { display: grid; gap: 8px; min-width: 0; }
     .q .qp { line-height: 1.5; }
     .q .qp .mk { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px; font-weight: 700; }
-    .q .qp .gap { display: inline-block; width: 3.2em; border-bottom: 1.5px solid var(--pink); height: 1em; vertical-align: baseline; }
+    .q .qp .gap { display: inline-block; width: 6.5em; border-bottom: 1.5px solid var(--pink); height: 1em; vertical-align: baseline; }
     .q .lab { grid-column: 2; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--pmuted); font-weight: 700; }
     .q .aline { display: block; border-bottom: 1.5px solid var(--pink); height: 1.5em; max-width: 100%; }
     .q .aline.short { width: min(14em, 100%); }
-    .q .aline + .aline { margin-top: 4px; }
+    .q .aline { height: 1.9em; }
+    .q .aline + .aline { margin-top: 2px; }
+    .q .fl { display: block; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--pmuted); font-weight: 700; margin-top: 2px; }
+    .q .rw { display: grid; gap: 0; }
+    .q .rw .fl { margin-bottom: -4px; }
+    .q .bank { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; border: 1.5px dashed var(--prule); border-radius: 8px; padding: 5px 10px; font-size: .95em; }
+    .q .bank b { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--pmuted); margin-right: 4px; }
+    .q .bank span { font-weight: 600; }
+    .opts.boxes { flex-direction: column; gap: 6px; }
+    .opts.boxes .opt { border: 0; border-radius: 0; padding: 2px 0; }
+    .opts.boxes .opt .bx { width: 1.1em; height: 1.1em; border: 1.5px solid var(--pink); border-radius: 4px; flex: none; align-self: center; }
+    .opts.boxes span.opt.correct { box-shadow: none; }
+    .opts.boxes span.opt.correct .bx { background: #c8352d; border-color: #c8352d; }
+    .opts.boxes button.opt[aria-pressed="true"] { background: transparent; color: var(--pink); }
+    .opts.boxes button.opt[aria-pressed="true"] .bx { background: var(--pink); }
+    .q.right .opts.boxes button.opt[aria-pressed="true"] { background: transparent; color: #3d8a4e; } .q.right .opts.boxes button.opt[aria-pressed="true"] .bx { background: #3d8a4e; border-color: #3d8a4e; }
+    .q.wrong .opts.boxes button.opt[aria-pressed="true"] { background: transparent; color: #c8352d; } .q.wrong .opts.boxes button.opt[aria-pressed="true"] .bx { background: #c8352d; border-color: #c8352d; }
+    .paper.marked .q:not(.right) .opts.boxes button.opt.correct, .paper.peek .opts.boxes button.opt.correct, .q.wrong .opts.boxes button.opt.correct { box-shadow: none; }
+    .q .fixnote { font-size: .85rem; color: var(--pmuted); }
     .ans, .q .fix { font-family: var(--f-pen); font-weight: 700; color: #c8352d; font-size: 1.35em; line-height: 1.1; }
     .q .ans { display: inline-block; border-bottom: 1.5px solid #c8352d; padding: 0 .3em; min-width: 6em; max-width: 100%; }
     .q input { font: inherit; width: min(100%, 14em); padding: 3px 6px; border: 0; border-bottom: 1.5px solid var(--pink); border-radius: 0; background: transparent; color: var(--pink); font-weight: 600; }
@@ -368,6 +386,7 @@
   <div class="copybar">
     <span id="copyWrap"><label for="vpick">Showing copy</label> <select id="vpick"></select></span>
     <button class="link" type="button" id="reroll">New questions</button>
+    <span class="hint" id="fitnote"></span>
   </div>
 
   <div class="practicebar" id="practicebar" hidden>
@@ -415,7 +434,7 @@
   const CLASSES = ["noun", "verb", "adjective", "adverb"];
   function wordClassQ(rng, allowed, label) {
     const adj = pick(rng, ADJS), noun = pick(rng, NOUNS), verb = pick(rng, VERBS_PAST), adv = pick(rng, ADVS);
-    const cls = pick(rng, allowed);
+    const cls = allowed.length === 1 && rng() < 0.4 ? pick(rng, CLASSES.filter(c => !allowed.includes(c))) : pick(rng, allowed);
     const w = { noun, verb, adjective: adj, adverb: adv }[cls];
     const words = { noun, verb, adjective: adj, adverb: adv };
     const sent = "The " + (cls === "adjective" ? M(adj) : adj) + " " + (cls === "noun" ? M(noun) : noun) + " " + (cls === "verb" ? M(verb) : verb) + " " + (cls === "adverb" ? M(adv) : adv) + ".";
@@ -625,7 +644,10 @@
           if (rng() < 0.5) return S("Turn the adjective " + M(a) + " into an adverb.", a + "ly", { label });
           return S(pick(rng, ["She spoke", "He walked", "They worked", "The cat moved", "Dad drove", "We sang"]) + " ___ (" + a + ").", a + "ly", { label });
         }),
-        O("y2w6", "Recognise and use nouns, verbs, adjectives and adverbs.", "Word classes", "A noun names, a verb does, an adjective describes a noun, an adverb describes a verb.", (rng, label) => wordClassQ(rng, CLASSES, label))
+        O("y2w6", "Recognise and use nouns.", "Nouns", "A noun names a person, place or thing.", (rng, label) => wordClassQ(rng, ["noun"], label)),
+        O("y2w7", "Recognise and use verbs.", "Verbs", "A verb is a doing or being word.", (rng, label) => wordClassQ(rng, ["verb"], label)),
+        O("y2w8", "Recognise and use adjectives.", "Adjectives", "An adjective describes a noun.", (rng, label) => wordClassQ(rng, ["adjective"], label)),
+        O("y2w9", "Recognise and use adverbs.", "Adverbs", "An adverb describes a verb: how, when or where.", (rng, label) => wordClassQ(rng, ["adverb"], label))
       ] },
       { name: "Sentence grammar", objs: [
         O("y2s1", "Use coordinating conjunctions: and, but, or.", "and, but, or", "and adds, but shows a difference, or gives a choice.", (rng, label) => {
@@ -693,11 +715,18 @@
         })
       ] },
       { name: "Punctuation", objs: [
-        O("y2p1", "Use capital letters and sentence-ending punctuation accurately.", "Capitals and end marks", "Capital letter to start, and a full stop, question mark or exclamation mark to finish.", (rng, label) => {
-          const raw = pick(rng, PUNC), good = PUNCGOOD[raw];
-          if (rng() < 0.5) return S("Write the sentence with the correct capital letters and end mark.\n" + M(raw), good, { mode: "strict", long: true, label });
-          const noEnd = good.slice(0, -1), noCap = low(good);
-          return C(rng, "Which sentence is punctuated correctly?", good, [noEnd, noCap === good ? good.replace("I ", "i ") : noCap], { mode: "strict", label });
+        O("y2p1", "Use capital letters for the start of a sentence and for proper nouns.", "Capital letters", "A capital to start the sentence, and for names of people, places, days and the word I.", (rng, label) => {
+          const raw = pick(rng, PUNC), good = PUNCGOOD[raw], noCap = raw + good.slice(-1);
+          if (rng() < 0.5) return S("Write the sentence with the correct capital letters.\n" + M(noCap), good, { mode: "strict", long: true, label });
+          const words = good.split(" "), idx = words.findIndex((w, i) => i > 0 && /^[a-z]/.test(w));
+          const over = words.map((w, i) => i === idx ? cap(w) : w).join(" ");
+          return C(rng, "Which sentence uses capital letters correctly?", good, [noCap, over], { mode: "strict", label });
+        }),
+        O("y2p5", "Choose the right punctuation mark to end a sentence.", "End punctuation", "A full stop to tell, a question mark to ask, an exclamation mark for strong feeling.", (rng, label) => {
+          const raw = pick(rng, PUNC), good = PUNCGOOD[raw], mark = good.slice(-1), noEnd = good.slice(0, -1);
+          const names = { ".": "full stop  .", "?": "question mark  ?", "!": "exclamation mark  !" };
+          if (rng() < 0.5) return C(rng, "Which punctuation mark should end this sentence?\n" + M(noEnd), names[mark], Object.keys(names).filter(k => k !== mark).map(k => names[k]), { label });
+          return S("Write the sentence again with the correct end mark.\n" + M(noEnd), good, { mode: "strict", long: true, label });
         }),
         O("y2p2", "Use commas to separate items in lists.", "Commas in lists", "Put a comma between each item. Use and before the last one.", (rng, label) => {
           const l = pick(rng, LISTS), items = shuffle(rng, l[1]).slice(0, ri(rng, 3, 4));
@@ -727,12 +756,6 @@
     const PREMEAN = { super: "above or bigger than", anti: "against", auto: "self or by itself" };
     const AN = [["apple", "an"], ["elephant", "an"], ["igloo", "an"], ["orange", "an"], ["umbrella", "an"], ["egg", "an"], ["ant", "an"], ["owl", "an"], ["ice cream", "an"], ["idea", "an"], ["octopus", "an"], ["hour", "an"], ["honest boy", "an"], ["banana", "a"], ["dog", "a"], ["hat", "a"], ["cat", "a"], ["tree", "a"], ["book", "a"], ["car", "a"], ["house", "a"], ["ball", "a"], ["pencil", "a"], ["uniform", "a"], ["unicorn", "a"], ["yellow bus", "a"]];
     const FAM = [["play", ["player", "playful", "replay", "playground"], ["plate", "plant"]], ["help", ["helper", "helpful", "helpless", "unhelpful"], ["helmet", "hello"]], ["care", ["careful", "careless", "caring"], ["carrot", "card"]], ["kind", ["kindness", "unkind", "kindly"], ["king", "kite"]], ["hope", ["hopeful", "hopeless", "hoping"], ["hop", "hoop"]], ["use", ["useful", "useless", "user"], ["fuse", "house"]], ["happy", ["unhappy", "happiness", "happily"], ["hippo", "happen"]], ["sign", ["signal", "signature", "design"], ["sing", "sink"]], ["act", ["action", "actor", "active"], ["ace", "art"]], ["build", ["builder", "building", "rebuild"], ["bull", "bundle"]], ["cover", ["uncover", "discover", "covering"], ["cow", "clover"]], ["friend", ["friendly", "friendship", "unfriendly"], ["fried", "fringe"]], ["light", ["lighten", "lighter", "lightly"], ["fight", "might"]], ["real", ["really", "reality", "unreal"], ["reel", "read"]], ["agree", ["disagree", "agreement", "agreeable"], ["green", "degree"]]];
-    const TPC = {
-      time: ["*Before* lunch, we washed our hands.", "We played outside *until* it got dark.", "*After* the storm, the sun came out.", "I will finish my homework *later*.", "*Yesterday* we visited the zoo.", "She waited *while* the kettle boiled.", "*Soon* it will be time for bed.", "*First*, mix the flour and butter.", "The bus arrived *at nine o'clock*.", "We swim *on Tuesdays*.", "*During* the night, it snowed.", "*Then* the giant roared."],
-      place: ["The cat hid *under* the bed.", "We walked *across* the field.", "There is a park *near* my house.", "The keys are *inside* the drawer.", "A bird sat *on* the fence.", "She stood *behind* the door.", "The shop is *between* the bank and the cafe.", "Put your bag *over there*.", "*Above* the clouds, the sky was blue.", "The frog jumped *into* the pond.", "We live *beside* the river.", "He looked *everywhere* for his hat."],
-      cause: ["I was late *because* I overslept.", "It was cold, *so* I wore a scarf.", "*Since* it was sunny, we had a picnic.", "The road was icy, *therefore* the cars drove slowly.", "She was tired *because of* the long walk.", "He trained hard, *so* he won the race.", "*As* it was late, we went home.", "The shop was shut, *so* we went home.", "*Because of* the rain, the match was cancelled.", "He was happy *because* he scored a goal.", "The plants died *since* nobody watered them.", "*Due to* the snow, school was closed."]
-    };
-    const TPCFILL = [["I will phone you ___ I get home.", "when", ["under", "so"], "time"], ["The dog slept ___ the table.", "under", ["after", "because"], "place"], ["We took the bus ___ it was raining.", "because", ["before", "behind"], "cause"], ["___ the lesson ended, the children lined up.", "When", ["Inside", "Across"], "time"], ["The treasure was buried ___ the old oak tree.", "beneath", ["until", "so"], "place"], ["He wore a coat ___ it was snowing.", "because", ["next to", "inside"], "cause"], ["Wash the apples ___ you eat them.", "before", ["inside", "therefore"], "time"], ["The children played ___ the garden.", "in", ["when", "because"], "place"], ["She was thirsty, ___ she drank some water.", "so", ["under", "before"], "cause"], ["___ the bell rang, everyone went inside.", "After", ["Behind", "Therefore"], "time"], ["The mouse crept ___ the hole.", "into", ["since", "later"], "place"], ["I missed the bus ___ I woke up late.", "because", ["between", "above"], "cause"]];
     const CLAUSE = [["Although it was raining", "we went outside.", "Although", ["Because", "Unless"]], ["We stayed inside", "because the storm was loud.", "because", ["unless", "although"]], ["If you finish your work", "you can play.", "If", ["Although", "Because"]], ["The baby laughed", "when she saw the puppy.", "when", ["unless", "although"]], ["While the cake baked", "we washed up.", "While", ["Unless", "Although"]], ["Unless it stops snowing", "school will close early.", "Unless", ["Although", "While"]], ["I love pizza", "even though it is messy.", "even though", ["unless", "because"]], ["After the match ended", "the fans went home.", "After", ["Unless", "Although"]], ["Since the shop was shut", "we had no milk.", "Since", ["Although", "Unless"]], ["Until the bell rings", "you must keep working.", "Until", ["Although", "Because"]], ["He kept running", "until he reached the finish line.", "until", ["although", "unless"]], ["The kitten purred", "as I stroked its fur.", "as", ["unless", "although"]]];
     const HEAD = [["Owls hunt at night. Their huge eyes help them see in the dark.", "Night hunters", ["Baby birds", "Building a nest"]], ["Mix the flour, butter and sugar. Then add two eggs and stir well.", "Making the mixture", ["Serving the cake", "Washing up"]], ["The Romans built straight roads so their soldiers could march quickly.", "Roman roads", ["Roman food", "Roman gods"]], ["Always wear a helmet. Check your brakes before you set off.", "Staying safe on your bike", ["Choosing a bike colour", "Bike races"]], ["Polar bears have thick fur and a layer of fat to keep them warm.", "Keeping warm", ["What polar bears eat", "Polar bear cubs"]], ["Water the plant twice a week and keep it near a sunny window.", "Caring for your plant", ["Types of flowers", "Garden pests"]], ["Our school has a new library with beanbags and hundreds of books.", "The new library", ["The dinner hall", "Sports day"]], ["Volcanoes erupt when hot rock called magma pushes up through the ground.", "How volcanoes erupt", ["Famous mountains", "Rivers and lakes"]], ["Recycling glass and paper means less rubbish goes to the tip.", "Why recycling matters", ["Shopping for food", "A day at the beach"]], ["The knight wore heavy armour and carried a long sword.", "A knight's equipment", ["Castle kitchens", "The king's feast"]]];
     const PERF = [["I ___ (eat) my lunch already.", "have eaten", "ate"], ["Yesterday I ___ (eat) toast for breakfast.", "ate", "have eaten"], ["She ___ (visit) Spain three times.", "has visited", "visited"], ["She ___ (visit) Spain last summer.", "visited", "has visited"], ["We ___ (finish) our project at last!", "have finished", "finished"], ["We ___ (finish) the project on Monday.", "finished", "have finished"], ["He ___ (lose) his keys again.", "has lost", "lost"], ["He ___ (lose) his keys an hour ago.", "lost", "has lost"], ["They ___ (see) that film twice.", "have seen", "saw"], ["They ___ (see) that film last week.", "saw", "have seen"], ["I ___ (never / break) a bone.", "have never broken", "never broke"], ["My sister ___ (break) her arm in 2020.", "broke", "has broken"], ["The children ___ (just / arrive).", "have just arrived", "just arrived"], ["The children ___ (arrive) ten minutes ago.", "arrived", "have arrived"], ["Dad ___ (make) dinner every night this week.", "has made", "made"], ["Dad ___ (make) dinner last night.", "made", "has made"]];
@@ -747,13 +770,33 @@
       if (y4) wrong.push('"' + endless.replace(/[,?!]$/, "") + '", ' + tail);
       return C(rng, "Which sentence uses inverted commas correctly?", good, shuffle(rng, wrong).slice(0, 2), { mode: "punct", label });
     };
-    const tpcQ = (rng, want, label) => {
-      if (rng() < 0.5) {
-        const k = rng() < 0.5 ? want : pick(rng, ["time", "place", "cause"].filter(x => x !== want));
-        return C(rng, "Does the underlined part tell us about time, place or cause?\n" + pick(rng, TPC[k]), k, ["time", "place", "cause"].filter(x => x !== k), { label });
+    /* One word class per objective. bank: [sentence with the word marked, what it tells us]. gaps: [sentence, answer, two wrong words of the same class]. */
+    const WC = {
+      conjunction: {
+        bank: [["I will phone you *when* I get home.", "time"], ["She read a book *while* the cake baked.", "time"], ["Stay inside *until* the rain stops.", "time"], ["*When* the bell rang, everyone went inside.", "time"], ["He kept running *until* he reached the finish line.", "time"], ["It was cold, *so* I wore a scarf.", "cause"], ["I was late *because* I overslept.", "cause"], ["*Since* it was sunny, we had a picnic.", "cause"], ["*As* it was late, we went home.", "cause"], ["He was happy *because* he scored a goal.", "cause"], ["*If* you finish your work, you can play.", "other"], ["*Although* it was raining, we went outside.", "other"]],
+        gaps: [["I will phone you ___ I get home.", "when", ["although", "unless"]], ["We took the bus ___ it was raining.", "because", ["until", "although"]], ["She was thirsty, ___ she drank some water.", "so", ["until", "although"]], ["___ the bell rang, everyone went inside.", "When", ["Unless", "Although"]], ["Stay in bed ___ you feel better.", "until", ["because", "so"]], ["___ it was snowing, we built a snowman.", "Because", ["Until", "Unless"]], ["He kept reading ___ the lights went out.", "until", ["so", "because"]], ["You can have pudding ___ you eat your vegetables.", "if", ["so", "while"]]]
+      },
+      adverb: {
+        bank: [["*Yesterday* we visited the zoo.", "time"], ["I will finish my homework *later*.", "time"], ["*Soon* it will be time for bed.", "time"], ["*Then* the giant roared.", "time"], ["*Suddenly*, the lights went out.", "time"], ["*Next*, add the eggs.", "time"], ["He looked *everywhere* for his hat.", "place"], ["The children played *outside*.", "place"], ["We live *nearby*.", "place"], ["Put your coat *there*.", "place"], ["The road was icy, *therefore* the cars drove slowly.", "cause"], ["We were tired; *therefore* we stopped.", "cause"]],
+        gaps: [["___ we went to the beach.", "Yesterday", ["Everywhere", "Nearby"]], ["First, mix the flour. ___, add the eggs.", "Next", ["Outside", "Nearby"]], ["The children played ___ in the garden.", "outside", ["soon", "later"]], ["I searched ___ for my shoes.", "everywhere", ["yesterday", "soon"]], ["It is late now, so I will finish this ___.", "later", ["everywhere", "there"]], ["___, the door creaked open.", "Suddenly", ["Nearby", "Outside"]], ["Dinner will be ready ___.", "soon", ["everywhere", "outside"]], ["The road was icy, ___ the cars drove slowly.", "therefore", ["yesterday", "nearby"]]]
+      },
+      preposition: {
+        bank: [["The cat hid *under* the bed.", "place"], ["We walked *across* the field.", "place"], ["There is a park *near* my house.", "place"], ["The keys are *inside* the drawer.", "place"], ["She stood *behind* the door.", "place"], ["The frog jumped *into* the pond.", "place"], ["*Before* lunch, we washed our hands.", "time"], ["*After* the storm, the sun came out.", "time"], ["*During* the night, it snowed.", "time"], ["The bus arrived *at* nine o'clock.", "time"], ["We swim *on* Tuesdays.", "time"], ["The match was cancelled *because of* the rain.", "cause"]],
+        gaps: [["The dog slept ___ the table.", "under", ["during", "into"]], ["The treasure was buried ___ the old oak tree.", "beneath", ["after", "during"]], ["The children played ___ the garden.", "in", ["before", "after"]], ["The mouse crept ___ the hole.", "into", ["during", "at"]], ["___ the night, an owl hooted.", "During", ["Under", "Across"]], ["We eat breakfast ___ school.", "before", ["under", "between"]], ["The shop is ___ the bank and the cafe.", "between", ["during", "after"]], ["The lesson starts ___ nine o'clock.", "at", ["under", "into"]]]
       }
-      const f = pick(rng, TPCFILL.filter(x => x[3] === want));
-      return C(rng, "Choose the word that completes the sentence.\n" + f[0], f[1], f[2], { label });
+    };
+    const WCK = Object.keys(WC), markedWord = t => t.match(/\*([^*]+)\*/)[1];
+    const wcQ = (rng, cls, label) => {
+      const d = WC[cls], t = rng();
+      if (t < 0.3) {
+        const k = rng() < 0.6 ? cls : pick(rng, WCK.filter(x => x !== cls));
+        return C(rng, "What kind of word is the underlined word?\n" + pick(rng, WC[k].bank)[0], k, WCK.filter(x => x !== k), { label });
+      }
+      if (t < 0.55) { const g = pick(rng, d.gaps); return C(rng, "Choose the " + cls + " that completes the sentence.\n" + g[0], g[1], g[2], { label }); }
+      if (t < 0.8) { const b = pick(rng, d.bank); return S("Write the " + cls + " in this sentence.\n" + b[0].replace(/\*/g, ""), markedWord(b[0]), { label }); }
+      const fns = cls === "conjunction" ? ["time", "cause"] : ["time", "place", "cause"];
+      const b = pick(rng, d.bank.filter(x => fns.includes(x[1])));
+      return C(rng, "Does the underlined " + cls + " tell us about " + fns.slice(0, -1).join(", ") + " or " + fns[fns.length - 1] + "?\n" + b[0], b[1], fns.filter(x => x !== b[1]), { label });
     };
     return [
       { name: "Word grammar", objs: [
@@ -774,9 +817,9 @@
         })
       ] },
       { name: "Sentence grammar", objs: [
-        O("y3s1", "Express time using conjunctions, adverbs and prepositions.", "Words for time", "Time words tell you when: before, after, while, until, later.", (rng, label) => tpcQ(rng, "time", label)),
-        O("y3s2", "Express place using adverbs and prepositions.", "Words for place", "Place words tell you where: under, behind, near, inside.", (rng, label) => tpcQ(rng, "place", label)),
-        O("y3s3", "Express cause using conjunctions, adverbs and prepositions.", "Words for cause", "Cause words tell you why: because, so, since, therefore.", (rng, label) => tpcQ(rng, "cause", label)),
+        O("y3s1", "Use conjunctions to express time and cause.", "Conjunctions", "A conjunction joins two parts of a sentence: when, while, until, because, so.", (rng, label) => wcQ(rng, "conjunction", label)),
+        O("y3s2", "Use adverbs to express time, place and cause.", "Adverbs", "An adverb tells you when, where or how: then, soon, outside, therefore.", (rng, label) => wcQ(rng, "adverb", label)),
+        O("y3s3", "Use prepositions to express time, place and cause.", "Prepositions", "A preposition comes before a noun: under, near, before, during.", (rng, label) => wcQ(rng, "preposition", label)),
         O("y3s4", "Extend sentences with subordinate clauses and a wider range of conjunctions.", "Subordinate clauses", "A subordinate clause starts with a conjunction and cannot stand on its own.", (rng, label) => {
           const c = pick(rng, CLAUSE), subFirst = /^[A-Z]/.test(c[0]) && c[1].indexOf(c[2].toLowerCase()) !== 0 && !/^(because|when|even though|until|as)/.test(c[1]);
           const sub = subFirst ? c[0] : c[1].replace(/\.$/, ""), main = subFirst ? c[1].replace(/\.$/, "") : c[0];
@@ -812,6 +855,17 @@
     const STD = [["We ___ going to the shops.", "were", "was"], ["I ___ it yesterday.", "did", "done"], ["She ___ her homework.", "did", "done"], ["They ___ happy to see us.", "were", "was"], ["He ___ nothing wrong.", "did", "done"], ["We ___ late for school.", "were", "was"], ["You ___ the last one to arrive.", "were", "was"], ["I ___ a fox last night.", "saw", "seen"], ["They ___ to the park.", "went", "gone"], ["She ___ home early.", "came", "come"], ["I ___ my dinner quickly.", "ate", "eat"], ["We ___ the whole film.", "saw", "seen"], ["He ___ his best.", "did", "done"], ["The boys ___ playing football.", "were", "was"], ["I ___ to the shop this morning.", "went", "gone"], ["She ___ all her sweets.", "ate", "eat"]];
     const DET = ["*The* dog barked loudly.", "I ate *an* apple.", "*Those* shoes are muddy.", "*Every* child got a prize.", "She picked *some* flowers.", "*This* book is brilliant.", "We saw *a* fox.", "*Several* birds flew past."];
     const PRO = ["*She* loves swimming.", "Give the ball to *him*.", "*They* ran home.", "*We* built a den.", "Can *you* help me?", "*It* was a sunny day.", "I waved at *them*.", "*He* kicked the ball."];
+    const dppQ = (rng, cls, label) => {
+      const banks = { determiner: DET, pronoun: PRO, "possessive pronoun": PPRO }, keys = Object.keys(banks), t = rng();
+      if (t < 0.4) {
+        const k = rng() < 0.6 ? cls : pick(rng, keys.filter(x => x !== cls));
+        return C(rng, "What kind of word is the underlined word?\n" + pick(rng, banks[k]), k, keys.filter(x => x !== k), { label });
+      }
+      const sent = pick(rng, banks[cls]), word = sent.match(/\*([^*]+)\*/)[1];
+      if (t < 0.7) return S("Write the " + cls + " in this sentence.\n" + sent.replace(/\*/g, ""), word, { label });
+      const wrong = others(rng, banks[pick(rng, keys.filter(x => x !== cls))].map(x => x.match(/\*([^*]+)\*/)[1].toLowerCase()), word.toLowerCase(), 2);
+      return C(rng, "Which word is a " + cls + "?", word.toLowerCase(), wrong, { label });
+    };
     const PPRO = ["That bag is *mine*.", "The red car is *theirs*.", "Is this pencil *yours*?", "The choice was *hers*.", "The garden is *ours*.", "The muddy boots are *his*.", "The blue coat is *mine*.", "The winning goal was *theirs*."];
     const PP = [["the dog", "with the curly tail"], ["the house", "at the end of the street"], ["the girl", "in the blue dress"], ["the cat", "under the table"], ["the boy", "with the broken arm"], ["the shop", "near the station"], ["the bird", "on the branch"], ["the man", "in the grey coat"], ["the castle", "on the hill"], ["the book", "about dinosaurs"], ["the key", "to the front door"], ["the queue", "outside the cinema"]];
     const FA = [["we went swimming", "after lunch"], ["the cat crept across the lawn", "as quietly as a mouse"], ["she opened the present", "with a huge smile"], ["the fireworks exploded", "high in the sky"], ["he finished the race", "before anyone else"], ["the children lined up", "in the playground"], ["it began to snow", "during the night"], ["we will visit Grandma", "next weekend"], ["the dog waited", "by the door"], ["they ate their picnic", "under the old oak tree"], ["I brush my teeth", "every morning"], ["the thief escaped", "without a sound"]];
@@ -832,11 +886,9 @@
           const s = pick(rng, STD);
           return C(rng, "Choose the Standard English form.\n" + s[0], s[1], [s[2]], { label });
         }),
-        O("y4w3", "Recognise determiners, pronouns and possessive pronouns.", "Determiners and pronouns", "A determiner comes before a noun. A pronoun replaces a noun. A possessive pronoun shows who owns something.", (rng, label) => {
-          const k = pick(rng, ["determiner", "pronoun", "possessive pronoun"]);
-          const s = pick(rng, { determiner: DET, pronoun: PRO, "possessive pronoun": PPRO }[k]);
-          return C(rng, "What kind of word is the underlined word?\n" + s, k, ["determiner", "pronoun", "possessive pronoun"].filter(x => x !== k), { label });
-        })
+        O("y4w3", "Recognise and use determiners.", "Determiners", "A determiner comes before a noun: the, a, this, some, every.", (rng, label) => dppQ(rng, "determiner", label)),
+        O("y4w4", "Recognise and use pronouns.", "Pronouns", "A pronoun takes the place of a noun: she, they, it, him.", (rng, label) => dppQ(rng, "pronoun", label)),
+        O("y4w5", "Recognise and use possessive pronouns.", "Possessive pronouns", "A possessive pronoun shows who owns something: mine, yours, theirs.", (rng, label) => dppQ(rng, "possessive pronoun", label))
       ] },
       { name: "Sentence grammar", objs: [
         O("y4s1", "Expand noun phrases using modifying adjectives, nouns and prepositional phrases.", "Expanding noun phrases", "A prepositional phrase after the noun adds detail: the dog with the curly tail.", (rng, label) => {
@@ -981,6 +1033,7 @@
 
   /* ===================== YEAR 6 ===================== */
   const Y6 = (() => {
+    const TAGS = [["That's the right answer", "isn't it"], ["You like pizza", "don't you"], ["She can swim", "can't she"], ["They aren't coming", "are they"], ["It's cold today", "isn't it"], ["We should leave now", "shouldn't we"], ["He didn't call", "did he"], ["You've finished", "haven't you"], ["The shop is open", "isn't it"], ["I'm late", "aren't I"], ["You will help me", "won't you"], ["They were here yesterday", "weren't they"], ["Dad can't drive", "can he"], ["It wasn't your fault", "was it"], ["We have met before", "haven't we"], ["You don't mind", "do you"]];
     const FORM = [["ask", "request"], ["buy", "purchase"], ["help", "assist"], ["get", "obtain"], ["kids", "children"], ["start", "commence"], ["tell", "inform"], ["need", "require"], ["end", "conclude"], ["fix", "repair"], ["show", "demonstrate"], ["go in", "enter"], ["cheap", "inexpensive"], ["find out", "discover"], ["think about", "consider"], ["lots of", "numerous"], ["sorry", "apologies"], ["leave", "depart"]];
     const SYN = [["happy", ["glad", "cheerful"], ["sad", "miserable"]], ["big", ["huge", "enormous"], ["tiny", "small"]], ["fast", ["quick", "rapid"], ["slow", "sluggish"]], ["cold", ["chilly", "freezing"], ["hot", "warm"]], ["brave", ["bold", "courageous"], ["cowardly", "timid"]], ["angry", ["furious", "cross"], ["calm", "pleased"]], ["old", ["ancient", "elderly"], ["new", "young"]], ["quiet", ["silent", "hushed"], ["noisy", "loud"]], ["begin", ["start", "commence"], ["finish", "end"]], ["rich", ["wealthy", "prosperous"], ["poor", "needy"]], ["beautiful", ["lovely", "gorgeous"], ["ugly", "hideous"]], ["easy", ["simple", "straightforward"], ["hard", "difficult"]], ["tired", ["exhausted", "weary"], ["energetic", "lively"]], ["strong", ["powerful", "sturdy"], ["weak", "feeble"]], ["funny", ["amusing", "hilarious"], ["serious", "dull"]], ["clever", ["smart", "intelligent"], ["foolish", "silly"]]];
     const UNREL = ["purple", "Tuesday", "bicycle", "pencil", "kitchen", "river", "elbow", "window", "biscuit", "umbrella"];
@@ -1041,6 +1094,11 @@
           const a = pick(rng, ACT), passive = rng() < 0.5;
           if (rng() < 0.6) return C(rng, "Is this sentence active or passive?\n" + M(passive ? a[3] : a[0] + " " + a[1] + " " + a[2] + "."), passive ? "passive" : "active", [passive ? "active" : "passive"], { label });
           return S("Rewrite the sentence in the active voice.\n" + M(a[3]), a[0] + " " + a[1] + " " + a[2] + ".", { long: true, label });
+        }),
+        O("y6s6", "Use question tags in informal speech.", "Question tags", "A positive statement takes a negative tag: It's cold, isn't it? A negative one takes a positive tag.", (rng, label) => {
+          const t = pick(rng, TAGS), tag = t[1];
+          if (rng() < 0.5) return C(rng, "Which question tag completes the sentence?\n" + M(t[0] + ", ___?"), tag, others(rng, TAGS.map(x => x[1]), tag, 2), { label });
+          return S("Add the question tag.\n" + M(t[0] + ", ___?"), tag, { accept: [tag + "?"], label });
         })
       ] },
       { name: "Text organisation", objs: [
@@ -1159,7 +1217,10 @@
     y2w3: ["-ful and -less turn a word into an adjective. -ful means full of. -less means without.", "*careful*   *careless*"],
     y2w4: ["Add -er to compare two things (comparative). Add -est for the most of all (superlative).", "tall → *taller* → *tallest*"],
     y2w5: ["An adverb tells you how something is done. Many adverbs are made by adding -ly to an adjective.", "quick → She ran *quickly*."],
-    y2w6: ["A noun names a person, place or thing. A verb is a doing or being word. An adjective describes a noun. An adverb describes a verb.", "The *hungry* (adjective) *dog* (noun) *ate* (verb) *quickly* (adverb)."],
+    y2w6: ["A noun is a naming word. It names a person, a place or a thing.", "The *dog* chased the *ball* in the *park*."],
+    y2w7: ["A verb is a doing or being word. Every sentence needs one.", "The dog *chased* the ball.   I *am* happy."],
+    y2w8: ["An adjective describes a noun. It tells you what something is like.", "The *hungry* dog ate a *huge* bone."],
+    y2w9: ["An adverb describes a verb. It tells you how, when or where something happens.", "The dog ate *quickly*.   We played *outside*."],
     y2s1: ["Coordinating conjunctions join two ideas of equal importance. and adds, but shows a difference, or gives a choice.", "I wanted to play, *but* it was raining."],
     y2s2: ["Subordinating conjunctions (when, if, that, because) start a part of the sentence that adds information to the main idea.", "I took my umbrella *because* it was raining."],
     y2s3: ["An expanded noun phrase adds describing words to a noun to give more detail.", "the cat → *the fluffy black cat*"],
@@ -1172,7 +1233,8 @@
     y2v3: ["Keep your verbs in the same tense unless the time in your writing changes.", "He *jumped* and then *laughed*.  (not: laughs)"],
     y2v4: ["The present progressive uses am, is or are + a verb ending in -ing for something happening right now.", "Right now the children *are playing*."],
     y2v5: ["The past progressive uses was or were + a verb ending in -ing for something that was going on in the past.", "At six o'clock we *were eating*."],
-    y2p1: ["Start every sentence with a capital letter and end it with a full stop, question mark or exclamation mark. Names and I need capitals too.", "*W*here is *M*ia*?*"],
+    y2p1: ["Every sentence starts with a capital letter. Names of people and places, days of the week and the word I need capital letters too.", "*O*n *M*onday *S*am and *I* went to *L*eeds."],
+    y2p5: ["A sentence ends with a full stop (to tell), a question mark (to ask) or an exclamation mark (for strong feeling).", "I like cake*.*   Do you*?*   What a treat*!*"],
     y2p2: ["Commas separate the items in a list. Use and, not a comma, before the last item.", "I bought apples*,* pears*,* grapes and plums."],
     y2p3: ["In a contraction, two words are shortened into one. The apostrophe goes where the missing letters were.", "do not → *don't*   I am → *I'm*"],
     y2p4: ["An apostrophe + s shows that something belongs to someone.", "the hat belonging to Sam → *Sam's* hat"],
@@ -1181,9 +1243,9 @@
     y3w1: ["A prefix is added to the start of a word to change its meaning. super- means above, anti- means against, auto- means self.", "*super*market   *anti*clockwise   *auto*graph"],
     y3w2: ["Use a before a consonant sound. Use an before a vowel sound.", "*a* banana   *an* apple   *an* hour"],
     y3w3: ["A word family is a group of words that share the same root word and are linked in meaning.", "help → *helper*, *helpful*, *unhelpful*"],
-    y3s1: ["Conjunctions, adverbs and prepositions can tell the reader when something happens.", "*Before* lunch, we washed our hands."],
-    y3s2: ["Adverbs and prepositions can tell the reader where something happens.", "The cat hid *under* the bed."],
-    y3s3: ["Conjunctions, adverbs and prepositions can tell the reader why something happens (the cause).", "I was late *because* I overslept."],
+    y3s1: ["A conjunction joins two parts of a sentence. Some tell you when (when, while, until) and some tell you why (because, so, since).", "I was late *because* I overslept.   Stay inside *until* it stops raining."],
+    y3s2: ["An adverb adds information to a verb. Many tell you when (then, soon, yesterday) or where (outside, everywhere) something happens.", "*Yesterday* we visited the zoo.   The children played *outside*."],
+    y3s3: ["A preposition comes before a noun or pronoun. It tells you where (under, near, into) or when (before, during, at) something happens.", "The cat hid *under* the bed.   *During* the night, it snowed."],
     y3s4: ["A subordinate clause starts with a conjunction and adds information to the main clause. It does not make sense on its own.", "*Although it was raining*, we went outside."],
     y3v1: ["A paragraph is a group of sentences about one idea. Start a new paragraph when the topic, time, place or speaker changes.", "We built a sandcastle. The tide came in.  (new paragraph)  *Back at school*, the bell rang."],
     y3v2: ["A heading tells the reader what a whole text is about. A subheading tells them what one section is about.", "Heading: *Owls*   Subheading: *Night hunters*"],
@@ -1193,7 +1255,9 @@
     /* Year 4 */
     y4w1: ["A plural -s just means more than one. A possessive 's has an apostrophe and shows that something belongs to someone.", "two *dogs* (plural)   the *dog's* bone (possessive)"],
     y4w2: ["Standard English is the formal way of using English. Verbs must match the subject and use the correct past forms.", "We *were* late.  (not: we was)   I *did* it.  (not: I done)"],
-    y4w3: ["A determiner comes before a noun (the, a, this, some). A pronoun replaces a noun (she, they, it). A possessive pronoun shows who owns something (mine, yours, theirs).", "*This* bag is *mine*, so *I* will carry it."],
+    y4w3: ["A determiner comes before a noun and tells you which one or how many: the, a, an, this, those, some, every.", "*The* dog chased *a* cat across *every* garden."],
+    y4w4: ["A pronoun takes the place of a noun so you do not keep repeating it: she, he, it, they, him, them.", "Lucy was tired, so *she* went to bed."],
+    y4w5: ["A possessive pronoun shows who owns something: mine, yours, his, hers, ours, theirs. It stands on its own without a noun after it.", "That bag is *mine* and the red one is *theirs*."],
     y4s1: ["A noun phrase can be expanded with adjectives, nouns and a prepositional phrase (a group of words starting with a preposition).", "the dog → the *scruffy* dog *with the curly tail*"],
     y4s2: ["A fronted adverbial is a word or phrase at the start of a sentence that tells when, where or how something happened.", "*After lunch,* we went swimming."],
     y4s3: ["Use a pronoun instead of repeating a noun, as long as it is clear who or what it means.", "Lucy was tired, so *she* went to bed."],
@@ -1225,6 +1289,7 @@
     y6s1: ["In the passive voice, the thing the action is done to becomes the subject. Who did it can be added with by, or left out.", "The dog chased the cat. → *The cat was chased by the dog.*"],
     y6s2: ["Formal sentences avoid contractions and slang and use polite, complete phrases. Informal sentences sound like everyday speech.", "formal: *I would be grateful if you could reply.*   informal: Get back to me."],
     y6s3: ["The subjunctive is used in formal writing: were after if or wish, and the base form of the verb after words like insist, demand and suggest.", "If I *were* you ...   They insisted that he *be* on time."],
+    y6s6: ["A question tag is a short question added to the end of a statement, used in informal speech to check or invite agreement. A positive statement takes a negative tag, and a negative statement takes a positive tag.", "It's cold today, *isn't it*?   You don't mind, *do you*?"],
     y6s4: ["The subject is who or what does the action. The object is who or what the action is done to.", "*The cat* (subject) chased *the mouse* (object)."],
     y6s5: ["In an active sentence, the subject does the action. In a passive sentence, the subject has the action done to it.", "Active: *Mum baked the cakes.*   Passive: *The cakes were baked by Mum.*"],
     y6t1: ["Cohesive devices such as nevertheless, moreover and in conclusion link ideas from one paragraph to the next.", "The weather was awful. *Nevertheless,* the fair went ahead."],
@@ -1316,10 +1381,37 @@
         const key = c.prompt + "|" + (c.options || []).join("|");
         if (!seen.has(key) || t === 13) { seen.add(key); q = c; break; }
       }
+      q = formatQ(q, o, rng);
       q.obj = o;
       items.push(q);
     }
     return { items, vi };
+  }
+  /* Answer formats. Each question gets one of: line (write a word), bank (choose from a word box and write it),
+     gap (write in the gap), rewrite (labelled lines for a whole sentence), circle, tick, or check (correct / needs fixing). */
+  const NOCHECK = ["y5p1", "y5p2", "y5p3"];
+  function formatQ(q, o, rng) {
+    if (q.type === "choice") { q.fmt = rng() < 0.5 ? "circle" : "tick"; return q; }
+    if (q.long) {
+      if (/p\d$/.test(o.id) && !NOCHECK.includes(o.id) && (q.mode === "punct" || q.mode === "strict") && rng() < 0.3) {
+        const m = q.prompt.match(/^[^\n]*\n\*([^*]+)\*$/);
+        if (m && G.norm(m[1], q.mode) !== G.norm(q.answer, q.mode)) {
+          const fixed = rng() < 0.5;
+          return { type: "choice", prompt: "Is this sentence written correctly?\n*" + (fixed ? q.answer : m[1]) + "*", answer: fixed ? "Correct" : "Needs fixing", options: ["Correct", "Needs fixing"], mode: "loose", fmt: "check", label: q.label, fix: fixed ? "" : q.answer };
+        }
+      }
+      q.fmt = "rewrite"; return q;
+    }
+    if (q.prompt.includes("___")) { q.fmt = "gap"; return q; }
+    if (rng() < 0.45) {
+      const decoys = [];
+      for (let t = 0; t < 10 && decoys.length < 2; t++) {
+        const c = o.gen(rng, o.short);
+        if (c.type === "short" && !c.long && !G.isRight(q, c.answer) && !decoys.some(d => G.norm(d, "loose") === G.norm(c.answer, "loose")) && c.answer.length < 28) decoys.push(c.answer);
+      }
+      if (decoys.length === 2) { q.fmt = "bank"; q.bank = G.shuffle(rng, [q.answer].concat(decoys)); return q; }
+    }
+    q.fmt = "line"; return q;
   }
   function regenerate() {
     sets = [];
@@ -1353,10 +1445,10 @@
     return Y().label + " (" + Y().ks + ") · " + what;
   }
   const versionTag = set => S.versions <= 1 ? "" : "Version " + pad2(set.vi + 1);
-  function footLeft() {
+  function footLeft(n) {
     const bits = [];
     if (S.minutes > 0) bits.push(S.minutes + " minutes");
-    bits.push(S.count + " questions");
+    bits.push(n + " questions");
     return bits.join(" · ");
   }
 
@@ -1405,13 +1497,14 @@
       liveScore(); return;
     }
     if (vIndex >= sets.length) vIndex = 0;
-    const set = sets[vIndex], vt = versionTag(set);
+    const set = sets[vIndex], vt = versionTag(set), items = fittedItems(set);
+    $("fitnote").textContent = items.length < set.items.length ? "Shortened to " + items.length + " questions so this copy fits on 2 pages." : "";
     let h = '<div class="ph"><h3>' + esc(title()) + '</h3><div class="tags"><div class="tag">' + esc(Y().label) + '</div>';
     if (mode === "key") h += '<div class="tag key">Answer key</div>';
     if (vt) h += '<div class="tag">' + esc(vt) + '</div>';
     h += '</div></div><p class="psub">' + esc(subtitle()) + '</p>';
     h += '<div class="namebar"><span class="nm">Name <i></i></span><span class="dt">Date <i></i></span>' + (S.minutes > 0 ? '<span>Finish time <i style="width:4em"></i></span>' : '') + '</div>';
-    const gObjs = guideObjs(set);
+    const gObjs = guideObjs({ items });
     if (guideOn() && gObjs.length) {
       h += '<section class="guide"><h4>Grammar guide</h4><dl>';
       gObjs.forEach(o => {
@@ -1423,29 +1516,37 @@
       h += '</dl></section>';
     }
     h += '<ol class="qs">';
-    set.items.forEach((q, i) => {
+    items.forEach((q, i) => {
       h += '<li class="q" data-i="' + i + '"><span class="n">' + (i + 1) + '.</span><div class="qb"><div class="qp">' + richHtml(q.prompt) + '</div>';
+      const fmt = q.fmt || (q.type === "choice" ? "circle" : q.long ? "rewrite" : "line");
       if (q.type === "choice") {
-        h += '<div class="opts">';
+        const boxed = fmt === "tick" || fmt === "check";
+        h += '<span class="fl">' + (mode === "practice" ? "Choose one" : fmt === "check" ? "Tick one" : boxed ? "Tick the correct answer" : "Circle the correct answer") + '</span>';
+        h += '<div class="opts' + (boxed ? " boxes" : "") + '">';
         q.options.forEach((o, k) => {
-          const inner = '<i>' + LETTERS[k] + ')</i><span>' + esc(o) + '</span>';
+          const mark = fmt === "check" ? (o === "Correct" ? "✓" : "✗") : LETTERS[k] + ")";
+          const inner = (boxed ? '<i class="bx"></i>' : '') + '<i>' + mark + '</i><span>' + esc(o) + '</span>';
           const correct = mode !== "sheet" && o === q.answer ? " correct" : "";
           if (mode === "practice") h += '<button type="button" class="opt' + correct + '" data-k="' + k + '" aria-pressed="false">' + inner + '</button>';
           else h += '<span class="opt' + correct + '">' + inner + '</span>';
         });
         h += '</div>';
+        if (mode === "key" && q.fix) h += '<div class="fixnote">Corrected: <span class="ans">' + esc(q.fix) + '</span></div>';
         if (mode === "practice") h += '<span class="tick" hidden>✓</span>';
       } else {
+        if (fmt === "bank") h += '<div class="bank"><b>Choose from</b>' + q.bank.map(w => '<span>' + esc(w) + '</span>').join("") + '</div>';
         if (mode === "key") h += '<div><span class="ans">' + esc(q.answer) + '</span></div>';
-        else if (mode === "practice") h += '<div><input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" class="' + (q.long ? "wide" : "") + '" id="ans-' + vIndex + '-' + i + '" aria-label="Answer ' + (i + 1) + '"> <span class="tick" hidden>✓</span> <span class="fix">' + esc(q.answer) + '</span></div>';
-        else { const n = q.long === 2 ? 2 : 1; for (let k = 0; k < n; k++) h += '<span class="aline' + (q.long ? "" : " short") + '"></span>'; }
+        else if (mode === "practice") h += '<div><span class="fl">' + (fmt === "rewrite" ? "Type the full sentence" : fmt === "gap" ? "Type the missing word" : fmt === "bank" ? "Type the word you chose" : "Type your answer") + '</span><input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" class="' + (q.long ? "wide" : "") + '" id="ans-' + vIndex + '-' + i + '" aria-label="Answer ' + (i + 1) + '"> <span class="tick" hidden>✓</span> <span class="fix">' + esc(q.answer) + '</span></div>';
+        else if (fmt === "rewrite") h += '<div class="rw"><span class="fl">Write the full sentence</span><span class="aline"></span><span class="aline"></span></div>';
+        else if (fmt === "gap") h += '<span class="fl">Write the missing word in the gap</span>';
+        else h += '<div class="rw"><span class="fl">' + (fmt === "bank" ? "Write the word you chose" : "Write your answer") + '</span><span class="aline"></span></div>';
       }
       h += '</div>' + (S.labels ? '<span class="lab">' + esc(q.obj.short) + '</span>' : '') + '</li>';
     });
     h += '</ol>';
     const t = tip();
     if (t) h += '<div class="tip"><b>Strategy</b>' + esc(t) + '</div>';
-    h += '<div class="pf"><span>' + esc(footLeft()) + '</span><span class="code">' + esc(makeCode()) + (S.versions > 1 ? ' · copy ' + (vIndex + 1) : '') + '</span></div>';
+    h += '<div class="pf"><span>' + esc(footLeft(items.length)) + '</span><span class="code">' + esc(makeCode()) + (S.versions > 1 ? ' · copy ' + (vIndex + 1) : '') + '</span></div>';
     paper.innerHTML = h;
     liveScore();
   }
@@ -1543,18 +1644,38 @@
     doc.setFont("helvetica", "normal");
     return { y, lastX, lines };
   }
-  const MAXPAGES = 2, SCALES = [1, 0.94, 0.88, 0.82, 0.77, 0.72, 0.68];
+  /* [font scale, spacing scale] tried in order until a copy fits on MAXPAGES. Spacing gives way before the font does. */
+  const MAXPAGES = 2, SCALES = [[1, 1], [1, 0.9], [0.95, 0.85], [0.95, 0.75], [0.9, 0.7], [0.88, 0.65]];
+  const pdfReady = () => !!(window.jspdf && window.jspdf.jsPDF);
+  const mkDoc = () => new window.jspdf.jsPDF({ unit: "mm", format: S.paper, orientation: "portrait" });
+  /* Work out, once per copy, the scale and number of questions that fit on MAXPAGES. Cached on the set; cleared whenever
+     the sheet is regenerated or a layout option changes. The on-screen sheet shows the same questions as the PDF. */
+  function fitSet(set) {
+    if (set.fit) return set.fit;
+    const all = set.items.length;
+    if (!pdfReady()) return (set.fit = { scale: SCALES[0], n: all });
+    const pages = (n, scale) => paintPdf(mkDoc(), [{ items: set.items.slice(0, n), vi: set.vi }], false, () => scale);
+    for (const scale of SCALES) if (pages(all, scale) <= MAXPAGES) return (set.fit = { scale, n: all });
+    const last = SCALES[SCALES.length - 1];
+    let lo = 1, hi = all - 1;
+    while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); if (pages(mid, last) <= MAXPAGES) lo = mid; else hi = mid - 1; }
+    const scale = SCALES.find(sc => pages(lo, sc) <= MAXPAGES) || last;
+    return (set.fit = { scale, n: lo });
+  }
+  const clearFit = () => sets.forEach(set => { delete set.fit; });
+  const fittedItems = set => set.items.slice(0, fitSet(set).n);
   let pdfOver = 0;
   function buildPdf(withAnswers) {
-    const { jsPDF } = window.jspdf;
-    const mk = () => new jsPDF({ unit: "mm", format: S.paper, orientation: "portrait" });
     pdfOver = 0;
-    const scales = sets.map(set => {
-      for (const sc of SCALES) if (paintPdf(mk(), [set], withAnswers, () => sc) <= MAXPAGES) return sc;
-      pdfOver++; return SCALES[SCALES.length - 1];
+    const list = sets.map(set => { const f = fitSet(set); return { items: set.items.slice(0, f.n), vi: set.vi, scale: f.scale }; });
+    if (withAnswers) list.forEach(set => {
+      let i = SCALES.indexOf(set.scale);
+      while (i < SCALES.length - 1 && paintPdf(mkDoc(), [set], true, () => SCALES[i]) > MAXPAGES) i++;
+      set.scale = SCALES[i];
     });
-    const doc = mk();
-    paintPdf(doc, sets, withAnswers, set => scales[sets.indexOf(set)]);
+    pdfOver = sets.filter(set => fitSet(set).n < set.items.length).length;
+    const doc = mkDoc();
+    paintPdf(doc, list, withAnswers, set => set.scale);
     return doc.output("blob");
   }
   function paintPdf(doc, list, withAnswers, scaleOf) {
@@ -1563,7 +1684,7 @@
     const INK = [28, 40, 56], MUTED = [100, 110, 125], RED = [196, 48, 42], RULE = [215, 220, 230];
     const code = makeCode(), tipText = pdfSafe(tip());
     const fs0 = S.count <= 8 ? 11.5 : S.count <= 12 ? 11 : 10.5;
-    let sc = 1, fs = fs0, lineH = fs * 0.5, gfs = 9.5, glh = 4.3;
+    let sc = 1, sp = 1, fs = fs0, lineH = fs * 0.5, gfs = 9.5, glh = 4.3;
     const bottom = H - M - 8 - (tipText ? 13 : 0);
     const footers = [];
     const header = (set, cont) => {
@@ -1608,27 +1729,65 @@
       if (draw && S.labels) { doc.setFontSize(7); doc.setTextColor(...MUTED); doc.text(q.obj.short.toUpperCase(), W - M, y - 0.3, { align: "right" }); }
       const r = layoutRich(doc, q.prompt, x0, y, CW - 9 - labW, fs, lineH, draw, INK);
       y = r.y;
+      const fmt = q.fmt || (q.type === "choice" ? "circle" : q.long ? "rewrite" : "line");
+      const flabel = (txt, yy) => { if (draw) { doc.setFont("helvetica", "bold"); doc.setFontSize(6.5 * Math.max(sc, 0.9)); doc.setTextColor(...MUTED); doc.text(txt.toUpperCase(), x0, yy); doc.setFont("helvetica", "normal"); } };
+      const writeH = lineH * 1.9 * sp;
       if (q.type === "short") {
         doc.setLineWidth(0.3);
-        if (!q.long) {
-          const need = 44, room = W - M - r.lastX - 3;
-          let lx, lw;
-          if (room >= need) { lx = r.lastX + 3; lw = Math.min(room, 70); }
-          else { y += lineH * 1.15; lx = x0; lw = 75; }
-          if (draw) { doc.setDrawColor(...(withAnswers ? RED : INK)); doc.line(lx, y + 1.2, lx + lw, y + 1.2); }
-          if (draw && withAnswers) { doc.setFont("helvetica", "bold"); doc.setFontSize(fs); doc.setTextColor(...RED); doc.text(pdfSafe(q.answer), lx + 2, y, { maxWidth: lw - 2 }); doc.setFont("helvetica", "normal"); }
+        if (fmt === "bank") {
+          y += lineH * 1.1;
+          doc.setFontSize(fs * 0.9);
+          const items = q.bank.map(pdfSafe);
+          doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); const lab = "CHOOSE FROM"; let bx = x0 + 3 + doc.getTextWidth(lab) + 4;
+          doc.setFont("helvetica", "normal"); doc.setFontSize(fs * 0.9);
+          const ws = items.map(t => doc.getTextWidth(t)), bw = Math.min(CW - 9, bx - x0 + ws.reduce((a, b) => a + b, 0) + 7 * items.length + 2);
+          if (draw) {
+            doc.setDrawColor(...RULE); doc.setLineWidth(0.3); doc.roundedRect(x0, y - fs * 0.33, bw, fs * 0.5, 1.2, 1.2);
+            doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); doc.setTextColor(...MUTED); doc.text(lab, x0 + 3, y);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(fs * 0.9); doc.setTextColor(...INK);
+            items.forEach((t, k) => { doc.text(t, bx, y); bx += ws[k] + 7; });
+          }
+          y += lineH * 0.7;
+        }
+        if (fmt === "gap") {
+          y += lineH * 0.9; flabel("Write the missing word in the gap", y);
+          if (draw && withAnswers) { doc.setFont("helvetica", "bold"); doc.setFontSize(fs); doc.setTextColor(...RED); doc.text("Answer: " + pdfSafe(q.answer), x0 + 45, y); doc.setFont("helvetica", "normal"); }
+        } else if (fmt !== "rewrite") {
+          y += lineH * 0.9; flabel(fmt === "bank" ? "Write the word you chose" : "Write your answer", y);
+          y += writeH * 0.85;
+          if (draw) { doc.setDrawColor(...(withAnswers ? RED : INK)); doc.line(x0, y + 1.2, W - M, y + 1.2); }
+          if (draw && withAnswers) { doc.setFont("helvetica", "bold"); doc.setFontSize(fs); doc.setTextColor(...RED); doc.text(pdfSafe(q.answer), x0 + 2, y, { maxWidth: CW - 12 }); doc.setFont("helvetica", "normal"); }
         } else {
-          const n = q.long === 2 ? 2 : 1;
-          for (let k = 0; k < n; k++) {
-            y += lineH * 1.35;
+          y += lineH * 0.9; flabel("Write the full sentence", y);
+          for (let k = 0; k < 2; k++) {
+            y += writeH * (k ? 1 : 0.85);
             if (draw) { doc.setDrawColor(...(withAnswers ? RED : INK)); doc.line(x0, y + 1.2, W - M, y + 1.2); }
           }
           if (draw && withAnswers) {
             doc.setFont("helvetica", "bold"); doc.setFontSize(fs); doc.setTextColor(...RED);
-            doc.text(pdfSafe(q.answer), x0 + 1, y - (n - 1) * lineH * 1.35, { maxWidth: CW - 10 }); doc.setFont("helvetica", "normal");
+            doc.text(pdfSafe(q.answer), x0 + 1, y - writeH, { maxWidth: CW - 10 }); doc.setFont("helvetica", "normal");
           }
         }
+      } else if (fmt === "tick" || fmt === "check") {
+        y += lineH * 0.9; flabel(fmt === "check" ? "Tick one" : "Tick the correct answer", y);
+        doc.setFont("helvetica", "normal"); doc.setFontSize(fs);
+        const box = fs * 0.32;
+        q.options.forEach((o, k) => {
+          y += lineH * (1 + 0.15 * sp);
+          const right = withAnswers && o === q.answer;
+          const txt = (fmt === "check" ? (o === "Correct" ? "Yes, it is correct" : "No, it needs fixing") : pdfSafe(o));
+          const wrapped = doc.splitTextToSize(txt, CW - 20);
+          if (draw) {
+            doc.setDrawColor(...(right ? RED : INK)); doc.setLineWidth(0.35); doc.rect(x0 + 1, y - box * 0.85, box, box);
+            if (right) { doc.setFont("helvetica", "bold"); doc.setTextColor(...RED); doc.text("X", x0 + 1 + box / 2, y - box * 0.85 + box * 0.8, { align: "center" }); }
+            doc.setFont("helvetica", right ? "bold" : "normal"); doc.setTextColor(...(right ? RED : INK)); doc.text(wrapped, x0 + box + 4, y);
+          }
+          y += (wrapped.length - 1) * lineH;
+        });
+        if (draw && withAnswers && q.fix) { y += lineH; doc.setFont("helvetica", "bold"); doc.setFontSize(fs * 0.9); doc.setTextColor(...RED); doc.text("Corrected: " + pdfSafe(q.fix), x0, y, { maxWidth: CW - 10 }); }
+        doc.setFont("helvetica", "normal");
       } else {
+        y += lineH * 0.9; flabel("Circle the correct answer", y);
         doc.setFont("helvetica", "normal"); doc.setFontSize(fs);
         const labels = q.options.map((o, k) => LETTERS[k] + ")  " + pdfSafe(o));
         const widths = labels.map((l, k) => { doc.setFont("helvetica", withAnswers && q.options[k] === q.answer ? "bold" : "normal"); return doc.getTextWidth(l); });
@@ -1659,9 +1818,9 @@
           doc.setFont("helvetica", "normal");
         }
       }
-      y += 3.6 * sc;
+      y += 3.6 * sp;
       if (draw) { doc.setDrawColor(...RULE); doc.setLineWidth(0.15); doc.line(M, y, W - M, y); }
-      return y + lineH * 0.95;
+      return y + lineH * 0.95 * sp;
     };
     const drawGuideItem = (o, y, draw) => {
       const x0 = M + 3, w = CW - 6;
@@ -1675,10 +1834,10 @@
         y = layoutRich(doc, o.ex, x0 + lw, y, w - lw, gfs, glh, draw, INK).y;
       }
       doc.setFont("helvetica", "normal");
-      return y + glh * 1.4;
+      return y + glh * 1.4 * sp;
     };
     list.forEach((set, vi) => {
-      sc = scaleOf(set); fs = fs0 * sc; lineH = fs * 0.5; gfs = 9.5 * Math.max(sc, 0.85); glh = gfs * 0.45;
+      [sc, sp] = scaleOf(set); fs = fs0 * sc; lineH = fs * 0.5; gfs = 9.5 * Math.max(sc, 0.85); glh = gfs * 0.45;
       if (vi) doc.addPage();
       let y = header(set, false), pageOfCopy = 1;
       footers.push({ copy: vi, page: pageOfCopy });
@@ -1711,7 +1870,7 @@
         doc.setFont("helvetica", "normal"); doc.text(tipText, M + 21, ty + 5.7, { maxWidth: CW - 24 });
       }
       doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont("helvetica", "normal");
-      doc.text(footLeft(), M, H - M);
+      doc.text(footLeft(list[f.copy].items.length), M, H - M);
       const copyBit = sets.length > 1 ? "copy " + (list[f.copy].vi + 1) + " / " + sets.length : "";
       const pageBit = perCopy[f.copy] > 1 ? "page " + f.page + " / " + perCopy[f.copy] : "";
       doc.text(["Code " + code, copyBit, pageBit].filter(Boolean).join("  ·  "), W - M, H - M, { align: "right" });
@@ -1719,7 +1878,7 @@
     return Math.max(0, ...Object.values(perCopy));
   }
 
-  const overNote = () => pdfOver ? " " + pdfOver + " cop" + (pdfOver > 1 ? "ies run" : "y runs") + " past 2 pages; choose fewer questions to fit." : "";
+  const overNote = () => pdfOver ? " " + pdfOver + " cop" + (pdfOver > 1 ? "ies were" : "y was") + " shortened to fit on 2 pages." : "";
   const slug = s => (s || "worksheet").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "worksheet";
   let dlPromise = null;
   function getDownloads() {
@@ -1836,13 +1995,13 @@
   });
   $("noObjs").addEventListener("click", () => { S.objs[S.year] = []; update(); });
   $("minutes").addEventListener("change", e => { S.minutes = +e.target.value; update(); });
-  $("paperSize").addEventListener("change", e => { S.paper = e.target.value; save(); });
+  $("paperSize").addEventListener("change", e => { S.paper = e.target.value; clearFit(); renderPreview(); save(); });
   $("showTip").addEventListener("change", e => { S.showTip = e.target.checked; update(); });
   $("labels").addEventListener("change", e => { S.labels = e.target.checked; update(); });
-  $("showDefs").addEventListener("change", e => { S.showDefs = e.target.checked; renderPreview(); save(); });
-  $("showEx").addEventListener("change", e => { S.showEx = e.target.checked; renderPreview(); save(); });
-  $("title").addEventListener("input", e => { S.titleCustom = e.target.value; renderPreview(); save(); });
-  $("tip").addEventListener("input", e => { S.tipCustom = e.target.value; renderPreview(); save(); });
+  $("showDefs").addEventListener("change", e => { S.showDefs = e.target.checked; clearFit(); renderPreview(); save(); });
+  $("showEx").addEventListener("change", e => { S.showEx = e.target.checked; clearFit(); renderPreview(); save(); });
+  $("title").addEventListener("input", e => { S.titleCustom = e.target.value; clearFit(); renderPreview(); save(); });
+  $("tip").addEventListener("input", e => { S.tipCustom = e.target.value; clearFit(); renderPreview(); save(); });
   $("vpick").addEventListener("change", e => { vIndex = +e.target.value; renderPreview(); });
   $("reroll").addEventListener("click", () => { S.seed = 1 + Math.floor(Math.random() * 99998); update(); });
   function loadCode() {
