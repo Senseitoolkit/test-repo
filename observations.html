@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>7 Cs Lesson Observer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: an admin's clipboard. Left: the observation record, top to bottom in the order an
+   observer fills it. Right: a sticky live panel of clocks and tallies used during the lesson. */
+:root{
+  --bg:#edf0f3; --surface:#ffffff; --surface-2:#f5f7f9; --ink:#14202c; --ink-2:#3a4855; --muted:#66737f;
+  --line:#d3dae1; --line-2:#e6ebef;
+  --accent:#1c5a8a; --accent-wash:#e2edf6;
+  --think:#0b7766; --think-wash:#ddf2ed;
+  --warn:#b0590c; --warn-wash:#fcefe1;
+  --bad:#b13a2c; --bad-wash:#fae8e4;
+  --l1:#f6dcd5; --l2:#f8e7c9; --l3:#cfe9e2; --l4:#7cc2b2;
+  --font-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --font-body:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10161c; --surface:#18212a; --surface-2:#1f2a34; --ink:#e9eef2; --ink-2:#bfcad3; --muted:#8a98a4;
+  --line:#2c3a46; --line-2:#24303b;
+  --accent:#78b3e3; --accent-wash:#1b3044;
+  --think:#56c7b2; --think-wash:#143630;
+  --warn:#eaa25c; --warn-wash:#3a2a17;
+  --bad:#ef8a7c; --bad-wash:#3e211d;
+  --l1:#4a2a24; --l2:#4a3a1f; --l3:#1d4a41; --l4:#2f8a78;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#10161c; --surface:#18212a; --surface-2:#1f2a34; --ink:#e9eef2; --ink-2:#bfcad3; --muted:#8a98a4;
+  --line:#2c3a46; --line-2:#24303b;
+  --accent:#78b3e3; --accent-wash:#1b3044;
+  --think:#56c7b2; --think-wash:#143630;
+  --warn:#eaa25c; --warn-wash:#3a2a17;
+  --bad:#ef8a7c; --bad-wash:#3e211d;
+  --l1:#4a2a24; --l2:#4a3a1f; --l3:#1d4a41; --l4:#2f8a78;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--surface)}
+h1,h2,h3,h4{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--accent);outline-offset:2px;border-radius:5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.gut{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* top bar */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1260px;margin:0 auto;padding-block:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.mark{width:30px;height:30px;border-radius:8px;background:var(--ink);color:var(--surface);display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:13px;letter-spacing:-.02em}
+.brand b{font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:-.02em;white-space:nowrap}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+nav.tabs a{text-decoration:none;color:var(--muted);font-weight:600;font-size:14px;padding:6px 12px;border-radius:999px}
+nav.tabs a:hover{background:var(--surface-2);color:var(--ink)}
+nav.tabs a[aria-current="page"]{background:var(--ink);color:var(--surface)}
+.status{margin-left:auto;font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.status i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.status.saved i{background:var(--think)}.status.pending i{background:var(--warn)}.status.err i{background:var(--bad)}
+.banner{max-width:1260px;margin:12px auto 0;font-size:13.5px;padding:9px 13px;border-radius:9px;background:var(--warn-wash);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
+
+main{max-width:1260px;margin:0 auto;padding-block:20px 120px}
+
+/* generic */
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 13px;font-size:14px;font-weight:600;cursor:pointer;color:var(--ink)}
+.btn:hover{background:var(--surface-2);border-color:var(--muted)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.sm{padding:4px 10px;font-size:12.8px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--ink);background:var(--surface-2)}
+.btn.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+.k{font-size:11px;letter-spacing:.11em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.hint{font-size:13px;color:var(--muted);line-height:1.5}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+label.f{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1 1 200px}
+label.f>span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
+input[type=text],input[type=date],input[type=search],select,textarea{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14.5px}
+textarea{resize:vertical;line-height:1.5;min-height:62px}
+input:focus,select:focus,textarea:focus{background:var(--surface);border-color:var(--accent);outline:none}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.chip.c{background:var(--accent-wash);border-color:transparent;color:var(--accent)}
+.chip.t{background:var(--think-wash);border-color:transparent;color:var(--think)}
+.tog{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13.3px;cursor:pointer;font-weight:500;color:var(--ink-2)}
+.tog:hover{border-color:var(--accent)}
+.tog[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+.togs{display:flex;gap:6px;flex-wrap:wrap}
+
+/* observe layout */
+.obs-grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;align-items:start}
+.live{position:sticky;top:calc(env(safe-area-inset-top,0px) + 66px);max-height:calc(100vh - 84px);overflow:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:8px;overscroll-behavior:contain}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.jump{display:flex;gap:6px;flex-wrap:wrap}
+.jump button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:12.8px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.jump button:hover{border-color:var(--ink-2)}
+
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;scroll-margin-top:80px}
+.sec>header{padding:15px 18px 12px;border-bottom:1px solid var(--line-2);display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.sec>header h2{font-size:20px;font-weight:700}
+.sec>header p{font-size:13.5px;color:var(--muted);margin-top:3px;max-width:68ch}
+.sec-b{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+.fields{display:flex;gap:12px;flex-wrap:wrap}
+
+/* previous step */
+.prev{border:1px dashed color-mix(in srgb,var(--accent) 50%,var(--line));background:var(--accent-wash);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.prev p{font-size:14.5px}
+
+/* lesson flow */
+.seg{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.seg.on{border-color:color-mix(in srgb,var(--think) 55%,var(--line))}
+.seg-h{display:flex;gap:11px;align-items:center;padding:10px 12px;background:var(--surface-2);border-bottom:1px solid var(--line-2)}
+.seg.on .seg-h{background:var(--think-wash)}
+.seen{flex:0 0 auto;width:30px;height:30px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);cursor:pointer;font-weight:800;color:transparent;display:grid;place-items:center;font-size:15px}
+.seen[aria-pressed="true"]{background:var(--think);border-color:var(--think);color:var(--surface)}
+.seg-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.seg-t b{font-family:var(--font-display);font-size:16.5px;font-weight:700;line-height:1.2}
+.seg-b{padding:10px 12px 12px;display:flex;flex-direction:column;gap:9px}
+.wf{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:10px;align-items:start;padding-bottom:9px;border-bottom:1px dotted var(--line)}
+.wf:last-of-type{border-bottom:0}
+.wf .who{font-family:var(--font-display);font-weight:700;font-size:14px;color:var(--accent);padding-top:2px}
+.wf.th .who{color:var(--think)}
+.wf p{font-size:14px;color:var(--ink-2)}
+.tri{display:flex;gap:3px}
+.tri button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:3px 8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);white-space:nowrap}
+.tri button[aria-pressed="true"][data-v="strong"]{background:var(--think);border-color:var(--think);color:var(--surface)}
+.tri button[aria-pressed="true"][data-v="partly"]{background:var(--warn);border-color:var(--warn);color:var(--surface)}
+.tri button[aria-pressed="true"][data-v="not"]{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+@media (max-width:620px){.wf{grid-template-columns:1fr}.wf .who{padding-top:0}}
+
+/* thinking guide blocks */
+.tg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}
+.tgb{border:1px solid var(--line);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.tgb h3{font-size:16.5px;font-weight:700;display:flex;align-items:baseline;gap:8px}
+.tgb h3 small{font-family:var(--font-body);font-size:12.5px;color:var(--muted);font-weight:500}
+.num{width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--surface);font-size:12px;font-weight:800;display:inline-grid;place-items:center;font-family:var(--font-display);flex:0 0 auto;transform:translateY(-1px)}
+.checks{display:flex;flex-direction:column;gap:5px}
+.ck{display:flex;gap:9px;align-items:flex-start;font-size:13.8px;line-height:1.42;cursor:pointer;padding:4px 2px}
+.ck input{margin:2px 0 0;width:16px;height:16px;accent-color:var(--think);flex:0 0 auto}
+
+/* 7 Cs */
+.cs{display:flex;flex-direction:column;gap:12px}
+.cr{border:1px solid var(--line);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:10px}
+.cr-h{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;justify-content:space-between}
+.cr-h h3{font-size:18px;font-weight:800}
+.cr-h p{font-size:13.3px;color:var(--muted)}
+.lv{display:flex;gap:4px;flex-wrap:wrap}
+.lv button{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:5px 10px;font-size:12.8px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+.lv button:hover{border-color:var(--ink-2)}
+.lv button[aria-pressed="true"]{color:var(--ink);border-color:var(--ink)}
+.lv button[aria-pressed="true"][data-v="1"]{background:var(--l2)}
+.lv button[aria-pressed="true"][data-v="2"]{background:var(--l3)}
+.lv button[aria-pressed="true"][data-v="3"]{background:var(--l4)}
+.lv button[aria-pressed="true"][data-v="0"]{background:var(--surface-2)}
+details.lf>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);list-style:none}
+details.lf>summary::-webkit-details-marker{display:none}
+details.lf ul{margin:8px 0 0;padding-left:18px;font-size:13.6px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
+.fromflow{font-size:12.5px;color:var(--muted)}
+.fromflow b{color:var(--ink-2)}
+
+/* feedback */
+.sugg{display:flex;flex-direction:column;gap:7px}
+.sg{display:flex;gap:10px;align-items:flex-start;padding:9px 11px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line-2)}
+.sg .chip{flex:0 0 auto;margin-top:1px}
+.sg p{flex:1;min-width:0;font-size:13.8px}
+
+/* live panel */
+.lp{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;display:flex;flex-direction:column;gap:10px}
+.lp-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.lp-h h3{font-size:15.5px;font-weight:700}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.lessonclock{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.lessonclock .mono{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mode{border:1.5px solid var(--line);background:var(--surface);border-radius:9px;padding:8px 10px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:1px}
+.mode span{font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.mode .mono{font-size:17px;font-weight:700}
+.mode[aria-pressed="true"]{border-color:var(--mc);background:color-mix(in srgb,var(--mc) 14%,var(--surface))}
+.mode[aria-pressed="true"] span::before{content:"● ";color:var(--mc)}
+.split{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--line-2)}
+.split i{display:block;height:100%}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend b{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.waitbtn{border:0;border-radius:11px;padding:13px;cursor:pointer;background:var(--ink);color:var(--surface);font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.waitbtn.run{background:var(--think)}
+.waitbtn.run.short{background:var(--warn)}
+.waitbtn .mono{font-size:24px}
+.samples{display:flex;gap:4px;flex-wrap:wrap}
+.samples span{font-family:var(--font-mono);font-size:11.5px;padding:2px 6px;border-radius:5px;background:var(--l1);color:var(--ink)}
+.samples span.ok{background:var(--l3)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stat{background:var(--surface-2);border-radius:8px;padding:7px 9px}
+.stat b{display:block;font-family:var(--font-mono);font-size:17px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;color:var(--muted);line-height:1.3;display:block}
+.tally{display:grid;grid-template-columns:1fr auto auto auto;gap:6px 8px;align-items:center;font-size:13.5px}
+.tally .mono{min-width:28px;text-align:center;font-size:16px;font-weight:700}
+.tally button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:700;font-size:15px;color:var(--ink-2)}
+.tally button.plus{background:var(--accent-wash);border-color:transparent;color:var(--accent)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:700}
+.stepper .mono{min-width:30px;text-align:center;font-size:18px;font-weight:700}
+.logs{display:flex;flex-direction:column;gap:5px;max-height:220px;overflow:auto}
+.log{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:7px;font-size:13px;align-items:start}
+.log .mono{font-size:12px;color:var(--muted);padding-top:1px}
+.log button{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:13px}
+
+/* records */
+.rec-top{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.rec-top h1{font-size:28px;font-weight:800;flex:1 1 260px}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line-2);white-space:nowrap}
+th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--surface-2)}
+td.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;text-align:right}
+th.num{text-align:right}
+tr:last-child td{border-bottom:0}
+td .tname{font-weight:600}
+.pill{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+.pill.draft{background:var(--warn-wash);color:var(--warn)}
+.pill.done{background:var(--think-wash);color:var(--think)}
+.pill.ex{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.matrix td,.matrix th{text-align:center}
+.matrix td:first-child,.matrix th:first-child{text-align:left}
+.cell{display:inline-grid;place-items:center;width:30px;height:24px;border-radius:5px;font-family:var(--font-mono);font-size:12px;font-weight:700;background:var(--surface-2);color:var(--muted)}
+.cell.l1{background:var(--l2);color:var(--ink)}.cell.l2{background:var(--l3);color:var(--ink)}.cell.l3{background:var(--l4);color:var(--ink)}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:28px 22px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.empty h3{font-size:19px}
+
+/* report */
+.report{max-width:860px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.rp-h{padding:22px 24px;border-bottom:2px solid var(--ink);display:flex;flex-direction:column;gap:6px}
+.rp-h h1{font-size:28px;font-weight:800;line-height:1.1}
+.rp-s{padding:18px 24px;border-bottom:1px solid var(--line-2);display:flex;flex-direction:column;gap:10px}
+.rp-s:last-child{border-bottom:0}
+.rp-s h2{font-size:17px;font-weight:700}
+.rp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.rp-c{display:grid;grid-template-columns:120px 90px minmax(0,1fr);gap:10px;padding:7px 0;border-top:1px solid var(--line-2);font-size:14px;align-items:start}
+.rp-c:first-of-type{border-top:0}
+@media (max-width:560px){.rp-c{grid-template-columns:1fr auto}.rp-c p{grid-column:1/-1}}
+.step-box{background:var(--accent-wash);border-radius:10px;padding:14px 16px}
+.step-box p{font-family:var(--font-display);font-size:18px;font-weight:700;line-height:1.35;margin-top:4px}
+ul.tidy{margin:0;padding-left:19px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+
+/* look-fors */
+.ref{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+.refc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.refc h3{font-size:17px;font-weight:700}
+.lede{max-width:72ch;margin-bottom:18px}
+.lede h1{font-size:30px;font-weight:800;line-height:1.08}
+.lede p{color:var(--ink-2);margin-top:8px;font-size:15.5px}
+ol.principles{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;font-size:14.3px}
+ol.principles b{font-weight:700}
+
+/* TAP additions */
+.two-l{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:4px 16px}
+.grp{display:flex;flex-direction:column;gap:10px}
+.grp+.grp{margin-top:8px}
+.grp-h{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:5px}
+.grp-h .k{color:var(--ink)}
+.judge{border:1px solid var(--line);border-radius:10px;padding:13px 14px;display:flex;flex-direction:column;gap:12px;background:var(--surface-2)}
+.strand{display:flex;flex-direction:column;gap:6px}
+.strand b{font-size:14.5px}
+.strand.overall{border-top:1px solid var(--line);padding-top:12px}
+.strand.overall b{font-family:var(--font-display);font-size:16px}
+.jb{display:flex;gap:5px;flex-wrap:wrap}
+.jb button{border:1.5px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+.jb button[aria-pressed="true"][data-v="blooming"]{background:var(--l4);border-color:var(--think);color:var(--ink)}
+.jb button[aria-pressed="true"][data-v="budding"]{background:var(--l3);border-color:var(--think);color:var(--ink)}
+.jb button[aria-pressed="true"][data-v="beginning"]{background:var(--l2);border-color:var(--warn);color:var(--ink)}
+.warnbox{border-left:3px solid var(--warn);background:var(--warn-wash);padding:10px 12px;border-radius:0 8px 8px 0;font-size:13.8px}
+.jpill{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px;color:var(--ink)}
+.jpill.blooming{background:var(--l4)}.jpill.budding{background:var(--l3)}.jpill.beginning{background:var(--l2)}
+.pip{font-size:11px;font-weight:800;padding:2px 7px;border-radius:5px;background:var(--bad-wash);color:var(--bad);margin-left:6px}
+/* home + strengths */
+.starts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:12px}
+.startc{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;color:var(--ink)}
+.startc:hover{border-color:var(--accent);background:var(--accent-wash)}
+.startc b{font-family:var(--font-display);font-size:18px}
+.startc span{font-size:13.5px;color:var(--ink-2)}
+.startc i{font-style:normal;font-weight:700;color:var(--accent);font-size:13.5px;margin-top:auto}
+.due{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-2)}
+.due:last-child{border-bottom:0}
+.tk{font-family:var(--font-mono);font-size:12.5px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--warn-wash);color:var(--warn)}
+.tk.ok{background:var(--think-wash);color:var(--think)}
+.linkish{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.jump em{font-style:normal;font-family:var(--font-mono);font-size:11.5px;color:var(--muted);margin-left:3px}
+.jump button.done{border-color:color-mix(in srgb,var(--think) 50%,var(--line));background:var(--think-wash)}
+.jump button.done em{color:var(--think)}
+.sgx{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:6px 16px;background:var(--surface-2);border-radius:9px;padding:10px 12px}
+.sgx ul{margin:4px 0 0;padding-left:17px;font-size:13.4px;display:flex;flex-direction:column;gap:3px;color:var(--ink-2)}
+.sgx .k.s{color:var(--think)}.sgx .k.g{color:var(--warn)}
+table.meta{width:100%;font-size:14px;border:1px solid var(--line);border-radius:8px}
+table.meta th{width:90px;background:var(--surface-2)}
+table.meta td,table.meta th{white-space:normal;vertical-align:top}
+.cgrid{display:grid;grid-template-columns:1fr;gap:10px}
+.cg{border:1px solid var(--line-2);border-radius:9px;padding:11px 13px;display:flex;flex-direction:column;gap:7px}
+.cg-h{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.cg-h b{font-family:var(--font-display);font-size:16px}
+.cg ul{margin:0;padding-left:18px;font-size:13.4px}
+.cg .ev{font-size:13.6px;color:var(--ink-2)}
+body.no-dl .dl-only{display:none}
+/* mobile dock */
+.dock{display:none}
+@media (max-width:980px){
+  .obs-grid{grid-template-columns:1fr}
+  .live{position:static;max-height:none;overflow:visible;order:-1}
+  .dock{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:35;background:var(--surface);border-top:1px solid var(--line);gap:8px;align-items:center;
+    padding:8px max(12px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+  .dock .waitbtn{flex:1;padding:10px 12px}
+  .dock .waitbtn .mono{font-size:19px}
+  .dock .dm{border:1.5px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 8px;font-size:12px;font-weight:700;cursor:pointer;color:var(--ink-2)}
+  .dock .dm[aria-pressed="true"]{border-color:var(--mc);background:color-mix(in srgb,var(--mc) 16%,var(--surface));color:var(--ink)}
+}
+@media (max-width:480px){.dock .dm{padding:6px 6px;font-size:11px}.stats{grid-template-columns:1fr 1fr}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:600;z-index:60}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in gut">
+    <div class="brand"><span class="mark">7C</span><b>Lesson Observer</b></div>
+    <nav class="tabs" aria-label="Views">
+      <a href="#records" data-nav="records">Home</a>
+      <a href="#observe" data-nav="observe">Observe</a>
+      <a href="#report" data-nav="report">Report</a>
+      <a href="#lookfors" data-nav="lookfors">Look-fors</a>
+    </nav>
+    <div class="status" id="status"><i></i><span>Connecting</span></div>
+  </div>
+</header>
+<div class="gut"><div class="banner" id="banner" hidden></div></div>
+<main class="gut" id="view"></main>
+<div class="dock" id="dock"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* ================= REFERENCE DATA ================= */
+const CS = {
+  care:{name:'Care',group:'personal',q:'Teachers show care and concern for their students, building trusting relationships and creating a safe, supportive learning environment.',
+    look:['Has an awareness of the needs of individual students.','Fosters relationships rooted in mutual trust.','Displays awareness of the context of both the individual and the collective.'],
+    yes:['Genuinely listens to students’ responses, using active listening so they feel heard.','Shows empathy and understanding towards students’ challenges.','Provides emotional support and encouragement.','Knows and treats each student as an individual.','Recognises and celebrates achievements and milestones.','Gives genuine praise and fosters appreciation within the class.'],
+    no:['Ignoring students’ emotional needs or concerns.','Being dismissive of students’ responses.','Showing favouritism towards certain students.','Being insensitive or cold towards students’ contributions.','Publicly drawing attention to or comparing students’ academic performance.','Praising when it has not been earned through achievement or endeavour.'],
+    student:'Students ask for help without embarrassment and help each other.',
+    step:'Plan a private help route (a coloured cup, a help card or a quiet check-in) and use it with the three students most likely to stay silent.'},
+  confer:{name:'Confer',group:'personal',q:'Teachers encourage student input, allowing them to share their ideas and opinions, which fosters active participation.',
+    look:['Encourages and invites students’ input.','Models and promotes the respecting of different perspectives.','Promotes discussion and debate as healthy learning tools.'],
+    yes:['Provides timely and constructive feedback to students.','Provides one-to-one or small-group support as needed.','Encourages students to reflect on their learning.','Uses targeted questioning to ensure participation and differentiation.','Adjusts teaching strategies to individual student needs.'],
+    no:['Vague or unhelpful feedback.','Not following up on feedback or action plans.','No time for students to reflect on their own and their peers’ work.','Not using advice and agreed strategies from SDPs.','Overwhelming students with feedback without actionable steps.','Directing support staff to work with students without sufficient guidance.'],
+    student:'Most students talk about the content with a partner, not only the confident few.',
+    step:'Before taking any answer to a thinking question, give 30 seconds of partner talk, then call on a pair rather than a volunteer.'},
+  captivate:{name:'Captivate',group:'curricular',q:'Teachers make lessons engaging and interesting, grabbing students’ attention and sparking their curiosity.',
+    look:['Sparks and maintains interest in learning.','Designs tasks with a careful balance between stimulation, sustainability and suitability.','Encourages and praises active participation.'],
+    yes:['Uses a variety of teaching methods.','Makes materials and activities relevant, accessible for all, and engaging.','Uses multimedia and technology to enhance learning.','Uses real-world examples and stories to illustrate concepts.','Encourages active participation with content tied to the learning goals.'],
+    no:['Only teacher-led, lecture-style teaching.','Content that is too short, too long, or uninspiring.','Overloading students with information without breaks or interaction.','Relying on technology without meaningful integration.','Letting students get absorbed in tangents that distract from the learning focus.'],
+    student:'Students lean in, react, and want to keep going when the activity ends.',
+    step:'Change the mode (talk, move, write, build) at least every 12 minutes, and plan one physical all-student response.'},
+  clarify:{name:'Clarify',group:'curricular',q:'Teachers explain lessons clearly so that students understand the material and can follow along easily.',
+    look:['Explains clearly and confidently.','Checks for understanding.','Provides constructive and considerate feedback.'],
+    yes:['Explains concepts clearly in understandable language.','Checks understanding by asking questions and encouraging discussion.','Uses examples and analogies for complex ideas.','Breaks tasks and instructions into manageable steps.','Offers additional resources or support for students who struggle.'],
+    no:['Jargon or overly technical language.','Assuming everyone understands without checking.','Rushing explanations without time for questions.','Too little context or background.','Not adapting explanations to students’ needs.'],
+    student:'Students can explain the idea in their own words when asked.',
+    step:'Add two planned checks for understanding (mini whiteboards or cold call) before students start independent work, and reteach if fewer than four in five are right.'},
+  consolidate:{name:'Consolidate',group:'curricular',q:'Teachers help students connect new learning to what they already know, reinforcing lessons and ensuring understanding.',
+    look:['Reviews and summarises learning.','Encourages students to connect ideas from previous or concurrent learning.','Refers back to expected learning outcomes.'],
+    yes:['Students apply learning in different contexts.','Key concepts are reviewed and reinforced through practice.','Students summarise and reflect on what they learned.','Activities are scaffolded to build on previous knowledge.','Extra challenge for students who finish or have mastered the material.'],
+    no:['Moving on before current content is understood.','Rote memorisation without deeper understanding.','Not revisiting previous lessons or concepts.','Repetitive tasks without variation.','Missing chances to connect new learning with prior knowledge.'],
+    student:'Students can say what they learned today and how it links to before.',
+    step:'Protect the last four minutes for students (not the teacher) to state the big idea of the lesson in one sentence, against the learning intention.'},
+  challenge:{name:'Challenge',group:'press',q:'Teachers set high academic expectations, encouraging students to think deeply, work hard, and push themselves to succeed.',
+    look:['Maintains high standards of work quality.','Insists on perseverance with tasks.','Insists on growth mindset attitudes.'],
+    yes:['Sets high expectations for all students and communicates them clearly.','Gives opportunities to stretch and think critically.','Encourages risk-taking and new ideas.','Offers differentiated tasks for diverse needs.','Gives feedback that encourages perseverance and growth.'],
+    no:['Unrealistic or unattainable goals.','Underestimating students’ capabilities.','Letting students stay in their comfort zone.','Discouraging intellectual risks or new approaches.','Focusing on competition rather than personal growth.'],
+    student:'Students persist with something hard and explain their reasoning.',
+    step:'Follow every correct answer once with "What makes you say that?" or "What if…?" before moving on.'},
+  control:{name:'Control',group:'press',q:'Teachers maintain a well-managed classroom where behaviour expectations are clear, and students are focused and disciplined.',
+    look:['Models and promotes respectful interactions.','Maintains a positive and focused working environment.','Uses their own movement to maintain an effective presence.'],
+    yes:['Clear expectations and routines throughout the lesson.','Positive reinforcement for a respectful environment.','Behaviour addressed promptly and fairly, in line with school expectations.','Collaboration and teamwork encouraged.','The protected characteristics of all students respected by all.'],
+    no:['Inconsistent enforcement of rules and expectations.','Disruptions left unaddressed.','Punitive measures as the first response.','An overly rigid or authoritarian atmosphere, especially shouting or scolding.','Students feeling insecure, isolated or invisible.'],
+    student:'Transitions are quick and students know what to do without asking.',
+    step:'Script and rehearse one transition (materials out, voice level, time limit) and time it in the next lesson.'}
+};
+const C_ORDER=['care','confer','captivate','clarify','consolidate','challenge','control'];
+const GROUPS={personal:'Personal support',curricular:'Curricular support',press:'Academic press'};
+const LEVELS=[[0,'Not seen'],[1,'Inconsistent'],[2,'Often'],[3,'Consistent']];
+const LVNAME=v=>(LEVELS.find(l=>l[0]===v)||[0,''])[1];
+const JUDGE={blooming:'Blooming',budding:'Budding',beginning:'Beginning'};
+const STRANDS=[
+  ['cs','Displays the 7 Cs during the lesson',{blooming:'Consistently displays the 7 Cs.',budding:'Often displays the 7 Cs.',beginning:'May display the 7 Cs, but inconsistently.'}],
+  ['reflect','Self-awareness and reflective attitude',{blooming:'Consistently self-aware and reflective about their practice.',budding:'Often self-aware and reflective about their practice.',beginning:'May be reflective, but has not yet used it to build consistency.'}],
+  ['vision','Embeds school vision, policies and training',{blooming:'Consistently embeds the vision, policies and training.',budding:'Often embeds the vision, policies and training.',beginning:'Is inconsistent in embedding the vision, policies and training.'}]
+];
+const TYPES={smt:'SMT lesson observation',walk:'Learning walk',peer:'Peer observation'};
+const PEER_Q=[['fav','What was your favourite part(s) of the lesson?'],['visible','Which of the 7 Cs did you feel were most visible during the lesson?'],['borrow','What was one thing you saw that you would like to consider using in your own teaching?'],['suggest','What was one thing that you would like to suggest your colleague could try in the future?'],['special','If you were going to identify a reason other colleagues should observe your colleague (an area of specialism), what would it be?']];
+
+const TEMPLATES = {
+  scaffold:{name:'40-minute lesson scaffold',segs:[
+    {name:'Flashback',min:'Review',cs:{clarify:'Explains each review problem clearly, reinforcing past concepts and addressing misconceptions as they arise.',control:'Structured with clear guidelines; popcorn-style turns so every student takes part in an orderly way.'},
+      think:'Students get a moment to recall before anyone answers.'},
+    {name:'True or False',min:'Warm-up',cs:{captivate:'Quick and interactive; students signal with their bodies (X or O with arms).',challenge:'Statements push students to think about the coming lesson’s key concepts.'},
+      think:'Everyone decides silently before the signal, so the quick ones do not decide for the room.'},
+    {name:'Video',min:'Hook',cs:{captivate:'Engaging, student-friendly clip that relates directly to today’s concept.',clarify:'Brief discussion afterwards so students see why it matters for today’s learning.'},
+      think:'A question is set before the video, so students watch with something to think about.'},
+    {name:'Starter: race the teacher',min:'Starter',cs:{challenge:'Racing the teacher encourages quick, confident thinking.',clarify:'Tricky steps are explained on the board while racing, so students can follow the thought process.',confer:'After the race, students discuss answers with peers and clear up doubts.'},
+      think:'Partner talk after the race happens before any answer is confirmed.'},
+    {name:'Lesson slides',min:'Input',cs:{clarify:'Information is clear, with visual cues, hand signs and plain explanations.',confer:'Pair or group shares are built in to reinforce the material through talk.',captivate:'Visuals, hands-on moments or quick checks keep attention high.'},
+      think:'Questions are followed by a visible pause; answers are not taken from the first hand up.'},
+    {name:'Workbook',min:'Practice',cs:{care:'Struggling students get individual help or guided peer support, with patience.',confer:'Students mark each other’s work and talk through answers.',consolidate:'Students check work against the answers on the back table.',challenge:'Extension tasks are ready for early finishers.'},
+      think:'The teacher asks students to explain a step rather than correcting it for them.'},
+    {name:'Extend',min:'Extension',cs:{challenge:'The Uno adding game adds difficulty for students who have mastered the core task.',captivate:'The game is fun while reinforcing key maths skills.'},
+      think:'Students explain a move or a strategy, not just play fast.'},
+    {name:'Exit ticket',min:'Close',cs:{consolidate:'Students reflect on and apply what they learned in a brief, meaningful way.',care:'Immediate, encouraging feedback so learners leave with a sense of achievement.'},
+      think:'Students write their own answer before any sharing.'}
+  ]},
+  inquiry:{name:'PYP inquiry stage',segs:[
+    {name:'Tuning in',min:'Inquiry',cs:{captivate:'A provocation (object, image, question) shown before it is explained.',care:'First ideas are welcomed and recorded where they can be revised later.'},think:'Thirty seconds of silent looking before any hands go up.'},
+    {name:'Finding out',min:'Inquiry',cs:{clarify:'Students are asked where information came from and to point to the detail.',confer:'Students compare what they found with a partner.'},think:'Students record a detail from the source before interpreting it.'},
+    {name:'Sorting out',min:'Inquiry',cs:{challenge:'Students state the rule behind a grouping or compare explanations.',confer:'Groups justify their organisation to each other.'},think:'Time to sort individually before group discussion.'},
+    {name:'Going further',min:'Inquiry',cs:{challenge:'A harder case, another perspective or a real problem the simple rule does not fit.',captivate:'Students choose the direction of the investigation.'},think:'Students argue a view they disagree with, with time to prepare.'},
+    {name:'Making connections',min:'Inquiry',cs:{consolidate:'Students test their findings against the central idea.',clarify:'The teacher names transfer out loud when it happens.'},think:'Students write a connection before sharing it.'},
+    {name:'Taking action',min:'Inquiry',cs:{care:'Action is for a real audience and students chose it.',challenge:'Students justify the action against criteria.'},think:'Students decide and justify individually before group agreement.'},
+    {name:'Reflection',min:'Inquiry',cs:{consolidate:'Students name what changed in their thinking and what caused it.',confer:'Reflections are shared and built on.'},think:'Quiet writing time is protected before sharing.'}
+  ]},
+  blank:{name:'Blank (build as you go)',segs:[]}
+};
+
+const SKILLS={
+  notice:{name:'Notice',verbs:'observe · identify · distinguish',
+    early:['Describes what is actually there rather than what they expect.','Offers more than one detail without prompting.','Points out something nobody else has said.'],
+    upper:['Separates relevant from irrelevant detail when asked why.','Names a pattern across several examples.','Goes back to the source to check a detail.']},
+  connect:{name:'Connect',verbs:'compare · classify · relate',
+    early:['Groups by a stated rule rather than at random.','Uses comparison language without prompting.','Links new content to earlier learning.'],
+    upper:['States the criterion behind a grouping when asked.','Compares two explanations, not just two objects.','Transfers a relationship to a new example.']},
+  reason:{name:'Reason',verbs:'explain · justify · support',
+    early:['Offers "because…" without being asked.','Points at the evidence while explaining.','Makes a prediction and gives a reason for it.'],
+    upper:['Distinguishes a stronger reason from a weaker one.','Explains the link between the evidence and the claim.','Adjusts an explanation when new evidence arrives.']},
+  evaluate:{name:'Evaluate',verbs:'judge · test · critique · decide',
+    early:['Chooses on a stated reason, not preference alone.','Refers back to the criteria when deciding.','Comments on the quality of work, not just liking it.'],
+    upper:['Applies the criteria consistently across options.','Names an assumption behind a claim.','Says what would change their conclusion.']},
+  perspective:{name:'Perspective-take',verbs:'consider · interpret · empathize',
+    early:['Attributes a thought or feeling to someone else.','Accepts a classmate’s different view without correcting it.','Stays in role when speaking as a character.'],
+    upper:['Explains the reason behind a differing view.','Notices whose view is missing.','Represents a view they disagree with fairly.']}
+};
+const SK_ORDER=['notice','connect','reason','evaluate','perspective'];
+const MOVES={complexity:'Complexity',evidence:'Evidence requirements',perspectives:'Perspectives',uncertainty:'Uncertainty',decision:'Decision-making'};
+const MOVE_SUB={complexity:'more than one factor or layer',evidence:'support, test or revise',perspectives:'beyond the first point of view',uncertainty:'no single obvious answer',decision:'judge, choose, solve and justify'};
+const BARRIERS={language:'Lack of language',background:'Lack of background knowledge',confidence:'Reluctant to share incomplete ideas',steps:'Too many steps in the task',memory:'Too many things to remember',abstract:'Too abstract',independence:'Cannot approach it on their own'};
+const SUPPORTS={concrete:'Made it concrete',visible:'Made it visible',social:'Made it social',model:'Modelled it',scaffold:'Scaffolded it',safe:'Kept it safe'};
+const VTR_CHECKS=['Supports the targeted thinking skill','Makes thinking visible','Provides a useful structure','Will be used in class repeatedly','Can be internalised by the students'];
+const VTRS=['See – Think – Wonder','Think – Puzzle – Explore','Chalk Talk','3 – 2 – 1 Bridge','Compass Points','Zoom In','Headlines','Connect – Extend – Challenge','Colour – Symbol – Image','Generate – Sort – Connect – Elaborate','The 4 Cs','I Used to Think… Now I Think…','Claim – Support – Question','Step Inside','Circle of Viewpoints','Tug of War','Peeling the Fruit','Red Light, Yellow Light','What Makes You Say That?','+1 Routine','Micro Lab','Sentence – Phrase – Word','Other'];
+
+const YEARS=[
+  ['Pre-Reception (K1)','early',['Understanding our identity','Transportation','Homes','Expressing emotions through art']],
+  ['Reception (K2)','early',['Bodies','Different Cultures','Storytelling','Living Things','The Scientific Method']],
+  ['Year 1 (K3)','early',['Celebrations','Food','Science Experiments','Upcycling']],
+  ['Year 2 (Grade 1)','early',['Stories from the Past','My Town','Fictional Narratives','Science Experiments','Living Things','Relationships']],
+  ['Year 3 (Grade 2)','upper',['Services','Storytelling','Role-models','Electricity','Plants','Landmarks']],
+  ['Year 4 (Grade 3)','upper',['Personal Identity','Body Systems','Ancient Civilizations','Landforms','Natural Disasters','Innovations']],
+  ['Year 5 (Grade 4)','upper',['Exploration','Systems of Government','Physics','Advertising','Evolution','Beliefs']],
+  ['Year 6 (Grade 5)','upper',['Activism','Migration','Storing Energy','The Exhibition','Interpretation and Appreciation','Changes']]
+];
+const MODES=[['teacher','Teacher talk','var(--accent)'],['student','Student talk','var(--warn)'],['think','Thinking / work time','var(--think)'],['transition','Transition','var(--muted)']];
+const QTYPES=[['recall','Recall / closed'],['open','Open / thinking'],['probe','"What makes you say that?"']];
+const RTYPES=[['hands','Hands up'],['cold','No hands / cold call'],['all','All respond (boards, signals)'],['pair','Partner talk first']];
+const REFLECT_PROMPTS=['Where in the lesson did students do the most thinking, and how do you know?','Which question produced the longest silence, and what came out of it?','Who did most of the talking in the first ten minutes, and what would you change?','Which student surprised you today, and what made that possible?','If you taught this lesson again tomorrow, what one move would you keep and what would you change?'];
+
+/* ================= STATE ================= */
+const uid=()=>'obs-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+function newObs(tpl){
+  const t=TEMPLATES[tpl||'scaffold'];
+  return {id:uid(),status:'draft',teacher:'',observer:'',date:today(),year:4,unit:'',focus:'',type:'smt',template:tpl||'scaffold',
+    strands:{cs:'',reflect:'',vision:''},judgement:'',selfAssess:'',teacherResponse:'',reviewed:false,requested:false,
+    peer:{fav:'',visible:'',borrow:'',suggest:'',special:''},
+    segments:t.segs.map(s=>({name:s.name,min:s.min,cs:Object.keys(s.cs),watch:{...s.cs},think:s.think,seen:false,r:{},note:''})),
+    think:{skill:null,named:false,criteria:false,evidence:[]},challenge:{moves:[],source:''},
+    support:{barriers:[],used:[],kept:''},routine:{vtr:'',checks:[]},
+    cs:Object.fromEntries(C_ORDER.map(c=>[c,{level:null,evidence:'',seen:[]}])),
+    clock:{mode:null,since:null,startedAt:null,totals:{teacher:0,student:0,think:0,transition:0},stoppedAt:null},
+    wait:{samples:[],thr:3,wt2:0},q:{recall:0,open:0,probe:0},resp:{hands:0,cold:0,all:0,pair:0},
+    sweeps:[],sweepTotal:20,log:[],glows:'',step:'',stepArea:'',reflectQ:REFLECT_PROMPTS[0],teacherReflection:'',followUp:'',prevCheck:null,
+    createdAt:null,updatedAt:null};
+}
+let O=newObs(), RECORDS=[], VIEW='records', STORE=null, LOADED=false, DEL=null, FILTER_T='', FILTER_TYPE='', SEARCH='';
+let WAIT_START=null;
+const $=s=>document.querySelector(s);
+const esc=t=>String(t==null?'':t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone=x=>JSON.parse(JSON.stringify(x));
+const pct=x=>x==null||isNaN(x)?'—':Math.round(x*100)+'%';
+const mmss=s=>{s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+const fmtDate=d=>{if(!d)return '';const p=d.split('-');if(p.length<3)return d;const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1]-1];return (+p[2])+' '+m+' '+p[0];};
+const lsGet=k=>{try{return localStorage.getItem(k);}catch(e){return null;}};
+const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2000);}
+function normalise(o){const b=newObs(o.template);const r=Object.assign(b,o);
+  ['think','challenge','support','routine','clock','wait','q','resp','strands','peer'].forEach(k=>{r[k]=Object.assign(newObs()[k],o[k]||{});});
+  if(!TYPES[r.type])r.type='smt';
+  r.clock.totals=Object.assign({teacher:0,student:0,think:0,transition:0},(o.clock||{}).totals||{});
+  const bc=newObs().cs;r.cs=Object.fromEntries(C_ORDER.map(c=>[c,Object.assign(bc[c],(o.cs||{})[c]||{})]));return r;}
+
+/* ================= METRICS ================= */
+function clockTotals(o,live){const t={...o.clock.totals};
+  if(live&&o.clock.mode&&o.clock.since)t[o.clock.mode]+=(Date.now()-o.clock.since)/1000;return t;}
+function metrics(o,live){
+  const w=o.wait.samples||[],n=w.length;
+  const avg=n?w.reduce((a,b)=>a+b,0)/n:null, ge=n?w.filter(x=>x>=o.wait.thr).length/n:null;
+  const t=clockTotals(o,live), talk=t.teacher+t.student+t.think, all=talk+t.transition;
+  const sw=o.sweeps||[], eng=sw.length?sw.reduce((a,s)=>a+(s.total?s.engaged/s.total:0),0)/sw.length:null;
+  const engMin=sw.length?Math.min(...sw.map(s=>s.total?s.engaged/s.total:0)):null;
+  const qt=o.q.recall+o.q.open+o.q.probe, rt=o.resp.hands+o.resp.cold+o.resp.all+o.resp.pair;
+  return {waitN:n,waitAvg:avg,waitGe:ge,clock:t,clockAll:all,
+    teacherShare:talk?t.teacher/talk:null,studentShare:talk?(t.student+t.think)/talk:null,thinkShare:all?t.think/all:null,
+    engAvg:eng,engMin,sweeps:sw.length,qTotal:qt,openShare:qt?(o.q.open+o.q.probe)/qt:null,respTotal:rt,allShare:rt?(o.resp.all+o.resp.pair)/rt:null};
+}
+function flowCounts(o,c){const r={strong:0,partly:0,not:0};o.segments.forEach(s=>{const v=s.r&&s.r[c];if(v)r[v]++;});return r;}
+function suggestions(o){
+  const m=metrics(o,true),out=[];
+  if(m.waitN>=3&&m.waitGe<0.6)out.push(['Thinking time','Only '+pct(m.waitGe)+' of questions had '+o.wait.thr+'+ seconds of wait time. After every thinking question, pause for at least three seconds before taking any answer, and say "thinking time" so students know the pause is for them.']);
+  if(m.clockAll>240&&m.teacherShare>0.6)out.push(['Thinking time','Teacher talk was '+pct(m.teacherShare)+' of the timed lesson. Cut the input before the task by a third and hand that time to partner talk or silent thinking.']);
+  if(m.sweeps&&m.engAvg<0.8)out.push(['Engagement','Engagement averaged '+pct(m.engAvg)+' across sweeps. Replace two hands-up questions with an all-student response (mini whiteboards, X/O arms) so every student commits to an answer.']);
+  if(m.respTotal>=4&&m.allShare<0.3)out.push(['Engagement','Most answers came from hands up. Use partner talk first, then call on a pair, so the same few voices do not carry the lesson.']);
+  if(m.qTotal>=4&&m.openShare<0.4)out.push(['Questioning','Plan three open questions in advance and follow at least one answer with "What makes you say that?"']);
+  if(o.think.skill&&!o.think.named)out.push(['Think','Name the thinking skill to the class ("Today we are learning to '+SKILLS[o.think.skill].name.toLowerCase()+'") and put the success criteria where students can point at them.']);
+  if(o.routine.vtr&&o.routine.vtr!=='Other'&&o.routine.checks.length<=3)out.push(['Routine','Choose the routine after choosing the thinking skill, and keep using one routine until students can run it themselves.']);
+  if(o.support.kept==='no')out.push(['Support','Scaffold the task, not the thinking: give the sentence stem without the answer, and model on a different example from the one students will do.']);
+  const rated=C_ORDER.filter(c=>o.cs[c].level>=1).sort((a,b)=>o.cs[a].level-o.cs[b].level);
+  if(rated.length&&o.cs[rated[0]].level<=2)out.push([CS[rated[0]].name,CS[rated[0]].step]);
+  return out.slice(0,6);
+}
+
+/* ================= STORE ================= */
+function localStore(){
+  const K='obs-records-v1';const read=()=>{try{return JSON.parse(lsGet(K)||'{}')||{};}catch(e){return {};}};
+  let cb=null;const emit=()=>cb&&cb(Object.values(read()));
+  return {kind:'local',subscribe(f){cb=f;emit();},async save(o){const m=read();m[o.id]=o;lsSet(K,JSON.stringify(m));emit();},
+    async del(id){const m=read();delete m[id];lsSet(K,JSON.stringify(m));emit();}};
+}
+function dbStore(db){
+  const col=db.collection('observations');
+  return {kind:'db',subscribe(f,err){return col.onSnapshot(s=>f(s.docs.map(d=>d.data()),s.metadata),err);},
+    async save(o){await col.doc(o.id).set(o);},async del(id){await col.doc(id).delete();}};
+}
+function setStatus(kind,text){const s=$('#status');s.className='status '+kind;s.querySelector('span').textContent=text;}
+function banner(t){const b=$('#banner');if(t){b.textContent=t;b.hidden=false;}else b.hidden=true;}
+async function initStore(){
+  const inClaude=!!(window.claude&&window.claude.use);
+  let db=null;try{if(window.claude&&window.claude.use)db=await window.claude.use('db');}catch(e){db=null;}
+  try{if(window.claude&&window.claude.use)window.claude.use('downloads').then(d=>{DL=d;document.body.classList.toggle('no-dl',!d);}).catch(()=>{});}catch(e){}
+  if(db){STORE=dbStore(db);setStatus('saved','Saved to this page');}
+  else{STORE=localStore();setStatus('saved','Saved in this browser');if(inClaude)banner('Saved observations can’t be reached here, so records are kept in this browser only.');}
+  const timer=setTimeout(()=>{if(!LOADED)banner('Saved observations can’t be reached yet. You can keep observing; your work will save when the connection returns.');},10000);
+  STORE.subscribe((list,meta)=>{
+    RECORDS=list.filter(Boolean).map(normalise);
+    if(!meta||!meta.fromCache){LOADED=true;clearTimeout(timer);if(STORE.kind==='db')banner('');}
+    const cur=RECORDS.find(r=>r.id===O.id);
+    if(!O.createdAt){const want=lsGet('obs-current');const rec=want&&RECORDS.find(r=>r.id===want);if(rec&&rec.status==='draft'){O=clone(rec);if(VIEW==='observe')render();}}
+    if(VIEW!=='observe')render(); else refreshSide();
+    void cur;
+  },e=>{clearTimeout(timer);banner('Saved observations stopped updating. Reload the page to reconnect.');});
+}
+let saveT=null,writing=false,again=false;
+function touch(){setTimeout(()=>{refreshSG();const jb=$('#jump');if(jb)jb.innerHTML=jumpBar();},0);if(!O.createdAt)O.createdAt=Date.now();O.updatedAt=Date.now();lsSet('obs-current',O.id);setStatus('pending','Saving…');clearTimeout(saveT);saveT=setTimeout(flush,900);}
+async function flush(){
+  if(!STORE){saveT=setTimeout(flush,800);return;}
+  if(writing){again=true;return;}writing=true;
+  try{await STORE.save(clone(O));setStatus('saved',STORE.kind==='db'?'Saved':'Saved in this browser');}
+  catch(e){if(e&&e.code==='invalid_argument'){setStatus('err','Not saved');banner('This page can only save observations for its owner and editors. Ask the owner for edit access.');}
+    else if(e&&e.code==='unavailable'){setStatus('pending','Retrying…');writing=false;setTimeout(flush,1500+Math.random()*1000);return;}
+    else if(e&&e.code==='quota_exceeded'){setStatus('err','Not saved');banner('Storage for this page is full. Delete old observations in Records to make room.');}
+    else setStatus('err','Not saved');}
+  writing=false;if(again){again=false;flush();}
+}
+
+/* ================= PATH BINDING ================= */
+function getPath(o,p){return p.split('.').reduce((a,k)=>a==null?a:a[k],o);}
+function setPath(o,p,v){const ks=p.split('.');let a=o;for(let i=0;i<ks.length-1;i++)a=a[ks[i]];a[ks[ks.length-1]]=v;}
+
+/* ================= OBSERVE VIEW ================= */
+function prevRecord(){
+  const t=O.teacher.trim().toLowerCase();if(!t)return null;
+  return RECORDS.filter(r=>r.id!==O.id&&r.type==='smt'&&r.teacher.trim().toLowerCase()===t&&r.step&&r.step.trim()).sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0]||null;
+}
+function jumpBar(){
+  const segN=O.segments.length,segS=O.segments.filter(x=>x.seen).length,csN=C_ORDER.filter(c=>O.cs[c].level!=null).length;
+  const det=!!(O.teacher&&O.date),fb=O.type==='peer'?PEER_Q.filter(q=>O.peer[q[0]]).length+'/5':(O.glows?1:0)+(O.type!=='smt'||O.step?1:0)+(O.type!=='smt'||O.judgement?1:0)===3?'✓':'';
+  const g=O.type==='smt'?((O.think.skill?1:0)+(O.challenge.source?1:0)+(O.support.kept?1:0)):0;
+  const items=[['details','Lesson',det?'✓':'needs name'],['flow','Lesson flow',segN?segS+'/'+segN:'']];
+  if(O.type==='smt')items.push(['guide','Thinking guide',g?g+'/3':'']);
+  items.push(['cs','7 Cs',csN+'/7'],['feedback',O.type==='peer'?'Debrief':O.type==='walk'?'Notes':'Feedback',fb]);
+  return items.map(j=>`<button data-act="jump" data-to="${j[0]}" class="${j[2]==='✓'||j[2]==='7/7'||j[2]==='5/5'?'done':''}">${j[1]}${j[2]?` <em>${j[2]}</em>`:''}</button>`).join('');
+}
+function vObserve(){
+  const y=YEARS[O.year]||YEARS[4];
+  const teachers=[...new Set(RECORDS.map(r=>r.teacher).filter(Boolean))];
+  return `<div class="obs-grid">
+  <div class="stack">
+    <div class="row" style="justify-content:space-between">
+      <div class="jump" id="jump">${jumpBar()}</div>
+      <div class="row"><a class="btn sm" href="#records" style="text-decoration:none">New observation</a><a class="btn sm" href="#report" style="text-decoration:none">Report</a></div>
+    </div>
+
+    <section class="sec" id="sec-details">
+      <header><div><div class="k">${O.status==='done'?'Complete':'Draft'}${teachers.length?' · '+RECORDS.length+' saved':''}</div><h2>${O.teacher?esc(O.teacher):'New observation'}</h2>
+        <p>Agree the focus with the teacher beforehand. Record what you see and hear first; make judgements at the end.</p></div></header>
+      <div class="sec-b">
+        <div class="fields">
+          <label class="f"><span>Teacher</span><input type="text" id="f-teacher" data-bind="teacher" list="dl-teachers" value="${esc(O.teacher)}" placeholder="e.g. Ms Tanaka" autocomplete="off"></label>
+          <label class="f"><span>Observer</span><input type="text" id="f-observer" data-bind="observer" value="${esc(O.observer)}" placeholder="Your name"></label>
+          <label class="f" style="flex:0 1 170px"><span>Date</span><input type="date" id="f-date" data-bind="date" value="${esc(O.date)}"></label>
+        </div>
+        <datalist id="dl-teachers">${teachers.map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
+        <div class="fields">
+          <label class="f"><span>Year group</span><select id="f-year" data-bind="year" data-num="1">${YEARS.map((yy,i)=>`<option value="${i}" ${i===O.year?'selected':''}>${yy[0]}</option>`).join('')}</select></label>
+          <label class="f"><span>Unit or subject</span><input type="text" id="f-unit" data-bind="unit" list="dl-units" value="${esc(O.unit)}" placeholder="Unit of inquiry, maths, literacy…"></label>
+          <label class="f"><span>Observation type</span><select id="f-type" data-bind="type">${Object.keys(TYPES).map(t=>`<option value="${t}" ${O.type===t?'selected':''}>${TYPES[t]}</option>`).join('')}</select></label>
+        </div>
+        <datalist id="dl-units">${y[2].map(u=>`<option value="${esc(u)}">`).join('')}<option value="Maths"><option value="Literacy"></datalist>
+        <p class="hint">${({smt:'Official observation. Staff get at least two days’ notice of the cycle but not the lesson. Face-to-face feedback within 48 hours, one higher leverage point, and a Blooming, Budding or Beginning judgement.',walk:'Part of a two-to-three-day learning walk. Notes feed general feedback to all staff; there is no individual feedback unless the teacher asks for it.',peer:'A colleague observes and the pair debrief with the five peer prompts. The summary goes to SMT only, anonymised.'})[O.type]}</p>
+        <label class="f"><span>${O.type==='walk'?'Learning walk focus':'Lesson and learning intention'}</span><textarea id="f-focus" data-bind="focus" placeholder="${O.type==='walk'?'The area of practice this walk is looking at':'What students are learning, and anything the teacher would like you to notice'}">${esc(O.focus)}</textarea></label>
+        <div id="prevbox">${prevBox()}</div>
+      </div>
+    </section>
+
+    <section class="sec" id="sec-flow">
+      <header><div><div class="k">During the lesson</div><h2>Lesson flow</h2>
+        <p>Tick each part of the lesson as it happens, then mark each C you were watching for. Every part has a thinking-time look-for.</p></div>
+        <label class="f" style="flex:0 1 230px"><span>Lesson shape</span><select id="f-tpl" data-act-change="template">${Object.keys(TEMPLATES).map(k=>`<option value="${k}" ${O.template===k?'selected':''}>${TEMPLATES[k].name}</option>`).join('')}</select></label>
+      </header>
+      <div class="sec-b">
+        ${O.segments.map((s,i)=>segCard(s,i)).join('')||'<p class="hint">No lesson parts yet. Add them below as the lesson unfolds.</p>'}
+        <div class="row" style="border-top:1px solid var(--line-2);padding-top:12px">
+          <input type="text" id="f-newseg" placeholder="Add a lesson part, e.g. Guided reading" style="flex:1 1 220px">
+          <div class="togs" id="newseg-cs">${C_ORDER.map(c=>`<button class="tog" data-act="newseg-c" data-c="${c}" aria-pressed="false">${CS[c].name}</button>`).join('')}</div>
+          <button class="btn" data-act="addseg">Add part</button>
+        </div>
+      </div>
+    </section>
+
+    ${O.type!=='smt'?'':`<section class="sec" id="sec-guide">
+      <header><div><div class="k">Thinking guide</div><h2>Think · Challenge · Support · Routine</h2>
+        <p>Challenge students to think deeply in developmentally appropriate ways. Is the difficulty coming from the thinking, or from something unrelated to it?</p></div></header>
+      <div class="sec-b"><div class="tg">${guideBlocks(y)}</div><div data-sg="guide">${sgHtml(O,'guide')}</div></div>
+    </section>`}
+
+    <section class="sec" id="sec-cs">
+      <header><div><div class="k">After the lesson</div><h2>The 7 Cs</h2>
+        <p>The 7 Cs should be present in any lesson, whatever its resources. Tick the descriptors you saw, write the evidence, then say how consistently each C showed. Use “Not seen” where a C had no chance to show.</p></div></header>
+      <div class="sec-b"><div class="cs">${csSection()}</div></div>
+    </section>
+
+    <section class="sec" id="sec-feedback">
+      <header><div><div class="k">Debrief</div><h2>${O.type==='peer'?'Peer debrief':O.type==='walk'?'Learning walk notes':'Feedback and judgement'}</h2>
+        <p>${O.type==='peer'?'Talk it through together, then record the summary.':O.type==='walk'?'Appreciate the positive aspects of collective practice. No individual feedback unless the teacher asks.':'Face to face within 48 hours. Appreciate first, then agree one higher leverage point. Let the teacher self-assess before you share your view.'}</p></div></header>
+      <div class="sec-b" id="feedback-b">${feedbackBody()}</div>
+    </section>
+  </div>
+  <aside class="live" id="live" aria-label="Live evidence">${liveBody()}</aside>
+  </div>`;
+}
+function prevBox(){
+  const p=prevRecord();if(!p)return '';
+  const pc=O.prevCheck&&O.prevCheck.id===p.id?O.prevCheck.result:'';
+  return `<div class="prev"><div class="k">Higher leverage point from the previous observation · ${esc(fmtDate(p.date))}</div><p>${esc(p.step)}</p>
+    <div class="row"><span class="hint">Revisit it: was it in place today?</span><div class="togs">${[['yes','Consistently'],['partly','Partly'],['no','Not yet']].map(v=>`<button class="tog" data-act="prevcheck" data-v="${v[0]}" aria-pressed="${pc===v[0]}">${v[1]}</button>`).join('')}</div></div></div>`;
+}
+function segCard(s,i){
+  return `<div class="seg ${s.seen?'on':''}">
+    <div class="seg-h"><button class="seen" data-act="seg-seen" data-i="${i}" aria-pressed="${s.seen}" aria-label="Seen: ${esc(s.name)}">✓</button>
+      <div class="seg-t"><b>${esc(s.name)}</b><div class="row" style="gap:5px">${s.min?`<span class="chip">${esc(s.min)}</span>`:''}${s.cs.map(c=>`<span class="chip c">${CS[c].name}</span>`).join('')}</div></div>
+      <button class="btn ghost sm" data-act="seg-del" data-i="${i}" aria-label="Remove ${esc(s.name)}">Remove</button></div>
+    <div class="seg-b">
+      ${s.cs.map(c=>`<div class="wf"><span class="who">${CS[c].name}</span><p>${esc(s.watch[c]||CS[c].look[0])}</p>${tri(i,c,s.r[c])}</div>`).join('')}
+      <div class="wf th"><span class="who">Thinking time</span><p>${esc(s.think||'Students get time to think before anyone answers.')}</p>${tri(i,'_think',s.r._think)}</div>
+      <textarea id="seg-note-${i}" data-bind="segments.${i}.note" placeholder="What you saw and heard (quotes, counts, times)" style="min-height:48px">${esc(s.note)}</textarea>
+    </div></div>`;
+}
+const tri=(i,c,v)=>`<div class="tri">${[['strong','Strong'],['partly','Partly'],['not','Not yet']].map(x=>`<button data-act="seg-r" data-i="${i}" data-c="${c}" data-v="${x[0]}" aria-pressed="${v===x[0]}">${x[1]}</button>`).join('')}</div>`;
+function guideBlocks(y){
+  const sk=O.think.skill&&SKILLS[O.think.skill], band=y[1];
+  const ck=(p,val,label)=>{const arr=getPath(O,p)||[];return `<label class="ck"><input type="checkbox" data-act-check="${p}" value="${esc(val)}" ${arr.includes(val)?'checked':''}><span>${esc(label)}</span></label>`;};
+  const bool=(p,label)=>`<label class="ck"><input type="checkbox" data-bool="${p}" ${getPath(O,p)?'checked':''}><span>${esc(label)}</span></label>`;
+  return `
+  <div class="tgb"><h3><span class="num">1</span>Think <small>Which thinking skill?</small></h3>
+    <div class="togs">${SK_ORDER.map(k=>`<button class="tog" data-act="skill" data-v="${k}" aria-pressed="${O.think.skill===k}">${SKILLS[k].name}</button>`).join('')}</div>
+    ${sk?`<p class="hint">${sk.verbs} · listening for (${band==='early'?'early years':'middle/upper'}):</p>
+      <div class="checks">${sk[band].map(l=>ck('think.evidence',l,l)).join('')}</div>`:'<p class="hint">Pick the skill the lesson was aiming at, to see what students should be doing.</p>'}
+    <div class="checks">${bool('think.named','Skill named to the students')}${bool('think.criteria','Success criteria visible to students')}</div>
+  </div>
+  <div class="tgb"><h3><span class="num">2</span>Challenge <small>Rigour, not difficulty</small></h3>
+    <div class="checks">${Object.keys(MOVES).map(k=>ck('challenge.moves',k,MOVES[k]+' — '+MOVE_SUB[k])).join('')}</div>
+    <div><div class="k" style="margin-bottom:6px">Where did the difficulty come from?</div>
+      <div class="togs">${[['thinking','The thinking'],['other','Something unrelated'],['low','Too little challenge']].map(v=>`<button class="tog" data-act="set" data-p="challenge.source" data-v="${v[0]}" aria-pressed="${O.challenge.source===v[0]}">${v[1]}</button>`).join('')}</div></div>
+  </div>
+  <div class="tgb"><h3><span class="num">3</span>Support <small>Access without doing the thinking</small></h3>
+    <div class="k">Barriers you saw</div>
+    <div class="togs">${Object.keys(BARRIERS).map(k=>`<button class="tog" data-act="toggle" data-p="support.barriers" data-v="${k}" aria-pressed="${O.support.barriers.includes(k)}">${BARRIERS[k]}</button>`).join('')}</div>
+    <div class="k">Supports the teacher used</div>
+    <div class="togs">${Object.keys(SUPPORTS).map(k=>`<button class="tog" data-act="toggle" data-p="support.used" data-v="${k}" aria-pressed="${O.support.used.includes(k)}">${SUPPORTS[k]}</button>`).join('')}</div>
+    <div><div class="k" style="margin-bottom:6px">Did the thinking stay with the students?</div>
+      <div class="togs">${[['yes','Yes'],['partly','Partly'],['no','Teacher did it']].map(v=>`<button class="tog" data-act="set" data-p="support.kept" data-v="${v[0]}" aria-pressed="${O.support.kept===v[0]}">${v[1]}</button>`).join('')}</div></div>
+  </div>
+  <div class="tgb"><h3><span class="num">4</span>Routine <small>The tool, not the goal</small></h3>
+    <label class="f"><span>Thinking routine used</span><select id="f-vtr" data-bind="routine.vtr"><option value="">None used</option>${VTRS.map(v=>`<option ${O.routine.vtr===v?'selected':''}>${esc(v)}</option>`).join('')}</select></label>
+    ${O.routine.vtr?`<div class="checks">${VTR_CHECKS.map(c=>ck('routine.checks',c,c)).join('')}</div><p class="hint">${O.routine.checks.length}/5. Three or fewer and the routine was probably decoration.</p>`:'<p class="hint">Would a routine have helped students think critically here? Note it in the feedback if so.</p>'}
+  </div>`;
+}
+function cRow(c){
+  const d=CS[c],v=O.cs[c],f=flowCounts(O,c),tot=f.strong+f.partly+f.not,seen=v.seen||[];
+  return `<div class="cr"><div class="cr-h"><div style="min-width:0;flex:1 1 240px"><h3>${d.name}</h3><p>${d.q}</p></div>
+      <div class="lv" role="group" aria-label="${d.name} level">${LEVELS.map(l=>`<button data-act="c-level" data-c="${c}" data-v="${l[0]}" aria-pressed="${v.level===l[0]}">${l[1]}</button>`).join('')}</div></div>
+    <div class="checks">${d.look.map(l=>`<label class="ck"><input type="checkbox" data-act-check="cs.${c}.seen" value="${esc(l)}" ${seen.includes(l)?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div>
+    ${tot?`<div class="fromflow">From the lesson flow: <b>${f.strong}</b> strong · <b>${f.partly}</b> partly · <b>${f.not}</b> not yet</div>`:''}
+    <details class="lf"><summary>What ${d.name.toLowerCase()} looks like, and does not look like</summary>
+      <div class="two-l"><div><div class="k" style="margin:8px 0 2px;color:var(--think)">Looks like</div><ul>${d.yes.map(l=>`<li>${esc(l)}</li>`).join('')}<li><b>In students:</b> ${esc(d.student)}</li></ul></div>
+      <div><div class="k" style="margin:8px 0 2px;color:var(--bad)">Does not look like</div><ul>${d.no.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></div></div></details>
+    <textarea id="c-ev-${c}" data-bind="cs.${c}.evidence" placeholder="Evidence: what you saw and heard">${esc(v.evidence)}</textarea>
+    <div data-sg="${c}">${sgHtml(O,c)}</div></div>`;
+}
+function csSection(){
+  return Object.keys(GROUPS).map(g=>`<div class="grp"><div class="grp-h"><span class="k">${GROUPS[g]}</span><span class="hint">${C_ORDER.filter(c=>CS[c].group===g).map(c=>CS[c].name).join(' · ')}</span></div>
+    ${C_ORDER.filter(c=>CS[c].group===g).map(cRow).join('')}</div>`).join('');
+}
+function strandSuggest(o){
+  const r=C_ORDER.map(c=>o.cs[c].level).filter(v=>v>=1);if(r.length<4)return '';
+  const a=r.reduce((x,y)=>x+y,0)/r.length;return a>=2.5?'blooming':a>=1.75?'budding':'beginning';
+}
+function overallSuggest(o){
+  const v=STRANDS.map(s=>o.strands[s[0]]).filter(Boolean);if(v.length<3)return '';
+  const rank={beginning:1,budding:2,blooming:3},avg=v.reduce((x,y)=>x+rank[y],0)/3;
+  return avg>=2.67?'blooming':avg>=1.67?'budding':'beginning';
+}
+function suggBlock(label){const sg=suggestions(O);
+  return `<div><div class="k" style="margin-bottom:7px">${label}</div>
+      ${sg.length?`<div class="sugg">${sg.map((s,i)=>`<div class="sg"><span class="chip t">${esc(s[0])}</span><p>${esc(s[1])}</p><button class="btn sm" data-act="usestep" data-i="${i}">Use</button></div>`).join('')}</div>`
+        :'<p class="hint">Suggestions appear as you time questions, log engagement sweeps and rate the 7 Cs.</p>'}</div>`;}
+function feedbackBody(){
+  const tsg=`<div><div class="k" style="margin-bottom:6px">Thinking time and engagement</div><div data-sg="thinking">${sgHtml(O,'thinking')}</div></div>`;
+  const done=`<div class="row"><button class="btn pri" data-act="complete">${O.status==='done'?'Reopen as draft':'Mark complete'}</button><a class="btn" href="#report" style="text-decoration:none">Open ${O.type==='walk'?'notes':O.type==='peer'?'peer summary':'debrief sheet'}</a><button class="btn dl-only" data-act="pdf">Download PDF</button></div>`;
+  if(O.type==='peer')return `<p class="hint">Use these prompts to guide the debrief between colleagues. The summary is shared with SMT only.</p>
+    ${PEER_Q.map(q=>`<label class="f"><span>${esc(q[1])}</span><textarea id="peer-${q[0]}" data-bind="peer.${q[0]}">${esc(O.peer[q[0]])}</textarea></label>`).join('')}${done}`;
+  if(O.type==='walk')return tsg+`<label class="f"><span>What did I appreciate in this classroom?</span><textarea id="f-glows" data-bind="glows" placeholder="Specific moves and their effect on students. These feed the general feedback to all staff.">${esc(O.glows)}</textarea></label>
+    <label class="ck"><input type="checkbox" data-bool="requested" ${O.requested?'checked':''}><span>The teacher has asked for individual feedback from this walk</span></label>
+    ${O.requested?suggBlock('Possible next steps from your evidence')+`<label class="f"><span>Individual next step (agreed with the teacher)</span><textarea id="f-step" data-bind="step">${esc(O.step)}</textarea></label>`:''}
+    ${done}`;
+  const ss=strandSuggest(O),os=overallSuggest(O);
+  return tsg+`<label class="f"><span>What did I appreciate about the lesson?</span><textarea id="f-glows" data-bind="glows" placeholder="Name the exact moves and their effect on students. The focus of the observation is the positive aspects of the teacher’s practice.">${esc(O.glows)}</textarea></label>
+    ${suggBlock('Possible higher leverage points from your evidence')}
+    <label class="f"><span>Higher leverage point</span><textarea id="f-step" data-bind="step" placeholder="One point to incorporate at the next opportunity. It is revisited in the next observation cycle.">${esc(O.step)}</textarea></label>
+    <div class="fields">
+      <label class="f"><span>Reflection prompt for the debrief</span><select id="f-rq" data-bind="reflectQ">${REFLECT_PROMPTS.map(p=>`<option ${O.reflectQ===p?'selected':''}>${esc(p)}</option>`).join('')}</select></label>
+      <label class="f" style="flex:0 1 180px"><span>Feedback meeting</span><input type="date" id="f-follow" data-bind="followUp" value="${esc(O.followUp)}"></label>
+    </div>
+    <label class="f"><span>Teacher’s self-assessment and context</span><textarea id="f-self" data-bind="selfAssess" placeholder="In the teacher’s words: how the lesson went, and any context for their choices">${esc(O.selfAssess)}</textarea></label>
+    <div class="judge">
+      <div class="k">Judgement · three strands</div>
+      ${STRANDS.map(st=>`<div class="strand"><div><b>${st[1]}</b>${st[0]==='cs'&&ss?`<span class="hint"> · from your 7 Cs levels: ${JUDGE[ss]}</span>`:''}</div>
+        <div class="jb">${Object.keys(JUDGE).map(j=>`<button data-act="strand" data-s="${st[0]}" data-v="${j}" aria-pressed="${O.strands[st[0]]===j}" title="${esc(st[2][j])}">${JUDGE[j]}</button>`).join('')}</div>
+        ${O.strands[st[0]]?`<p class="hint">${esc(st[2][O.strands[st[0]]])}</p>`:''}</div>`).join('')}
+      <div class="strand overall"><div><b>Overall judgement</b>${os?`<span class="hint"> · the strands suggest ${JUDGE[os]}</span>`:''}</div>
+        <div class="jb">${Object.keys(JUDGE).map(j=>`<button data-act="set" data-p="judgement" data-v="${j}" aria-pressed="${O.judgement===j}">${JUDGE[j]}</button>`).join('')}</div></div>
+      ${pipWarn(O)}
+    </div>
+    <label class="f"><span>Teacher’s response</span><textarea id="f-resp" data-bind="teacherResponse" placeholder="Teachers may review the report and respond or correct anything they feel was judged unfairly">${esc(O.teacherResponse)}</textarea></label>
+    <label class="ck"><input type="checkbox" data-bool="reviewed" ${O.reviewed?'checked':''}><span>The teacher has reviewed this report</span></label>
+    ${done}`;
+}
+function prevSmt(o){
+  const t=(o.teacher||'').trim().toLowerCase();if(!t)return null;
+  return RECORDS.filter(r=>r.id!==o.id&&r.type==='smt'&&r.judgement&&r.teacher.trim().toLowerCase()===t&&(r.date||'')<=(o.date||'9'))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0]||null;
+}
+function pipWarn(o){
+  if(o.judgement!=='beginning')return '';const p=prevSmt(o);
+  if(p&&p.judgement==='beginning')return `<div class="warnbox">The previous SMT observation (${esc(fmtDate(p.date))}) was also Beginning. Two consecutive Beginning judgements lead to support through a Professional Improvement Plan.</div>`;
+  return '';
+}
+
+/* ---------- live panel ---------- */
+function liveBody(){
+  const m=metrics(O,true),c=O.clock,all=m.clockAll||0;
+  const w=O.wait.samples;
+  const sw=O.sweeps;
+  return `<div class="lp"><div class="lessonclock"><div><div class="k">Lesson clock</div><span class="mono" data-live="lesson">${mmss(c.startedAt?((c.stoppedAt||Date.now())-c.startedAt)/1000:0)}</span></div>
+      <div class="row">${c.startedAt&&!c.stoppedAt?`<button class="btn sm" data-act="lesson-stop">Stop</button>`:`<button class="btn sm pri" data-act="lesson-start">${c.startedAt?'Resume':'Start lesson'}</button>`}</div></div></div>
+
+  <div class="lp"><div class="lp-h"><h3>Who is doing the thinking?</h3><span class="hint">tap what is happening now</span></div>
+    <div class="modes">${MODES.map(md=>`<button class="mode" style="--mc:${md[2]}" data-act="mode" data-v="${md[0]}" aria-pressed="${c.mode===md[0]}"><span>${md[1]}</span><b class="mono" data-live="m-${md[0]}">${mmss(m.clock[md[0]])}</b></button>`).join('')}</div>
+    <div class="split" data-live="split">${splitBar(m)}</div>
+    <div class="legend" data-live="legend">${legend(m)}</div></div>
+
+  <div class="lp"><div class="lp-h"><h3>Wait time</h3><span class="hint">target ${O.wait.thr}s+</span></div>
+    ${WAIT_START?`<button class="waitbtn run" data-act="wait-stop" data-live-wait="1"><span>Answer taken</span><span class="mono" data-live="wait">0.0s</span></button>
+      <button class="btn sm ghost" data-act="wait-cancel">Cancel this question</button>`
+      :`<button class="waitbtn" data-act="wait-start"><span>Question asked</span><span class="mono">${m.waitN?m.waitAvg.toFixed(1)+'s':'—'}</span></button>`}
+    <div class="stats"><div class="stat"><b>${m.waitN}</b><span>questions timed</span></div><div class="stat"><b>${m.waitAvg==null?'—':m.waitAvg.toFixed(1)+'s'}</b><span>average wait</span></div><div class="stat"><b>${pct(m.waitGe)}</b><span>at ${O.wait.thr}s or more</span></div></div>
+    ${w.length?`<div class="samples">${w.slice(-16).map(x=>`<span class="${x>=O.wait.thr?'ok':''}">${x.toFixed(1)}</span>`).join('')}</div>`:''}
+    <div class="tally"><span>Paused after an answer (wait time 2)</span><button data-act="tally" data-p="wait.wt2" data-d="-1" aria-label="minus">−</button><span class="mono">${O.wait.wt2}</span><button class="plus" data-act="tally" data-p="wait.wt2" data-d="1" aria-label="plus">+</button></div></div>
+
+  <div class="lp"><div class="lp-h"><h3>Questions</h3><span class="hint">${m.qTotal?pct(m.openShare)+' open or probing':''}</span></div>
+    <div class="tally">${QTYPES.map(q=>`<span>${q[1]}</span><button data-act="tally" data-p="q.${q[0]}" data-d="-1" aria-label="minus">−</button><span class="mono">${O.q[q[0]]}</span><button class="plus" data-act="tally" data-p="q.${q[0]}" data-d="1" aria-label="plus">+</button>`).join('')}</div></div>
+
+  <div class="lp"><div class="lp-h"><h3>How answers were taken</h3><span class="hint">${m.respTotal?pct(m.allShare)+' all or partner':''}</span></div>
+    <div class="tally">${RTYPES.map(q=>`<span>${q[1]}</span><button data-act="tally" data-p="resp.${q[0]}" data-d="-1" aria-label="minus">−</button><span class="mono">${O.resp[q[0]]}</span><button class="plus" data-act="tally" data-p="resp.${q[0]}" data-d="1" aria-label="plus">+</button>`).join('')}</div></div>
+
+  <div class="lp"><div class="lp-h"><h3>Engagement sweep</h3><span class="hint">every 5 minutes or so</span></div>
+    <p class="hint">Scan the room. Count students visibly on task: eyes on the speaker or work, writing, building, or talking about the task.</p>
+    <div class="row" style="justify-content:space-between">
+      <div><div class="k">On task</div><div class="stepper"><button data-act="sw-e" data-d="-1" aria-label="fewer on task">−</button><span class="mono">${Math.min(O.sweepEngaged==null?O.sweepTotal:O.sweepEngaged,O.sweepTotal)}</span><button data-act="sw-e" data-d="1" aria-label="more on task">+</button></div></div>
+      <div><div class="k">In class</div><div class="stepper"><button data-act="sw-t" data-d="-1" aria-label="fewer students">−</button><span class="mono">${O.sweepTotal}</span><button data-act="sw-t" data-d="1" aria-label="more students">+</button></div></div>
+      <button class="btn pri" data-act="sweep">Log sweep</button>
+    </div>
+    ${sw.length?sweepChart(sw):''}
+    ${sw.length?`<div class="stats"><div class="stat"><b>${sw.length}</b><span>sweeps</span></div><div class="stat"><b>${pct(m.engAvg)}</b><span>average on task</span></div><div class="stat"><b>${pct(m.engMin)}</b><span>lowest sweep</span></div></div>`:''}</div>
+
+  <div class="lp"><div class="lp-h"><h3>Running record</h3><span class="hint">time-stamped, facts only</span></div>
+    <div class="row"><input type="text" id="f-lognote" placeholder="e.g. 9 of 22 hands up after first question" style="flex:1 1 160px"><button class="btn" data-act="addlog">Add</button></div>
+    ${O.log.length?`<div class="logs">${O.log.map((l,i)=>`<div class="log"><span class="mono">${esc(l.t)}</span><span>${esc(l.text)}</span><button data-act="dellog" data-i="${i}" aria-label="Delete note">×</button></div>`).join('')}</div>`:''}</div>`;
+}
+function splitBar(m){const t=m.clock,all=m.clockAll;if(!all)return '';return MODES.map(md=>`<i style="width:${(t[md[0]]/all*100).toFixed(1)}%;background:${md[2]}"></i>`).join('');}
+function legend(m){if(!m.clockAll)return '<span>No time logged yet</span>';return `<span>Teacher talk <b>${pct(m.teacherShare)}</b></span><span>Students talking or thinking <b>${pct(m.studentShare)}</b></span>`;}
+function sweepChart(sw){
+  const W=320,H=96,pl=28,pb=18,bw=Math.min(26,(W-pl-6)/sw.length-4);
+  const y=v=>H-pb-(H-pb-6)*v;
+  let g='';[0,0.5,1].forEach(v=>{g+=`<line x1="${pl}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-dasharray="${v?'2 3':''}"/><text x="${pl-4}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v*100}%</text>`;});
+  const bars=sw.map((s,i)=>{const v=s.total?s.engaged/s.total:0,x=pl+6+i*(bw+4);return `<rect x="${x}" y="${y(v)}" width="${bw}" height="${(H-pb)-y(v)}" rx="3" fill="${v>=0.8?'var(--think)':v>=0.6?'var(--warn)':'var(--bad)'}"/><text x="${x+bw/2}" y="${H-5}" text-anchor="middle" font-size="9.5" fill="var(--muted)">${esc(s.t)}</text>`;}).join('');
+  return `<div style="overflow-x:auto"><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Engagement by sweep">${g}${bars}</svg></div>`;
+}
+function dockBody(){
+  if(VIEW!=='observe')return '';
+  return `${WAIT_START?`<button class="waitbtn run" data-act="wait-stop"><span>Answer</span><span class="mono" data-live="wait2">0.0s</span></button>`:`<button class="waitbtn" data-act="wait-start"><span>Question asked</span></button>`}
+    ${MODES.map(md=>`<button class="dm" style="--mc:${md[2]}" data-act="mode" data-v="${md[0]}" aria-pressed="${O.clock.mode===md[0]}">${md[1].split(' ')[0]==='Thinking'?'Think':md[1].split(' ')[0]}</button>`).join('')}`;
+}
+function refreshLive(){const l=$('#live');if(l){const st=l.scrollTop;l.innerHTML=liveBody();l.scrollTop=st;}const d=$('#dock');d.innerHTML=dockBody();d.style.display=VIEW==='observe'?'':'none';}
+function refreshFeedbackSugg(){const b=$('#feedback-b');if(!b)return;const a=document.activeElement;if(a&&b.contains(a))return;b.innerHTML=feedbackBody();}
+function refreshSide(){const p=$('#prevbox');if(p)p.innerHTML=prevBox();const dl=$('#dl-teachers');if(dl)dl.innerHTML=[...new Set(RECORDS.map(r=>r.teacher).filter(Boolean))].map(t=>`<option value="${esc(t)}">`).join('');}
+
+/* clock helpers */
+function lessonMin(){const c=O.clock;if(!c.startedAt)return '0:00';return mmss(((c.stoppedAt||Date.now())-c.startedAt)/1000);}
+function ensureStarted(){if(!O.clock.startedAt){O.clock.startedAt=Date.now();O.clock.stoppedAt=null;}else if(O.clock.stoppedAt){O.clock.startedAt+=Date.now()-O.clock.stoppedAt;O.clock.stoppedAt=null;}}
+function stopMode(){const c=O.clock;if(c.mode&&c.since){c.totals[c.mode]+=(Date.now()-c.since)/1000;}c.mode=null;c.since=null;}
+
+/* ================= STRENGTHS AND GROWTH ================= */
+const lc1=t=>t.charAt(0).toLowerCase()+t.slice(1);
+function sgFor(o,key){
+  const S=[],G=[];
+  if(key==='thinking'){
+    const m=metrics(o,o.id===O.id);
+    if(m.waitN){if(m.waitGe>=0.6)S.push('Gave '+o.wait.thr+'+ seconds of thinking time on '+pct(m.waitGe)+' of questions (average '+m.waitAvg.toFixed(1)+'s).');
+      else G.push('Wait time reached '+o.wait.thr+' seconds on '+pct(m.waitGe)+' of questions (average '+m.waitAvg.toFixed(1)+'s). Pause at least three seconds after thinking questions before taking an answer.');}
+    if(o.wait.wt2>=2)S.push('Paused after student answers '+o.wait.wt2+' times, inviting students to add to their thinking.');
+    if(m.clockAll>120){if(m.studentShare>=0.5)S.push('Students were talking or thinking for '+pct(m.studentShare)+' of timed talk.');
+      else G.push('Students were talking or thinking for '+pct(m.studentShare)+' of timed talk. Shorten teacher input and hand that time to partner talk or silent thinking.');}
+    if(m.sweeps){if(m.engAvg>=0.85)S.push('High engagement: '+pct(m.engAvg)+' of students on task on average across '+m.sweeps+' sweeps.');
+      else G.push('On task averaged '+pct(m.engAvg)+' (lowest '+pct(m.engMin)+'). Plan an all-student response at the points where attention dipped.');}
+    if(m.qTotal>=3){if(m.openShare>=0.5)S.push(pct(m.openShare)+' of questions were open or probing.');
+      else G.push('Most questions were recall. Plan open questions and follow answers with "What makes you say that?"');}
+    if(m.respTotal>=3){if(m.allShare>=0.4)S.push(pct(m.allShare)+' of answers came from all-student or partner responses, so every student committed to an answer.');
+      else G.push('Most answers came from hands up. Use partner talk first or mini whiteboards so more students do the thinking.');}
+    const tt=o.segments.filter(s=>s.r&&s.r._think);
+    const ts=tt.filter(s=>s.r._think==='strong').map(s=>s.name),tn=tt.filter(s=>s.r._think==='not').map(s=>s.name);
+    if(ts.length)S.push('Strong thinking time during '+ts.join(', ')+'.');
+    if(tn.length)G.push('Thinking time was missing during '+tn.join(', ')+'.');
+  } else if(key==='guide'){
+    const t=o.think,c=o.challenge,s=o.support,r=o.routine;
+    if(t.skill){const n=SKILLS[t.skill].name.toLowerCase();
+      if(t.named)S.push('Named the thinking skill ('+n+') to students.');else G.push('Name the thinking skill ('+n+') so students know what kind of thinking is expected.');
+      if(t.criteria)S.push('Success criteria were visible to students.');else G.push('Make success criteria visible so students can check their own thinking.');
+      if(t.evidence.length)S.push('Students showed '+n+': '+t.evidence.map(lc1).join(' '));
+      else G.push('Little student evidence of '+n+' was seen. Plan a moment where students must show it.');}
+    if(c.moves.length)S.push('Raised rigour through '+c.moves.map(k=>MOVES[k].toLowerCase()).join(', ')+'.');
+    if(c.source==='thinking')S.push('Difficulty came from the thinking itself, not from the task.');
+    if(c.source==='other')G.push('Difficulty came from something unrelated to the thinking (language, instructions or load). Remove that barrier so the challenge sits in the thinking.');
+    if(c.source==='low')G.push('Add one challenge move: complexity, evidence, perspectives, uncertainty or a decision.');
+    if(s.used.length)S.push('Supports used: '+s.used.map(k=>SUPPORTS[k].toLowerCase()).join(', ')+'.');
+    if(s.kept==='yes')S.push('Support helped students access the thinking without doing it for them.');
+    if(s.kept==='partly'||s.kept==='no')G.push('Scaffold the task, not the thinking: give language and structure but let students reach the answer.');
+    if(s.barriers.length&&!s.used.length)G.push('Barriers seen ('+s.barriers.map(k=>BARRIERS[k].toLowerCase()).join(', ')+') were not yet matched with a support.');
+    if(r.vtr){if(r.checks.length>=4)S.push(r.vtr+' was used purposefully ('+r.checks.length+'/5 on the routine checklist).');
+      else G.push(r.vtr+' met '+r.checks.length+'/5 of the routine checklist. Choose the routine for the thinking skill and use it repeatedly.');}
+  } else if(CS[key]){
+    const d=CS[key],v=o.cs[key],seen=v.seen||[],f=o.segments.filter(sg=>sg.r&&sg.r[key]);
+    if(v.level===3)S.push(d.name+' was consistently evident.');
+    if(v.level===2)S.push(d.name+' was often evident.');
+    seen.forEach(x=>S.push(x));
+    const st=f.filter(sg=>sg.r[key]==='strong').map(sg=>sg.name);if(st.length)S.push('Strong during '+st.join(', ')+'.');
+    if(v.level!=null&&v.level>=1&&v.level<3)d.look.filter(x=>!seen.includes(x)).forEach(x=>G.push('Develop: '+lc1(x)));
+    const nt=f.filter(sg=>sg.r[key]==='not').map(sg=>sg.name);if(nt.length)G.push('Not yet seen during '+nt.join(', ')+'.');
+    const pt=f.filter(sg=>sg.r[key]==='partly').map(sg=>sg.name);if(pt.length)G.push('Partly seen during '+pt.join(', ')+'.');
+    if(v.level===1)G.push(d.step);
+  }
+  return {S,G};
+}
+function sgHtml(o,key){
+  const {S,G}=sgFor(o,key);
+  if(!S.length&&!G.length)return '<p class="hint">Strengths and growth appear here as you tick and rate.</p>';
+  return `<div class="sgx"><div><div class="k s">Strengths</div>${S.length?`<ul>${S.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="hint">None recorded yet.</p>'}</div>
+    <div><div class="k g">Growth</div>${G.length?`<ul>${G.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<p class="hint">None identified.</p>'}</div></div>`;
+}
+function refreshSG(){document.querySelectorAll('[data-sg]').forEach(el=>{el.innerHTML=sgHtml(O,el.dataset.sg);});}
+
+/* ================= PDF ================= */
+let DL=null;
+const asc=t=>String(t==null?'':t).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-').replace(/·/g,'-').replace(/…/g,'...').replace(/≥/g,'>=').replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,'');
+function buildPdf(o){
+  const J=window.jspdf&&window.jspdf.jsPDF;if(!J)return null;
+  const doc=new J({unit:'pt',format:'a4'}),W=595,M=48,CW=W-M*2;let y=M;
+  const ink=[20,32,44],mut=[102,115,127],acc=[28,90,138],grn=[11,119,102],red=[176,89,12];
+  const need=h=>{if(y+h>842-M){doc.addPage();y=M;}};
+  const text=(t,o2)=>{o2=o2||{};doc.setFont('helvetica',o2.b?'bold':'normal');doc.setFontSize(o2.s||10.5);doc.setTextColor(...(o2.c||ink));
+    const x=M+(o2.ind||0),lines=doc.splitTextToSize(asc(t),CW-(o2.ind||0));lines.forEach(l=>{need((o2.s||10.5)*1.4);doc.text(l,x,y);y+=(o2.s||10.5)*1.4;});};
+  const bullets=(arr,col)=>arr.forEach(b=>{doc.setFont('helvetica','normal');doc.setFontSize(10.5);const lines=doc.splitTextToSize(asc(b),CW-14);need(lines.length*14.7);
+    doc.setFillColor(...col);doc.circle(M+4,y-3.4,1.8,'F');doc.setTextColor(...ink);lines.forEach(l=>{doc.text(l,M+14,y);y+=14.7;});});
+  const h2=t=>{y+=8;need(30);doc.setDrawColor(210,218,225);doc.line(M,y-12,W-M,y-12);text(t,{b:1,s:13});y+=2;};
+  const sgBlock=key=>{const {S,G}=sgFor(o,key);if(S.length){text('Strengths',{b:1,s:9.5,c:grn});bullets(S,grn);}if(G.length){y+=2;text('Growth',{b:1,s:9.5,c:red});bullets(G,red);}if(!S.length&&!G.length)text('Nothing recorded.',{c:mut});};
+  const m=metrics(o,o.id===O.id),yr=YEARS[o.year]||YEARS[4];
+  text('KIST ELEMENTARY  -  '+TYPES[o.type].toUpperCase(),{b:1,s:9,c:acc});y+=4;
+  text(o.teacher||'Teacher',{b:1,s:22});y+=2;
+  [['Observer',o.observer],['Observing',o.teacher],['Date',fmtDate(o.date)],[o.type==='walk'?'LW focus':'Lesson',yr[0]+(o.unit?' - '+o.unit:'')+(o.focus?'. '+o.focus:'')]].forEach(r=>text(r[0]+':  '+(r[1]||'-'),{s:10,c:mut}));
+  if(o.type==='smt'&&o.judgement){y+=6;text('Overall judgement: '+JUDGE[o.judgement],{b:1,s:13,c:acc});
+    STRANDS.forEach(st=>{if(o.strands[st[0]])text(st[1]+': '+JUDGE[o.strands[st[0]]],{s:10,c:mut,ind:10});});}
+  if(o.type==='peer'){PEER_Q.forEach(q=>{h2(q[1]);text(o.peer[q[0]]||'-');});}
+  else{
+    if(o.prevCheck){h2('Higher leverage point from previous observation');text(o.prevCheck.step);text('In place this time: '+({yes:'consistently',partly:'partly',no:'not yet'})[o.prevCheck.result],{c:mut});}
+    h2('What did I appreciate about the lesson?');text(o.glows||'-');
+    if(o.type==='smt'||o.requested){h2(o.type==='smt'?'Higher leverage point':'Individual next step');text(o.step||'-',{b:1,s:12,c:acc});}
+    h2('Thinking time and engagement');
+    text('Wait time: '+(m.waitAvg==null?'not timed':m.waitAvg.toFixed(1)+'s average over '+m.waitN+' questions; '+pct(m.waitGe)+' at '+o.wait.thr+'s or more')+'.   Students talking or thinking: '+pct(m.studentShare)+'.   On task: '+pct(m.engAvg)+'.',{s:10,c:mut});y+=2;
+    sgBlock('thinking');
+  }
+  C_ORDER.forEach(c=>{const v=o.cs[c];h2(CS[c].name+(v.level!=null?'  -  '+LVNAME(v.level):''));text(CS[c].q,{s:9.5,c:mut});y+=2;sgBlock(c);if(v.evidence){y+=2;text('Evidence: '+v.evidence,{s:10,c:mut});}});
+  if(o.type==='smt'){h2('Think - Challenge - Support - Routine');sgBlock('guide');
+    h2('Teacher self-assessment and response');text(o.selfAssess||'No self-assessment recorded.');if(o.teacherResponse){y+=4;text('Response: '+o.teacherResponse);}
+    y+=26;need(60);doc.setDrawColor(150,160,170);[['Teacher signature',M],['Observer signature',M+CW/2+10]].forEach(s=>{doc.line(s[1],y,s[1]+CW/2-10,y);doc.setFontSize(9);doc.setTextColor(...mut);doc.text(s[0]+' / date',s[1],y+12);});y+=20;}
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8.5);doc.setTextColor(...mut);doc.text(asc('Confidential - KIST Teaching Appreciation - page '+i+' of '+n),M,842-24);}
+  return doc.output('blob');
+}
+function saveLocal(fn,blob){const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);toast('Downloaded '+fn);}
+async function saveFile(fn,blob){if(DL){try{await DL.save({filename:fn,data:blob});toast('Saved');}catch(e){if(!e||e.code!=='declined')toast('Could not save here.');}}else saveLocal(fn,blob);}
+async function downloadPdf(o){
+  const blob=buildPdf(o);if(!blob){toast('The PDF tool did not load. Reload the page and try again.');return;}
+  const fn=('Observation '+(o.teacher||'teacher')+' '+(o.date||'')).replace(/[^\w\- ]+/g,'').trim()+'.pdf';
+  if(!DL){saveLocal(fn,blob);return;}
+  try{await DL.save({filename:fn,data:blob});toast('PDF saved');}
+  catch(e){if(e&&e.code==='declined')return;if(e&&e.code==='rate_limited'){toast('A save prompt is already open.');return;}toast('The PDF could not be saved here. Use Copy as text.');}
+}
+
+/* ================= RECORDS VIEW ================= */
+function semOf(d){if(!d||d.length<7)return '';const y=+d.slice(0,4),m=+d.slice(5,7);return m>=8?y+'–'+(y+1)+' · Semester 1':m===1?(y-1)+'–'+y+' · Semester 1':(y-1)+'–'+y+' · Semester 2';}
+const SEM_NOW=semOf(today());
+const nameEq=(a,b)=>(a||'').trim().toLowerCase()===(b||'').trim().toLowerCase();
+const isEx=r=>/^example/i.test(r.teacher||'');
+function startCards(){
+  return `<div class="starts">${[['smt','SMT lesson observation','Full lesson. 7 Cs, thinking time, judgement and one higher leverage point.'],
+    ['walk','Learning walk','A short visit. Quick 7 Cs notes, engagement and wait time, rolled into staff-wide feedback.'],
+    ['peer','Peer observation','A colleague observes. The five debrief prompts, summarised for SMT.']]
+    .map(t=>`<button class="startc" data-act="start" data-t="${t[0]}"><b>${t[1]}</b><span>${t[2]}</span><i>Start →</i></button>`).join('')}</div>`;
+}
+function dueList(){
+  const now=today(),out=[];
+  RECORDS.forEach(r=>{if(isEx(r))return;
+    if(r.type==='smt'&&r.status!=='done')out.push([r,r.followUp?('Feedback meeting '+fmtDate(r.followUp)+(r.followUp<now?' (past)':'')):'Feedback meeting not booked; aim for within 48 hours']);
+    else if(r.type==='smt'&&r.status==='done'&&!r.reviewed)out.push([r,'Waiting for the teacher to review the report']);
+  });
+  if(!out.length)return '';
+  return `<div class="sec"><header><div><div class="k">${out.length} to follow up</div><h2>Next actions</h2></div></header><div class="sec-b" style="gap:8px">
+    ${out.slice(0,8).map(x=>`<div class="due"><div><b>${esc(x[0].teacher||'Unnamed')}</b><span class="hint"> · ${esc(fmtDate(x[0].date))}</span><div class="hint">${esc(x[1])}</div></div><button class="btn sm" data-act="open" data-id="${x[0].id}">Open</button></div>`).join('')}</div></div>`;
+}
+function tracker(){
+  const inSem=RECORDS.filter(r=>!isEx(r)&&semOf(r.date)===SEM_NOW);
+  const names=[...new Set(RECORDS.filter(r=>!isEx(r)&&r.type!=='peer').map(r=>r.teacher.trim()).concat(RECORDS.filter(r=>!isEx(r)&&r.type==='peer').map(r=>r.teacher.trim())).filter(Boolean))].sort();
+  if(!names.length)return '';
+  const tick=(n,t)=>`<span class="tk ${n>=t?'ok':''}">${n}/${t}</span>`;
+  return `<div class="sec"><header><div><div class="k">${esc(SEM_NOW)}</div><h2>Appraisal cycle</h2><p>Expected each semester: one SMT observation, two learning walk visits, and one peer observation completed (of a colleague outside their grade team or specialism).</p></div></header>
+    <div class="sec-b"><div class="tbl-wrap"><table><thead><tr><th>Teacher</th><th>SMT</th><th>Learning walks</th><th>Peer obs. done</th><th>Latest judgement</th></tr></thead><tbody>
+    ${names.map(n=>{const mine=inSem.filter(r=>nameEq(r.teacher,n)),smt=mine.filter(r=>r.type==='smt'),lw=mine.filter(r=>r.type==='walk').length,
+      pe=inSem.filter(r=>r.type==='peer'&&nameEq(r.observer,n)).length,
+      last=RECORDS.filter(r=>r.type==='smt'&&r.judgement&&nameEq(r.teacher,n)).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+      const pip=last.length>1&&last[0].judgement==='beginning'&&last[1].judgement==='beginning';
+      return `<tr><td><button class="linkish" data-act="filter-t" data-v="${esc(n)}">${esc(n)}</button></td><td>${tick(smt.length,1)}</td><td>${tick(lw,2)}</td><td>${tick(pe,1)}</td>
+        <td>${last[0]?`<span class="jpill ${last[0].judgement}">${JUDGE[last[0].judgement]}</span>`:'<span class="hint">—</span>'}${pip?'<span class="pip">PIP</span>':''}</td></tr>`;}).join('')}
+    </tbody></table></div></div></div>`;
+}
+function walkSummary(){
+  const ws=RECORDS.filter(r=>r.type==='walk'&&semOf(r.date)===SEM_NOW&&!isEx(r));
+  if(!ws.length)return '';
+  const ms=ws.map(r=>metrics(r,false)),avg=k=>{const v=ms.map(m=>m[k]).filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;};
+  return `<div class="sec"><header><div><div class="k">${ws.length} classroom visit${ws.length===1?'':'s'} · ${esc(SEM_NOW)}</div><h2>Learning walk: collective picture</h2>
+      <p>Anonymised. Use it for the general feedback to all staff, or to choose a focus for training.</p></div><button class="btn sm" data-act="copywalk">Copy staff summary</button></header>
+    <div class="sec-b"><div class="rp-grid">
+      <div class="stat"><b>${pct(avg('waitGe'))}</b><span>questions with 3s+ wait time</span></div>
+      <div class="stat"><b>${pct(avg('studentShare'))}</b><span>timed talk that was students talking or thinking</span></div>
+      <div class="stat"><b>${pct(avg('engAvg'))}</b><span>students on task</span></div>
+      <div class="stat"><b>${pct(avg('allShare'))}</b><span>answers from all-student or partner response</span></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>C</th><th class="num">Consistent</th><th class="num">Often</th><th class="num">Inconsistent</th><th class="num">Not seen</th></tr></thead><tbody>
+      ${C_ORDER.map(c=>{const n=v=>ws.filter(r=>r.cs[c].level===v).length;return `<tr><td>${CS[c].name}</td><td class="num">${n(3)}</td><td class="num">${n(2)}</td><td class="num">${n(1)}</td><td class="num">${n(0)}</td></tr>`;}).join('')}
+    </tbody></table></div></div></div>`;
+}
+function walkText(){
+  const ws=RECORDS.filter(r=>r.type==='walk'&&semOf(r.date)===SEM_NOW&&!isEx(r)),L=['LEARNING WALK — GENERAL FEEDBACK ('+SEM_NOW+')',ws.length+' classroom visits',''];
+  const focus=[...new Set(ws.map(r=>r.focus).filter(Boolean))];if(focus.length)L.push('Focus: '+focus.join('; '),'');
+  L.push('THE 7 Cs ACROSS CLASSROOMS');C_ORDER.forEach(c=>{const n=v=>ws.filter(r=>r.cs[c].level===v).length;L.push('- '+CS[c].name+': consistent in '+n(3)+', often in '+n(2)+', inconsistent in '+n(1));});
+  const g=ws.map(r=>r.glows).filter(Boolean);if(g.length){L.push('','WHAT WE APPRECIATED');g.forEach(x=>L.push('- '+x.replace(/\n+/g,' ')));}
+  return L.join('\n');
+}
+function backupBox(){
+  return `<div class="sec"><header><div><div class="k">${RECORDS.length} record${RECORDS.length===1?'':'s'}${STORE&&STORE.kind==='local'?' · stored in this browser':''}</div><h2>Backup</h2>
+    <p>Observations are saved in this browser. Download a backup regularly, and import it to move records to another computer or restore them.</p></div></header>
+    <div class="sec-b"><div class="row"><button class="btn" data-act="export">Download backup (.json)</button>
+      <label class="btn" for="f-import" style="cursor:pointer">Import backup</label><input type="file" id="f-import" accept=".json,application/json" hidden></div></div></div>`;
+}
+function vRecords(){
+  const teachers=[...new Set(RECORDS.map(r=>r.teacher).filter(Boolean))].sort();
+  let list=RECORDS.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.updatedAt||0)-(a.updatedAt||0));
+  if(FILTER_T)list=list.filter(r=>nameEq(r.teacher,FILTER_T));
+  if(FILTER_TYPE)list=list.filter(r=>r.type===FILTER_TYPE);
+  if(SEARCH){const q=SEARCH.toLowerCase();list=list.filter(r=>(r.teacher+' '+r.unit+' '+r.focus+' '+r.observer).toLowerCase().includes(q));}
+  const head=`<div class="rec-top"><h1>Start or pick up an observation</h1></div>${startCards()}`;
+  if(!LOADED&&!RECORDS.length)return head+`<div class="empty" style="margin-top:16px"><h3>Loading saved observations…</h3><p class="hint">This takes a moment the first time.</p></div>`;
+  if(!RECORDS.length)return head+`<div class="empty" style="margin-top:16px"><h3>No observations yet</h3><p class="hint">Choose a type above. Everything saves as you go, and this page then tracks each teacher’s cycle, follow-ups and learning-walk trends.</p></div>`;
+  return head+`<div class="stack" style="margin-top:16px">${dueList()}${tracker()}${walkSummary()}${backupBox()}
+    <div class="sec"><header><div><div class="k">${list.length} shown</div><h2>All observations</h2></div>
+      <div class="fields" style="flex:1 1 520px;justify-content:flex-end">
+        <label class="f" style="flex:0 1 190px"><span>Teacher</span><select id="f-filter" data-act-change="filter"><option value="">All teachers</option>${teachers.map(t=>`<option ${FILTER_T===t?'selected':''}>${esc(t)}</option>`).join('')}</select></label>
+        <label class="f" style="flex:0 1 170px"><span>Type</span><select id="f-ftype" data-act-change="ftype"><option value="">All types</option>${Object.keys(TYPES).map(t=>`<option value="${t}" ${FILTER_TYPE===t?'selected':''}>${TYPES[t]}</option>`).join('')}</select></label>
+        <label class="f" style="flex:0 1 190px"><span>Search</span><input type="search" id="f-search" value="${esc(SEARCH)}" placeholder="Unit, focus, observer"></label></div></header>
+    <div class="sec-b">${FILTER_T?trend(FILTER_T):''}
+    <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Teacher</th><th>Type</th><th>Class</th><th>Status</th><th>Judgement</th><th class="num">Wait ≥3s</th><th class="num">On task</th><th></th></tr></thead><tbody>
+    ${list.map(r=>{const m=metrics(r,false),ex=isEx(r);return `<tr>
+      <td>${esc(fmtDate(r.date))}</td><td><span class="tname">${esc(r.teacher||'Unnamed')}</span>${r.type==='peer'&&r.observer?`<div class="hint">by ${esc(r.observer)}</div>`:''}</td>
+      <td>${({smt:'SMT',walk:'Walk',peer:'Peer'})[r.type]}</td>
+      <td>${esc((YEARS[r.year]||[''])[0].split(' (')[0])}${r.unit?' · '+esc(r.unit):''}</td>
+      <td><span class="pill ${ex?'ex':r.status==='done'?'done':'draft'}">${ex?'Example':r.status==='done'?'Complete':'Draft'}</span></td>
+      <td>${r.judgement?`<span class="jpill ${r.judgement}">${JUDGE[r.judgement]}</span>`:'<span class="hint">—</span>'}</td>
+      <td class="num">${pct(m.waitGe)}</td><td class="num">${pct(m.engAvg)}</td>
+      <td>${DEL===r.id?`<span class="row" style="flex-wrap:nowrap"><button class="btn sm danger" data-act="del-yes" data-id="${r.id}">Delete permanently</button><button class="btn sm ghost" data-act="del-no">Cancel</button></span>`
+        :`<span class="row" style="flex-wrap:nowrap"><button class="btn sm" data-act="open" data-id="${r.id}">Open</button><button class="btn sm" data-act="openreport" data-id="${r.id}">Report</button><button class="btn sm ghost" data-act="del" data-id="${r.id}">Delete</button></span>`}</td></tr>`;}).join('')||`<tr><td colspan="9" class="hint">Nothing matches these filters.</td></tr>`}
+    </tbody></table></div></div></div></div>`;
+}
+function trend(t){
+  const rs=RECORDS.filter(r=>nameEq(r.teacher,t)&&r.type!=='peer').sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(-8);
+  if(!rs.length)return '';
+  const ms=rs.map(r=>metrics(r,false));
+  return `<div><div class="k" style="margin-bottom:6px">${esc(t)} over time · 1 Inconsistent · 2 Often · 3 Consistent · — not seen</div><div class="tbl-wrap"><table class="matrix"><thead><tr><th></th>${rs.map(r=>`<th>${esc(fmtDate(r.date).split(' ').slice(0,2).join(' '))}<div class="hint" style="text-transform:none;letter-spacing:0">${({smt:'SMT',walk:'Walk'})[r.type]}</div></th>`).join('')}</tr></thead><tbody>
+      ${C_ORDER.map(c=>`<tr><td>${CS[c].name}</td>${rs.map(r=>{const v=r.cs[c]&&r.cs[c].level;return `<td><span class="cell ${v?'l'+v:''}">${v||'—'}</span></td>`;}).join('')}</tr>`).join('')}
+      <tr><td>Wait ≥3s</td>${ms.map(m=>`<td class="mono">${pct(m.waitGe)}</td>`).join('')}</tr>
+      <tr><td>Students talking or thinking</td>${ms.map(m=>`<td class="mono">${pct(m.studentShare)}</td>`).join('')}</tr>
+      <tr><td>On task</td>${ms.map(m=>`<td class="mono">${pct(m.engAvg)}</td>`).join('')}</tr>
+      <tr><td>Judgement</td>${rs.map(r=>`<td>${r.judgement?`<span class="jpill ${r.judgement}">${JUDGE[r.judgement]}</span>`:'—'}</td>`).join('')}</tr>
+      <tr><td>Previous HLP in place</td>${rs.map(r=>`<td>${r.prevCheck?({yes:'Yes',partly:'Partly',no:'Not yet'})[r.prevCheck.result]||'—':'—'}</td>`).join('')}</tr>
+    </tbody></table></div></div>`;
+}
+
+/* ================= REPORT VIEW ================= */
+function thinkingStats(o,m){
+  return `<div class="rp-grid">
+    <div class="stat"><b>${m.waitAvg==null?'—':m.waitAvg.toFixed(1)+'s'}</b><span>average wait time over ${m.waitN} question${m.waitN===1?'':'s'}</span></div>
+    <div class="stat"><b>${pct(m.waitGe)}</b><span>questions with ${o.wait.thr}s+ wait</span></div>
+    <div class="stat"><b>${pct(m.studentShare)}</b><span>timed talk that was students talking or thinking</span></div>
+    <div class="stat"><b>${pct(m.engAvg)}</b><span>on task across ${m.sweeps} sweep${m.sweeps===1?'':'s'}</span></div>
+    <div class="stat"><b>${pct(m.openShare)}</b><span>questions open or probing</span></div>
+    <div class="stat"><b>${pct(m.allShare)}</b><span>answers from all-student or partner response</span></div></div>
+    ${m.clockAll?`<div class="split">${splitBar(m)}</div><div class="legend">${MODES.map(md=>`<span>${md[1]} <b>${mmss(m.clock[md[0]])}</b></span>`).join('')}</div>`:''}`;
+}
+function vReport(){
+  const o=O,m=metrics(o,true),y=YEARS[o.year]||YEARS[4];
+  if(!o.createdAt&&!o.teacher)return `<div class="empty"><h3>Nothing to report yet</h3><p class="hint">Start an observation, or open one from Records, and its report appears here.</p><div class="row"><a class="btn pri" href="#records" style="text-decoration:none">Go to Records</a></div></div>`;
+  const top=`<div class="row" style="justify-content:space-between;max-width:900px;margin:0 auto 12px"><a class="btn sm" href="#observe" style="text-decoration:none">← Back to the observation</a><span class="row"><button class="btn sm" data-act="copyreport">Copy as text</button><button class="btn sm pri dl-only" data-act="pdf">Download PDF</button></span></div>`;
+  const meta=`<table class="meta"><tbody><tr><th>Observer</th><td>${esc(o.observer)||'—'}</td><th>Observing</th><td>${esc(o.teacher)||'—'}</td></tr>
+    <tr><th>Date</th><td>${esc(fmtDate(o.date))}</td><th>${o.type==='walk'?'LW focus':'Lesson'}</th><td>${esc(y[0].split(' (')[0])}${o.unit?' · '+esc(o.unit):''}${o.focus?'<div class="hint">'+esc(o.focus)+'</div>':''}</td></tr></tbody></table>`;
+  const csGrid=`<div class="cgrid">${C_ORDER.map(c=>{const v=o.cs[c];return `<div class="cg"><div class="cg-h"><b>${CS[c].name}</b>${v.level!=null?`<span class="cell ${v.level?'l'+v.level:''}" style="width:auto;padding:0 7px">${LVNAME(v.level)}</span>`:''}</div>
+      ${(v.seen||[]).length?`<ul>${v.seen.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${v.evidence?`<p class="ev">${esc(v.evidence)}</p>`:''}${sgHtml(o,c)}</div>`;}).join('')}</div>`;
+  if(o.type==='peer')return top+`<article class="report"><div class="rp-h"><div class="k">KIST Elementary · Peer observation debrief${o.status==='done'?'':' · draft'}</div><h1>${esc(o.teacher||'Colleague')}</h1>${meta}</div>
+    ${PEER_Q.map(q=>`<div class="rp-s"><h2>${esc(q[1])}</h2><p style="white-space:pre-wrap">${esc(o.peer[q[0]])||'<span class="hint">—</span>'}</p></div>`).join('')}
+    <div class="rp-s"><h2>7 Cs notes</h2>${csGrid}</div></article>`;
+  const hlpPrev=o.prevCheck?`<div class="rp-s"><h2>Higher leverage point from previous observation</h2><p>${esc(o.prevCheck.step)}</p><p class="hint">In place this time: <b>${({yes:'consistently',partly:'partly',no:'not yet'})[o.prevCheck.result]}</b></p></div>`:'';
+  if(o.type==='walk')return top+`<article class="report"><div class="rp-h"><div class="k">KIST Elementary · Learning walk notes${o.status==='done'?'':' · draft'}</div><h1>${esc(o.teacher||'Classroom')}</h1>${meta}
+      ${o.requested?'':'<p class="hint">No individual feedback was requested. These notes feed the anonymised general feedback to all staff.</p>'}</div>
+    <div class="rp-s"><h2>7 Cs</h2>${csGrid}</div>
+    <div class="rp-s"><h2>Thinking time and engagement</h2>${thinkingStats(o,m)}${sgHtml(o,'thinking')}</div>
+    <div class="rp-s"><h2>What I appreciated</h2><p style="white-space:pre-wrap">${esc(o.glows)||'<span class="hint">—</span>'}</p></div>
+    ${o.requested&&o.step?`<div class="rp-s"><div class="step-box"><div class="k">Individual next step</div><p>${esc(o.step)}</p></div></div>`:''}</article>`;
+  const seen=o.segments.filter(s=>s.seen);
+  return top+`<article class="report">
+    <div class="rp-h"><div class="k">KIST Elementary · SMT observation debrief${o.status==='done'?'':' · draft'}</div><h1>${esc(o.teacher||'Teacher')}</h1>${meta}
+      ${o.judgement?`<div class="row"><span class="k">Judgement</span><span class="jpill ${o.judgement}" style="font-size:13px;padding:4px 12px">${JUDGE[o.judgement]}</span></div>`:''}</div>
+    ${hlpPrev}
+    <div class="rp-s"><h2>What did I appreciate about the lesson?</h2><p style="white-space:pre-wrap">${esc(o.glows)||'<span class="hint">Not written yet.</span>'}</p></div>
+    <div class="rp-s"><div class="step-box"><div class="k">Higher leverage point — try to incorporate this at the next opportunity</div><p>${esc(o.step)||'Not written yet.'}</p></div></div>
+    <div class="rp-s"><h2>The 7 Cs</h2>${csGrid}</div>
+    <div class="rp-s"><h2>Thinking time and engagement</h2>${thinkingStats(o,m)}${sgHtml(o,'thinking')}</div>
+    <div class="rp-s"><h2>Think · Challenge · Support · Routine</h2>${sgHtml(o,'guide')}<ul class="tidy">
+        <li><b>Think:</b> ${o.think.skill?SKILLS[o.think.skill].name+(o.think.named?', named to students':', not named to students')+(o.think.criteria?'; success criteria visible':''):'not identified'}${o.think.evidence.length?'. Seen in students: '+o.think.evidence.map(esc).join(' '):''}</li>
+        <li><b>Challenge:</b> ${o.challenge.moves.length?o.challenge.moves.map(k=>MOVES[k]).join(', '):'no challenge moves recorded'}${o.challenge.source?'. Difficulty came from '+({thinking:'the thinking',other:'something unrelated to the thinking',low:'nowhere; too little challenge'})[o.challenge.source]:''}.</li>
+        <li><b>Support:</b> ${o.support.used.length?o.support.used.map(k=>SUPPORTS[k].toLowerCase()).join(', '):'no supports recorded'}${o.support.barriers.length?'. Barriers: '+o.support.barriers.map(k=>BARRIERS[k].toLowerCase()).join(', '):''}${o.support.kept?'. Thinking stayed with students: '+({yes:'yes',partly:'partly',no:'no, the teacher did it'})[o.support.kept]:''}.</li>
+        <li><b>Routine:</b> ${o.routine.vtr?esc(o.routine.vtr)+' ('+o.routine.checks.length+'/5 on the checklist)':'none used'}.</li></ul></div>
+    ${seen.length?`<div class="rp-s"><h2>Lesson flow</h2><ul class="tidy">${seen.map(s=>{const st=Object.entries(s.r).filter(e=>e[0]!=='_think'&&e[1]==='strong').map(e=>CS[e[0]].name),nt=Object.entries(s.r).filter(e=>e[0]!=='_think'&&e[1]==='not').map(e=>CS[e[0]].name);
+      return `<li><b>${esc(s.name)}</b>${st.length?' — strong: '+st.join(', '):''}${nt.length?' — not yet: '+nt.join(', '):''}${s.r._think?' — thinking time: '+({strong:'strong',partly:'partly',not:'not yet'})[s.r._think]:''}${s.note?'. '+esc(s.note):''}</li>`;}).join('')}</ul></div>`:''}
+    ${o.judgement||STRANDS.some(st=>o.strands[st[0]])?`<div class="rp-s"><h2>Judgement by strand</h2>${STRANDS.map(st=>`<div class="rp-c"><b>${st[1]}</b><span>${o.strands[st[0]]?`<span class="jpill ${o.strands[st[0]]}">${JUDGE[o.strands[st[0]]]}</span>`:'—'}</span><p>${o.strands[st[0]]?esc(st[2][o.strands[st[0]]]):''}</p></div>`).join('')}</div>`:''}
+    <div class="rp-s"><h2>Teacher’s self-assessment and response</h2>
+      <p style="white-space:pre-wrap">${esc(o.selfAssess)||'<span class="hint">No self-assessment recorded.</span>'}</p>
+      ${o.teacherResponse?`<p style="white-space:pre-wrap;color:var(--ink-2)"><b>Response:</b> ${esc(o.teacherResponse)}</p>`:''}
+      <p class="hint">${o.reviewed?'The teacher has reviewed this report.':'Teachers have the right to review this report and respond.'} Confidential: share only with relevant parties.</p></div>
+  </article>`;
+}
+function reportText(o){
+  const m=metrics(o,true),y=YEARS[o.year]||YEARS[4],L=[];
+  L.push('KIST ELEMENTARY — '+TYPES[o.type].toUpperCase(),'Observer: '+(o.observer||'—'),'Observing: '+(o.teacher||'—'),'Date: '+fmtDate(o.date),(o.type==='walk'?'LW focus: ':'Lesson: ')+y[0]+(o.unit?' · '+o.unit:'')+(o.focus?' — '+o.focus:''));
+  if(o.type==='peer'){PEER_Q.forEach(q=>L.push('',q[1],o.peer[q[0]]||'—'));return L.join('\n');}
+  if(o.prevCheck)L.push('','Higher leverage point from previous observation: '+o.prevCheck.step,'In place this time: '+({yes:'consistently',partly:'partly',no:'not yet'})[o.prevCheck.result]);
+  if(o.type==='smt'&&o.judgement)L.push('','Judgement: '+JUDGE[o.judgement]);
+  L.push('','WHAT DID I APPRECIATE ABOUT THE LESSON?',o.glows||'—');
+  if(o.type==='smt'||o.requested)L.push('',o.type==='smt'?'HIGHER LEVERAGE POINT':'INDIVIDUAL NEXT STEP',o.step||'—');
+  L.push('','THE 7 Cs');C_ORDER.forEach(c=>{const v=o.cs[c];L.push('- '+CS[c].name+': '+(v.level!=null?LVNAME(v.level):'—')+(v.evidence?' — '+v.evidence:''));});
+  L.push('','THINKING TIME AND ENGAGEMENT',
+    '- Wait time: '+(m.waitAvg==null?'not timed':m.waitAvg.toFixed(1)+'s average over '+m.waitN+' questions; '+pct(m.waitGe)+' at '+o.wait.thr+'s or more'),
+    '- Students talking or thinking: '+pct(m.studentShare)+' of timed talk',
+    '- On task: '+pct(m.engAvg)+' average over '+m.sweeps+' sweeps');
+  if(o.type==='smt'){L.push('','THINK · CHALLENGE · SUPPORT · ROUTINE',
+    '- Think: '+(o.think.skill?SKILLS[o.think.skill].name+(o.think.named?' (named)':' (not named)'):'not identified'),
+    '- Challenge: '+(o.challenge.moves.map(k=>MOVES[k]).join(', ')||'none recorded'),
+    '- Support: '+(o.support.used.map(k=>SUPPORTS[k]).join(', ')||'none recorded'),
+    '- Routine: '+(o.routine.vtr?o.routine.vtr+' ('+o.routine.checks.length+'/5)':'none'));
+    if(o.selfAssess)L.push('','TEACHER SELF-ASSESSMENT',o.selfAssess);if(o.teacherResponse)L.push('','TEACHER RESPONSE',o.teacherResponse);}
+  return L.join('\n');
+}
+
+/* ================= LOOK-FORS VIEW ================= */
+function vLookfors(){
+  return `<div class="lede"><h1>KIST Teaching Appreciation, in one place</h1>
+    <p>The 7 Cs from the Teaching Appreciation Procedure, the Think · Challenge · Support · Routine guide and the lesson scaffold, with thinking time and student engagement measured on every visit.</p></div>
+  <div class="ref">
+    <div class="refc"><h3>Our three values</h3><ul class="tidy">
+      <li><b>Support:</b> every teacher should feel supported to grow consistently, whatever their context.</li>
+      <li><b>Clarity:</b> honest feedback that is specific, actionable, and part of a collaboration.</li>
+      <li><b>Personalisation:</b> shared values and competencies, with room for individual personalities and interests.</li></ul></div>
+    <div class="refc"><h3>Observing fairly</h3><ul class="tidy">
+      <li>Rate professional practice against the stated criteria, never personal characteristics. Check yourself for unconscious bias.</li>
+      <li>Treat every teacher consistently: same notice, same criteria, same 48-hour feedback.</li>
+      <li>Give the teacher the chance to self-assess and explain their choices before you share your view.</li>
+      <li>Teachers can review the report and respond; record their response on it.</li>
+      <li>Keep observations confidential. Learning walk feedback to staff is anonymised.</li>
+      <li>The process is for growth, not punishment. Lead with what you appreciated.</li></ul></div>
+    <div class="refc"><h3>Observing well</h3><ol class="principles">
+      <li><b>Evidence before judgement.</b> Quotes, counts and times during the lesson; levels afterwards.</li>
+      <li><b>Watch the students.</b> Engagement and thinking show in what students say, write and do.</li>
+      <li><b>Time the thinking.</b> Wait time and the talk clock turn “students had time to think” into something you can both see.</li>
+      <li><b>One higher leverage point.</b> Specific, observable, and usable from the next lesson. Revisit it next cycle.</li>
+      <li><b>Not every lesson needs a spectacle.</b> The 7 Cs should be present in any lesson, with or without elaborate resources, IT or movement.</li></ol></div>
+    <div class="refc"><h3>Judgements</h3>
+      ${Object.keys(JUDGE).map(j=>`<div><span class="jpill ${j}">${JUDGE[j]}</span><ul class="tidy" style="margin-top:6px">${STRANDS.map(st=>`<li>${esc(st[2][j])}</li>`).join('')}</ul></div>`).join('')}
+      <p class="hint">Two consecutive Beginning judgements lead to support through a Professional Improvement Plan.</p></div>
+    <div class="refc"><h3>Thinking time</h3>
+      <p><b>Wait time 1</b> is the pause between a question and the first answer taken. Mary Budd Rowe found that when teachers waited about three seconds or more, students gave longer answers, more students answered, and more answers were reasoned.</p>
+      <p><b>Wait time 2</b> is the pause after a student answers, before the teacher responds.</p>
+      <p><b>Using the timer:</b> tap “Question asked” as a thinking question ends, and “Answer taken” when someone is called on. Skip admin questions.</p></div>
+    <div class="refc"><h3>Student engagement</h3>
+      <p><b>Sweep every five minutes.</b> Scan the room and count students visibly on task.</p>
+      <p><b>On task is a floor.</b> Look for thinking too: explaining, asking, disagreeing, revising.</p>
+      <p><b>How answers are taken matters.</b> Hands up lets a few think for the room; all-student response and partner talk make everyone commit.</p></div>
+    <div class="refc"><h3>Each semester</h3><ul class="tidy">
+      <li>One SMT lesson observation (two days’ notice of the cycle, not the lesson).</li>
+      <li>Two learning walk visits (a two-to-three-day window).</li>
+      <li>One peer observation completed, of a colleague outside your grade team or specialism.</li></ul></div>
+    <div class="refc"><h3>Think · Challenge · Support · Routine</h3><ul class="tidy">
+      <li><b>Think:</b> which thinking skill? Notice, connect, reason, evaluate, perspective-take.</li>
+      <li><b>Challenge:</b> rigour, not difficulty. Is the difficulty coming from the thinking or from something unrelated?</li>
+      <li><b>Support:</b> access the thinking without doing it for them.</li>
+      <li><b>Routine:</b> the routine is the tool, not the goal.</li></ul></div>
+  </div>
+  ${Object.keys(GROUPS).map(g=>`<h2 style="font-size:22px;margin:26px 0 4px">${GROUPS[g]}</h2><p class="hint" style="margin-bottom:12px">${C_ORDER.filter(c=>CS[c].group===g).map(c=>CS[c].name).join(' · ')}</p>
+  <div class="ref">${C_ORDER.filter(c=>CS[c].group===g).map(c=>`<div class="refc"><h3>${CS[c].name}</h3><p class="hint">${CS[c].q}</p>
+    <ul class="tidy">${CS[c].look.map(l=>`<li><b>${esc(l)}</b></li>`).join('')}</ul>
+    <div class="two-l"><div><div class="k" style="color:var(--think);margin:4px 0">Looks like</div><ul class="tidy">${CS[c].yes.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></div>
+    <div><div class="k" style="color:var(--bad);margin:4px 0">Does not look like</div><ul class="tidy">${CS[c].no.map(l=>`<li>${esc(l)}</li>`).join('')}</ul></div></div></div>`).join('')}</div>`).join('')}
+  <h2 style="font-size:22px;margin:26px 0 12px">The 40-minute lesson scaffold</h2>
+  <div class="ref">${TEMPLATES.scaffold.segs.map(s=>`<div class="refc"><h3>${esc(s.name)}</h3><div class="row" style="gap:5px">${Object.keys(s.cs).map(c=>`<span class="chip c">${CS[c].name}</span>`).join('')}</div><ul class="tidy">${Object.keys(s.cs).map(c=>`<li><b>${CS[c].name}:</b> ${esc(s.cs[c])}</li>`).join('')}<li><b>Thinking time:</b> ${esc(s.think)}</li></ul></div>`).join('')}</div>`;
+}
+
+/* ================= RENDER ================= */
+function render(){
+  const v=$('#view');
+  v.innerHTML=VIEW==='records'?vRecords():VIEW==='report'?vReport():VIEW==='lookfors'?vLookfors():vObserve();
+  document.querySelectorAll('[data-nav]').forEach(a=>a.setAttribute('aria-current',a.dataset.nav===VIEW?'page':'false'));
+  const d=$('#dock');d.innerHTML=dockBody();d.style.display=VIEW==='observe'?'':'none';
+}
+function route(){const h=(location.hash||'').slice(1);VIEW=['observe','records','report','lookfors'].includes(h)?h:(lsGet('obs-current')?'observe':'records');DEL=null;render();window.scrollTo(0,0);}
+window.addEventListener('hashchange',route);
+
+/* ================= EVENTS ================= */
+const NEWSEG={cs:[]};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act,ds=b.dataset;
+  switch(a){
+    case 'jump':{const s=$('#sec-'+ds.to);if(s)s.scrollIntoView({behavior:'smooth',block:'start'});return;}
+    case 'start':O=newObs(ds.t==='walk'?'blank':'scaffold');O.type=ds.t;WAIT_START=null;lsSet('obs-current','');location.hash='#observe';if(VIEW==='observe'){render();window.scrollTo(0,0);}toast(TYPES[ds.t]+' started');return;
+    case 'filter-t':FILTER_T=ds.v;render();return;
+    case 'pdf':downloadPdf(O);return;
+    case 'copywalk':{const txt=walkText();try{navigator.clipboard.writeText(txt).then(()=>toast('Staff summary copied'),()=>toast('Copy was blocked here'));}catch(x){toast('Copy was blocked here');}return;}
+    case 'export':saveFile('7Cs observations backup '+today()+'.json',new Blob([JSON.stringify({app:'7cs-observer',exported:new Date().toISOString(),records:RECORDS},null,1)],{type:'application/json'}));return;
+    case 'new':O=newObs(O.template==='blank'?'blank':O.template);WAIT_START=null;lsSet('obs-current','');if(VIEW!=='observe')location.hash='#observe';else{render();window.scrollTo(0,0);}toast('New observation started');return;
+    case 'seg-seen':{const s=O.segments[+ds.i];s.seen=!s.seen;touch();render();return;}
+    case 'seg-del':O.segments.splice(+ds.i,1);touch();render();return;
+    case 'seg-r':{const s=O.segments[+ds.i];s.r[ds.c]=s.r[ds.c]===ds.v?undefined:ds.v;if(!s.seen&&s.r[ds.c])s.seen=true;touch();render();return;}
+    case 'newseg-c':{const i=NEWSEG.cs.indexOf(ds.c);i>=0?NEWSEG.cs.splice(i,1):NEWSEG.cs.push(ds.c);b.setAttribute('aria-pressed',i<0);return;}
+    case 'addseg':{const n=$('#f-newseg').value.trim();if(!n){$('#f-newseg').focus();return;}
+      const cs=NEWSEG.cs.length?NEWSEG.cs.slice():['clarify'];O.segments.push({name:n,min:'',cs,watch:Object.fromEntries(cs.map(c=>[c,CS[c].look[0]])),think:'Students get time to think before anyone answers.',seen:true,r:{},note:''});
+      NEWSEG.cs=[];touch();render();return;}
+    case 'skill':O.think.skill=O.think.skill===ds.v?null:ds.v;O.think.evidence=[];touch();render();return;
+    case 'set':{const cur=getPath(O,ds.p);setPath(O,ds.p,cur===ds.v?'':ds.v);touch();const y=window.scrollY;render();window.scrollTo(0,y);return;}
+    case 'toggle':{const arr=getPath(O,ds.p),i=arr.indexOf(ds.v);i>=0?arr.splice(i,1):arr.push(ds.v);touch();b.setAttribute('aria-pressed',i<0);refreshFeedbackSugg();return;}
+    case 'c-level':{const v=+ds.v;O.cs[ds.c].level=O.cs[ds.c].level===v?null:v;touch();b.parentNode.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',+x.dataset.v===O.cs[ds.c].level));refreshFeedbackSugg();return;}
+    case 'strand':O.strands[ds.s]=O.strands[ds.s]===ds.v?'':ds.v;touch();render();return;
+    case 'prevcheck':{const p=prevRecord();if(!p)return;O.prevCheck=O.prevCheck&&O.prevCheck.result===ds.v?null:{id:p.id,step:p.step,date:p.date,result:ds.v};touch();$('#prevbox').innerHTML=prevBox();return;}
+    case 'usestep':{const s=suggestions(O)[+ds.i];if(!s)return;O.step=s[1];O.stepArea=s[0];touch();const t=$('#f-step');if(t)t.value=O.step;toast('Action step added');return;}
+    case 'complete':if(O.status==='done'){O.status='draft';}else{O.status='done';stopMode();if(O.clock.startedAt&&!O.clock.stoppedAt)O.clock.stoppedAt=Date.now();WAIT_START=null;}touch();render();toast(O.status==='done'?'Marked complete':'Reopened as draft');return;
+    case 'lesson-start':ensureStarted();touch();refreshLive();return;
+    case 'lesson-stop':stopMode();O.clock.stoppedAt=Date.now();touch();refreshLive();return;
+    case 'mode':{ensureStarted();const was=O.clock.mode;stopMode();if(was!==ds.v){O.clock.mode=ds.v;O.clock.since=Date.now();}touch();refreshLive();return;}
+    case 'wait-start':ensureStarted();WAIT_START=performance.now();refreshLive();return;
+    case 'wait-stop':{if(WAIT_START==null)return;const s=(performance.now()-WAIT_START)/1000;WAIT_START=null;O.wait.samples.push(Math.round(s*10)/10);touch();refreshLive();refreshFeedbackSugg();return;}
+    case 'wait-cancel':WAIT_START=null;refreshLive();return;
+    case 'tally':{const v=Math.max(0,(getPath(O,ds.p)||0)+(+ds.d));setPath(O,ds.p,v);if(+ds.d>0)ensureStarted();touch();refreshLive();refreshFeedbackSugg();return;}
+    case 'sw-t':O.sweepTotal=Math.max(1,Math.min(60,O.sweepTotal+(+ds.d)));if(O.sweepEngaged!=null)O.sweepEngaged=Math.min(O.sweepEngaged,O.sweepTotal);touch();refreshLive();return;
+    case 'sw-e':{const cur=O.sweepEngaged==null?O.sweepTotal:Math.min(O.sweepEngaged,O.sweepTotal);O.sweepEngaged=Math.max(0,Math.min(O.sweepTotal,cur+(+ds.d)));touch();refreshLive();return;}
+    case 'sweep':{ensureStarted();const e2=O.sweepEngaged==null?O.sweepTotal:Math.min(O.sweepEngaged,O.sweepTotal);O.sweeps.push({t:lessonMin(),engaged:e2,total:O.sweepTotal});touch();refreshLive();refreshFeedbackSugg();toast('Sweep logged: '+e2+' of '+O.sweepTotal);return;}
+    case 'addlog':{const inp=$('#f-lognote'),t=inp.value.trim();if(!t){inp.focus();return;}O.log.push({t:lessonMin(),text:t});touch();refreshLive();const n=$('#f-lognote');if(n)n.focus();return;}
+    case 'dellog':O.log.splice(+ds.i,1);touch();refreshLive();return;
+    case 'open':{const r=RECORDS.find(x=>x.id===ds.id);if(r){O=clone(r);WAIT_START=null;lsSet('obs-current',O.id);location.hash='#observe';}return;}
+    case 'openreport':{const r=RECORDS.find(x=>x.id===ds.id);if(r){O=clone(r);WAIT_START=null;lsSet('obs-current',O.id);location.hash='#report';}return;}
+    case 'del':DEL=ds.id;render();return;
+    case 'del-no':DEL=null;render();return;
+    case 'del-yes':{const id=ds.id;DEL=null;STORE&&STORE.del(id).then(()=>toast('Observation deleted')).catch(()=>toast('Could not delete. Try again.'));if(O.id===id)O=newObs();render();return;}
+    case 'copyreport':{const txt=reportText(O);
+      const fall=()=>{const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.top='-300px';document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy');}catch(x){}ta.remove();toast(ok?'Report copied':'Select the report text to copy it');};
+      try{navigator.clipboard.writeText(txt).then(()=>toast('Report copied'),fall);}catch(x){fall();}return;}
+  }
+});
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.dataset.bind){setPath(O,el.dataset.bind,el.dataset.num?+el.value:el.value);touch();
+    if(el.dataset.bind==='teacher'){const h=$('#sec-details h2');if(h)h.textContent=el.value||'New observation';const p=$('#prevbox');if(p)p.innerHTML=prevBox();}
+    return;}
+  if(el.id==='f-search'){SEARCH=el.value;clearTimeout(window._st);window._st=setTimeout(()=>{const pos=el.selectionStart;render();const n=$('#f-search');if(n){n.focus();try{n.setSelectionRange(pos,pos);}catch(x){}}},250);}
+});
+document.addEventListener('change',e=>{
+  const el=e.target;
+  if(el.dataset.bind&&el.tagName==='SELECT'){if(el.dataset.bind==='year'||el.dataset.bind==='routine.vtr'||el.dataset.bind==='type'){if(el.dataset.bind==='routine.vtr')O.routine.checks=[];render();}return;}
+  if(el.dataset.actChange==='template'){const keep=O.segments.filter(s=>s.seen||s.note||Object.values(s.r).some(Boolean));
+    O.template=el.value;O.segments=keep.concat(newObs(el.value).segments.filter(s=>!keep.some(k=>k.name===s.name)));touch();render();return;}
+  if(el.dataset.actChange==='filter'){FILTER_T=el.value;render();return;}
+  if(el.id==='f-import'&&el.files&&el.files[0]){const fr=new FileReader();fr.onload=async()=>{try{const d=JSON.parse(fr.result),list=Array.isArray(d)?d:d.records||[];let n=0;
+      for(const r of list){if(r&&r.id){await STORE.save(normalise(r));n++;}}toast('Imported '+n+' observation'+(n===1?'':'s'));}catch(x){toast('That file is not an observer backup.');}};fr.readAsText(el.files[0]);el.value='';return;}
+  if(el.dataset.actChange==='ftype'){FILTER_TYPE=el.value;render();return;}
+  if(el.dataset.actCheck){const arr=getPath(O,el.dataset.actCheck),i=arr.indexOf(el.value);if(el.checked&&i<0)arr.push(el.value);if(!el.checked&&i>=0)arr.splice(i,1);touch();
+    if(el.dataset.actCheck==='routine.checks'){const h=el.closest('.tgb').querySelector('p.hint');if(h)h.textContent=O.routine.checks.length+'/5. Three or fewer and the routine was probably decoration.';}
+    refreshFeedbackSugg();return;}
+  if(el.dataset.bool){setPath(O,el.dataset.bool,el.checked);touch();if(el.dataset.bool==='requested'){const b=$('#feedback-b');if(b)b.innerHTML=feedbackBody();}else refreshFeedbackSugg();}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='f-lognote'){e.preventDefault();document.querySelector('[data-act="addlog"]').click();}
+  if(e.key==='Enter'&&e.target.id==='f-newseg'){e.preventDefault();document.querySelector('[data-act="addseg"]').click();}});
+
+/* live tick */
+setInterval(()=>{
+  if(VIEW!=='observe')return;
+  const m=metrics(O,true);
+  MODES.forEach(md=>{const el=document.querySelector('[data-live="m-'+md[0]+'"]');if(el)el.textContent=mmss(m.clock[md[0]]);});
+  const lc=document.querySelector('[data-live="lesson"]');if(lc)lc.textContent=lessonMin();
+  if(O.clock.mode){const sp=document.querySelector('[data-live="split"]');if(sp)sp.innerHTML=splitBar(m);const lg=document.querySelector('[data-live="legend"]');if(lg)lg.innerHTML=legend(m);}
+  if(WAIT_START!=null){const s=(performance.now()-WAIT_START)/1000;
+    ['wait','wait2'].forEach(k=>{const el=document.querySelector('[data-live="'+k+'"]');if(el){el.textContent=s.toFixed(1)+'s';const bt=el.closest('.waitbtn');if(bt)bt.classList.toggle('short',s<O.wait.thr);}});}
+},200);
+
+/* boot */
+(function(){
+  const want=lsGet('obs-current');void want;
+  route();
+  initStore();
+})();
+</script>
+</body>
+</html>
