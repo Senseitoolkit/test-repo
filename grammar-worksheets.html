@@ -118,6 +118,7 @@
     .ob[aria-pressed="true"] { background: var(--ycs); color: var(--ink); border-color: var(--yc); }
     .ob[aria-pressed="true"]::before { background: var(--yc); border-color: var(--yc); box-shadow: inset 0 0 0 2.5px var(--panel); }
     .ob span { min-width: 0; }
+    #strands.full .ob[aria-pressed="false"] { opacity: .45; }
     
     .line { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
     .line > .k { font-size: .9rem; color: var(--muted); min-width: 6.8em; }
@@ -183,7 +184,9 @@
     .namebar { display: flex; flex-wrap: wrap; gap: 14px 24px; font-size: .95rem; color: var(--pmuted); padding-bottom: 14px; border-bottom: 2px solid var(--pink); margin-bottom: 4px; align-items: flex-end; }
     .namebar span { display: inline-flex; gap: 6px; align-items: flex-end; }
     .namebar i { display: inline-block; border-bottom: 1px solid var(--pmuted); width: 9em; height: 1.5em; }
-    .namebar .nm { flex: 1 1 100%; font-size: 1.2rem; font-weight: 700; color: var(--pink); gap: 10px; }
+    .namebar .nm { flex: 1 1 22em; font-size: 1.2rem; font-weight: 700; color: var(--pink); gap: 10px; }
+    .namebar .dt { flex: 0 1 13em; font-size: 1.2rem; font-weight: 700; color: var(--pink); gap: 10px; }
+    .namebar .dt i { flex: 1; width: auto; height: 2.2em; border-bottom: 2px solid var(--pink); }
     .namebar .nm i { flex: 1; width: auto; height: 2.2em; border-bottom: 2px solid var(--pink); }
     .guide { margin: 16px 0 8px; border: 1.5px solid var(--prule); border-left: 4px solid #2f78b8; border-radius: 10px; padding: 12px 16px 14px; background: #fbf8f2; color: var(--pink); }
     .guide h4 { font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--pmuted); margin-bottom: 10px; }
@@ -277,7 +280,7 @@
       <div class="stepbody">
         <div class="objhead">
           <span class="count" id="objCount"></span>
-          <span><button class="link" type="button" id="allObjs">Select all</button> · <button class="link" type="button" id="noObjs">Clear</button></span>
+          <span><button class="link" type="button" id="noObjs">Clear</button></span>
         </div>
         <div id="strands" class="stepbody"></div>
       </div>
@@ -1274,6 +1277,7 @@
     out.objs = Object.assign({}, (s && s.objs) || {});
     if (!YEARS[out.year]) out.year = 3;
     out.versions = 1;
+    out.objs = {};
     return out;
   }
   function save() { try { localStorage.setItem("tt-grammar", JSON.stringify(S)); } catch (e) {} }
@@ -1288,11 +1292,12 @@
   }
 
   /* ---------- objectives ---------- */
+  const MAXOBJ = 4;
   const flat = () => G.flat(S.year);
   function selectedIds() {
     const all = flat().map(o => o.id);
-    if (!S.objs[S.year]) S.objs[S.year] = all.slice();
-    return S.objs[S.year].filter(id => all.includes(id));
+    if (!S.objs[S.year]) S.objs[S.year] = [];
+    return S.objs[S.year].filter(id => all.includes(id)).slice(0, MAXOBJ);
   }
   const selectedObjs = () => { const ids = selectedIds(); return flat().filter(o => ids.includes(o.id)); };
   const strandOf = id => YEARS[S.year].strands.find(s => s.objs.some(o => o.id === id));
@@ -1396,7 +1401,7 @@
     paper.classList.remove("peek", "marked");
     resetTimer();
     if (!sets.length) {
-      paper.innerHTML = '<p class="empty"><b>Aa ? , !</b>Tick at least one objective in step 2 and your sheet appears here.</p>';
+      paper.innerHTML = '<p class="empty"><b>Aa ? , !</b>Choose up to 4 objectives in step 2 and your sheet appears here.</p>';
       liveScore(); return;
     }
     if (vIndex >= sets.length) vIndex = 0;
@@ -1405,7 +1410,7 @@
     if (mode === "key") h += '<div class="tag key">Answer key</div>';
     if (vt) h += '<div class="tag">' + esc(vt) + '</div>';
     h += '</div></div><p class="psub">' + esc(subtitle()) + '</p>';
-    h += '<div class="namebar"><span class="nm">Name <i></i></span><span>Date <i style="width:6em"></i></span><span>Score <i style="width:3em"></i> / ' + S.count + '</span>' + (S.minutes > 0 ? '<span>Finish time <i style="width:4em"></i></span>' : '') + '</div>';
+    h += '<div class="namebar"><span class="nm">Name <i></i></span><span class="dt">Date <i></i></span>' + (S.minutes > 0 ? '<span>Finish time <i style="width:4em"></i></span>' : '') + '</div>';
     const gObjs = guideObjs(set);
     if (guideOn() && gObjs.length) {
       h += '<section class="guide"><h4>Grammar guide</h4><dl>';
@@ -1538,14 +1543,28 @@
     doc.setFont("helvetica", "normal");
     return { y, lastX, lines };
   }
+  const MAXPAGES = 2, SCALES = [1, 0.94, 0.88, 0.82, 0.77, 0.72, 0.68];
+  let pdfOver = 0;
   function buildPdf(withAnswers) {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ unit: "mm", format: S.paper, orientation: "portrait" });
+    const mk = () => new jsPDF({ unit: "mm", format: S.paper, orientation: "portrait" });
+    pdfOver = 0;
+    const scales = sets.map(set => {
+      for (const sc of SCALES) if (paintPdf(mk(), [set], withAnswers, () => sc) <= MAXPAGES) return sc;
+      pdfOver++; return SCALES[SCALES.length - 1];
+    });
+    const doc = mk();
+    paintPdf(doc, sets, withAnswers, set => scales[sets.indexOf(set)]);
+    return doc.output("blob");
+  }
+  function paintPdf(doc, list, withAnswers, scaleOf) {
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
     const M = 15, CW = W - 2 * M;
     const INK = [28, 40, 56], MUTED = [100, 110, 125], RED = [196, 48, 42], RULE = [215, 220, 230];
     const code = makeCode(), tipText = pdfSafe(tip());
-    const fs = S.count <= 8 ? 11.5 : S.count <= 12 ? 11 : 10.5, lineH = fs * 0.5, bottom = H - M - 8 - (tipText ? 13 : 0);
+    const fs0 = S.count <= 8 ? 11.5 : S.count <= 12 ? 11 : 10.5;
+    let sc = 1, fs = fs0, lineH = fs * 0.5, gfs = 9.5, glh = 4.3;
+    const bottom = H - M - 8 - (tipText ? 13 : 0);
     const footers = [];
     const header = (set, cont) => {
       let y = M + 6;
@@ -1565,18 +1584,14 @@
       if (!withAnswers && !cont) {
         y += 4;
         doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(...INK);
-        doc.text("Name", M, y);
-        const nx = M + doc.getTextWidth("Name") + 3;
-        doc.setDrawColor(...INK); doc.setLineWidth(0.5); doc.line(nx, y + 1.5, W - M, y + 1.5);
-        y += 11;
-        doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...MUTED);
-        doc.setDrawColor(...MUTED); doc.setLineWidth(0.25);
-        const hasT = S.minutes > 0, dEnd = M + CW * (hasT ? 0.34 : 0.5);
-        doc.text("Date", M, y); doc.line(M + 9, y + 0.8, dEnd, y + 0.8);
-        const sx = dEnd + 6, sEnd = hasT ? M + CW * 0.62 : W - M, outOf = "/ " + S.count;
-        doc.text("Score", sx, y); doc.text(outOf, sEnd, y, { align: "right" });
-        doc.line(sx + 11, y + 0.8, sEnd - doc.getTextWidth(outOf) - 2, y + 0.8);
-        if (hasT) { const fx = sEnd + 6; doc.text("Finish time", fx, y); doc.line(fx + 20, y + 0.8, W - M, y + 0.8); }
+        doc.setDrawColor(...INK); doc.setLineWidth(0.5);
+        const nEnd = M + CW * 0.66, dx = nEnd + 6;
+        doc.text("Name", M, y); doc.line(M + doc.getTextWidth("Name") + 3, y + 1.5, nEnd, y + 1.5);
+        doc.text("Date", dx, y); doc.line(dx + doc.getTextWidth("Date") + 3, y + 1.5, W - M, y + 1.5);
+        if (S.minutes > 0) {
+          y += 9; doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...MUTED); doc.setDrawColor(...MUTED); doc.setLineWidth(0.25);
+          doc.text("Finish time", M, y); doc.line(M + 20, y + 0.8, M + 60, y + 0.8);
+        }
         y += 5;
       } else if (withAnswers && !cont) {
         doc.text("Answers match the numbered questions on the worksheet with the same code. Accept equivalent wording where the grammar is right.", M, y, { maxWidth: CW });
@@ -1644,11 +1659,10 @@
           doc.setFont("helvetica", "normal");
         }
       }
-      y += 3.6;
+      y += 3.6 * sc;
       if (draw) { doc.setDrawColor(...RULE); doc.setLineWidth(0.15); doc.line(M, y, W - M, y); }
       return y + lineH * 0.95;
     };
-    const gfs = 9.5, glh = 4.3;
     const drawGuideItem = (o, y, draw) => {
       const x0 = M + 3, w = CW - 6;
       if (draw) { doc.setFont("helvetica", "bold"); doc.setFontSize(gfs + 0.5); doc.setTextColor(...INK); doc.text(pdfSafe(o.short), x0, y); }
@@ -1663,7 +1677,8 @@
       doc.setFont("helvetica", "normal");
       return y + glh * 1.4;
     };
-    sets.forEach((set, vi) => {
+    list.forEach((set, vi) => {
+      sc = scaleOf(set); fs = fs0 * sc; lineH = fs * 0.5; gfs = 9.5 * Math.max(sc, 0.85); glh = gfs * 0.45;
       if (vi) doc.addPage();
       let y = header(set, false), pageOfCopy = 1;
       footers.push({ copy: vi, page: pageOfCopy });
@@ -1697,13 +1712,14 @@
       }
       doc.setFontSize(8); doc.setTextColor(...MUTED); doc.setFont("helvetica", "normal");
       doc.text(footLeft(), M, H - M);
-      const copyBit = sets.length > 1 ? "copy " + (f.copy + 1) + " / " + sets.length : "";
+      const copyBit = sets.length > 1 ? "copy " + (list[f.copy].vi + 1) + " / " + sets.length : "";
       const pageBit = perCopy[f.copy] > 1 ? "page " + f.page + " / " + perCopy[f.copy] : "";
       doc.text(["Code " + code, copyBit, pageBit].filter(Boolean).join("  ·  "), W - M, H - M, { align: "right" });
     });
-    return doc.output("blob");
+    return Math.max(0, ...Object.values(perCopy));
   }
 
+  const overNote = () => pdfOver ? " " + pdfOver + " cop" + (pdfOver > 1 ? "ies run" : "y runs") + " past 2 pages; choose fewer questions to fit." : "";
   const slug = s => (s || "worksheet").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "worksheet";
   let dlPromise = null;
   function getDownloads() {
@@ -1723,13 +1739,13 @@
       const url = URL.createObjectURL(blob), a = document.createElement("a");
       a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 4000);
-      st.textContent = "Downloaded " + filename + ".";
+      st.textContent = "Downloaded " + filename + "." + overNote();
       return;
     }
     try {
       st.textContent = "Confirm the download to save " + filename + ".";
       await dl.save({ filename, data: blob });
-      st.textContent = "Saved " + filename + " (" + sets.length + " cop" + (sets.length > 1 ? "ies" : "y") + ").";
+      st.textContent = "Saved " + filename + " (" + sets.length + " cop" + (sets.length > 1 ? "ies" : "y") + ")." + overNote();
     } catch (e) {
       const code = e && e.code;
       if (code === "declined") st.textContent = "Download cancelled.";
@@ -1754,9 +1770,7 @@
     YEARS[S.year].strands.forEach((st, si) => {
       const d = document.createElement("div"); d.className = "strand";
       const h = document.createElement("h3"); h.textContent = st.name;
-      const link = document.createElement("button"); link.type = "button"; link.className = "link"; link.dataset.strand = si;
-      const allOn = st.objs.every(o => ids.includes(o.id)); link.textContent = allOn ? "none" : "all";
-      h.appendChild(link); d.appendChild(h);
+      d.appendChild(h);
       const obs = document.createElement("div"); obs.className = "obs";
       st.objs.forEach(o => {
         const b = document.createElement("button"); b.type = "button"; b.className = "ob"; b.dataset.id = o.id;
@@ -1766,6 +1780,7 @@
       });
       d.appendChild(obs); box.appendChild(d);
     });
+    box.classList.toggle("full", ids.length >= MAXOBJ);
     box.style.setProperty("--yc", "var(--y" + S.year + ")"); box.style.setProperty("--ycs", "var(--y" + S.year + "s)");
   }
   const press = (sel, test) => document.querySelectorAll(sel).forEach(b => b.setAttribute("aria-pressed", test(b) ? "true" : "false"));
@@ -1775,7 +1790,7 @@
     press("#versions button", b => +b.dataset.v === S.versions);
     buildStrands();
     const n = selectedIds().length, all = flat().length;
-    $("objCount").textContent = n + " of " + all + " selected";
+    $("objCount").textContent = n + " of " + MAXOBJ + " chosen" + (n >= MAXOBJ ? " (maximum)" : "") + " · questions are shared equally";
     $("objSub").textContent = Y().label + " · " + Y().ks + " · age " + Y().age;
     $("minutes").value = S.minutes; $("paperSize").value = S.paper;
     $("showTip").checked = S.showTip; $("labels").checked = S.labels;
@@ -1800,14 +1815,8 @@
     const ob = e.target.closest("#strands .ob");
     if (ob) {
       const ids = selectedIds(), id = ob.dataset.id;
+      if (!ids.includes(id) && ids.length >= MAXOBJ) { const st = $("status"); st.textContent = "You can choose up to " + MAXOBJ + " objectives. Untick one to pick a different one."; st.className = "status err"; return; }
       S.objs[S.year] = ids.includes(id) ? ids.filter(x => x !== id) : ids.concat(id);
-      update(); return;
-    }
-    const sl = e.target.closest("#strands .link");
-    if (sl) {
-      const st = YEARS[S.year].strands[+sl.dataset.strand], ids = selectedIds(), sids = st.objs.map(o => o.id);
-      const allOn = sids.every(x => ids.includes(x));
-      S.objs[S.year] = allOn ? ids.filter(x => !sids.includes(x)) : Array.from(new Set(ids.concat(sids)));
       update(); return;
     }
     const seg = e.target.closest(".seg button");
@@ -1825,7 +1834,6 @@
       markRow(row, false); liveScore(); return;
     }
   });
-  $("allObjs").addEventListener("click", () => { S.objs[S.year] = flat().map(o => o.id); update(); });
   $("noObjs").addEventListener("click", () => { S.objs[S.year] = []; update(); });
   $("minutes").addEventListener("change", e => { S.minutes = +e.target.value; update(); });
   $("paperSize").addEventListener("change", e => { S.paper = e.target.value; save(); });
@@ -1840,7 +1848,7 @@
   function loadCode() {
     const el = $("codeIn"), c = parseCode(el.value);
     if (!c) { el.setCustomValidity("Use a code like Y3-2F-N12-4821"); el.reportValidity(); return; }
-    S.year = c.year; S.objs[c.year] = c.ids; S.count = c.count; S.seed = c.seed;
+    S.year = c.year; S.objs[c.year] = c.ids.slice(0, MAXOBJ); S.count = c.count; S.seed = c.seed;
     update();
   }
   $("loadBtn").addEventListener("click", loadCode);
