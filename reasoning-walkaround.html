@@ -327,6 +327,16 @@ body{--ground:#fff;--paper:#fff;--ink:#17222d;--muted:#5a6774;--rule:#cbd4dc;--g
 .wq .wg{display:block;margin-top:8px}
 .wq{margin-bottom:6px}
 .wn{padding-top:8px}
+
+/* two-column graph working-out paper: 2 A4 pages, 2 columns x 5 boxes per page */
+.wpage{height:271mm;display:flex;flex-direction:column;break-after:page;page-break-after:always;box-sizing:border-box}
+.wpage:last-child{break-after:auto;page-break-after:auto}
+.wcols{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0 8mm;min-height:0}
+.wcol{display:grid;grid-template-rows:repeat(var(--rows),1fr);gap:4mm;min-height:0}
+.wpage .wq{display:grid;grid-template-columns:9mm 1fr;gap:0;padding:0;margin:0;min-height:0}
+.wpage .wn{font-weight:800;font-size:18px;padding-top:2px}
+.wbox{border:1px solid #7c8b98;min-height:0;overflow:hidden}
+.wbox .wg{display:block;margin:0}
 </style>
 <style id="pagecss">@page{size:A4 landscape;margin:0}</style>
 <style>
@@ -362,6 +372,7 @@ body{--ground:#fff;--paper:#fff;--ink:#17222d;--muted:#5a6774;--rule:#cbd4dc;--g
  .pg{margin:0 0 18px;background:#fff!important;box-shadow:0 2px 12px rgba(47,42,37,.14);border-radius:2px}
  .doc{background:#fff!important;box-shadow:0 2px 12px rgba(47,42,37,.14);padding:14mm 15mm!important;width:210mm!important;margin:0 0 18px}
  .wdoc .wq{break-inside:avoid}
+ .wpage{height:297mm!important;padding:13mm 14mm!important}
  /* Present mode */
  .present{position:fixed;inset:0;z-index:50;background:#1c2a37;display:flex;flex-direction:column}
  .present[hidden]{display:none}
@@ -1629,11 +1640,13 @@ window.buildTest=function(year,term,set){
     `<table class="akey"><thead><tr><th>Q</th><th>Answer</th><th>Marks</th></tr></thead><tbody>`+
     Q.map((q,qi)=>{const multi=q.parts.length>1;return `<tr><td class="aq">${qi+1}</td><td>${q.parts.map((p,pi)=>`<div class="arow">${multi?`<b class="al">(${'abcdefgh'[pi]})</b> `:''}${ansText(p)}</div>`).join('')}</td><td class="am">${q.parts.map(p=>p.marks).join(' + ')}</td></tr>`;}).join('')+
     `</tbody></table><p class="dnote">Questions that ask for an explanation or a drawing are marked by the teacher. Where 2 or more marks are available, award partial marks as described.</p></div>`;
-  const SQ=26.46; // 7 mm squares
-  const work=`<div class="doc wdoc"><svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="wgp" width="${SQ}" height="${SQ}" patternUnits="userSpaceOnUse"><path d="M ${SQ} 0 L 0 0 0 ${SQ}" fill="none" stroke="#86b3d1" stroke-width="1"/></pattern></defs></svg><div class="whead"><span>${tag} · Working-out paper</span><span class="nm">Name ______________________</span></div>`+
-    Q.map((q,qi)=>{const lines=q.parts.reduce((a,p)=>a+(p.method||p.textarea||p.marks>1?4:2)+(p.grid||p.line?2:0),0);const n=Math.max(3,Math.min(10,lines+1));
-      const h=(n+1)*SQ;
-      return `<div class="wq"><span class="wn">${qi+1}</span><svg class="wg" width="100%" height="${h}" aria-hidden="true"><rect x="0.5" y="0.5" width="99.6%" height="${h-1}" fill="url(#wgp)" stroke="#7c8b98" stroke-width="1"/></svg></div>`;}).join('')+`</div>`;
+  const SQ=18.9; // 5 mm squares
+  const ROWS=Q.length<=20?5:Math.ceil(Q.length/4), PER=ROWS*2, NPAGES=Math.max(2,Math.ceil(Q.length/PER));
+  const box=i=>i<Q.length?`<div class="wq"><span class="wn">${i+1}</span><div class="wbox"><svg class="wg" width="100%" height="100%" preserveAspectRatio="none" aria-hidden="true"><rect width="100%" height="100%" fill="url(#wgp)"/></svg></div></div>`:`<div class="wq wq-empty"></div>`;
+  const defs=`<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="wgp" width="${SQ}" height="${SQ}" patternUnits="userSpaceOnUse"><path d="M ${SQ} 0 L 0 0 0 ${SQ}" fill="none" stroke="#86b3d1" stroke-width="1"/></pattern></defs></svg>`;
+  const work=Array.from({length:NPAGES},(_,pgI)=>{const start=pgI*PER;
+    const col=c=>`<div class="wcol">${Array.from({length:ROWS},(_,r)=>box(start+c*ROWS+r)).join('')}</div>`;
+    return `<div class="doc wdoc wpage">${pgI===0?defs:''}<div class="whead"><span>${tag} · Working-out paper${NPAGES>1?` · page ${pgI+1} of ${NPAGES}`:''}</span><span class="nm">Name ______________________</span></div><div class="wcols" style="--rows:${ROWS}">${col(0)}${col(1)}</div></div>`;}).join('');
   const sw=h=>h.replace(NAMERE,m=>NAMES2[m]).replace(/\b([Aa]) (apple|orange|egg|equilateral|octagon|hexagon|isosceles)\b/g,(m,a,w)=>a+'n '+w);
   const qans=Q.map(q=>sw(q.parts.map((p,pi)=>`<div class="arow">${q.parts.length>1?`<b class="al">(${'abcdefgh'[pi]})</b> `:''}${ansText(p)}</div>`).join('')));
   return {tag,code,n:Q.length,total,posters:posters.map(sw),answers:sw(answers),work,qans};
