@@ -15,6 +15,7 @@
     --hot: #ff2e63;
     --acid: #c6ff00;
     --cyan: #08d9d6;
+    --amber: #ffb000;
     --dim: #4a4e7c;
     --panel: rgba(20, 25, 55, 0.7);
   }
@@ -30,7 +31,6 @@
   }
   body.playing { overflow: hidden; }
 
-  /* Scanline + grid background */
   body::before {
     content: '';
     position: fixed;
@@ -72,7 +72,8 @@
   header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: flex-start;
+    gap: 12px;
     border-bottom: 2px dashed var(--dim);
     padding-bottom: 16px;
     margin-bottom: 8px;
@@ -93,8 +94,31 @@
     font-size: 1.1rem;
     color: var(--cyan);
     letter-spacing: 0.1em;
+    margin-top: 8px;
   }
   .tag::before { content: '▸ '; color: var(--acid); }
+
+  /* DEVICE TOGGLE (top right) */
+  .device-toggle {
+    display: flex;
+    border: 1.5px solid var(--dim);
+    background: var(--bg-2);
+    flex-shrink: 0;
+  }
+  .device-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    font-family: 'VT323', monospace;
+    font-size: 1.05rem;
+    letter-spacing: 0.1em;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .device-toggle button + button { border-left: 1.5px solid var(--dim); }
+  .device-toggle button:hover { color: var(--ink); }
+  .device-toggle button.active { background: var(--cyan); color: var(--bg); }
 
   .menu-best {
     font-family: 'VT323', monospace;
@@ -117,39 +141,45 @@
     align-items: center;
     gap: 10px;
   }
-  .section-title::before { content: ''; width: 8px; height: 8px; background: var(--hot); }
+  .section-title::before { content: ''; width: 8px; height: 8px; background: var(--hot); flex-shrink: 0; }
   .section-title::after { content: ''; flex: 1; border-top: 1px dashed var(--dim); }
 
-  /* SPEED TOGGLE */
-  .speed-toggle {
+  /* OPTION ROW: mode / operation / speed */
+  .opts { display: grid; grid-template-columns: 1fr; }
+
+  .seg {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     border: 2px solid var(--ink);
     background: var(--bg-2);
+    transition: opacity 0.15s;
   }
-  .speed-btn {
+  .seg.off { opacity: 0.3; pointer-events: none; }
+  .seg-btn {
     background: transparent;
     border: none;
     color: var(--dim);
-    padding: 14px 8px;
+    padding: 14px 4px;
     font-family: 'Space Mono', monospace;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.08em;
     cursor: pointer;
     font-size: 0.85rem;
     transition: all 0.15s;
   }
-  .speed-btn:not(:last-child) { border-right: 2px solid var(--ink); }
-  .speed-btn .secs {
+  .seg-btn:not(:last-child) { border-right: 2px solid var(--ink); }
+  .seg-btn .secs {
     display: block;
     font-family: 'VT323', monospace;
-    font-size: 1.3rem;
+    font-weight: normal;
+    font-size: 1.25rem;
+    letter-spacing: 0.05em;
     color: var(--dim);
     margin-top: 2px;
   }
-  .speed-btn:hover { color: var(--ink); background: rgba(255,255,255,0.04); }
-  .speed-btn.active { background: var(--hot); color: var(--bg); }
-  .speed-btn.active .secs { color: var(--bg); }
+  .seg-btn:hover { color: var(--ink); background: rgba(255,255,255,0.04); }
+  .seg-btn.active { background: var(--hot); color: var(--bg); }
+  .seg-btn.active .secs { color: var(--bg); }
 
   /* TIMES TABLE GRID */
   .table-meta {
@@ -198,7 +228,7 @@
     box-shadow: 0 0 12px rgba(8, 217, 214, 0.5);
   }
   .table-btn.active::after {
-    content: '×';
+    content: '✓';
     position: absolute;
     top: 2px;
     right: 5px;
@@ -311,6 +341,7 @@
     font-family: 'VT323', monospace;
     font-size: clamp(1.8rem, 5vw, 2.6rem);
     line-height: 1;
+    white-space: nowrap;
   }
   .stat-val.streak { color: var(--acid); }
   .stat-val.streak.fire { color: var(--hot); text-shadow: 0 0 12px var(--hot); }
@@ -365,6 +396,7 @@
     line-height: 1;
     white-space: nowrap;
   }
+  .equation.long { font-size: clamp(2.6rem, min(11vw, 18vh), 8rem); }
   .equation .op { color: var(--hot); }
   .equation .eq { color: var(--dim); }
   .equation .q { color: var(--acid); }
@@ -392,10 +424,8 @@
     text-align: center;
     outline: none;
     letter-spacing: 0.1em;
-    -moz-appearance: textfield;
   }
-  input.answer::-webkit-outer-spin-button,
-  input.answer::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input.answer::placeholder { color: var(--dim); }
   input.answer:focus { border-color: var(--acid); box-shadow: 0 0 0 3px rgba(198, 255, 0, 0.15); }
   input.answer.wrong { border-color: var(--hot); color: var(--hot); animation: shake 0.3s; }
   @keyframes shake {
@@ -428,6 +458,44 @@
   }
   .feedback.win { color: var(--acid); }
   .feedback.lose { color: var(--hot); }
+  .feedback.neutral { color: var(--cyan); }
+
+  /* NUMBER PAD (phone mode) */
+  .numpad {
+    display: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+    max-width: 420px;
+  }
+  .key {
+    height: clamp(44px, 7.5vh, 68px);
+    background: var(--bg-2);
+    border: 1.5px solid var(--dim);
+    color: var(--ink);
+    font-family: 'VT323', monospace;
+    font-size: 2.1rem;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.06s, color 0.06s;
+  }
+  .key.pressed, .key:active { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+  .key.back { color: var(--hot); }
+  .key.enter { background: var(--acid); color: var(--bg); border-color: var(--ink); font-family: 'Space Mono', monospace; font-weight: 700; font-size: 1rem; letter-spacing: 0.1em; }
+  .key.enter.pressed, .key.enter:active { background: var(--hot); color: var(--ink); }
+
+  body.phone .numpad { display: grid; }
+  body.phone button.go { display: none; }
+  body.phone .problem-tag,
+  body.phone .game-foot { display: none; }
+  body.phone .arena { gap: clamp(8px, 2vh, 18px); justify-content: space-evenly; }
+  body.phone .equation { font-size: clamp(2.4rem, min(14vw, 11vh), 6.5rem); }
+  body.phone .equation.long { font-size: clamp(2rem, min(10.5vw, 10vh), 5.5rem); }
+  body.phone input.answer { font-size: clamp(1.8rem, 5vh, 2.6rem); padding: 2px 14px; caret-color: transparent; }
+  body.phone .answer-row { max-width: 420px; }
 
   .timer-bar-wrap {
     height: 10px;
@@ -452,7 +520,6 @@
     letter-spacing: 0.15em;
   }
 
-  /* Countdown overlay */
   .countdown {
     position: absolute;
     inset: 0;
@@ -473,31 +540,123 @@
     to { transform: scale(1); opacity: 1; }
   }
 
+  /* =========================================================
+     RESULTS SCREEN
+     ========================================================= */
+  #results {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: max(24px, env(safe-area-inset-top)) 20px 40px;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .res-kicker {
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    color: var(--cyan);
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    border-bottom: 2px dashed var(--dim);
+    padding-bottom: 12px;
+  }
+  .res-big {
+    font-family: 'Major Mono Display', monospace;
+    font-size: clamp(4rem, 18vw, 8rem);
+    color: var(--acid);
+    text-shadow: 5px 5px 0 var(--hot);
+    line-height: 1;
+    margin-top: 20px;
+  }
+  .res-big span { font-size: 0.45em; color: var(--dim); text-shadow: none; }
+  .res-sub {
+    font-family: 'VT323', monospace;
+    font-size: 1.5rem;
+    letter-spacing: 0.1em;
+    margin-top: 10px;
+    color: var(--ink);
+  }
+  .res-sub.record { color: var(--acid); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    letter-spacing: 0.1em;
+    border: 1px solid var(--dim);
+    background: var(--panel);
+    padding: 6px 12px;
+    color: var(--dim);
+  }
+  .chip b { font-weight: normal; color: var(--ink); }
+  .chip.bad b { color: var(--hot); }
+  .chip.slow b { color: var(--amber); }
+  .chip.good b { color: var(--acid); }
+
+  .res-list { display: flex; flex-direction: column; gap: 6px; }
+  .res-row {
+    display: grid;
+    grid-template-columns: 2em 1fr auto 4.2em;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 12px;
+    background: var(--bg-2);
+    border-left: 3px solid var(--dim);
+    font-family: 'VT323', monospace;
+    font-size: 1.4rem;
+    letter-spacing: 0.05em;
+  }
+  .res-row .n { color: var(--dim); }
+  .res-row .pq b { color: var(--acid); font-weight: normal; }
+  .res-row .you { color: var(--acid); text-align: right; }
+  .res-row .t { color: var(--dim); text-align: right; }
+  .res-row.is-slow { border-left-color: var(--amber); }
+  .res-row.is-slow .t { color: var(--amber); }
+  .res-row.is-wrong { border-left-color: var(--hot); }
+  .res-row.is-wrong .you { color: var(--hot); }
+  .res-empty {
+    font-family: 'VT323', monospace;
+    font-size: 1.3rem;
+    color: var(--dim);
+    letter-spacing: 0.1em;
+    padding: 4px 0;
+  }
+  .res-empty.good { color: var(--acid); }
+  .res-btns {
+    display: flex;
+    gap: 14px;
+    margin-top: 32px;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .res-btns .start-btn { width: auto; flex: 1; max-width: 320px; }
+  .res-btns .hud-btn { flex: 0 0 auto; padding: 12px 20px; font-size: 1.2rem; }
+
   /* ===== LAPTOP / DESKTOP: fit the menu on one screen ===== */
   @media (min-width: 640px) {
     #menu { height: 100vh; height: 100dvh; min-height: 0; }
+    .opts { grid-template-columns: repeat(3, 1fr); column-gap: 16px; }
+    .seg-btn { font-size: 0.8rem; }
     .tables-grid { grid-template-columns: repeat(10, 1fr); }
     .table-btn { aspect-ratio: 1.15; }
     .section-title { margin: 18px 0 10px; }
     .start-wrap { margin-top: 26px; }
     footer { padding-top: 12px; }
   }
-  @media (min-width: 640px) and (max-height: 720px) {
+  @media (min-width: 640px) and (max-height: 760px) {
     #menu { padding-top: 14px; padding-bottom: 10px; }
     header { padding-bottom: 10px; }
     .logo { font-size: 2rem; }
     .menu-best { margin-top: 6px; }
     .section-title { margin: 12px 0 8px; }
-    .speed-btn { padding: 9px 8px; }
-    .speed-btn .secs { font-size: 1.15rem; margin-top: 0; }
+    .seg-btn { padding: 9px 4px; }
+    .seg-btn .secs { font-size: 1.15rem; margin-top: 0; }
     .table-btn { aspect-ratio: 1.45; font-size: 1.45rem; }
     .start-wrap { margin-top: 18px; gap: 6px; }
     .start-btn { padding: 13px 36px; }
     footer { padding-top: 8px; }
   }
-  @media (min-width: 640px) and (max-height: 560px) {
+  @media (min-width: 640px) and (max-height: 600px) {
     .table-btn { aspect-ratio: 1.9; font-size: 1.3rem; }
-    .menu-best, footer { display: none; }
+    .menu-best, footer, .start-hint { display: none; }
   }
 
   @media (max-width: 480px) {
@@ -506,6 +665,8 @@
     .hud-btn { padding: 6px 10px; }
     .stat { padding: 6px 10px; }
     button.go { padding: 0 16px; }
+    .device-toggle button { padding: 5px 7px; font-size: 0.95rem; }
+    .res-row { font-size: 1.2rem; gap: 6px; padding: 6px 8px; grid-template-columns: 1.6em 1fr auto 3.6em; }
   }
 </style>
 </head>
@@ -514,16 +675,42 @@
 <!-- ===================== MENU ===================== -->
 <div class="screen" id="menu">
   <header>
-    <div class="logo">multi<span class="x">×</span>ply</div>
-    <div class="tag">arcade math v3.0</div>
+    <div>
+      <div class="logo">multi<span class="x">×</span>ply</div>
+      <div class="tag">arcade math v4.0</div>
+    </div>
+    <div class="device-toggle" id="deviceToggle" role="group" aria-label="input mode">
+      <button data-device="computer" title="type with your keyboard">⌨ computer</button>
+      <button data-device="phone" title="on-screen number pad">▦ phone</button>
+    </div>
   </header>
-  <div class="menu-best">best streak · <b id="menuBest">0</b></div>
+  <div class="menu-best" id="menuBest">&nbsp;</div>
 
-  <div class="section-title">speed</div>
-  <div class="speed-toggle" id="speedToggle">
-    <button class="speed-btn" data-speed="slow">SLOW<span class="secs">15s</span></button>
-    <button class="speed-btn active" data-speed="medium">MEDIUM<span class="secs">8s</span></button>
-    <button class="speed-btn" data-speed="fast">FAST<span class="secs">4s</span></button>
+  <div class="opts">
+    <div class="opt">
+      <div class="section-title">mode</div>
+      <div class="seg" id="modeToggle">
+        <button class="seg-btn" data-mode="classic">CLASSIC<span class="secs">streak</span></button>
+        <button class="seg-btn" data-mode="race">RACE<span class="secs">vs clock</span></button>
+        <button class="seg-btn" data-mode="check">CHECK<span class="secs">10 q test</span></button>
+      </div>
+    </div>
+    <div class="opt">
+      <div class="section-title">operation</div>
+      <div class="seg" id="opsToggle">
+        <button class="seg-btn" data-ops="mul">TIMES<span class="secs">×</span></button>
+        <button class="seg-btn" data-ops="div">DIVIDE<span class="secs">÷</span></button>
+        <button class="seg-btn" data-ops="mix">MIX<span class="secs">× ÷</span></button>
+      </div>
+    </div>
+    <div class="opt">
+      <div class="section-title" id="speedTitle">time limit</div>
+      <div class="seg" id="speedToggle">
+        <button class="seg-btn" data-speed="slow">SLOW<span class="secs">15s</span></button>
+        <button class="seg-btn" data-speed="medium">MEDIUM<span class="secs">8s</span></button>
+        <button class="seg-btn" data-speed="fast">FAST<span class="secs">4s</span></button>
+      </div>
+    </div>
   </div>
 
   <div class="section-title">times tables</div>
@@ -538,7 +725,7 @@
 
   <div class="start-wrap">
     <button class="start-btn" id="startBtn">▶ START</button>
-    <div class="start-hint">opens full screen · esc or ✕ to quit</div>
+    <div class="start-hint" id="startHint">opens full screen · esc or ✕ to quit</div>
   </div>
 
   <footer>insert coin to continue <span class="blink">_</span></footer>
@@ -549,20 +736,20 @@
   <div class="hud">
     <div class="stats">
       <div class="stat">
-        <div class="stat-label">streak</div>
+        <div class="stat-label" id="l1">streak</div>
         <div class="stat-val streak" id="streakVal">0</div>
       </div>
       <div class="stat">
-        <div class="stat-label">best</div>
+        <div class="stat-label" id="l2">best</div>
         <div class="stat-val" id="bestVal">0</div>
       </div>
       <div class="stat">
-        <div class="stat-label">time</div>
+        <div class="stat-label" id="l3">time</div>
         <div class="stat-val time" id="timeVal">--</div>
       </div>
     </div>
     <div class="hud-btns">
-      <button class="hud-btn" id="resetBtn" title="reset streak">↺ RESET</button>
+      <button class="hud-btn" id="resetBtn" title="reset">↺ RESET</button>
       <button class="hud-btn" id="quitBtn" title="back to menu">✕ MENU</button>
     </div>
   </div>
@@ -571,16 +758,30 @@
     <div class="problem-tag">// solve</div>
     <div class="equation" id="equation">
       <span class="num" id="a">7</span>
-      <span class="op">×</span>
+      <span class="op" id="op">×</span>
       <span class="num" id="b">8</span>
       <span class="eq">=</span>
       <span class="num q">?</span>
     </div>
     <div class="answer-row">
-      <input class="answer" id="answer" type="number" inputmode="numeric" autocomplete="off" placeholder="answer">
+      <input class="answer" id="answer" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="answer">
       <button class="go" id="goBtn">ENTER</button>
     </div>
     <div class="feedback" id="feedback">&nbsp;</div>
+    <div class="numpad" id="numpad">
+      <button class="key" data-k="1">1</button>
+      <button class="key" data-k="2">2</button>
+      <button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button>
+      <button class="key" data-k="5">5</button>
+      <button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button>
+      <button class="key" data-k="8">8</button>
+      <button class="key" data-k="9">9</button>
+      <button class="key back" data-k="back" aria-label="delete">⌫</button>
+      <button class="key" data-k="0">0</button>
+      <button class="key enter" data-k="enter">ENTER</button>
+    </div>
   </div>
 
   <div class="timer-bar-wrap">
@@ -594,37 +795,76 @@
   <div class="countdown hidden" id="countdown"></div>
 </div>
 
+<!-- ===================== RESULTS ===================== -->
+<div class="screen hidden" id="results">
+  <div id="resBody"></div>
+  <div class="res-btns">
+    <button class="start-btn" id="againBtn">▶ AGAIN</button>
+    <button class="hud-btn" id="resMenuBtn">✕ MENU</button>
+  </div>
+</div>
+
 <script>
+  // ===== STORAGE (safe) =====
+  function load(k, d) {
+    try { const v = localStorage.getItem('multiply.' + k); return v === null ? d : JSON.parse(v); }
+    catch (_) { return d; }
+  }
+  function save(k, v) {
+    try { localStorage.setItem('multiply.' + k, JSON.stringify(v)); } catch (_) {}
+  }
+  function pickValid(v, allowed, d) { return allowed.includes(v) ? v : d; }
+
+  // ===== CONFIG =====
+  const SPEED_SECS = { slow: 15, medium: 8, fast: 4 };   // classic: time limit per problem
+  const SLOW_AT    = { slow: 8,  medium: 5, fast: 3 };   // check: "slow" threshold
+  const RACE_COUNT = 20;
+  const CHECK_COUNT = 10;
+  const PENALTY = 2;                                     // race: seconds added per miss
+  const OP_SYM = { mul: '×', div: '÷' };
+  const OPS_NAME = { mul: '×', div: '÷', mix: '× ÷' };
+
+  const defaultDevice = (window.matchMedia && matchMedia('(pointer: coarse)').matches) ? 'phone' : 'computer';
+  const savedTables = (load('tables', [1,2,3,4,5,6]) || []).filter(n => Number.isInteger(n) && n >= 1 && n <= 20);
+
   // ===== STATE =====
   const state = {
-    speed: 'medium',
-    selectedTables: new Set([1,2,3,4,5,6]),
+    mode:   pickValid(load('mode', 'classic'), ['classic', 'race', 'check'], 'classic'),
+    ops:    pickValid(load('ops', 'mul'), ['mul', 'div', 'mix'], 'mul'),
+    speed:  pickValid(load('speed', 'medium'), ['slow', 'medium', 'fast'], 'medium'),
+    device: pickValid(load('device', defaultDevice), ['computer', 'phone'], defaultDevice),
+    selectedTables: new Set(savedTables),
     streak: 0,
-    best: 0,
-    current: { a: 0, b: 0 },
+    best: Number(load('bestStreak', 0)) || 0,
+    raceBest: load('raceBest', {}) || {},
+    current: { a: 0, b: 0, op: 'mul', answer: 0 },
+    lastKey: '',
     timer: null,
-    pending: [],        // queued timeouts (next problem, countdown) so quitting cancels them
+    pending: [],
     timeLeft: 0,
     timeTotal: 0,
     locked: false,
     running: false,
+    screen: 'menu',
+    run: null,
   };
-
-  const SPEED_SECS = { slow: 15, medium: 8, fast: 4 };
 
   // ===== ELEMENTS =====
   const $ = (id) => document.getElementById(id);
   const el = {
-    menu: $('menu'), game: $('game'),
-    menuBest: $('menuBest'),
-    speedToggle: $('speedToggle'),
+    menu: $('menu'), game: $('game'), results: $('results'),
+    menuBest: $('menuBest'), startHint: $('startHint'),
+    deviceToggle: $('deviceToggle'), modeToggle: $('modeToggle'), opsToggle: $('opsToggle'),
+    speedToggle: $('speedToggle'), speedTitle: $('speedTitle'),
     tablesGrid: $('tablesGrid'), tableCount: $('tableCount'), tableMeta: $('tableMeta'),
     allBtn: $('allBtn'), noneBtn: $('noneBtn'), startBtn: $('startBtn'),
-    a: $('a'), b: $('b'), equation: $('equation'),
-    answer: $('answer'), goBtn: $('goBtn'), feedback: $('feedback'),
+    a: $('a'), b: $('b'), op: $('op'), equation: $('equation'),
+    answer: $('answer'), goBtn: $('goBtn'), feedback: $('feedback'), numpad: $('numpad'),
+    l1: $('l1'), l2: $('l2'), l3: $('l3'),
     streakVal: $('streakVal'), bestVal: $('bestVal'), timeVal: $('timeVal'),
     timerBar: $('timerBar'), gameInfo: $('gameInfo'),
     resetBtn: $('resetBtn'), quitBtn: $('quitBtn'), countdown: $('countdown'),
+    resBody: $('resBody'), againBtn: $('againBtn'), resMenuBtn: $('resMenuBtn'),
   };
 
   function later(fn, ms) {
@@ -637,6 +877,81 @@
   function clearPending() {
     state.pending.forEach(clearTimeout);
     state.pending = [];
+  }
+  const fmt = (s) => s.toFixed(1) + 's';
+  const now = () => performance.now();
+
+  function showScreen(name) {
+    ['menu', 'game', 'results'].forEach(s => el[s].classList.toggle('hidden', s !== name));
+    state.screen = name;
+    document.body.classList.toggle('playing', name === 'game');
+  }
+
+  // ===== DEVICE (phone / computer) =====
+  function applyDevice() {
+    const phone = state.device === 'phone';
+    document.body.classList.toggle('phone', phone);
+    el.answer.readOnly = phone;
+    el.answer.setAttribute('inputmode', phone ? 'none' : 'numeric');
+    el.deviceToggle.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.device === state.device));
+    el.startHint.textContent = phone
+      ? 'opens full screen · on-screen number pad'
+      : 'opens full screen · esc or ✕ to quit';
+  }
+  el.deviceToggle.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    state.device = btn.dataset.device;
+    save('device', state.device);
+    applyDevice();
+  });
+  function focusAnswer() {
+    if (state.device !== 'phone') el.answer.focus();
+  }
+
+  // ===== MENU: SEGMENTED TOGGLES =====
+  function bindSeg(container, key) {
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.seg-btn');
+      if (!btn) return;
+      state[key] = btn.dataset[key];
+      save(key, state[key]);
+      refreshMenu();
+    });
+  }
+  bindSeg(el.modeToggle, 'mode');
+  bindSeg(el.opsToggle, 'ops');
+  bindSeg(el.speedToggle, 'speed');
+
+  function raceKey() {
+    return state.ops + '|' + [...state.selectedTables].sort((x, y) => x - y).join(',');
+  }
+
+  function refreshMenu() {
+    const mark = (container, key) =>
+      container.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset[key] === state[key]));
+    mark(el.modeToggle, 'mode');
+    mark(el.opsToggle, 'ops');
+    mark(el.speedToggle, 'speed');
+
+    // speed section means different things per mode
+    const secs = state.mode === 'check' ? SLOW_AT : SPEED_SECS;
+    el.speedToggle.querySelectorAll('.seg-btn').forEach(b => {
+      b.querySelector('.secs').textContent = (state.mode === 'check' ? '>' : '') + secs[b.dataset.speed] + 's';
+    });
+    el.speedTitle.textContent =
+      state.mode === 'classic' ? 'time limit' :
+      state.mode === 'check'   ? 'slow if over' : 'speed · n/a';
+    el.speedToggle.classList.toggle('off', state.mode === 'race');
+
+    if (state.mode === 'classic') {
+      el.menuBest.innerHTML = `best streak · <b>${state.best}</b>`;
+    } else if (state.mode === 'race') {
+      const b = state.raceBest[raceKey()];
+      el.menuBest.innerHTML = `${RACE_COUNT} problems · best time <b>${b != null ? fmt(b) : '--'}</b>`;
+    } else {
+      el.menuBest.innerHTML = `${CHECK_COUNT} questions · slow over <b>${SLOW_AT[state.speed]}s</b>`;
+    }
   }
 
   // ===== MENU: TIMES TABLE GRID =====
@@ -665,6 +980,8 @@
     el.tableCount.textContent = c === 0 ? 'pick at least one' : `${c} table${c === 1 ? '' : 's'} selected`;
     el.tableMeta.classList.toggle('warn', c === 0);
     el.startBtn.disabled = c === 0;
+    save('tables', [...state.selectedTables]);
+    refreshMenu();
   }
 
   el.allBtn.addEventListener('click', () => {
@@ -678,19 +995,11 @@
     updateTableCount();
   });
 
-  // ===== MENU: SPEED =====
-  el.speedToggle.addEventListener('click', (e) => {
-    const btn = e.target.closest('.speed-btn');
-    if (!btn) return;
-    state.speed = btn.dataset.speed;
-    el.speedToggle.querySelectorAll('.speed-btn').forEach(b => b.classList.toggle('active', b === btn));
-  });
-
   // ===== FULLSCREEN HELPERS =====
   function enterFullscreen() {
     const root = document.documentElement;
     const req = root.requestFullscreen || root.webkitRequestFullscreen;
-    if (req && !document.fullscreenElement) {
+    if (req && !(document.fullscreenElement || document.webkitFullscreenElement)) {
       try { const p = req.call(root); if (p && p.catch) p.catch(() => {}); } catch (_) {}
     }
   }
@@ -705,21 +1014,55 @@
   function startGame() {
     if (state.selectedTables.size === 0) return;
     enterFullscreen();
-    state.running = true;
-    document.body.classList.add('playing');
-    el.menu.classList.add('hidden');
-    el.game.classList.remove('hidden');
+    showScreen('game');
+    setupHud();
+    beginRun();
+  }
 
+  function setupHud() {
     const n = state.selectedTables.size;
-    el.gameInfo.textContent = `${state.speed} · ${n} table${n === 1 ? '' : 's'}`;
+    const tablesTxt = `${n} table${n === 1 ? '' : 's'}`;
+    el.streakVal.classList.remove('fire');
+    el.timeVal.classList.remove('low');
+    el.timerBar.classList.remove('low');
+    if (state.mode === 'classic') {
+      el.l1.textContent = 'streak'; el.l2.textContent = 'best'; el.l3.textContent = 'time';
+      el.resetBtn.textContent = '↺ RESET';
+      el.gameInfo.textContent = `classic · ${OPS_NAME[state.ops]} · ${state.speed} · ${tablesTxt}`;
+    } else if (state.mode === 'race') {
+      el.l1.textContent = 'done'; el.l2.textContent = 'best'; el.l3.textContent = 'time';
+      el.resetBtn.textContent = '↺ RESTART';
+      el.gameInfo.textContent = `race · ${OPS_NAME[state.ops]} · ${RACE_COUNT} problems · ${tablesTxt}`;
+    } else {
+      el.l1.textContent = 'question'; el.l2.textContent = 'slow at'; el.l3.textContent = 'time';
+      el.resetBtn.textContent = '↺ RESTART';
+      el.gameInfo.textContent = `check · ${OPS_NAME[state.ops]} · ${CHECK_COUNT} questions · ${tablesTxt}`;
+    }
+  }
+
+  function beginRun() {
+    stopTimer();
+    clearPending();
+    state.running = true;
+    state.locked = true;
+    state.lastKey = '';
+    state.run = {
+      index: 0,
+      total: state.mode === 'race' ? RACE_COUNT : state.mode === 'check' ? CHECK_COUNT : 0,
+      start: 0, penalty: 0, mistakes: 0, qStart: 0, log: [],
+    };
     el.feedback.textContent = '\u00A0';
     el.feedback.className = 'feedback';
     el.answer.value = '';
-    el.timerBar.style.width = '100%';
-    el.timerBar.classList.remove('low');
-    el.timeVal.textContent = '--';
-    el.timeVal.classList.remove('low');
-    resetStreak();
+    el.answer.classList.remove('wrong');
+    if (state.mode === 'classic') {
+      el.timerBar.style.width = '100%';
+      el.timeVal.textContent = '--';
+      resetStreak();
+    } else {
+      el.timerBar.style.width = '0%';
+      updateRunHud();
+    }
     runCountdown(3);
   }
 
@@ -729,7 +1072,7 @@
       if (!state.running) return;
       if (k === 0) {
         el.countdown.innerHTML = '<span>go</span>';
-        later(() => { el.countdown.classList.add('hidden'); newProblem(); }, 450);
+        later(() => { el.countdown.classList.add('hidden'); startRun(); }, 450);
         return;
       }
       el.countdown.innerHTML = `<span>${k}</span>`;
@@ -738,50 +1081,81 @@
     tick(n);
   }
 
-  function quitGame() {
+  function startRun() {
     if (!state.running) return;
+    if (state.mode !== 'classic') {
+      state.run.start = now();
+      state.timer = setInterval(updateRunHud, 100);
+    }
+    newProblem();
+  }
+
+  function quitGame() {
+    if (state.screen !== 'game') return;
     state.running = false;
     stopTimer();
     clearPending();
     el.countdown.classList.add('hidden');
-    document.body.classList.remove('playing');
-    el.game.classList.add('hidden');
-    el.menu.classList.remove('hidden');
-    el.menuBest.textContent = state.best;
+    toMenu();
+  }
+
+  function toMenu() {
+    showScreen('menu');
+    refreshMenu();
     exitFullscreen();
     window.scrollTo(0, 0);
   }
 
   el.startBtn.addEventListener('click', startGame);
   el.quitBtn.addEventListener('click', quitGame);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && state.running) quitGame();
-  });
+  el.againBtn.addEventListener('click', startGame);
+  el.resMenuBtn.addEventListener('click', toMenu);
 
   // ===== PROBLEM GENERATION =====
+  function makeProblem() {
+    const tables = [...state.selectedTables];
+    let p, tries = 0;
+    do {
+      const t = tables[Math.floor(Math.random() * tables.length)];
+      const k = Math.floor(Math.random() * 12) + 1;
+      const op = state.ops === 'mix' ? (Math.random() < 0.5 ? 'mul' : 'div') : state.ops;
+      if (op === 'mul') {
+        const swap = Math.random() < 0.5;
+        p = { a: swap ? k : t, b: swap ? t : k, op, answer: t * k };
+      } else {
+        // dividing by the chosen table: (t × k) ÷ t = k
+        p = { a: t * k, b: t, op, answer: k };
+      }
+      p.key = p.a + p.op + p.b;
+    } while (p.key === state.lastKey && ++tries < 10);
+    state.lastKey = p.key;
+    return p;
+  }
+
   function newProblem() {
     if (!state.running) return;
-    const tables = [...state.selectedTables];
-    const fromTable = tables[Math.floor(Math.random() * tables.length)];
-    const oneToTwelve = Math.floor(Math.random() * 12) + 1;
-    if (Math.random() < 0.5) {
-      state.current.a = fromTable; state.current.b = oneToTwelve;
-    } else {
-      state.current.a = oneToTwelve; state.current.b = fromTable;
-    }
-    el.a.textContent = state.current.a;
-    el.b.textContent = state.current.b;
+    const p = makeProblem();
+    state.current = p;
+    el.a.textContent = p.a;
+    el.b.textContent = p.b;
+    el.op.textContent = OP_SYM[p.op];
+    el.equation.classList.toggle('long', String(p.a).length + String(p.b).length > 4);
     el.equation.classList.remove('flash');
     void el.equation.offsetWidth;
     el.equation.classList.add('flash');
     el.answer.value = '';
     el.answer.classList.remove('wrong');
-    el.answer.focus();
+    focusAnswer();
     state.locked = false;
-    startTimer();
+    if (state.mode === 'classic') {
+      startTimer();
+    } else {
+      state.run.qStart = now();
+      updateRunHud();
+    }
   }
 
-  // ===== TIMER =====
+  // ===== CLASSIC TIMER =====
   function startTimer() {
     stopTimer();
     state.timeTotal = SPEED_SECS[state.speed];
@@ -817,42 +1191,85 @@
     if (state.locked) return;
     state.locked = true;
     stopTimer();
-    const correct = state.current.a * state.current.b;
-    el.feedback.textContent = `× time! answer was ${correct} ×`;
+    el.feedback.textContent = `× time! answer was ${state.current.answer} ×`;
     el.feedback.className = 'feedback lose';
     resetStreak();
     later(newProblem, 1400);
   }
 
-  // ===== ANSWER CHECK =====
-  function checkAnswer() {
-    if (state.locked || !state.running) return;
-    const val = parseInt(el.answer.value, 10);
-    if (isNaN(val)) {
-      el.answer.classList.add('wrong');
-      setTimeout(() => el.answer.classList.remove('wrong'), 300);
-      return;
+  // ===== RACE / CHECK HUD =====
+  function elapsed() {
+    const r = state.run;
+    return r && r.start ? (now() - r.start) / 1000 : 0;
+  }
+
+  function updateRunHud() {
+    const r = state.run;
+    if (!r || state.mode === 'classic') return;
+    el.timeVal.textContent = fmt(elapsed() + r.penalty);
+    el.timerBar.style.width = (r.index / r.total * 100) + '%';
+    if (state.mode === 'race') {
+      el.streakVal.textContent = `${r.index}/${r.total}`;
+      const b = state.raceBest[raceKey()];
+      el.bestVal.textContent = b != null ? fmt(b) : '--';
+    } else {
+      el.streakVal.textContent = `${Math.min(r.index + 1, r.total)}/${r.total}`;
+      el.bestVal.textContent = SLOW_AT[state.speed] + 's';
     }
-    const correct = state.current.a * state.current.b;
-    if (val === correct) {
+  }
+
+  // ===== INPUT =====
+  function shake() {
+    el.answer.classList.remove('wrong');
+    void el.answer.offsetWidth;
+    el.answer.classList.add('wrong');
+    setTimeout(() => el.answer.classList.remove('wrong'), 300);
+  }
+
+  function onAnswerInput() {
+    const clean = el.answer.value.replace(/\D/g, '').slice(0, 4);
+    if (clean !== el.answer.value) el.answer.value = clean;
+    if (state.mode === 'race') raceInput();
+  }
+
+  function press(k) {
+    if (!state.running) return;
+    if (k === 'enter') { submit(); return; }
+    if (state.locked) return;
+    let v = el.answer.value;
+    if (k === 'back') v = v.slice(0, -1);
+    else if (v.length < 4) v += k;
+    el.answer.value = v;
+    onAnswerInput();
+  }
+
+  function submit() {
+    if (!state.running || state.locked) return;
+    if (state.mode === 'classic') checkAnswer();
+    else if (state.mode === 'race') raceSubmit();
+    else checkSubmit();
+  }
+
+  // ===== CLASSIC: ANSWER CHECK =====
+  function checkAnswer() {
+    const val = parseInt(el.answer.value, 10);
+    if (isNaN(val)) { shake(); return; }
+    if (val === state.current.answer) {
       state.locked = true;
       stopTimer();
       state.streak++;
-      if (state.streak > state.best) state.best = state.streak;
+      if (state.streak > state.best) { state.best = state.streak; save('bestStreak', state.best); }
       updateStreakUI();
       el.feedback.textContent = `✓ correct · +1 streak`;
       el.feedback.className = 'feedback win';
       later(newProblem, 700);
     } else {
-      el.answer.classList.add('wrong');
+      shake();
+      el.answer.value = '';
       el.feedback.textContent = `× ${val} is wrong, try again`;
       el.feedback.className = 'feedback lose';
-      setTimeout(() => {
-        el.answer.classList.remove('wrong');
-        el.answer.value = '';
-        el.answer.focus();
-      }, 350);
       resetStreak();
+      focusAnswer();
     }
   }
 
@@ -862,29 +1279,187 @@
   }
 
   function updateStreakUI() {
+    if (state.mode !== 'classic') return;
     el.streakVal.textContent = state.streak;
     el.bestVal.textContent = state.best;
-    el.menuBest.textContent = state.best;
     el.streakVal.classList.toggle('fire', state.streak >= 5);
   }
 
-  el.goBtn.addEventListener('click', checkAnswer);
+  // ===== RACE: auto-advance on the right answer =====
+  function raceInput() {
+    if (!state.running || state.locked) return;
+    const v = el.answer.value;
+    if (!v) return;
+    const ans = String(state.current.answer);
+    if (v === ans) raceHit();
+    else if (v.length >= ans.length) raceMiss(v);
+  }
+
+  function raceSubmit() {
+    const v = el.answer.value;
+    if (!v) { shake(); return; }
+    if (v === String(state.current.answer)) raceHit();
+    else raceMiss(v);
+  }
+
+  function raceHit() {
+    state.locked = true;
+    const r = state.run;
+    r.log.push({ ...state.current, time: (now() - r.qStart) / 1000 });
+    r.index++;
+    if (r.index >= r.total) { finishRun(); return; }
+    const left = r.total - r.index;
+    el.feedback.textContent = `✓ ${left} to go`;
+    el.feedback.className = 'feedback win';
+    newProblem();
+  }
+
+  function raceMiss(v) {
+    const r = state.run;
+    r.mistakes++;
+    r.penalty += PENALTY;
+    shake();
+    el.answer.value = '';
+    el.feedback.textContent = `× ${v} · +${PENALTY}s`;
+    el.feedback.className = 'feedback lose';
+    updateRunHud();
+  }
+
+  // ===== CHECK: record silently, report at the end =====
+  function checkSubmit() {
+    const v = el.answer.value;
+    if (!v) { shake(); return; }
+    state.locked = true;
+    const r = state.run;
+    r.log.push({ ...state.current, given: parseInt(v, 10), time: (now() - r.qStart) / 1000 });
+    r.index++;
+    el.feedback.textContent = r.index >= r.total ? '▸ done · scoring…' : `▸ saved · ${r.total - r.index} left`;
+    el.feedback.className = 'feedback neutral';
+    updateRunHud();
+    if (r.index >= r.total) later(finishRun, 250);
+    else later(newProblem, 150);
+  }
+
+  // ===== RESULTS =====
+  function rowHTML(p, i, slowAt) {
+    const hasGiven = p.given !== undefined;
+    const wrong = hasGiven && p.given !== p.answer;
+    const slow = slowAt != null && p.time > slowAt;
+    const you = !hasGiven ? '' : wrong ? `you: ${p.given}` : '✓';
+    return `<div class="res-row${wrong ? ' is-wrong' : ''}${slow ? ' is-slow' : ''}">
+      <span class="n">${String(i + 1).padStart(2, '0')}</span>
+      <span class="pq">${p.a} ${OP_SYM[p.op]} ${p.b} = <b>${p.answer}</b></span>
+      <span class="you">${you}</span>
+      <span class="t">${slow ? '⏱' : ''}${p.time.toFixed(1)}s</span>
+    </div>`;
+  }
+
+  function finishRun() {
+    const r = state.run;
+    const total = elapsed() + r.penalty;
+    state.running = false;
+    state.locked = true;
+    stopTimer();
+    clearPending();
+
+    if (state.mode === 'race') {
+      const key = raceKey();
+      const prev = state.raceBest[key];
+      const record = prev == null || total < prev;
+      if (record) { state.raceBest[key] = total; save('raceBest', state.raceBest); }
+      const sub = record
+        ? `<div class="res-sub record">★ new record${prev != null ? ` · ${(prev - total).toFixed(1)}s faster` : ''}</div>`
+        : `<div class="res-sub">best ${fmt(prev)} · ${(total - prev).toFixed(1)}s off the pace</div>`;
+      const slowest = r.log.map((p, i) => ({ p, i })).sort((x, y) => y.p.time - x.p.time).slice(0, 3);
+      el.resBody.innerHTML = `
+        <div class="res-kicker">race · ${OPS_NAME[state.ops]} · ${r.total} problems</div>
+        <div class="res-big">${total.toFixed(1)}<span>s</span></div>
+        ${sub}
+        <div class="chips">
+          <div class="chip ${r.mistakes ? 'bad' : 'good'}">misses <b>${r.mistakes}</b>${r.mistakes ? ` (+${r.penalty}s)` : ''}</div>
+          <div class="chip">avg <b>${(total / r.total).toFixed(2)}s</b> / problem</div>
+        </div>
+        <div class="section-title">slowest 3</div>
+        <div class="res-list">${slowest.map(({ p, i }) => rowHTML(p, i, null)).join('')}</div>`;
+    } else {
+      const slowAt = SLOW_AT[state.speed];
+      const wrong = r.log.map((p, i) => ({ p, i })).filter(x => x.p.given !== x.p.answer);
+      const slow = r.log.map((p, i) => ({ p, i })).filter(x => x.p.time > slowAt);
+      const score = r.total - wrong.length;
+      const avg = r.log.reduce((s, p) => s + p.time, 0) / r.log.length;
+      const msg =
+        score === r.total && slow.length === 0 ? 'flawless · fast and correct' :
+        score === r.total ? 'all correct · work on speed' :
+        score >= r.total - 2 ? 'nearly there' : 'keep practicing these';
+      el.resBody.innerHTML = `
+        <div class="res-kicker">check · ${OPS_NAME[state.ops]} · ${r.total} questions</div>
+        <div class="res-big">${score}<span>/${r.total}</span></div>
+        <div class="res-sub${score === r.total ? ' record' : ''}">${msg}</div>
+        <div class="chips">
+          <div class="chip ${wrong.length ? 'bad' : 'good'}">wrong <b>${wrong.length}</b></div>
+          <div class="chip ${slow.length ? 'slow' : 'good'}">slow <b>${slow.length}</b> (over ${slowAt}s)</div>
+          <div class="chip">avg <b>${avg.toFixed(1)}s</b></div>
+        </div>
+        <div class="section-title">got wrong</div>
+        <div class="res-list">${wrong.length
+          ? wrong.map(({ p, i }) => rowHTML(p, i, slowAt)).join('')
+          : '<div class="res-empty good">none · every answer correct</div>'}</div>
+        <div class="section-title">too slow · over ${slowAt}s</div>
+        <div class="res-list">${slow.length
+          ? slow.map(({ p, i }) => rowHTML(p, i, slowAt)).join('')
+          : '<div class="res-empty good">none · all under ' + slowAt + 's</div>'}</div>
+        <div class="section-title">all ${r.total}</div>
+        <div class="res-list">${r.log.map((p, i) => rowHTML(p, i, slowAt)).join('')}</div>`;
+    }
+    document.activeElement && document.activeElement.blur && document.activeElement.blur();
+    showScreen('results');
+    window.scrollTo(0, 0);
+  }
+
+  // ===== EVENTS =====
+  el.goBtn.addEventListener('click', submit);
+  el.answer.addEventListener('input', onAnswerInput);
   el.answer.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') checkAnswer();
+    if (state.device === 'phone') return;      // handled by the document listener
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
   });
+
+  el.numpad.addEventListener('pointerdown', (e) => {
+    const key = e.target.closest('.key');
+    if (!key) return;
+    e.preventDefault();
+    key.classList.add('pressed');
+    setTimeout(() => key.classList.remove('pressed'), 110);
+    press(key.dataset.k);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (state.screen === 'game') quitGame();
+      else if (state.screen === 'results') toMenu();
+      return;
+    }
+    if (state.screen !== 'game' || state.device !== 'phone') return;
+    if (/^[0-9]$/.test(e.key)) { e.preventDefault(); press(e.key); }
+    else if (e.key === 'Backspace') { e.preventDefault(); press('back'); }
+    else if (e.key === 'Enter') { e.preventDefault(); press('enter'); }
+  });
+
   el.resetBtn.addEventListener('click', () => {
+    if (state.mode !== 'classic') { beginRun(); return; }
     resetStreak();
     el.feedback.textContent = '↺ streak reset';
     el.feedback.className = 'feedback';
     setTimeout(() => {
       if (el.feedback.textContent === '↺ streak reset') el.feedback.textContent = '\u00A0';
     }, 1000);
-    el.answer.focus();
+    focusAnswer();
   });
 
   // ===== INIT =====
+  applyDevice();
   buildGrid();
-  updateStreakUI();
+  refreshMenu();
 </script>
 </body>
 </html>
