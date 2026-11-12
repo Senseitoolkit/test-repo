@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>3D Builder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito+Sans:opsz,wght@6..12,500;6..12,700&display=swap">
+<style>
+/* Layout: the 3D world fills the screen like a cutting mat on a workbench; tools float over it as small tool trays. */
+:root {
+  --sky: #cfe2ec;
+  --table: #93a4ad;
+  --panel: #f6f9fb;
+  --chip: #e4ebf1;
+  --line: #cdd8e1;
+  --ink: #14243a;
+  --muted: #56667c;
+  --accent: #ff7a1a;
+  --accent-ink: #2a1300;
+  --select: #1463ff;
+  --danger: #c2311d;
+  --shadow: 0 6px 22px rgba(20, 36, 58, .16);
+  --display: "Fredoka", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  --body: "Nunito Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sky: #0e1724; --table: #1b2733; --panel: #172334; --chip: #24344b; --line: #2f4159;
+    --ink: #eaf0f7; --muted: #9eadc2; --accent: #ff8a33; --accent-ink: #2a1300;
+    --select: #74abff; --danger: #ff7a66; --shadow: 0 6px 22px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --sky: #0e1724; --table: #1b2733; --panel: #172334; --chip: #24344b; --line: #2f4159;
+  --ink: #eaf0f7; --muted: #9eadc2; --accent: #ff8a33; --accent-ink: #2a1300;
+  --select: #74abff; --danger: #ff7a66; --shadow: 0 6px 22px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--sky); color: var(--ink);
+  font-family: var(--body); font-size: 14px; font-weight: 500;
+  overflow: hidden; overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+#app { position: relative; height: 100%; overflow: hidden; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+#handles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+
+/* ---------- floating UI ---------- */
+#ui {
+  position: absolute; inset: 0; pointer-events: none;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 12px;
+  grid-template: "top top top" auto "pal mid side" minmax(0, 1fr) / auto minmax(0, 1fr) auto;
+}
+#ui > * { pointer-events: auto; }
+.tray { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; touch-action: manipulation; }
+button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--select); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+
+#top { grid-area: top; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 10px 8px 14px; }
+#top h1 { font-family: var(--display); font-weight: 600; font-size: 20px; margin: 0; letter-spacing: .01em; white-space: nowrap; }
+#top h1 span { color: var(--accent); }
+.spacer { flex: 1 1 0; }
+.btn {
+  min-height: 38px; padding: 0 12px; border-radius: 10px; background: var(--chip);
+  font-family: var(--display); font-weight: 500; font-size: 15px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:not(:disabled):hover { filter: brightness(.96); }
+.btn:not(:disabled):active { transform: translateY(1px); }
+.btn .g { font-size: 17px; line-height: 1; }
+.modes { display: flex; gap: 6px; align-items: center; }
+#bBuild[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+#bPlay { background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 17px; min-height: 44px; padding: 0 20px; }
+#bPlay[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--accent-ink); }
+.tools { display: flex; gap: 6px; align-items: center; }
+#bClear { color: var(--danger); }
+#bGear { display: none; }
+
+#pal { grid-area: pal; align-self: start; max-height: 100%; overflow-y: auto; padding: 10px; width: 164px; scrollbar-width: thin; }
+#pal h2, #side h2 {
+  font-family: var(--body); font-weight: 700; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--muted); margin: 0 0 6px 2px;
+}
+#pal .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+#pal .grid:last-child { margin-bottom: 0; }
+.part {
+  display: flex; flex-direction: column; align-items: center; gap: 0; padding: 2px 2px 6px;
+  border-radius: 10px; background: var(--chip); font-size: 12px; font-weight: 700; line-height: 1.15;
+  touch-action: pan-y; cursor: grab;
+}
+.part img, .part .ph { width: 56px; height: 56px; pointer-events: none; -webkit-user-drag: none; }
+.part:hover { box-shadow: inset 0 0 0 2px var(--select); }
+#app.playing #pal { opacity: .45; pointer-events: none; }
+
+#side { grid-area: side; align-self: start; max-height: 100%; overflow-y: auto; width: 214px; padding: 12px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; }
+#side section { display: flex; flex-direction: column; gap: 10px; }
+#piece { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+#pName { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 0; }
+#piece .head { display: flex; flex-direction: column; gap: 2px; }
+#pDims { color: var(--muted); font-variant-numeric: tabular-nums; margin: 0; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); }
+.sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--select); }
+.seg { display: flex; background: var(--chip); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { flex: 1; min-height: 32px; border-radius: 8px; font-weight: 700; font-size: 13px; padding: 0 4px; }
+.seg button[aria-pressed="true"] { background: var(--panel); box-shadow: 0 1px 3px rgba(0, 0, 0, .18); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.row .btn { justify-content: center; padding: 0 6px; font-size: 14px; }
+.row .del { color: var(--danger); }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field > span { font-weight: 700; font-size: 13px; }
+.check { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.hint { color: var(--muted); font-size: 12.5px; line-height: 1.4; margin: 0; }
+details summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+details ul { margin: 8px 0 0; padding-left: 16px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+
+#status {
+  grid-area: mid; align-self: end; justify-self: center; pointer-events: none;
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; max-width: 100%;
+  font-weight: 700;
+}
+#status button { pointer-events: auto; }
+#status .btn { min-height: 32px; background: var(--ink); color: var(--panel); }
+#statusMsg { min-width: 0; }
+
+/* ---------- 3D handles ---------- */
+.h {
+  position: absolute; left: 0; top: 0; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  border-radius: 50%; pointer-events: auto; touch-action: none; cursor: grab;
+  background: var(--panel); color: var(--select); border: 2px solid var(--select);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .3); font-size: 16px; line-height: 1; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.h.size { width: 22px; height: 22px; margin: -11px 0 0 -11px; background: var(--select); border-color: var(--panel); }
+.h.size::after { content: ""; position: absolute; inset: -9px; }
+@media (pointer: coarse) {
+  .h { width: 38px; height: 38px; margin: -19px 0 0 -19px; font-size: 19px; }
+  .h.size { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+  .h.size::after { inset: -10px; }
+}
+
+/* ---------- phone and small tablet ---------- */
+@media (max-width: 760px) {
+  #ui { grid-template: "top" auto "mid" minmax(0, 1fr) "side" auto "pal" auto / minmax(0, 1fr); gap: 8px; padding-block: 8px; }
+  #top { padding: 6px 8px; gap: 6px; }
+  #top h1 { display: none; }
+  .btn .t { display: none; }
+  .btn { padding: 0 11px; }
+  #bGear { display: inline-flex; }
+  #pal { width: auto; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 6px; align-self: end; }
+  #pal h2 { display: none; }
+  #pal .grid { display: flex; gap: 6px; margin: 0; }
+  .part { flex: 0 0 66px; touch-action: pan-x; }
+  .part img, .part .ph { width: 48px; height: 48px; }
+  #side { width: auto; max-height: 46vh; padding: 10px; gap: 10px; align-self: end; }
+  #side:not(.has-piece):not(.open) { display: none; }
+  #side:not(.open) #world { display: none; }
+  #side.open #piece { display: none; }
+  #piece { border-bottom: 0; padding-bottom: 0; gap: 8px; }
+  #piece .head { flex-direction: row; align-items: baseline; gap: 10px; }
+  #piece .row { grid-template-columns: repeat(4, 1fr); }
+  #piece .row .btn .t { display: inline; font-size: 12px; }
+  #piece .row .btn .g { display: none; }
+  #piece .hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
+#fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; font-weight: 700; }
+</style>
+
+<div id="app">
+  <canvas id="scene" tabindex="0" aria-label="3D building area"></canvas>
+  <div id="handles"></div>
+
+  <div id="ui">
+    <header id="top" class="tray">
+      <h1>3D <span>Builder</span></h1>
+      <div class="modes" role="group" aria-label="Mode">
+        <button class="btn" id="bBuild" aria-pressed="true">Build</button>
+        <button class="btn" id="bPlay" aria-pressed="false"><span class="g" aria-hidden="true">▶</span> Play</button>
+        <button class="btn" id="bReset" disabled title="Put every piece back where it was before Play"><span class="g" aria-hidden="true">↺</span><span class="t"> Reset</span></button>
+      </div>
+      <span class="spacer"></span>
+      <div class="tools">
+        <button class="btn" id="bUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><span class="g" aria-hidden="true">↶</span><span class="t"> Undo</span></button>
+        <button class="btn" id="bRedo" title="Redo (Ctrl+Y)" aria-label="Redo"><span class="g" aria-hidden="true">↷</span><span class="t"> Redo</span></button>
+        <button class="btn" id="bClear" title="Delete every piece" aria-label="Clear all"><span class="g" aria-hidden="true">✕</span><span class="t"> Clear all</span></button>
+        <button class="btn" id="bGear" aria-label="World settings" aria-pressed="false"><span class="g" aria-hidden="true">⚙</span></button>
+      </div>
+    </header>
+
+    <nav id="pal" class="tray" aria-label="Parts"></nav>
+
+    <div id="status" class="tray" role="status" hidden>
+      <span id="statusMsg"></span>
+      <button class="btn" id="statusUndo" hidden>Undo</button>
+    </div>
+
+    <aside id="side" class="tray">
+      <section id="piece" hidden>
+        <div class="head">
+          <h3 id="pName"></h3>
+          <p id="pDims"></p>
+        </div>
+        <div class="swatches" id="swatches" role="group" aria-label="Colour"></div>
+        <div class="seg" role="group" aria-label="Behaviour in Play">
+          <button id="pAnch" aria-pressed="false">Anchored</button>
+          <button id="pLoose" aria-pressed="false">Loose</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="pRot" title="Turn a quarter (R)"><span class="g" aria-hidden="true">⟳</span><span class="t">Turn</span></button>
+          <button class="btn" id="pTip" title="Tip onto its side (T)"><span class="g" aria-hidden="true">⤵</span><span class="t">Tip</span></button>
+          <button class="btn" id="pDup" title="Duplicate (Ctrl+D). Keep pressing to continue the row."><span class="g" aria-hidden="true">⧉</span><span class="t">Copy</span></button>
+          <button class="btn del" id="pDel" title="Delete (Del, or double-click the piece)"><span class="g" aria-hidden="true">✕</span><span class="t">Delete</span></button>
+        </div>
+        <p class="hint">Drag the blue dots to resize, ↕ to lift, ⟳ to turn.</p>
+      </section>
+
+      <section id="world">
+        <div class="field"><span>Snapping</span>
+          <div class="seg" id="segSnap" role="group" aria-label="Snapping">
+            <button data-v="off">Off</button><button data-v="grid">Grid</button><button data-v="smart">Smart</button>
+          </div>
+        </div>
+        <div class="field"><span>Physics</span>
+          <div class="seg" id="segPhys" role="group" aria-label="Physics preset">
+            <button data-v="gentle">Gentle</button><button data-v="normal">Normal</button><button data-v="chaotic">Chaotic</button>
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" id="cAnchor" checked> Keep buildings standing</label>
+        <p class="hint" id="anchorHint">Building pieces stay put in Play. Balls, dominoes, crates and barrels move.</p>
+        <div class="field"><span>View</span>
+          <div class="seg" id="segView" role="group" aria-label="Camera view">
+            <button data-v="top">Top</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="iso">Corner</button>
+          </div>
+        </div>
+        <details>
+          <summary>Controls</summary>
+          <ul>
+            <li>Drag a part onto the mat to add it</li>
+            <li>Drag a piece to move it</li>
+            <li>Double-click or double-tap a piece to delete it</li>
+            <li>Drag empty space to look around</li>
+            <li>Two fingers: move together to slide the view, twist to spin, spread to zoom out, close to zoom in</li>
+            <li>Mouse: right-drag looks around, middle-drag slides the view, scroll zooms</li>
+            <li>R turn · T tip · Ctrl+D copy · Del delete · Space play</li>
+          </ul>
+        </details>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/oimo@1.0.9/build/oimo.min.js"></script>
+<script>
+(function () {
+'use strict';
+const $ = (s) => document.querySelector(s);
+const app = $('#app'), canvas = $('#scene');
+if (!window.THREE || !window.OIMO) {
+  const d = document.createElement('div'); d.id = 'fail';
+  d.textContent = 'The 3D engine could not load. Check your connection and reload the page.';
+  app.appendChild(d); return;
+}
+const V3 = THREE.Vector3, Q = THREE.Quaternion;
+const UP = new V3(0, 1, 0);
+
+/* ================= parts ================= */
+const PARTS = {
+  cube:   { name: 'Cube',        shape: 'box',    size: [1, 1, 1],      color: '#d8402f', group: 'Building' },
+  block:  { name: 'Block',       shape: 'box',    size: [2, 1, 1],      color: '#2f6fd0', group: 'Building' },
+  plank:  { name: 'Plank',       shape: 'box',    size: [3, 0.25, 1],   color: '#c99a5b', group: 'Building' },
+  pillar: { name: 'Pillar',      shape: 'box',    size: [0.5, 2, 0.5],  color: '#ece7da', group: 'Building' },
+  wall:   { name: 'Wall',        shape: 'box',    size: [3, 2, 0.5],    color: '#f0b429', group: 'Building' },
+  ramp:   { name: 'Ramp',        shape: 'wedge',  size: [3, 1.5, 1],    color: '#2e9e6b', group: 'Building' },
+  column: { name: 'Column',      shape: 'cyl',    size: [1, 2, 1],      color: '#3aa7b5', group: 'Building' },
+  marble: { name: 'Marble',      shape: 'sphere', size: [0.5, 0.5, 0.5], color: '#2f6fd0', group: 'Moving', loose: true, density: 2, rest: 0.3 },
+  bouncy: { name: 'Bouncy ball', shape: 'sphere', size: [0.75, 0.75, 0.75], color: '#e667a0', group: 'Moving', loose: true, density: 0.6, rest: 0.92 },
+  heavy:  { name: 'Heavy ball',  shape: 'sphere', size: [1, 1, 1],      color: '#3b3f4a', group: 'Moving', loose: true, density: 6, rest: 0.05 },
+  domino: { name: 'Domino',      shape: 'box',    size: [0.2, 1, 0.5],  color: '#ece7da', group: 'Moving', loose: true },
+  crate:  { name: 'Crate',       shape: 'box',    size: [1, 1, 1],      color: '#c99a5b', group: 'Moving', loose: true },
+  barrel: { name: 'Barrel',      shape: 'cyl',    size: [1, 1.25, 1],   color: '#d8402f', group: 'Moving', loose: true, tip: true },
+};
+const COLORS = ['#d8402f', '#f0b429', '#2e9e6b', '#3aa7b5', '#2f6fd0', '#e667a0', '#c99a5b', '#ece7da', '#3b3f4a'];
+const COLOR_NAMES = ['Red', 'Yellow', 'Green', 'Teal', 'Blue', 'Pink', 'Wood', 'Ivory', 'Iron'];
+const PRESETS = {
+  gentle:  { g: -4.5,  bounce: 0.6, lin: 0.25, ang: 0.35 },
+  normal:  { g: -9.8,  bounce: 1,   lin: 0.04, ang: 0.12 },
+  chaotic: { g: -15,   bounce: 1.6, lin: 0,    ang: 0 },
+};
+const BOUND = 14.5, MIN_SIZE = 0.25, MAX_SIZE = 12;
+
+/* ================= state ================= */
+let objects = [];
+let selected = null;
+let mode = 'build';
+let snap = 'smart', preset = 'normal', anchorAll = true;
+let nextId = 1;
+let hist = [], hi = -1;
+
+/* ================= three setup ================= */
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xffffff, 60, 170);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
+
+const hemi = new THREE.HemisphereLight(0xffffff, 0x8a8f99, 0.75);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(12, 24, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 70 });
+sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
+scene.add(sun);
+
+// The building surface: a cutting mat, one square per block.
+function matTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 1920;
+  const g = c.getContext('2d'), u = 64;
+  g.fillStyle = '#1f6f60'; g.fillRect(0, 0, 1920, 1920);
+  for (let i = 0; i <= 60; i++) {
+    const p = i * u / 2, whole = i % 2 === 0, five = i % 10 === 0;
+    g.strokeStyle = five ? 'rgba(214,244,232,.75)' : whole ? 'rgba(214,244,232,.38)' : 'rgba(214,244,232,.13)';
+    g.lineWidth = five ? 4 : 2;
+    g.beginPath(); g.moveTo(p, 0); g.lineTo(p, 1920); g.moveTo(0, p); g.lineTo(1920, p); g.stroke();
+  }
+  g.strokeStyle = 'rgba(214,244,232,.9)'; g.lineWidth = 12; g.strokeRect(6, 6, 1908, 1908);
+  const t = new THREE.CanvasTexture(c);
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return t;
+}
+const matMat = new THREE.MeshStandardMaterial({ map: matTexture(), roughness: 0.95 });
+const mat = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), matMat);
+mat.rotation.x = -Math.PI / 2; mat.receiveShadow = true; scene.add(mat);
+const tableMat = new THREE.MeshStandardMaterial({ color: 0x93a4ad, roughness: 1 });
+const table = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), tableMat);
+table.rotation.x = -Math.PI / 2; table.position.y = -0.03; table.receiveShadow = true; scene.add(table);
+
+function cssColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+let selColor = new THREE.Color('#1463ff');
+function applyTheme() {
+  const sky = new THREE.Color(cssColor('--sky') || '#cfe2ec');
+  scene.background = sky; scene.fog.color = sky;
+  tableMat.color.set(cssColor('--table') || '#93a4ad');
+  const dark = sky.getHSL({}).l < 0.4;
+  matMat.color.setScalar(dark ? 0.72 : 1);
+  hemi.intensity = dark ? 0.6 : 0.75;
+  selColor.set(cssColor('--select') || '#1463ff');
+  selMat.color.copy(selColor);
+}
+
+/* ================= geometry ================= */
+function wedgeGeometry() {
+  const A = [-.5, -.5, -.5], B = [.5, -.5, -.5], C = [.5, -.5, .5], D = [-.5, -.5, .5], E = [.5, .5, -.5], F = [.5, .5, .5];
+  const tris = [A, B, C, A, C, D, B, E, F, B, F, C, A, D, F, A, F, E, A, E, B, D, C, F];
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3));
+  g.computeVertexNormals();
+  return g;
+}
+const GEO = {
+  box: new THREE.BoxGeometry(1, 1, 1),
+  sphere: new THREE.SphereGeometry(0.5, 28, 18),
+  cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 28),
+  wedge: wedgeGeometry(),
+};
+const EDGE = {
+  box: new THREE.EdgesGeometry(GEO.box),
+  sphere: new THREE.EdgesGeometry(GEO.box),
+  cyl: new THREE.EdgesGeometry(GEO.cyl, 30),
+  wedge: new THREE.EdgesGeometry(GEO.wedge),
+};
+const selMat = new THREE.LineBasicMaterial({ color: 0x1463ff, depthTest: false, transparent: true });
+const selLines = new THREE.LineSegments(EDGE.box, selMat);
+selLines.renderOrder = 10; selLines.scale.setScalar(1.02);
+
+function makeObj(type, over) {
+  const d = PARTS[type];
+  const o = {
+    id: nextId++, type,
+    pos: new V3(0, d.size[1] / 2, 0),
+    quat: new Q(),
+    size: new V3().fromArray(d.size),
+    color: d.color, loose: !!d.loose, lift: 0, dupFrom: 0,
+  };
+  if (d.tip) o.quat.setFromAxisAngle(new V3(1, 0, 0), Math.PI / 2);
+  if (over) applySer(o, over);
+  o.pos.y = Math.max(o.pos.y, halfExt(o).y);
+  buildMesh(o);
+  return o;
+}
+function buildMesh(o) {
+  const shape = PARTS[o.type].shape;
+  const m = new THREE.Mesh(GEO[shape], new THREE.MeshStandardMaterial({
+    color: o.color, roughness: shape === 'sphere' ? 0.35 : 0.7, metalness: o.type === 'heavy' ? 0.5 : 0,
+  }));
+  m.castShadow = true; m.receiveShadow = true; m.userData.obj = o;
+  o.mesh = m; syncMesh(o); scene.add(m);
+}
+function syncMesh(o) { o.mesh.position.copy(o.pos); o.mesh.quaternion.copy(o.quat); o.mesh.scale.copy(o.size); }
+function dropMesh(o) { if (selLines.parent === o.mesh) o.mesh.remove(selLines); scene.remove(o.mesh); o.mesh.material.dispose(); }
+function ser(o) { return { id: o.id, type: o.type, p: o.pos.toArray(), q: o.quat.toArray(), s: o.size.toArray(), c: o.color, loose: o.loose, lift: o.lift, dupFrom: o.dupFrom }; }
+function applySer(o, s) {
+  if (s.id) o.id = s.id; if (s.p) o.pos.fromArray(s.p); if (s.q) o.quat.fromArray(s.q); if (s.s) o.size.fromArray(s.s);
+  if (s.c) o.color = s.c; if (s.loose != null) o.loose = s.loose; o.lift = s.lift || 0; o.dupFrom = s.dupFrom || 0;
+}
+
+/* ================= bounds ================= */
+const _m = new THREE.Matrix4();
+function halfExt(o) {
+  const s = o.size;
+  if (PARTS[o.type].shape === 'sphere') return new V3(s.x / 2, s.x / 2, s.x / 2);
+  const e = _m.makeRotationFromQuaternion(o.quat).elements, a = Math.abs;
+  return new V3(
+    (a(e[0]) * s.x + a(e[4]) * s.y + a(e[8]) * s.z) / 2,
+    (a(e[1]) * s.x + a(e[5]) * s.y + a(e[9]) * s.z) / 2,
+    (a(e[2]) * s.x + a(e[6]) * s.y + a(e[10]) * s.z) / 2);
+}
+function box(o) { const h = halfExt(o); return { min: o.pos.clone().sub(h), max: o.pos.clone().add(h) }; }
+function overlaps(a, b, e) {
+  return a.min.x + e < b.max.x && a.max.x - e > b.min.x && a.min.y + e < b.max.y && a.max.y - e > b.min.y && a.min.z + e < b.max.z && a.max.z - e > b.min.z;
+}
+// Lift a piece until it no longer sits inside another one.
+function raise(o, skip) {
+  const h = halfExt(o);
+  for (let i = 0; i < 40; i++) {
+    let moved = false; const a = box(o);
+    for (const t of objects) {
+      if (t === o || t === skip) continue;
+      const b = box(t);
+      if (overlaps(a, b, 0.02)) { o.pos.y = b.max.y + h.y; moved = true; break; }
+    }
+    if (!moved) break;
+  }
+}
+function keepInBounds(o) {
+  const h = halfExt(o);
+  o.pos.x = Math.min(BOUND - h.x, Math.max(-BOUND + h.x, o.pos.x));
+  o.pos.z = Math.min(BOUND - h.z, Math.max(-BOUND + h.z, o.pos.z));
+  if (o.pos.y < h.y) o.pos.y = h.y;
+}
+const snapTo = (v, step) => Math.round(v / step) * step;
+
+/* ================= camera ================= */
+const cam = { yaw: 0.7, pitch: 0.5, dist: 19, target: new V3(0.5, 1, 0) };
+const goal = { yaw: 0.7, pitch: 0.5, dist: 19, target: new V3(0.5, 1, 0) };
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function clampCam(c) {
+  c.pitch = Math.min(1.52, Math.max(0.04, c.pitch)); c.dist = Math.min(60, Math.max(3, c.dist));
+  c.target.x = Math.min(16, Math.max(-16, c.target.x)); c.target.z = Math.min(16, Math.max(-16, c.target.z));
+}
+function camNow(fn) { fn(goal); clampCam(goal); cam.yaw = goal.yaw; cam.pitch = goal.pitch; cam.dist = goal.dist; cam.target.copy(goal.target); }
+function updateCamera() {
+  const k = reduceMotion ? 1 : 0.2;
+  cam.yaw += (goal.yaw - cam.yaw) * k; cam.pitch += (goal.pitch - cam.pitch) * k; cam.dist += (goal.dist - cam.dist) * k;
+  cam.target.lerp(goal.target, k);
+  const cp = Math.cos(cam.pitch);
+  camera.position.set(cam.target.x + cam.dist * cp * Math.sin(cam.yaw), cam.target.y + cam.dist * Math.sin(cam.pitch), cam.target.z + cam.dist * cp * Math.cos(cam.yaw));
+  camera.lookAt(cam.target);
+  camera.updateMatrixWorld();
+}
+function orbit(dx, dy) { camNow((c) => { c.yaw -= dx * 0.006; c.pitch += dy * 0.006; }); }
+function pan(dx, dy) {
+  camNow((c) => {
+    const k = c.dist * 0.0016, sy = Math.sin(c.yaw), cy = Math.cos(c.yaw);
+    c.target.x += (-cy * dx - sy * dy) * k; c.target.z += (sy * dx - cy * dy) * k;
+  });
+}
+function zoom(f) { camNow((c) => { c.dist *= f; }); }
+const VIEWS = { top: [0, 1.52], front: [0, 0.12], side: [Math.PI / 2, 0.12], iso: [0.7, 0.5] };
+function setView(v) {
+  const [yaw, pitch] = VIEWS[v];
+  let d = (yaw - cam.yaw) % (Math.PI * 2); if (d > Math.PI) d -= Math.PI * 2; if (d < -Math.PI) d += Math.PI * 2;
+  goal.yaw = cam.yaw + d; goal.pitch = pitch;
+}
+
+/* ================= picking ================= */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let W = 1, H = 1, rect = { left: 0, top: 0 };
+function setRay(x, y) { ndc.set((x / W) * 2 - 1, -(y / H) * 2 + 1); ray.setFromCamera(ndc, camera); }
+function pick(x, y, except) {
+  setRay(x, y);
+  const list = objects.filter((o) => o !== except).map((o) => o.mesh);
+  return ray.intersectObjects(list, false)[0] || null;
+}
+function toScreen(v) {
+  const p = v.clone().project(camera);
+  return { x: (p.x + 1) / 2 * W, y: (1 - p.y) / 2 * H, behind: p.z > 1 };
+}
+const _nm = new THREE.Matrix3();
+function worldNormal(hit) { return hit.face.normal.clone().applyMatrix3(_nm.getNormalMatrix(hit.object.matrixWorld)).normalize(); }
+
+/* ================= smart placement ================= */
+function smartXZ(o, px, pz, minY, h) {
+  const thr = 0.32, near = 0.6; let bx = null, bz = null;
+  const tryX = (c) => { const d = c - px; if (Math.abs(d) < thr && (bx === null || Math.abs(d) < Math.abs(bx))) bx = d; };
+  const tryZ = (c) => { const d = c - pz; if (Math.abs(d) < thr && (bz === null || Math.abs(d) < Math.abs(bz))) bz = d; };
+  for (const t of objects) {
+    if (t === o) continue;
+    const b = box(t);
+    const beside = minY < b.max.y - 0.02 && minY + 2 * h.y > b.min.y + 0.02;
+    const under = Math.abs(b.max.y - minY) < 0.03;
+    if (!beside && !under) continue;
+    const xgap = Math.max(b.min.x - (px + h.x), (px - h.x) - b.max.x);
+    const zgap = Math.max(b.min.z - (pz + h.z), (pz - h.z) - b.max.z);
+    if (zgap < near && xgap < near + thr) {
+      tryX(b.min.x + h.x); tryX(b.max.x - h.x); tryX((b.min.x + b.max.x) / 2);
+      if (beside) { tryX(b.max.x + h.x); tryX(b.min.x - h.x); }
+    }
+    if (xgap < near && zgap < near + thr) {
+      tryZ(b.min.z + h.z); tryZ(b.max.z - h.z); tryZ((b.min.z + b.max.z) / 2);
+      if (beside) { tryZ(b.max.z + h.z); tryZ(b.min.z - h.z); }
+    }
+  }
+  return [bx === null ? snapTo(px - h.x, 0.25) + h.x : px + bx, bz === null ? snapTo(pz - h.z, 0.25) + h.z : pz + bz];
+}
+const groundPlane = new THREE.Plane(UP, 0), _gp = new V3();
+// Put piece `o` where screen point (x, y) lands on the scene.
+function placeAt(o, x, y) {
+  const h = halfExt(o), isBall = PARTS[o.type].shape === 'sphere';
+  const hit = pick(x, y, o);
+  let px, pz, base = 0, skip = null, onGround = false;
+  if (hit) {
+    const n = worldNormal(hit), t = hit.object.userData.obj, tb = box(t);
+    if (n.y > 0.98) { px = hit.point.x; pz = hit.point.z; base = hit.point.y; }
+    else if (n.y > 0.2 && isBall) {
+      // rest a ball directly on a slope
+      o.pos.copy(hit.point).addScaledVector(n, h.y); o.lift = 0; keepInBounds(o); raise(o, t); syncMesh(o); return true;
+    }
+    else if (n.y > 0.2) { px = hit.point.x; pz = hit.point.z; base = tb.min.y; }
+    else { px = hit.point.x + n.x * h.x; pz = hit.point.z + n.z * h.z; base = tb.min.y; }
+    o.lift = 0;
+  } else {
+    if (!ray.ray.intersectPlane(groundPlane, _gp)) return false;
+    if (_gp.distanceTo(camera.position) > 150) return false;
+    px = _gp.x; pz = _gp.z; base = o.lift || 0; onGround = true;
+  }
+  if (snap === 'grid') { px = snapTo(px - h.x, 0.5) + h.x; pz = snapTo(pz - h.z, 0.5) + h.z; }
+  else if (snap === 'smart') { [px, pz] = smartXZ(o, px, pz, base, h); }
+  o.pos.set(px, base + h.y, pz);
+  keepInBounds(o); raise(o, skip);
+  if (!onGround) o.lift = 0;
+  syncMesh(o);
+  return true;
+}
+
+/* ================= selection ================= */
+function select(o) {
+  if (selected === o) return;
+  if (selLines.parent) selLines.parent.remove(selLines);
+  selected = o;
+  if (o) { selLines.geometry = EDGE[PARTS[o.type].shape]; o.mesh.add(selLines); }
+  refreshUI();
+}
+function byId(id) { return objects.find((o) => o.id === id) || null; }
+
+/* ================= history (this session only) ================= */
+function commit() {
+  hist.length = hi + 1;
+  hist.push(JSON.stringify(objects.map(ser)));
+  if (hist.length > 300) hist.shift();
+  hi = hist.length - 1;
+  refreshUI();
+}
+function loadSnapshot(json) {
+  const keep = selected ? selected.id : 0;
+  select(null);
+  objects.forEach(dropMesh);
+  objects = JSON.parse(json).map((s) => makeObj(s.type, s));
+  nextId = objects.reduce((m, o) => Math.max(m, o.id), 0) + 1;
+  select(byId(keep));
+  refreshUI();
+}
+function undo() { if (mode !== 'build' || hi <= 0) return; hi--; loadSnapshot(hist[hi]); hideStatus(); }
+function redo() { if (mode !== 'build' || hi >= hist.length - 1) return; hi++; loadSnapshot(hist[hi]); hideStatus(); }
+
+/* ================= edit actions ================= */
+function addObj(o) { objects.push(o); select(o); commit(); }
+function deleteObj(o, announce) {
+  if (!o) return;
+  if (selected === o) select(null);
+  dropMesh(o); objects = objects.filter((x) => x !== o);
+  commit();
+  if (announce) status(PARTS[o.type].name + ' deleted', true);
+}
+function clearAll() {
+  if (mode !== 'build') stopPlay();
+  if (!objects.length) return;
+  select(null); objects.forEach(dropMesh); objects = [];
+  commit(); status('Everything cleared', true);
+}
+function rotateSel(axis, angle) {
+  const o = selected; if (!o || mode !== 'build') return;
+  const bottom = box(o).min.y;
+  o.quat.premultiply(new Q().setFromAxisAngle(axis, angle)).normalize();
+  o.pos.y = bottom + halfExt(o).y; keepInBounds(o); syncMesh(o); commit();
+}
+function duplicate() {
+  const s = selected; if (!s || mode !== 'build') return;
+  const src = byId(s.dupFrom), off = new V3();
+  if (src) off.subVectors(s.pos, src.pos);
+  if (off.length() < 0.05) off.set(halfExt(s).x * 2, 0, 0);
+  const n = makeObj(s.type, Object.assign(ser(s), { id: nextId++ }));
+  n.pos.add(off); n.dupFrom = s.id; n.lift = Math.max(0, n.pos.y - halfExt(n).y);
+  keepInBounds(n); raise(n); syncMesh(n);
+  addObj(n);
+}
+let lastQuickAdd = 0;
+function quickAdd(type) {
+  const now = performance.now(); if (now - lastQuickAdd < 450) return; lastQuickAdd = now;
+  const o = makeObj(type), h = halfExt(o);
+  let x = cam.target.x, z = cam.target.z;
+  if (snap !== 'off') { x = snapTo(x - h.x, 0.5) + h.x; z = snapTo(z - h.z, 0.5) + h.z; }
+  o.pos.set(x, h.y, z); keepInBounds(o); raise(o); syncMesh(o); addObj(o);
+}
+
+/* ================= physics ================= */
+let world = null, bodies = [], simClock = 0, simAcc = 0;
+const STEP = 1 / 120;
+function makeBody(o) {
+  const d = PARTS[o.type], P = PRESETS[preset], s = o.size;
+  const dyn = o.loose || !anchorAll;
+  const sc = new OIMO.ShapeConfig();
+  sc.density = d.density || 1;
+  sc.friction = dyn ? 0.6 : 0.9;
+  sc.restitution = Math.min(0.98, (dyn ? (d.rest || 0.04) : 0.85) * P.bounce);
+  const b = new OIMO.RigidBody(new OIMO.Vec3(o.pos.x, o.pos.y, o.pos.z), new OIMO.Quat(o.quat.x, o.quat.y, o.quat.z, o.quat.w));
+  if (d.shape === 'sphere') b.addShape(new OIMO.Sphere(sc, s.x / 2));
+  else if (d.shape === 'cyl') b.addShape(new OIMO.Cylinder(sc, s.x / 2, s.y));
+  else if (d.shape === 'wedge') {
+    // a slab under the sloped face plus two blocks filling the tall end
+    const th = Math.atan2(s.y, s.x), L = Math.hypot(s.x, s.y), t = Math.min(0.3, s.y * 0.6);
+    sc.relativePosition.set(Math.sin(th) * t / 2, -Math.cos(th) * t / 2, 0);
+    sc.relativeRotation.setQuat(new OIMO.Quat(0, 0, Math.sin(th / 2), Math.cos(th / 2)));
+    b.addShape(new OIMO.Box(sc, L, t, s.z));
+    sc.relativeRotation.setQuat(new OIMO.Quat(0, 0, 0, 1));
+    sc.relativePosition.set(s.x / 4, -s.y / 4, 0); b.addShape(new OIMO.Box(sc, s.x / 2, s.y / 2, s.z));
+    sc.relativePosition.set(s.x * 0.375, -s.y * 0.125, 0); b.addShape(new OIMO.Box(sc, s.x / 4, s.y * 0.75, s.z));
+  }
+  else b.addShape(new OIMO.Box(sc, s.x, s.y, s.z));
+  b.setupMass(dyn ? OIMO.BODY_DYNAMIC : OIMO.BODY_STATIC, d.shape !== 'wedge');
+  return { o, b, dyn };
+}
+function startPlay() {
+  if (mode === 'play') return;
+  abortGesture(); select(null); hideStatus();
+  const P = PRESETS[preset];
+  world = new OIMO.World({ timestep: STEP, iterations: 8, broadphase: 2, worldscale: 1, random: false, info: false, gravity: [0, P.g, 0] });
+  const gc = new OIMO.ShapeConfig(); gc.friction = 0.9; gc.restitution = Math.min(0.98, 0.85 * P.bounce);
+  const ground = new OIMO.RigidBody(new OIMO.Vec3(0, -5, 0), new OIMO.Quat(0, 0, 0, 1));
+  ground.addShape(new OIMO.Box(gc, 600, 10, 600)); ground.setupMass(OIMO.BODY_STATIC, true); world.addRigidBody(ground);
+  bodies = objects.map((o) => { const e = makeBody(o); world.addRigidBody(e.b); return e; });
+  mode = 'play'; simClock = performance.now(); simAcc = 0;
+  refreshUI();
+  status(bodies.some((x) => x.dyn) ? 'Playing. Tap a loose piece to flick it.' : 'Nothing here can move yet. Add a ball, or turn off "Keep buildings standing".');
+}
+function stopPlay() {
+  if (mode !== 'play') return;
+  world = null; bodies = []; mode = 'build';
+  objects.forEach(syncMesh);   // every piece returns to where it was before Play
+  hideStatus(); refreshUI();
+}
+function stepPhysics(now) {
+  const P = PRESETS[preset];
+  simAcc += Math.min(0.05, (now - simClock) / 1000); simClock = now;
+  const kl = 1 - P.lin * STEP, ka = 1 - P.ang * STEP;
+  let n = 0;
+  while (simAcc >= STEP && n++ < 8) {
+    simAcc -= STEP; world.step();
+    for (const e of bodies) {
+      if (!e.dyn || e.b.sleeping) continue;
+      const v = e.b.linearVelocity, w = e.b.angularVelocity;
+      v.x *= kl; v.y *= kl; v.z *= kl; w.x *= ka; w.y *= ka; w.z *= ka;
+    }
+  }
+  if (n > 8) simAcc = 0;
+  for (const e of bodies) {
+    if (!e.dyn) continue;
+    const p = e.b.position, q = e.b.orientation;
+    e.o.mesh.position.set(p.x, p.y, p.z); e.o.mesh.quaternion.set(q.x, q.y, q.z, q.w);
+  }
+}
+function flick(o) {
+  const e = bodies.find((x) => x.o === o); if (!e || !e.dyn) return;
+  const d = new V3(); camera.getWorldDirection(d); d.y = 0; d.normalize();
+  const k = preset === 'gentle' ? 4 : preset === 'chaotic' ? 11 : 7;
+  e.b.awake();
+  e.b.linearVelocity.x += d.x * k; e.b.linearVelocity.z += d.z * k; e.b.linearVelocity.y += k * 0.35;
+}
+
+/* ================= canvas gestures ================= */
+const pointers = new Map();
+let gest = null, lastTap = { id: 0, t: 0 };
+function local(e) { return { x: e.clientX - rect.left, y: e.clientY - rect.top }; }
+function setGhost(o, on) { o.mesh.material.transparent = on; o.mesh.material.opacity = on ? 0.6 : 1; }
+function abortGesture() {
+  if (gest && gest.type === 'drag') { applySer(gest.o, gest.before); syncMesh(gest.o); setGhost(gest.o, false); }
+  gest = null; app.classList.remove('dragging');
+}
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('pointerdown', (e) => {
+  const p = local(e); pointers.set(e.pointerId, p);
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  if (e.pointerType === 'mouse') e.preventDefault();
+  canvas.focus({ preventScroll: true });
+  if (pointers.size === 2) {
+    abortGesture();
+    const [a, b] = [...pointers.values()];
+    gest = { type: 'two', mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y), a: Math.atan2(b.y - a.y, b.x - a.x) };
+    return;
+  }
+  if (pointers.size > 2) return;
+  if (e.button === 2) { gest = { type: 'orbit', x: p.x, y: p.y, moved: true }; return; }
+  if (e.button === 1) { gest = { type: 'pan', x: p.x, y: p.y }; return; }
+  const hit = pick(p.x, p.y), o = hit ? hit.object.userData.obj : null;
+  if (mode === 'play') { gest = { type: 'orbit', x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false, flick: o }; return; }
+  if (o) { select(o); gest = { type: 'pending', o, x: p.x, y: p.y }; }
+  else if (e.shiftKey) gest = { type: 'pan', x: p.x, y: p.y };
+  else gest = { type: 'orbit', x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false, empty: true };
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const p = local(e); pointers.set(e.pointerId, p);
+  if (!gest) return;
+  if (gest.type === 'two') {
+    if (pointers.size < 2) return;
+    const [a, b] = [...pointers.values()];
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y);
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    let da = ang - gest.a; if (da > Math.PI) da -= Math.PI * 2; if (da < -Math.PI) da += Math.PI * 2;
+    pan(mx - gest.mx, my - gest.my);                 // both fingers together slide the view
+    if (d > 30) camNow((c) => { c.yaw += da; });     // twisting clockwise spins the build clockwise
+    if (gest.d > 10 && d > 10) zoom(d / gest.d);     // spreading zooms out, closing zooms in
+    gest.mx = mx; gest.my = my; gest.d = d; gest.a = ang; return;
+  }
+  if (gest.type === 'pending') {
+    if (Math.hypot(p.x - gest.x, p.y - gest.y) < 6) return;
+    const o = gest.o, base = o.pos.clone(); base.y -= halfExt(o).y;
+    const s = toScreen(base);
+    gest = { type: 'drag', o, before: ser(o), ox: s.x - gest.x, oy: s.y - gest.y, movedOnce: false };
+    setGhost(o, true); app.classList.add('dragging');
+  }
+  if (gest.type === 'drag') { if (placeAt(gest.o, p.x + gest.ox, p.y + gest.oy)) gest.movedOnce = true; return; }
+  if (gest.type === 'orbit') {
+    if (!gest.moved && Math.hypot(p.x - gest.sx, p.y - gest.sy) < 6) return;
+    if (!gest.moved) { gest.moved = true; gest.x = p.x; gest.y = p.y; return; }
+    orbit(p.x - gest.x, p.y - gest.y); gest.x = p.x; gest.y = p.y; return;
+  }
+  if (gest.type === 'pan') { pan(p.x - gest.x, p.y - gest.y); gest.x = p.x; gest.y = p.y; }
+});
+function endPointer(e, cancelled) {
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  const g = gest; if (!g) return;
+  if (g.type === 'two') { if (pointers.size < 2) gest = null; return; }
+  gest = null; app.classList.remove('dragging');
+  if (g.type === 'drag') {
+    setGhost(g.o, false);
+    if (cancelled) { applySer(g.o, g.before); syncMesh(g.o); }
+    else if (g.movedOnce) { g.o.dupFrom = g.o.dupFrom; commit(); }
+    return;
+  }
+  if (cancelled) return;
+  if (g.type === 'pending') {            // a tap on a piece
+    const now = performance.now();
+    if (lastTap.id === g.o.id && now - lastTap.t < 380) { lastTap = { id: 0, t: 0 }; deleteObj(g.o, true); }
+    else lastTap = { id: g.o.id, t: now };
+    return;
+  }
+  if (g.type === 'orbit' && !g.moved) {
+    if (g.flick) flick(g.flick);
+    else if (g.empty) select(null);
+  }
+}
+canvas.addEventListener('pointerup', (e) => endPointer(e, false));
+canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); zoom(Math.exp((e.ctrlKey ? e.deltaY * 4 : e.deltaY) * 0.0012)); }, { passive: false });
+
+/* ================= handles ================= */
+const handlesEl = $('#handles');
+function mkHandle(cls, label, text) {
+  const b = document.createElement('button');
+  b.className = 'h ' + cls; b.setAttribute('aria-label', label); b.title = label; b.textContent = text || ''; b.hidden = true;
+  handlesEl.appendChild(b); return b;
+}
+const hSize = [mkHandle('size', 'Drag to resize'), mkHandle('size', 'Drag to resize'), mkHandle('size', 'Drag to resize')];
+const hLift = mkHandle('lift', 'Drag up or down to lift', '↕');
+const hRot = mkHandle('rot', 'Drag to turn', '⟳');
+let hDrag = null;
+const AX = [new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1)];
+function axisDir(o, i) {
+  const d = AX[i].clone().applyQuaternion(o.quat);
+  const toCam = camera.position.clone().sub(o.pos);
+  const sign = Math.abs(d.y) > 0.7 ? Math.sign(d.y) : (d.dot(toCam) >= 0 ? 1 : -1);
+  return d.multiplyScalar(sign || 1);
+}
+function activeAxes(o) { const sh = PARTS[o.type].shape; return sh === 'sphere' ? [0] : sh === 'cyl' ? [0, 1] : [0, 1, 2]; }
+function put(el, x, y) { el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)'; }
+function updateHandles() {
+  const o = selected, show = !!o && mode === 'build' && !(gest && gest.type === 'drag');
+  if (!show) { hSize.forEach((h) => { h.hidden = true; }); hLift.hidden = hRot.hidden = true; return; }
+  const c = toScreen(o.pos), axes = activeAxes(o), sh = PARTS[o.type].shape;
+  hSize.forEach((h, i) => {
+    if (!axes.includes(i) || c.behind) { h.hidden = true; return; }
+    const d = (hDrag && hDrag.el === h) ? hDrag.dir : axisDir(o, i);
+    const half = (sh === 'sphere' ? o.size.x : o.size.getComponent(i)) / 2;
+    const p = toScreen(o.pos.clone().addScaledVector(d, half));
+    let vx = p.x - c.x, vy = p.y - c.y; const l = Math.hypot(vx, vy) || 1;
+    h.hidden = false; put(h, p.x + vx / l * 14, p.y + vy / l * 14);
+    h._axis = i;
+  });
+  // screen box of the piece, to park the lift and turn handles beside it
+  const b = box(o); let x0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (let i = 0; i < 8; i++) {
+    const s = toScreen(new V3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z));
+    x0 = Math.min(x0, s.x); x1 = Math.max(x1, s.x); y1 = Math.max(y1, s.y);
+  }
+  hLift.hidden = hRot.hidden = c.behind;
+  put(hLift, x0 - 30, c.y); put(hRot, (x0 + x1) / 2, y1 + 32);
+}
+function startHandle(e, el, kind) {
+  const o = selected; if (!o || mode !== 'build') return;
+  e.preventDefault(); e.stopPropagation();
+  try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  hDrag = { el, kind, id: e.pointerId, x: e.clientX, y: e.clientY, before: ser(o), pos: o.pos.clone(), quat: o.quat.clone(), size: o.size.clone(), changed: false };
+  if (kind === 'size') { hDrag.axis = el._axis; hDrag.dir = axisDir(o, el._axis); }
+  if (kind === 'rot') hDrag.a0 = angleAt(e, o);
+}
+function angleAt(e, o) {
+  const p = local(e); setRay(p.x, p.y);
+  const pt = new V3(); if (!ray.ray.intersectPlane(new THREE.Plane(UP, -o.pos.y), pt)) return null;
+  return Math.atan2(pt.x - o.pos.x, pt.z - o.pos.z);
+}
+function alongAxis(e, origin, dir) {   // how far the pointer moved along a world axis, in blocks
+  const a = toScreen(origin), b = toScreen(origin.clone().add(dir));
+  const vx = b.x - a.x, vy = b.y - a.y, l2 = vx * vx + vy * vy;
+  if (l2 < 4) return 0;
+  return ((e.clientX - hDrag.x) * vx + (e.clientY - hDrag.y) * vy) / l2;
+}
+function moveHandle(e) {
+  const d = hDrag, o = selected; if (!d || e.pointerId !== d.id || !o) return;
+  const step = snap === 'off' ? 0.05 : 0.25;
+  if (d.kind === 'size') {
+    const sh = PARTS[o.type].shape, i = d.axis, start = d.size.getComponent(i);
+    const grow = alongAxis(e, d.pos, d.dir) * (sh === 'sphere' || (sh === 'cyl' && i === 0) ? 2 : 1);
+    const v = Math.min(MAX_SIZE, Math.max(MIN_SIZE, snapTo(start + grow, step)));
+    o.size.copy(d.size); o.pos.copy(d.pos);
+    if (sh === 'sphere') { o.size.set(v, v, v); o.pos.y += (v - start) / 2; }
+    else if (sh === 'cyl' && i === 0) { o.size.x = o.size.z = v; }
+    else { o.size.setComponent(i, v); o.pos.addScaledVector(d.dir, (v - start) / 2); }
+    const low = box(o).min.y; if (low < 0) o.pos.y -= low;
+  } else if (d.kind === 'lift') {
+    const h = halfExt(o).y;
+    const bottom = Math.max(0, snapTo(d.pos.y - h + alongAxis(e, d.pos, UP), step));
+    o.pos.y = bottom + h; o.lift = bottom;
+  } else {
+    const a = angleAt(e, o); if (a === null || d.a0 === null) return;
+    let da = a - d.a0; if (snap !== 'off') da = snapTo(da, Math.PI / 12);
+    o.quat.copy(d.quat).premultiply(new Q().setFromAxisAngle(UP, da)).normalize();
+  }
+  d.changed = true; syncMesh(o); refreshPiece();
+}
+function endHandle(e, cancelled) {
+  const d = hDrag; if (!d || e.pointerId !== d.id) return;
+  hDrag = null;
+  if (!selected) return;
+  if (cancelled) { applySer(selected, d.before); syncMesh(selected); }
+  else if (d.changed) { keepInBounds(selected); syncMesh(selected); commit(); }
+}
+[[hLift, 'lift'], [hRot, 'rot'], ...hSize.map((h) => [h, 'size'])].forEach(([el, kind]) => {
+  el.addEventListener('pointerdown', (e) => startHandle(e, el, kind));
+  el.addEventListener('pointermove', moveHandle);
+  el.addEventListener('pointerup', (e) => endHandle(e, false));
+  el.addEventListener('pointercancel', (e) => endHandle(e, true));
+});
+
+/* ================= parts library ================= */
+function thumbnails() {
+  const out = {};
+  try {
+    const c = document.createElement('canvas');
+    const r = new THREE.WebGLRenderer({ canvas: c, alpha: true, antialias: true });
+    r.setPixelRatio(1); r.setSize(128, 128, false);
+    const sc = new THREE.Scene();
+    sc.add(new THREE.HemisphereLight(0xffffff, 0x777788, 0.9));
+    const l = new THREE.DirectionalLight(0xffffff, 0.8); l.position.set(3, 6, 4); sc.add(l);
+    const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+    for (const type in PARTS) {
+      const d = PARTS[type];
+      const m = new THREE.Mesh(GEO[d.shape], new THREE.MeshStandardMaterial({ color: d.color, roughness: d.shape === 'sphere' ? 0.35 : 0.7, metalness: type === 'heavy' ? 0.5 : 0 }));
+      m.scale.fromArray(d.size); if (d.tip) m.rotation.x = Math.PI / 2;
+      sc.add(m);
+      const rad = Math.max(0.75, Math.hypot(d.size[0], d.size[1], d.size[2]) / 2), dist = rad / Math.sin(15 * Math.PI / 180) * 1.05;
+      cm.position.set(dist * 0.56, dist * 0.5, dist * 0.66); cm.lookAt(0, 0, 0);
+      r.render(sc, cm); out[type] = c.toDataURL('image/png');
+      sc.remove(m); m.material.dispose();
+    }
+    r.dispose(); if (r.forceContextLoss) r.forceContextLoss();
+  } catch (_) {}
+  return out;
+}
+function buildPalette() {
+  const pal = $('#pal'), thumbs = thumbnails(), groups = {};
+  for (const type in PARTS) (groups[PARTS[type].group] = groups[PARTS[type].group] || []).push(type);
+  for (const gname in groups) {
+    const h = document.createElement('h2'); h.textContent = gname === 'Moving' ? 'Moving pieces' : 'Building pieces'; pal.appendChild(h);
+    const grid = document.createElement('div'); grid.className = 'grid'; pal.appendChild(grid);
+    for (const type of groups[gname]) {
+      const b = document.createElement('button'); b.className = 'part'; b.id = 'part-' + type;
+      b.title = 'Drag onto the mat, or click to add';
+      if (thumbs[type]) { const im = document.createElement('img'); im.src = thumbs[type]; im.alt = ''; im.draggable = false; b.appendChild(im); }
+      else { const ph = document.createElement('span'); ph.className = 'ph'; b.appendChild(ph); }
+      b.appendChild(document.createTextNode(PARTS[type].name));
+      wirePart(b, type); grid.appendChild(b);
+    }
+  }
+}
+function wirePart(el, type) {
+  let pd = null;
+  const discard = () => { if (pd && pd.o) dropMesh(pd.o); pd = null; app.classList.remove('dragging'); };
+  el.addEventListener('pointerdown', (e) => {
+    if (mode !== 'build' || e.button > 0) return;
+    pd = { id: e.pointerId, x: e.clientX, y: e.clientY, o: null, touch: e.pointerType === 'touch' };
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!pd || e.pointerId !== pd.id) return;
+    if (!pd.o) {
+      if (Math.hypot(e.clientX - pd.x, e.clientY - pd.y) < 8) return;
+      select(null);
+      pd.o = makeObj(type); setGhost(pd.o, true); pd.o.mesh.visible = false; app.classList.add('dragging');
+    }
+    const over = document.elementFromPoint(e.clientX, e.clientY) === canvas;
+    pd.o.mesh.visible = over && placeAt(pd.o, e.clientX - rect.left, e.clientY - rect.top - (pd.touch ? 36 : 0));
+  });
+  el.addEventListener('pointerup', (e) => {
+    if (!pd || e.pointerId !== pd.id) return;
+    const o = pd.o; pd.o = null; pd = null; app.classList.remove('dragging');
+    if (!o) return;                         // a plain click is handled below
+    if (o.mesh.visible) { setGhost(o, false); addObj(o); } else dropMesh(o);
+    el._dragged = performance.now();
+  });
+  el.addEventListener('pointercancel', discard);
+  el.addEventListener('click', () => {
+    if (mode !== 'build' || (el._dragged && performance.now() - el._dragged < 400)) return;
+    quickAdd(type);
+  });
+}
+
+/* ================= UI ================= */
+let statusTimer = 0;
+function status(msg, withUndo) {
+  $('#statusMsg').textContent = msg; $('#statusUndo').hidden = !withUndo; $('#status').hidden = false;
+  clearTimeout(statusTimer); statusTimer = setTimeout(hideStatus, withUndo ? 6000 : 5000);
+}
+function hideStatus() { clearTimeout(statusTimer); $('#status').hidden = true; }
+const fmt = (n) => String(Math.round(n * 100) / 100);
+function refreshPiece() {
+  const o = selected; if (!o) return;
+  const sh = PARTS[o.type].shape, s = o.size;
+  $('#pName').textContent = PARTS[o.type].name;
+  $('#pDims').textContent = sh === 'sphere' ? fmt(s.x) + ' blocks across' : fmt(s.x) + ' × ' + fmt(s.y) + ' × ' + fmt(s.z) + ' blocks';
+}
+function refreshUI() {
+  const play = mode === 'play', o = selected;
+  app.classList.toggle('playing', play);
+  $('#bBuild').setAttribute('aria-pressed', String(!play));
+  $('#bPlay').setAttribute('aria-pressed', String(play));
+  $('#bReset').disabled = !play;
+  $('#bUndo').disabled = play || hi <= 0;
+  $('#bRedo').disabled = play || hi >= hist.length - 1;
+  $('#bClear').disabled = !objects.length;
+  $('#piece').hidden = !o || play;
+  $('#side').classList.toggle('has-piece', !!o && !play);
+  if (o) {
+    refreshPiece();
+    document.querySelectorAll('.sw').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.c === o.color)));
+    $('#pAnch').setAttribute('aria-pressed', String(!o.loose)); $('#pLoose').setAttribute('aria-pressed', String(o.loose));
+  }
+  document.querySelectorAll('#segSnap button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === snap)));
+  document.querySelectorAll('#segPhys button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === preset)));
+  $('#cAnchor').checked = anchorAll;
+  $('#anchorHint').textContent = anchorAll
+    ? 'Building pieces stay put in Play. Balls, dominoes, crates and barrels move.'
+    : 'Every piece is loose in Play, so towers can topple.';
+}
+COLORS.forEach((c, i) => {
+  const b = document.createElement('button'); b.className = 'sw'; b.dataset.c = c; b.style.background = c;
+  b.setAttribute('aria-label', COLOR_NAMES[i]); b.title = COLOR_NAMES[i];
+  b.addEventListener('click', () => { if (!selected) return; selected.color = c; selected.mesh.material.color.set(c); commit(); });
+  $('#swatches').appendChild(b);
+});
+function restartIfPlaying() { if (mode === 'play') { stopPlay(); startPlay(); } }
+$('#bBuild').addEventListener('click', stopPlay);
+$('#bPlay').addEventListener('click', () => { if (mode === 'play') { stopPlay(); startPlay(); } else startPlay(); });
+$('#bReset').addEventListener('click', stopPlay);
+$('#bUndo').addEventListener('click', undo);
+$('#bRedo').addEventListener('click', redo);
+$('#bClear').addEventListener('click', clearAll);
+$('#statusUndo').addEventListener('click', undo);
+$('#bGear').addEventListener('click', () => { const on = $('#side').classList.toggle('open'); $('#bGear').setAttribute('aria-pressed', String(on)); });
+$('#pAnch').addEventListener('click', () => { if (selected && selected.loose) { selected.loose = false; commit(); } });
+$('#pLoose').addEventListener('click', () => { if (selected && !selected.loose) { selected.loose = true; commit(); } });
+$('#pRot').addEventListener('click', () => rotateSel(UP, Math.PI / 2));
+$('#pTip').addEventListener('click', () => rotateSel(AX[0], Math.PI / 2));
+$('#pDup').addEventListener('click', duplicate);
+$('#pDel').addEventListener('click', () => deleteObj(selected, true));
+$('#segSnap').addEventListener('click', (e) => { const v = e.target.dataset.v; if (v) { snap = v; refreshUI(); } });
+$('#segPhys').addEventListener('click', (e) => { const v = e.target.dataset.v; if (v) { preset = v; refreshUI(); restartIfPlaying(); } });
+$('#segView').addEventListener('click', (e) => { const v = e.target.dataset.v; if (v) setView(v); });
+$('#cAnchor').addEventListener('change', (e) => { anchorAll = e.target.checked; refreshUI(); restartIfPlaying(); });
+
+window.addEventListener('keydown', (e) => {
+  const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+  else if (mod && k === 'y') { e.preventDefault(); redo(); }
+  else if (mod && k === 'd') { e.preventDefault(); duplicate(); }
+  else if (mod) return;
+  else if (k === 'delete' || k === 'backspace') { if (selected && mode === 'build') { e.preventDefault(); deleteObj(selected, true); } }
+  else if (k === 'r') rotateSel(UP, Math.PI / 2);
+  else if (k === 't') rotateSel(AX[0], Math.PI / 2);
+  else if (k === 'escape') { if (mode === 'play') stopPlay(); else select(null); }
+  else if (k === ' ' && (!t || t.tagName !== 'BUTTON')) { e.preventDefault(); if (mode === 'play') stopPlay(); else startPlay(); }
+});
+
+/* ================= frame loop ================= */
+function resize() {
+  const r = canvas.getBoundingClientRect(); rect = r; W = Math.max(1, r.width); H = Math.max(1, r.height);
+  renderer.setSize(W, H, false); camera.aspect = W / H; camera.updateProjectionMatrix();
+}
+if (window.ResizeObserver) new ResizeObserver(resize).observe(app);
+window.addEventListener('resize', resize);
+function frame(now) {
+  if (mode === 'play' && world) stepPhysics(now);
+  updateCamera(); updateHandles();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* ================= start ================= */
+function starterBuild() {
+  const yTurn = new Q().setFromAxisAngle(UP, Math.PI).toArray();
+  const list = [
+    ['ramp',   { p: [-5, 0.75, 0], q: yTurn }],
+    ['heavy',  { p: [-6, 1.81, 0] }],
+    ['pillar', { p: [3.25, 1, -3.5] }], ['pillar', { p: [5.75, 1, -3.5] }],
+    ['plank',  { p: [4.5, 2.125, -3.5] }],
+    ['bouncy', { p: [4.5, 5, -3.5] }],
+    ['cube',   { p: [-1, 0.5, -4] }], ['cube', { p: [0, 0.5, -4], c: '#f0b429' }], ['cube', { p: [-0.5, 1.5, -4], c: '#2f6fd0' }],
+    ['crate',  { p: [4.5, 0.5, 0] }], ['crate', { p: [4.5, 1.5, 0] }], ['crate', { p: [4.5, 2.5, 0] }],
+  ];
+  for (let i = 0; i < 9; i++) list.push(['domino', { p: [-1.6 + i * 0.6, 0.5, 0], c: COLORS[i % 6] }]);
+  list.forEach(([type, over]) => { const o = makeObj(type, over); o.id = nextId++; objects.push(o); });
+}
+function start(data) {
+  buildPalette(); applyTheme(); resize();
+  if (W / H < 0.8) camNow((c) => { c.dist = 34; c.target.set(1.5, 1, 0); });
+  if (data && data.objects) { try { objects = JSON.parse(data.objects).map((s) => makeObj(s.type, s)); nextId = objects.reduce((m, o) => Math.max(m, o.id), 0) + 1; } catch (_) { objects = []; } }
+  else starterBuild();
+  if (data && data.snap) snap = data.snap; if (data && data.preset) preset = data.preset; if (data && data.anchorAll === false) anchorAll = false;
+  commit(); refreshUI(); updateCamera();
+  if (!(data && data.objects)) status('Example build. Press Play to watch it, or Clear all to start fresh.');
+  requestAnimationFrame(frame);
+}
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// test hooks used only by automated checks
+window.__builder = { get objects() { return objects; }, get mode() { return mode; }, get bodies() { return bodies; }, toScreen, box, get selected() { return selected; } };
+
+const hot = window.claude && window.claude.hot;
+if (hot && hot.snapshot) hot.snapshot(() => ({ objects: JSON.stringify(objects.map(ser)), snap, preset, anchorAll }));
+if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+
+</body>
+</html>
