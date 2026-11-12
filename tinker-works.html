@@ -1614,7 +1614,7 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
 /* ===== App: state, editing, simulation loop, interface ===== */
 (function (RG) {
   'use strict';
-  const R = RG.R, D = RG.D, C = R.C, KEY = 'tinkerworks.v1';
+  const R = RG.R, D = RG.D, C = R.C, KEY = 'tinkerworks.v1', START_V = 3;      // raise START_V whenever the starting machine changes, so everyone sees the new one
   const $ = id => document.getElementById(id);
   function h(tag, a, ...kids) {
     const e = document.createElement(tag);
@@ -1656,11 +1656,12 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
   let saveT = 0;
   function save() {
     clearTimeout(saveT);
-    saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify({ v: 1, sandbox: st.data.sandbox, levels: st.data.levels, done: st.data.done, best: st.data.best, prefs: st.prefs, tab: st.tab, level: st.level })); } catch (e) { /* cache unavailable: the app still works, it just forgets on reload */ } }, 250);
+    saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify({ v: 1, startV: START_V, sandbox: st.data.sandbox, levels: st.data.levels, done: st.data.done, best: st.data.best, prefs: st.prefs, tab: st.tab, level: st.level })); } catch (e) { /* cache unavailable: the app still works, it just forgets on reload */ } }, 250);
   }
   function load() {
     let d = null; try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { d = null; }
     if (!d || d.v !== 1) return;
+    st.seenStart = d.startV === START_V;
     st.data.sandbox = RG.validate(d.sandbox); st.data.done = d.done && typeof d.done === 'object' ? d.done : {}; st.data.best = +d.best || 0;
     for (const id in d.levels || {}) { const m = RG.validate(d.levels[id]); if (m && RG.LEVELS.some(L => L.id === id)) st.data.levels[id] = m; }
     Object.assign(st.prefs, d.prefs || {});
@@ -1706,7 +1707,7 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
     for (const I of st.sim.list) { const b = RG.bounds(I); x0 = Math.min(x0, b.x0); y0 = Math.min(y0, b.y0); x1 = Math.max(x1, b.x1); y1 = Math.max(y1, b.y1); }
     if (x0 > x1) { x0 = 0; x1 = Math.min(W, 1500); y0 = H - 760; } else { x0 -= 140; x1 += 140; y0 -= 150; }
     y1 = H - 40; let z = RG.clamp(Math.min(vw / (x1 - x0), (vh - 56) / (y1 - y0)), 0.22, 1.25); st.follow = false;
-    const wide = all !== true && z < 0.6; if (wide) z = 0.6;                    // a very wide machine opens on its first stage; arrows or Fit show the rest
+    const wide = all !== true && z < 0.44; if (wide) z = 0.44;                    // a very wide machine opens on its first stage; arrows or Fit show the rest
     st.cam.z = z; st.cam.x = wide ? x0 : (x0 + x1) / 2 - vw / z / 2; st.cam.y = y1 + 56 / z - vh / z;      // leave a strip of floor for the status line
   }
 
@@ -2229,9 +2230,10 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
     new ResizeObserver(resize).observe(stage);
     const mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', R.theme);
     new MutationObserver(R.theme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    const first = !st.data.sandbox;
-    if (first) st.data.sandbox = RG.EXAMPLES[0].build().m;               // first visit opens on a working machine, clearly labelled
+    const first = !st.data.sandbox || !st.seenStart, old = st.data.sandbox && st.data.sandbox.parts.length ? JSON.stringify(st.data.sandbox) : null;
+    if (first) { st.data.sandbox = RG.EXAMPLES[0].build().m; st.level = null; st.tab = 'sandbox'; }   // a first visit, or a new starting machine, opens on it
     enter(st.tab === 'sandbox' || !st.level ? 'sandbox' : st.tab, st.level);
+    if (first && old) { st.undo.push(old); syncBar(); }                    // the machine that was here before is one Undo away
     if (first) toast('Press Play to set off the chain reaction. The machine is wider than the screen: arrow keys or a two-finger drag move the view.', false, 8000);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(buildPalette);
     requestAnimationFrame(frame);
