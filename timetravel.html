@@ -80,7 +80,27 @@ header.top p{margin:0;color:var(--muted);font-weight:700}
 .everywhere h2{font-size:22px;margin-bottom:8px}
 .everywhere h2 b{color:var(--accent)}
 .evlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;list-style:none;margin:0;padding:0}
-.evlist li{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px 12px;cursor:pointer;min-width:0}
+.evlist li{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:8px 10px;cursor:pointer;min-width:0;display:flex;gap:10px;align-items:center}
+.evlist li>div{min-width:0}
+.mini{display:block;width:84px;flex:0 0 84px;height:auto;border-radius:10px}
+.strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;margin:10px 0 0}
+.strip button{padding:2px;border:2px solid var(--line);background:var(--bg);border-radius:10px;cursor:pointer;color:var(--fg);font-family:var(--font-display);font-weight:600;font-size:12px;font-variant-numeric:tabular-nums}
+.strip button .mini{width:100%;border-radius:7px}
+.strip button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.readbtn{font-family:var(--font-display);font-weight:600;font-size:15px;padding:7px 14px;border-radius:999px;border:2px solid var(--pop);background:var(--card);color:var(--pop);cursor:pointer;margin:0 0 8px}
+.quiz{margin-top:22px;background:var(--card);border:3px solid var(--line);border-radius:22px;padding:16px}
+.quiz h2{font-size:22px;margin-bottom:6px}
+.quiz .q{font-size:18px;font-weight:800;margin:6px 0 10px}
+.quiz .q b{color:var(--pop)}
+.qopts{display:flex;flex-wrap:wrap;gap:8px}
+.qopts button{font-family:var(--font-display);font-weight:600;font-size:17px;padding:8px 16px;border-radius:999px;border:3px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.qopts button.right{background:var(--tag2);border-color:var(--tag2);color:#fff}
+.qopts button.wrong{background:var(--tag4);border-color:var(--tag4);color:#fff}
+.qfb{font-weight:800;min-height:1.5em;margin:10px 0 6px}
+.qfoot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.qfoot span{font-family:var(--font-display);font-weight:600;color:var(--muted)}
+.qfoot button{font-family:var(--font-display);font-weight:600;font-size:15px;padding:8px 14px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.qfoot .go{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .evlist li:hover{border-color:var(--accent)}
 .evlist li strong{font-family:var(--font-display);font-weight:600;font-size:17px;display:block}
 .evlist li span{font-size:14px;color:var(--muted);font-weight:700}
@@ -89,6 +109,7 @@ header.top p{margin:0;color:var(--muted);font-weight:700}
 .panel{background:var(--card);border-radius:22px;border:3px solid var(--line);padding:14px;position:sticky;top:76px;max-height:calc(100vh - 90px);overflow-y:auto}
 .panel .empty{color:var(--muted);font-weight:700;text-align:center;padding:30px 10px}
 .panel .empty svg{width:120px;height:auto;display:block;margin:0 auto 8px}
+.panel .empty:has(+ #story:not([hidden])){display:none}
 .ptop{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .ptop h2{font-size:26px}
 .ptop .when{font-family:var(--font-display);font-weight:600;color:var(--accent);font-size:18px}
@@ -140,6 +161,8 @@ header.top p{margin:0;color:var(--muted);font-weight:700}
             <rect x="0" y="0" width="1000" height="500" fill="var(--ocean)"/>
             <rect x="0" y="0" width="1000" height="500" fill="url(#waves)"/>
             <g id="land"></g>
+            <line x1="0" y1="250" x2="1000" y2="250" stroke="var(--fg)" stroke-width="1.5" stroke-dasharray="6 8" opacity=".35"/>
+            <text x="10" y="244" font-family="var(--font-display)" font-size="13" font-weight="600" fill="var(--fg)" opacity=".6">Equator</text>
             <g id="pins"></g>
           </svg>
         </div>
@@ -150,6 +173,14 @@ header.top p{margin:0;color:var(--muted);font-weight:700}
       <section class="everywhere">
         <h2>Meanwhile, in the <b id="evcent">1500s</b>…</h2>
         <ul class="evlist" id="evlist"></ul>
+      </section>
+
+      <section class="quiz" aria-live="polite">
+        <h2>When did it happen?</h2>
+        <p class="q" id="qtext"></p>
+        <div class="qopts" id="qopts" role="group" aria-label="Pick a century"></div>
+        <p class="qfb" id="qfb"></p>
+        <div class="qfoot"><span id="qscore">Stars: 0</span><span><button id="qsee" hidden>See the story</button> <button id="qnext" class="go">Next question</button></span></div>
       </section>
     </div>
 
@@ -334,7 +365,7 @@ window.TIME_CITIES.push(
   culture:['Notting Hill Carnival.','Sandwiches and curry, fish and chips.'],
   secret:'Ravens live at the Tower of London. An old legend says the kingdom will fall if they ever fly away, so they are looked after very carefully.' }
 }},
-{ id:'paris', name:'Paris', x:507, y:114, lx:40, ly:26, eras:{
+{ id:'paris', name:'Paris', x:507, y:114, lx:-10, ly:30, eras:{
  1500:{ name:'Renaissance Paris', headline:'Kings build palaces, the Mona Lisa arrives, and ballet is invented at court.',
   pic:{sky:'day',ground:'water',items:['castle','horse','ship']},
   timeline:[[1515,'Francis I becomes king and loves art.'],[1519,'Leonardo da Vinci dies in France, leaving the Mona Lisa behind.'],[1546,'The Louvre starts turning into a grand palace.'],[1578,'Work begins on the Pont Neuf bridge.'],[1581,'The first ballet is danced at court.']],
@@ -620,6 +651,298 @@ window.TIME_CITIES.push(
 }}
 );
 
+window.TIME_CITIES = window.TIME_CITIES || [];
+window.TIME_CITIES.push(
+{ id:'mexico', name:'Mexico City', x:225, y:196, lx:-30, ly:30, eras:{
+ 1500:{ name:'Aztec island city', headline:'A giant Aztec city floats on a lake, until Spanish soldiers arrive and everything changes.',
+  pic:{sky:'day',ground:'water',items:['steppyramid','canoe','person']},
+  timeline:[[1502,'Moctezuma II becomes ruler of the Aztecs.'],[1519,'Hernán Cortés and his Spanish soldiers walk into the city.'],[1521,'After a long fight, the Aztec city falls.'],[1539,'The first printing press in the Americas starts work here.'],[1551,'A university is founded.']],
+  players:['Moctezuma II, the Aztec ruler.','Hernán Cortés, the Spanish leader.','Malintzin, a clever woman who spoke many languages and translated.'],
+  inventions:['Chinampas: garden islands built on the lake to grow food.','Chocolate! The Aztecs drank it cold and spicy.','Causeways, long roads built across the water.'],
+  events:['The Spanish arrive (1519).','The city becomes the capital of New Spain (1535).'],
+  trouble:['War between the Aztecs and the Spanish.','A new sickness called smallpox made many people very ill.'],
+  culture:['A ball game played with a heavy rubber ball.','Busy markets with tens of thousands of shoppers.','Books painted with pictures instead of letters.'],
+  secret:'The Aztec city was built on an island in a lake. It was bigger than any city in Spain at the time.' },
+ 1600:{ name:'Capital of New Spain', headline:'A flood covers the city for five years, and a girl genius becomes a famous poet.',
+  pic:{sky:'smoky',ground:'water',items:['church','canoe','book']},
+  timeline:[[1629,'A great flood begins. Parts of the city stay under water for five years.'],[1667,'A big cathedral opens, though it is not finished yet.'],[1689,'Sor Juana’s poems are printed and read across the ocean.'],[1692,'People riot because there is not enough corn.']],
+  players:['Sor Juana Inés de la Cruz, a nun who wrote brilliant poems.','Carlos de Sigüenza, a scientist who studied comets.','The viceroy, who ruled for the king of Spain.'],
+  inventions:['Big drains and tunnels dug to stop the floods.','Ships called galleons brought silk and spices from Asia.'],
+  events:['The great flood (1629).','Silk from China arrives by ship and mule.'],
+  trouble:['Floods, again and again.','Food ran short in 1692.'],
+  culture:['Poems, plays and church music.','Hot chocolate, now sweet with sugar.'],
+  secret:'Sor Juana learned to read when she was three years old. Later she owned thousands of books.' },
+ 1700:{ name:'Silver city', headline:'Silver coins from here are used all over the world, and a giant Aztec stone is dug up.',
+  pic:{sky:'day',ground:'stone',items:['church','sparkle','horse']},
+  timeline:[[1737,'A terrible sickness spreads through the city.'],[1785,'An art school opens. Building starts on Chapultepec Castle.'],[1790,'Workers find the huge Aztec Sun Stone under the main square.']],
+  players:['Silver miners and coin makers.','Antonio de León y Gama, who studied the Sun Stone.','Artists at the new art school.'],
+  inventions:['Silver coins called “pieces of eight.”','Street lamps and paved streets in the 1790s.'],
+  events:['The Sun Stone is found (1790).','The art school opens (1785).'],
+  trouble:['Sickness in the 1730s.','Earthquakes shook the churches.'],
+  culture:['Colourful festivals and fireworks.','Tamales and tortillas sold in the street.'],
+  secret:'Silver coins made in Mexico City were used as money in faraway places like China and the Philippines.' },
+ 1800:{ name:'A new country', headline:'Mexico becomes its own country, and an emperor moves into a castle on a hill.',
+  pic:{sky:'dawn',ground:'grass',items:['castle','horse','person']},
+  timeline:[[1821,'Mexico wins its freedom from Spain.'],[1847,'Soldiers from the United States capture the city for a while.'],[1864,'Emperor Maximilian arrives from Europe and lives in Chapultepec Castle.'],[1867,'Benito Juárez returns as president.'],[1873,'A railway links the city to the sea.']],
+  players:['Benito Juárez, a president who began life as a poor shepherd boy.','Emperor Maximilian and Empress Carlota.','Porfirio Díaz, who ruled for a very long time.'],
+  inventions:['The railway to Veracruz (1873).','A grand avenue, now called Paseo de la Reforma.','Electric street lights (1880s).'],
+  events:['Independence (1821).','Juárez comes back (1867).'],
+  trouble:['Wars with the United States and France.','Leaders kept changing.'],
+  culture:['Mariachi music grows popular.','Paper cut-outs and sugar skulls for the Day of the Dead.'],
+  secret:'Chapultepec Castle is often called the only castle in North America where a real emperor lived.' },
+ 1900:{ name:'Murals & medals', headline:'A revolution, giant wall paintings, the Olympics and two football World Cups.',
+  pic:{sky:'day',ground:'stone',items:['skyscraper','ball','car']},
+  timeline:[[1910,'The Mexican Revolution begins.'],[1929,'Diego Rivera starts painting huge murals in the National Palace.'],[1968,'The Olympic Games come to Mexico City.'],[1969,'The metro opens.'],[1985,'A strong earthquake hits, and neighbours rescue each other.']],
+  players:['Frida Kahlo, the painter.','Diego Rivera, who painted walls as big as houses.','Emiliano Zapata, a hero of the revolution.'],
+  inventions:['The metro, with a picture for every station so nobody needs to read.','Colour TV ideas from inventor Guillermo González Camarena.'],
+  events:['The 1968 Olympics.','World Cup finals in 1970 and 1986.'],
+  trouble:['The 1985 earthquake.','Thick smog from cars and factories.'],
+  culture:['Murals that tell history in pictures.','Wrestling in masks, called lucha libre.','Tacos!'],
+  secret:'The city is so high up that the air is thin. At the 1968 Olympics, Bob Beamon jumped so far that his record lasted almost 23 years.' },
+ 2000:{ name:'Mega-city', headline:'Cable cars over rooftops, a famous parade and a third World Cup.',
+  pic:{sky:'day',ground:'stone',items:['skyscraper','cablecar','ball']},
+  timeline:[[2010,'Shared bikes arrive on the streets.'],[2016,'The first big Day of the Dead parade.'],[2017,'An earthquake shakes the city.'],[2021,'Cable cars start carrying people over the hills.'],[2026,'The football World Cup opens at the Azteca Stadium.']],
+  players:['Claudia Sheinbaum, a scientist and city mayor who became Mexico’s first woman president.','Alfonso Cuarón, a film maker from the city.','Rescue volunteers called Topos (“moles”).'],
+  inventions:['Cable cars used like buses.','Earthquake alarms that warn the city a few seconds early.'],
+  events:['The Day of the Dead parade (2016).','The 2026 World Cup opening match.'],
+  trouble:['The 2017 earthquake.','Not enough water in dry years.'],
+  culture:['Street food on every corner.','Boat rides on the old canals of Xochimilco.'],
+  secret:'The city is slowly sinking because it sits on an old lake bed. Some parts drop by up to 40 centimetres a year.' }
+}},
+{ id:'rio', name:'Rio de Janeiro', x:380, y:314, lx:34, ly:-26, eras:{
+ 1500:{ name:'Tupi bay', headline:'Tupi families live by a beautiful bay. Portuguese sailors arrive and give it a funny name.',
+  pic:{sky:'day',ground:'water',items:['hut','palm','canoe']},
+  timeline:[[1502,'Portuguese sailors reach the bay on the first of January.'],[1555,'French settlers build a fort on an island.'],[1565,'The Portuguese start the town of Rio de Janeiro.'],[1567,'The French are pushed out.']],
+  players:['Tupi families, who had lived here for a very long time.','Estácio de Sá, who started the town.','French sailors who wanted the bay too.'],
+  inventions:['Hammocks for sleeping, a Tupi idea.','Flour made from a root called cassava.'],
+  events:['The bay gets its name (1502).','The town is founded (1565).'],
+  trouble:['Fighting between the Portuguese, the French and the Tupi.','New sicknesses from Europe.'],
+  culture:['Feather headdresses and body paint.','Songs and dances around the fire.'],
+  secret:'The name means “River of January.” The sailors thought the bay was the mouth of a river. It isn’t!' },
+ 1600:{ name:'Sugar port', headline:'A small port town grows sugar, and whales swim in the bay.',
+  pic:{sky:'dawn',ground:'water',items:['church','palm','ship']},
+  timeline:[[1600,'Sugar cane farms spread around the bay.'],[1660,'Townspeople rise up against an unfair governor.'],[1690,'Gold is found far inland, and Rio is the nearest port.']],
+  players:['Sugar farmers and sailors.','Enslaved Africans, who were forced to do the hardest work.','Jesuit priests who ran the school.'],
+  inventions:['Sugar mills turned by oxen or water.','Lamps lit with whale oil.'],
+  events:['The uprising of 1660.','Ships carry sugar to Europe.'],
+  trouble:['Many people were enslaved and treated cruelly.','Pirates watched the coast.'],
+  culture:['African, Portuguese and Tupi music start to mix.','Sweet treats made with sugar and coconut.'],
+  secret:'Whales used to swim right into the bay. Whale oil lit the town’s lamps at night.' },
+ 1700:{ name:'Gold port', headline:'Gold flows through the port, pirates attack, and Rio becomes the capital.',
+  pic:{sky:'day',ground:'water',items:['ship','sparkle','church']},
+  timeline:[[1711,'A French sea captain captures the town and demands gold to leave.'],[1750,'A tall stone aqueduct brings fresh water to town.'],[1763,'Rio becomes the capital of Brazil.']],
+  players:['René Duguay-Trouin, the French captain.','Gold miners and mule drivers.','Master Valentim, an artist who designed fountains and gardens.'],
+  inventions:['The Carioca Aqueduct, with 42 arches.','A public garden by the sea (1783).'],
+  events:['The French raid (1711).','Rio made capital (1763).'],
+  trouble:['The raid of 1711.','Slavery continued.'],
+  culture:['Church festivals with music and processions.','Fountains where people met to chat.'],
+  secret:'The old aqueduct is still there. Today a little yellow tram rides along the top of it.' },
+ 1800:{ name:'Royal Rio', headline:'A king and his whole court sail in from Europe, and Brazil becomes its own empire.',
+  pic:{sky:'day',ground:'grass',items:['castle','palm','train']},
+  timeline:[[1808,'The Portuguese royal family moves to Rio to escape a war.'],[1822,'Brazil becomes independent, with Rio as its capital.'],[1854,'Brazil’s first railway opens nearby.'],[1888,'Slavery is finally ended.'],[1889,'Brazil becomes a republic.']],
+  players:['King João VI of Portugal.','Emperor Pedro II, who loved science and photography.','Princess Isabel, who signed the law ending slavery.'],
+  inventions:['A botanical garden with giant palm trees (1808).','The first railway in Brazil.','One of the first telephones in South America.'],
+  events:['The royal family arrives (1808).','The end of slavery (1888).'],
+  trouble:['Slavery lasted until 1888.','Yellow fever in hot summers.'],
+  culture:['Carnival parades begin.','Coffee becomes the favourite drink.'],
+  secret:'For 13 years, Portugal was ruled from Rio. It is the only time a European country was run from the Americas.' },
+ 1900:{ name:'Samba city', headline:'A giant statue, samba music, Carnival and the biggest football stadium in the world.',
+  pic:{sky:'day',ground:'water',items:['statue','ball','palm']},
+  timeline:[[1912,'A cable car climbs Sugarloaf Mountain.'],[1917,'The first samba song is recorded.'],[1931,'The Christ the Redeemer statue is finished.'],[1950,'The World Cup final is played at the new Maracanã stadium.'],[1960,'The capital moves to a new city, Brasília.']],
+  players:['Pelé, who scored his 1,000th goal at the Maracanã.','Carmen Miranda, the singer with fruit on her hat.','Tom Jobim, who wrote “The Girl from Ipanema.”'],
+  inventions:['Samba and bossa nova music.','The Sugarloaf cable car.','The Sambadrome, a street built just for parades (1984).'],
+  events:['The statue opens (1931).','The 1950 World Cup.'],
+  trouble:['Many families lived in crowded hillside neighbourhoods.','Brazil lost the 1950 final at home, and the whole country cried.'],
+  culture:['Carnival!','Beach football and volleyball.'],
+  secret:'The Christ the Redeemer statue is hit by lightning several times every year.' },
+ 2000:{ name:'Olympic Rio', headline:'The World Cup, the Olympics and a museum about tomorrow.',
+  pic:{sky:'dawn',ground:'water',items:['statue','skyscraper','ball']},
+  timeline:[[2007,'The statue is voted one of the new seven wonders of the world.'],[2014,'The World Cup final is played at the Maracanã.'],[2015,'The Museum of Tomorrow opens.'],[2016,'Rio holds the first Olympic Games in South America.'],[2018,'A fire badly damages the National Museum.']],
+  players:['Neymar, who scored the winning kick for Olympic gold.','Rebeca Andrade, the champion gymnast who trains in Rio.','Rayssa Leal and other young skateboard stars.'],
+  inventions:['A science museum shaped like a spaceship.','New trams with no overhead wires.'],
+  events:['The 2014 World Cup final.','The 2016 Olympics.'],
+  trouble:['The museum fire (2018).','Heavy rain and landslides.'],
+  culture:['Carnival with giant floats.','Açaí bowls and coconut water on the beach.'],
+  secret:'A rainforest grows right inside the city. People replanted it by hand in the 1860s, tree by tree.' }
+}}
+);
+
+window.TIME_CITIES = window.TIME_CITIES || [];
+window.TIME_CITIES.push(
+{ id:'istanbul', name:'Istanbul', x:580, y:136, lx:34, ly:-28, eras:{
+ 1500:{ name:'Ottoman capital', headline:'Sultan Suleiman rules a huge empire, and a master builder fills the city with domes.',
+  pic:{sky:'day',ground:'water',items:['mosque','dome','dhow']},
+  timeline:[[1509,'A big earthquake shakes the city.'],[1520,'Suleiman the Magnificent becomes sultan.'],[1554,'The first coffee houses open.'],[1557,'The great Süleymaniye Mosque is finished.']],
+  players:['Suleiman the Magnificent, the sultan.','Mimar Sinan, the master builder.','Hürrem Sultan, the sultan’s clever wife.'],
+  inventions:['Huge domes that seem to float.','Coffee houses.','Detailed sea maps by Admiral Piri Reis.'],
+  events:['Suleiman becomes sultan (1520).','The Süleymaniye Mosque opens (1557).'],
+  trouble:['The earthquake of 1509.','Fires in the wooden streets.'],
+  culture:['Tulips in every garden.','Shadow puppet shows starring Karagöz.','Painted tiles from Iznik.'],
+  secret:'The Grand Bazaar is one of the oldest covered markets in the world. It has about 4,000 shops under one roof.' },
+ 1600:{ name:'City of minarets', headline:'The Blue Mosque rises, and a story says a man flew across the water on wings.',
+  pic:{sky:'dawn',ground:'water',items:['mosque','kite','dhow']},
+  timeline:[[1616,'The Blue Mosque is finished.'],[1632,'A story says Hezarfen Ahmed Çelebi glided across the Bosphorus on wings.'],[1660,'A great fire burns much of the city.'],[1683,'The Ottoman army is beaten at Vienna.']],
+  players:['Sultan Ahmed I, who built the Blue Mosque.','Kösem Sultan, a powerful royal mother.','Evliya Çelebi, the traveller who wrote everything down.'],
+  inventions:['A mosque with six minarets.','Water kiosks giving free drinks to anyone.'],
+  events:['The Blue Mosque opens (1616).','The great fire (1660).'],
+  trouble:['Fires and plague.','Sultans who were pushed off the throne.'],
+  culture:['Turkish baths.','Storytellers in coffee houses.'],
+  secret:'The Blue Mosque is decorated with more than 20,000 hand-painted blue tiles.' },
+ 1700:{ name:'Tulip time', headline:'The city goes crazy for tulips, and the first Turkish printing press starts up.',
+  pic:{sky:'day',ground:'grass',items:['blossom','dome','lantern']},
+  timeline:[[1718,'The “Tulip Era” begins, with garden parties and poetry.'],[1727,'İbrahim Müteferrika opens the first Turkish printing press.'],[1730,'An uprising ends the Tulip Era.'],[1766,'A strong earthquake damages the city.']],
+  players:['Sultan Ahmed III, who loved tulips.','İbrahim Müteferrika, the printer.','Nedim, the poet of the garden parties.'],
+  inventions:['Printed books in Turkish.','Pretty public fountains.','A fire brigade with water pumps.'],
+  events:['The first printed books (1729).','The uprising of 1730.'],
+  trouble:['The 1730 uprising.','The 1766 earthquake.'],
+  culture:['Tulip festivals by lantern light.','Turkish delight sweets.'],
+  secret:'It is said that at tulip parties, tortoises walked around the gardens with candles on their backs to light the flowers.' },
+ 1800:{ name:'Bridges & trains', headline:'A bridge crosses the Golden Horn, and a famous train arrives all the way from Paris.',
+  pic:{sky:'smoky',ground:'water',items:['steamship','mosque','train']},
+  timeline:[[1845,'The first Galata Bridge opens.'],[1854,'Florence Nightingale nurses soldiers in a hospital here.'],[1856,'The sultan moves into the grand Dolmabahçe Palace.'],[1875,'A tiny underground railway called the Tünel opens.'],[1883,'The Orient Express starts carrying travellers from Paris.']],
+  players:['Sultan Abdülmecid, who built the new palace.','Florence Nightingale, the nurse.','Osman Hamdi Bey, a painter who started a museum.'],
+  inventions:['The Tünel underground railway.','Steam ferries on the Bosphorus.','The telegraph.'],
+  events:['The Tünel opens (1875).','The Orient Express (1883).'],
+  trouble:['Wars that made the empire smaller.','Sickness in crowded army hospitals.'],
+  culture:['Ferry rides with tea.','Photographs and newspapers.'],
+  secret:'The Tünel is the second-oldest underground railway in the world, after London’s. It is still running.' },
+ 1900:{ name:'A new Turkey', headline:'The empire ends, a new country begins, and a bridge joins two continents.',
+  pic:{sky:'day',ground:'water',items:['bridge','mosque','car']},
+  timeline:[[1923,'Turkey becomes a republic, and the capital moves to Ankara.'],[1928,'A new alphabet is brought in.'],[1934,'Hagia Sophia becomes a museum.'],[1973,'The Bosphorus Bridge links Europe and Asia.'],[1999,'A big earthquake hits nearby.']],
+  players:['Mustafa Kemal Atatürk, founder of modern Turkey.','Halide Edib, a writer and teacher.','Sabiha Gökçen, one of the first women fighter pilots.'],
+  inventions:['The Bosphorus Bridge.','A new alphabet that was easier to learn.'],
+  events:['The republic is founded (1923).','The bridge opens (1973).'],
+  trouble:['The 1999 earthquake.','The city grew very fast and got crowded.'],
+  culture:['Football fans singing in the streets.','Sesame bread rings called simit.'],
+  secret:'Istanbul sits on two continents. You can eat breakfast in Europe and lunch in Asia without leaving the city.' },
+ 2000:{ name:'Two-continent mega-city', headline:'Trains run under the sea, and street cats rule the pavements.',
+  pic:{sky:'night',ground:'water',items:['bridge','tallest','ship']},
+  timeline:[[2006,'Istanbul writer Orhan Pamuk wins the Nobel Prize.'],[2013,'A railway tunnel opens under the sea between Europe and Asia.'],[2016,'A third bridge crosses the Bosphorus.'],[2018,'A giant new airport opens.'],[2023,'Turkey celebrates its 100th birthday.']],
+  players:['Orhan Pamuk, the writer.','Aziz Sancar, a Nobel-winning scientist who studied here.','The city’s street cats!'],
+  inventions:['The Marmaray tunnel under the sea.','One of the biggest airports in the world.'],
+  events:['The Marmaray opens (2013).','The 100th birthday (2023).'],
+  trouble:['Worry about earthquakes.','Very busy traffic.'],
+  culture:['Tea in tulip-shaped glasses.','Ferries, seagulls and fish sandwiches.'],
+  secret:'The whole city looks after its street cats. One relaxed cat called Tombili was so loved that she got her own statue.' }
+}},
+{ id:'delhi', name:'Delhi', x:714, y:170, lx:22, ly:-28, eras:{
+ 1500:{ name:'Mughals arrive', headline:'A new family of emperors, the Mughals, wins Delhi and starts building.',
+  pic:{sky:'day',ground:'sand',items:['dome','horse','person']},
+  timeline:[[1526,'Babur wins a great battle and starts the Mughal Empire.'],[1533,'Emperor Humayun begins a new fort city.'],[1540,'Sher Shah Suri takes over for a while.'],[1556,'Akbar becomes emperor at age 13.'],[1572,'Humayun’s grand tomb is finished.']],
+  players:['Babur, the first Mughal emperor.','Sher Shah Suri, who built great roads.','Akbar, the boy emperor.'],
+  inventions:['The rupee coin.','A long road with rest houses, now called the Grand Trunk Road.','Tomb gardens with water channels.'],
+  events:['The Battle of Panipat (1526).','Humayun’s Tomb is built.'],
+  trouble:['Battles for the throne.','Emperor Humayun died after falling down his library stairs.'],
+  culture:['Tiny, detailed paintings.','Persian poetry at court.'],
+  secret:'Humayun’s Tomb was the model for the Taj Mahal, which was built about 80 years later.' },
+ 1600:{ name:'Shah Jahan’s city', headline:'An emperor builds a red fort, a huge mosque and a market lit by moonlight.',
+  pic:{sky:'dawn',ground:'stone',items:['castle','mosque','sparkle']},
+  timeline:[[1639,'Shah Jahan starts building a new walled city.'],[1648,'The Red Fort is finished.'],[1650,'The market street Chandni Chowk opens.'],[1656,'The Jama Masjid mosque is finished.'],[1658,'Aurangzeb becomes emperor.']],
+  players:['Shah Jahan, who also built the Taj Mahal.','Princess Jahanara, who designed the market.','Aurangzeb, the next emperor.'],
+  inventions:['The Peacock Throne, covered in jewels.','A canal that ran down the middle of the market.'],
+  events:['The Red Fort opens (1648).','The Jama Masjid opens (1656).'],
+  trouble:['Brothers fought each other for the throne.'],
+  culture:['Sweets, spices and silver in Chandni Chowk.','Music and poetry in the palace.'],
+  secret:'The Peacock Throne took seven years to make. It is said to have cost more than the Taj Mahal.' },
+ 1700:{ name:'Stars & raids', headline:'A king builds giant stone tools to study the sky, and raiders carry off the throne.',
+  pic:{sky:'night',ground:'stone',items:['dome','camel','person']},
+  timeline:[[1724,'The Jantar Mantar observatory is built.'],[1739,'Nadir Shah of Persia raids Delhi and takes the Peacock Throne.'],[1757,'More raids from the north.']],
+  players:['Jai Singh II, the star-gazing king.','Nadir Shah, the raider.','Mir Taqi Mir, a famous poet.'],
+  inventions:['Giant stone instruments for measuring the sun and stars.','A sundial taller than a house.'],
+  events:['Jantar Mantar is built (1724).','The raid of 1739.'],
+  trouble:['Raids and robbery.','The empire grew weak.'],
+  culture:['Urdu poetry gatherings.','Kite flying from the rooftops.'],
+  secret:'The raiders took the famous Koh-i-Noor diamond. Today it is in the British crown jewels.' },
+ 1800:{ name:'British rule', headline:'The British take control, the last emperor writes poems, and the railway arrives.',
+  pic:{sky:'smoky',ground:'stone',items:['castle','train','person']},
+  timeline:[[1803,'The British East India Company takes control of Delhi.'],[1857,'A great uprising against British rule.'],[1858,'The last Mughal emperor is sent far away.'],[1867,'The railway reaches Delhi.'],[1877,'A huge ceremony names Queen Victoria Empress of India.']],
+  players:['Bahadur Shah Zafar, the last emperor.','Mirza Ghalib, the great poet.','Rani Lakshmibai, a queen who joined the uprising.'],
+  inventions:['Railways and the telegraph.','Delhi’s first town hall and clock tower.'],
+  events:['The uprising of 1857.','The railway arrives (1867).'],
+  trouble:['The fighting of 1857 destroyed much of the city.','Hunger in bad harvest years.'],
+  culture:['Ghalib’s poems and letters.','Sweet shops that are still open today.'],
+  secret:'The last Mughal emperor was a poet too. He signed his poems with the pen name Zafar.' },
+ 1900:{ name:'Capital of India', headline:'A brand-new capital is built, and India becomes a free country.',
+  pic:{sky:'dawn',ground:'grass',items:['museum','kite','car']},
+  timeline:[[1911,'The British decide to move India’s capital to Delhi.'],[1931,'New Delhi opens, with wide avenues and India Gate.'],[1947,'India becomes independent. The flag is raised at the Red Fort.'],[1950,'The first Republic Day parade.'],[1986,'The Lotus Temple opens.']],
+  players:['Jawaharlal Nehru, the first prime minister.','Mahatma Gandhi, who led India to freedom peacefully.','Indira Gandhi, India’s first woman prime minister.'],
+  inventions:['A whole new city planned from scratch.','A temple shaped like a lotus flower.'],
+  events:['Independence (1947).','The Republic Day parade (1950).'],
+  trouble:['In 1947 millions of families had to leave their homes when the land was divided.','Gandhi was killed in 1948, and the country grieved.'],
+  culture:['Republic Day parades with camels and marching bands.','Cricket in every park.'],
+  secret:'The Lotus Temple has 27 giant marble petals. Anyone of any religion is welcome inside.' },
+ 2000:{ name:'Metro city', headline:'A shiny metro, cleaner buses and leaders from around the world come to visit.',
+  pic:{sky:'smoky',ground:'stone',items:['skyscraper','train','rickshaw']},
+  timeline:[[2002,'The Delhi Metro opens. All buses switch to cleaner gas.'],[2010,'Delhi hosts the Commonwealth Games.'],[2023,'World leaders meet in Delhi for the G20.']],
+  players:['E. Sreedharan, the engineer called “Metro Man.”','Virat Kohli, the cricket star born in Delhi.','Sheila Dikshit, who led the city for 15 years.'],
+  inventions:['One of the biggest metro systems in the world.','Buses and rickshaws that run on cleaner gas.'],
+  events:['The metro opens (2002).','The G20 summit (2023).'],
+  trouble:['Smoggy air in winter.','Very hot summers.'],
+  culture:['Diwali lights and sweets.','Street snacks called chaat.','Kites on Independence Day.'],
+  secret:'Delhi has been built and rebuilt so many times that people say it is really seven or more cities on top of each other.' }
+}}
+);
+
+window.TIME_CITIES = window.TIME_CITIES || [];
+window.TIME_CITIES.push(
+{ id:'sydney', name:'Sydney', x:920, y:344, lx:-10, ly:-28, eras:{
+ 1500:{ name:'Gadigal country', headline:'Gadigal families fish in the harbour, as their people have done for thousands of years.',
+  pic:{sky:'day',ground:'water',items:['hut','canoe','kangaroo']},
+  timeline:[[1500,'Gadigal people of the Eora nation live around the harbour.'],[1550,'Fishing, shell gathering and ceremonies carry on as always.']],
+  players:['Gadigal families.','Elders, who pass on stories and laws.'],
+  inventions:['Canoes made from tree bark.','Fish hooks carved from shells.','Spears with several prongs for catching fish.'],
+  events:['Big gatherings when whales wash ashore.','Seasons of fishing and hunting.'],
+  trouble:['Summer bushfires.','Storms on the water.'],
+  culture:['Pictures carved into rock.','Songs, dances and ochre body paint.'],
+  secret:'Gadigal women fished from bark canoes with a small fire burning inside the canoe, so they could cook the fish straight away.' },
+ 1600:{ name:'Still Gadigal country', headline:'Dutch ships touch faraway parts of Australia, but the harbour stays peaceful.',
+  pic:{sky:'dawn',ground:'grass',items:['tree','kangaroo','person']},
+  timeline:[[1606,'A Dutch ship reaches the far north of Australia.'],[1642,'Abel Tasman sails past the south. Nobody from Europe visits the harbour.']],
+  players:['Gadigal families.','Dutch sailors, far away.'],
+  inventions:['Stone axes with wooden handles.','Baskets and nets woven from plants.'],
+  events:['Life by the harbour continues as before.'],
+  trouble:['Dry years with less food.'],
+  culture:['Stories about how the land was made.','Rock carvings of whales, fish and kangaroos.'],
+  secret:'Thousands of rock carvings were made around Sydney. You can still see many of them today.' },
+ 1700:{ name:'Ships arrive', headline:'Captain Cook sails by, then eleven British ships arrive and life changes forever.',
+  pic:{sky:'day',ground:'water',items:['ship','tent','kangaroo']},
+  timeline:[[1770,'Captain Cook lands at Botany Bay.'],[1788,'Eleven ships, the First Fleet, arrive with prisoners and soldiers.'],[1789,'Smallpox kills many Gadigal people.'],[1790,'Pemulwuy begins to fight to protect his people’s land.']],
+  players:['Arthur Phillip, the first governor.','Bennelong, an Eora man who spoke with the newcomers.','Pemulwuy, a warrior who resisted.'],
+  inventions:['The first farms and brick buildings in the colony.'],
+  events:['The First Fleet arrives (1788).'],
+  trouble:['Sickness was terrible for the Gadigal.','The newcomers nearly ran out of food.'],
+  culture:['Two very different ways of life meet.','The newcomers are amazed by kangaroos.'],
+  secret:'The Opera House stands on Bennelong Point. It is named after Bennelong, who once lived in a hut there.' },
+ 1800:{ name:'Colony to city', headline:'A prison colony turns into a busy city with a railway, a university and a gold rush.',
+  pic:{sky:'day',ground:'water',items:['church','steamship','train']},
+  timeline:[[1810,'Governor Macquarie starts building proper streets and hospitals.'],[1842,'Sydney officially becomes a city.'],[1850,'Australia’s first university opens.'],[1851,'Gold is found, and people rush in.'],[1855,'The first railway in the colony opens.']],
+  players:['Lachlan Macquarie, the building governor.','Francis Greenway, a prisoner who became the city’s architect.','Caroline Chisholm, who helped newcomers find homes and jobs.'],
+  inventions:['Steam ferries across the harbour.','A giant glass-domed Garden Palace (1879).'],
+  events:['The gold rush (1851).','The railway opens (1855).'],
+  trouble:['The Garden Palace burned down in 1882.','Aboriginal people lost more and more of their land.'],
+  culture:['Cricket matches.','Picnics by the harbour.'],
+  secret:'Francis Greenway was sent to Sydney as a punishment for faking a signature. Later his face was printed on Australian money!' },
+ 1900:{ name:'Bridge & Opera House', headline:'A giant steel bridge crosses the harbour, and a building with sails becomes world famous.',
+  pic:{sky:'day',ground:'water',items:['bridge','opera']},
+  timeline:[[1901,'Australia becomes one country, and Sydney celebrates.'],[1932,'The Sydney Harbour Bridge opens.'],[1942,'Tiny enemy submarines sneak into the harbour during the war.'],[1973,'The Sydney Opera House opens.']],
+  players:['John Bradfield, the bridge engineer.','Jørn Utzon, who designed the Opera House.','Don Bradman, the cricket hero.'],
+  inventions:['The Harbour Bridge, nicknamed “the Coathanger.”','The Opera House roof, shaped like sails.','Clever radio ideas that later helped make Wi-Fi.'],
+  events:['The bridge opens (1932).','The Opera House opens (1973).'],
+  trouble:['Many people lost their jobs in the 1930s.','The submarine attack (1942).'],
+  culture:['Surfing at Bondi Beach.','Meat pies at the footy.'],
+  secret:'The Opera House was meant to take 4 years to build. It took 14!' },
+ 2000:{ name:'Harbour city', headline:'The Olympics, world-famous fireworks and trains with no driver.',
+  pic:{sky:'night',ground:'water',items:['opera','tallest','sparkle']},
+  timeline:[[2000,'Sydney hosts the Olympic Games.'],[2007,'The Opera House becomes a World Heritage site.'],[2019,'Australia’s first driverless metro opens.'],[2020,'Bushfire smoke fills the sky.'],[2023,'The Women’s World Cup final is played in Sydney.']],
+  players:['Cathy Freeman, who lit the Olympic flame and won gold.','Ian Thorpe, the swimming champion.','Sam Kerr and the Matildas football team.'],
+  inventions:['A driverless metro.','Vivid, a festival that paints buildings with light.'],
+  events:['The 2000 Olympics.','The 2023 Women’s World Cup.'],
+  trouble:['Bushfire smoke (2019–2020).','Floods in 2022.'],
+  culture:['New Year’s Eve fireworks on the bridge.','Beach days and barbecues.'],
+  secret:'The Opera House roof is covered with more than one million tiles. Rain washes them clean.' }
+}}
+);
+
 </script>
 <script>
 (function(){
@@ -670,8 +993,8 @@ window.TIME_CITIES.push(
     windmill:function(x){return '<polygon points="'+(x-14)+',120 '+(x-8)+',80 '+(x+8)+',80 '+(x+14)+',120" fill="#8a6a4a"/><g stroke="#f4efe0" stroke-width="5" stroke-linecap="round"><line x1="'+x+'" y1="80" x2="'+x+'" y2="52"/><line x1="'+x+'" y1="80" x2="'+(x+26)+'" y2="88"/><line x1="'+x+'" y1="80" x2="'+(x-26)+'" y2="88"/><line x1="'+x+'" y1="80" x2="'+x+'" y2="108"/></g><circle cx="'+x+'" cy="80" r="4" fill="#333"/>';},
     crane:function(x){return '<rect x="'+(x-3)+'" y="40" width="6" height="80" fill="#e8a020"/><rect x="'+(x-30)+'" y="36" width="70" height="5" fill="#e8a020"/><line x1="'+(x+30)+'" y1="41" x2="'+(x+30)+'" y2="80" stroke="#555" stroke-width="1.5"/><rect x="'+(x+24)+'" y="80" width="12" height="10" fill="#6b7fa6"/>';},
     camel:function(x){return '<ellipse cx="'+x+'" cy="104" rx="20" ry="9" fill="#c9924a"/><circle cx="'+(x-6)+'" cy="94" r="7" fill="#c9924a"/><circle cx="'+(x+7)+'" cy="94" r="7" fill="#c9924a"/><path d="M'+(x+16)+' 102 q10 -8 10 -22" stroke="#c9924a" stroke-width="6" fill="none" stroke-linecap="round"/><ellipse cx="'+(x+28)+'" cy="78" rx="6" ry="4" fill="#c9924a"/><g stroke="#c9924a" stroke-width="4"><line x1="'+(x-14)+'" y1="110" x2="'+(x-14)+'" y2="120"/><line x1="'+(x-5)+'" y1="110" x2="'+(x-5)+'" y2="120"/><line x1="'+(x+5)+'" y1="110" x2="'+(x+5)+'" y2="120"/><line x1="'+(x+14)+'" y1="110" x2="'+(x+14)+'" y2="120"/></g>';},
-    horse:function(x){return '<ellipse cx="'+x+'" cy="102" rx="18" ry="9" fill="#7a4a2a"/><path d="M'+(x+14)+' 98 q8 -6 8 -16" stroke="#7a4a2a" stroke-width="7" fill="none" stroke-linecap="round"/><ellipse cx="'+(x+26)+'" cy="80" rx="7" ry="4" fill="#7a4a2a"/><g stroke="#7a4a2a" stroke-width="4"><line x1="'+(x-12)+'" y1="108" x2="'+(x-14)+'" y2="120"/><line x1="'+(x-4)+'" y1="108" x2="'+(x-4)+'" y2="120"/><line x1="'+(x+6)+'" y1="108" x2="'+(x+6)+'" y2="120"/><line x1="'+(x+13)+'" y1="108" x2="'+(x+15)+'" y2="120"/></g><path d="M'+(x-18)+' 100 q-8 4 -6 14" stroke="#4a2a1a" stroke-width="3" fill="none"/>';},
-    person:function(x,c){c=c||'#e04040';return '<circle cx="'+x+'" cy="88" r="7" fill="#f1c9a5"/><path d="M'+(x-7)+' 96 h14 v18 h-14z" fill="'+c+'"/><line x1="'+(x-4)+'" y1="114" x2="'+(x-4)+'" y2="120" stroke="#333" stroke-width="4"/><line x1="'+(x+4)+'" y1="114" x2="'+(x+4)+'" y2="120" stroke="#333" stroke-width="4"/>';},
+    horse:function(x){return '<path d="M'+(x-17)+' 98 q-9 3 -7 16" stroke="#4a2a1a" stroke-width="3.5" fill="none" stroke-linecap="round"/><g stroke="#7a4a2a" stroke-width="4.5" stroke-linecap="round"><line x1="'+(x-12)+'" y1="106" x2="'+(x-13)+'" y2="119"/><line x1="'+(x-5)+'" y1="107" x2="'+(x-5)+'" y2="119"/><line x1="'+(x+7)+'" y1="107" x2="'+(x+7)+'" y2="119"/><line x1="'+(x+13)+'" y1="106" x2="'+(x+14)+'" y2="119"/></g><ellipse cx="'+x+'" cy="101" rx="18" ry="9" fill="#8a5630"/><path d="M'+(x+12)+' 99 L'+(x+19)+' 86" stroke="#8a5630" stroke-width="9" stroke-linecap="round"/><ellipse cx="'+(x+24)+'" cy="85" rx="7.5" ry="4.5" fill="#8a5630" transform="rotate(18 '+(x+24)+' 85)"/><polygon points="'+(x+17)+',82 '+(x+18)+',75 '+(x+21)+',81" fill="#8a5630"/><path d="M'+(x+10)+' 96 L'+(x+16)+' 83" stroke="#4a2a1a" stroke-width="3" stroke-linecap="round"/><circle cx="'+(x+25)+'" cy="84" r="1" fill="#222"/>';},
+    person:function(x,c){c=c||'#e04040';return '<line x1="'+(x-4)+'" y1="112" x2="'+(x-4)+'" y2="120" stroke="#3a3340" stroke-width="4" stroke-linecap="round"/><line x1="'+(x+4)+'" y1="112" x2="'+(x+4)+'" y2="120" stroke="#3a3340" stroke-width="4" stroke-linecap="round"/><line x1="'+(x-7)+'" y1="99" x2="'+(x-11)+'" y2="109" stroke="#e2b083" stroke-width="3" stroke-linecap="round"/><line x1="'+(x+7)+'" y1="99" x2="'+(x+11)+'" y2="109" stroke="#e2b083" stroke-width="3" stroke-linecap="round"/><rect x="'+(x-7.5)+'" y="95" width="15" height="19" rx="4" fill="'+c+'"/><circle cx="'+x+'" cy="88" r="7" fill="#e2b083"/><path d="M'+(x-7)+' 87 a7 7 0 0 1 14 0 q-7 -5 -14 0z" fill="#3a2a1a"/><circle cx="'+(x-2.5)+'" cy="89" r=".9" fill="#222"/><circle cx="'+(x+2.5)+'" cy="89" r=".9" fill="#222"/><path d="M'+(x-2)+' 91.5 q2 1.5 4 0" fill="none" stroke="#222" stroke-width=".8" stroke-linecap="round"/>';},
     kid:function(x){return K.person(x,'#2aa876');},
     tree:function(x){return '<rect x="'+(x-3)+'" y="100" width="6" height="20" fill="#7a4a2a"/><circle cx="'+x+'" cy="90" r="16" fill="#3fa65b"/><circle cx="'+(x-10)+'" cy="98" r="10" fill="#3fa65b"/><circle cx="'+(x+10)+'" cy="98" r="10" fill="#3fa65b"/>';},
     blossom:function(x){return '<rect x="'+(x-3)+'" y="100" width="6" height="20" fill="#5a3a2a"/><circle cx="'+x+'" cy="88" r="16" fill="#ffb3c6"/><circle cx="'+(x-12)+'" cy="96" r="10" fill="#ffc6d4"/><circle cx="'+(x+12)+'" cy="96" r="10" fill="#ffc6d4"/><circle cx="'+(x+4)+'" cy="80" r="3" fill="#fff"/>';},
@@ -689,6 +1012,12 @@ window.TIME_CITIES.push(
     balloon:function(x,y){y=y||34;return '<ellipse cx="'+x+'" cy="'+y+'" rx="16" ry="20" fill="#f4a21c"/><path d="M'+(x-16)+' '+y+' q16 20 32 0" fill="#e04040"/><line x1="'+(x-8)+'" y1="'+(y+18)+'" x2="'+(x-5)+'" y2="'+(y+30)+'" stroke="#5a3a2a" stroke-width="1.5"/><line x1="'+(x+8)+'" y1="'+(y+18)+'" x2="'+(x+5)+'" y2="'+(y+30)+'" stroke="#5a3a2a" stroke-width="1.5"/><rect x="'+(x-6)+'" y="'+(y+30)+'" width="12" height="7" fill="#8a5a2a"/>';},
     kite:function(x,y){y=y||36;return '<polygon points="'+x+','+(y-16)+' '+(x+12)+','+y+' '+x+','+(y+20)+' '+(x-12)+','+y+'" fill="#e8402a"/><line x1="'+x+'" y1="'+(y-16)+'" x2="'+x+'" y2="'+(y+20)+'" stroke="#fff" stroke-width="1"/><path d="M'+x+' '+(y+20)+' q-8 10 0 20 q8 10 -4 24" fill="none" stroke="#555" stroke-width="1.5"/>';},
     rocket:function(x,y){y=y||40;return '<path d="M'+x+' '+(y-24)+' q12 14 8 40 h-16 q-4 -26 8 -40z" fill="#eee" stroke="#999"/><circle cx="'+x+'" cy="'+(y)+'" r="4" fill="#1d9bc9"/><path d="M'+(x-8)+' '+(y+10)+' l-8 10 h8z M'+(x+8)+' '+(y+10)+' l8 10 h-8z" fill="#e04040"/><path d="M'+(x-5)+' '+(y+16)+' q5 16 10 0z" fill="#f4a21c"/>';},
+    steppyramid:function(x){var s='',w=[64,50,36,22];for(var i=0;i<4;i++){s+='<rect x="'+(x-w[i]/2)+'" y="'+(109-i*11)+'" width="'+w[i]+'" height="11" fill="'+(i%2?'#c9a77a':'#b8935f')+'"/>';}return s+'<rect x="'+(x-5)+'" y="76" width="10" height="44" fill="#8f6f45"/><rect x="'+(x-8)+'" y="66" width="16" height="10" fill="#d8402a"/>';},
+    statue:function(x){return '<polygon points="'+(x-38)+',120 '+(x-8)+',64 '+(x+8)+',64 '+(x+38)+',120" fill="#4f8a5a"/><rect x="'+(x-2.5)+'" y="42" width="5" height="22" fill="#f4f1e6"/><rect x="'+(x-15)+'" y="45" width="30" height="4" fill="#f4f1e6"/><circle cx="'+x+'" cy="39" r="3.5" fill="#f4f1e6"/>';},
+    opera:function(x){function sail(o,h){return '<path d="M'+o+' 118 Q'+(o+2)+' '+(118-h)+' '+(o+24)+' '+(112-h)+' Q'+(o+16)+' '+(118-h/2)+' '+(o+21)+' 118z" fill="#fbfaf3" stroke="#c9c4b4" stroke-width="1.5"/>';}return sail(x-36,26)+sail(x-20,38)+sail(x+2,28)+'<rect x="'+(x-40)+'" y="116" width="80" height="5" fill="#b08a6a"/>';},
+    ball:function(x){return '<circle cx="'+x+'" cy="108" r="11" fill="#fff" stroke="#333" stroke-width="2"/><polygon points="'+x+',102 '+(x+6)+',106 '+(x+4)+',113 '+(x-4)+',113 '+(x-6)+',106" fill="#333"/>';},
+    kangaroo:function(x){return '<path d="M'+(x-6)+' 110 q-14 2 -20 10" stroke="#b5713a" stroke-width="5" fill="none" stroke-linecap="round"/><ellipse cx="'+x+'" cy="100" rx="9" ry="15" fill="#b5713a" transform="rotate(20 '+x+' 100)"/><circle cx="'+(x+9)+'" cy="80" r="6" fill="#b5713a"/><polygon points="'+(x+6)+',76 '+(x+5)+',66 '+(x+10)+',74" fill="#b5713a"/><polygon points="'+(x+11)+',75 '+(x+13)+',66 '+(x+15)+',76" fill="#b5713a"/><path d="M'+(x+2)+' 110 l10 9 h6" stroke="#b5713a" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M'+(x+7)+' 94 l8 4" stroke="#b5713a" stroke-width="3" stroke-linecap="round"/><circle cx="'+(x+11)+'" cy="79" r="1.2" fill="#222"/>';},
+    canoe:function(x){return '<circle cx="'+x+'" cy="94" r="5" fill="#c68e5f"/><rect x="'+(x-5)+'" y="99" width="10" height="11" fill="#d8402a"/><line x1="'+(x+12)+'" y1="90" x2="'+(x+4)+'" y2="122" stroke="#5a3a1a" stroke-width="2.5"/><path d="M'+(x-30)+' 106 Q'+x+' 126 '+(x+30)+' 106 Q'+x+' 114 '+(x-30)+' 106z" fill="#8a5a2a"/>';},
     moon:function(x,y){return '<circle cx="'+x+'" cy="'+y+'" r="12" fill="#fff6c8"/><circle cx="'+(x+6)+'" cy="'+(y-4)+'" r="10" fill="var(--k-sky)"/>';}
   };
   var SKY_ITEMS={plane:1,balloon:1,kite:1,rocket:1};
@@ -701,22 +1030,103 @@ window.TIME_CITIES.push(
   };
   var GROUNDS={grass:'#58b35c',sand:'#e9c77a',snow:'#f1f4f8',water:'#3f9ad6',stone:'#b7b3a4'};
 
-  function scene(p){
-    var sk=SKIES[p.sky]||SKIES.day,gr=GROUNDS[p.ground]||GROUNDS.grass;
-    var s='<svg class="scene" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A simple picture of this time and place" style="--k-sky:'+sk.top+'">';
-    s+='<defs><linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+sk.top+'"/><stop offset="1" stop-color="'+sk.bottom+'"/></linearGradient></defs>';
-    s+='<rect width="240" height="160" fill="url(#skyg)"/>';
-    if(sk.sun) s+='<circle cx="206" cy="30" r="14" fill="#ffd54a"/>';
-    if(sk.moon){ s+=K.moon(206,30); for(var i=0;i<14;i++){ s+='<circle cx="'+((i*53)%230+5)+'" cy="'+((i*37)%70+6)+'" r="1.5" fill="#fff"/>'; } }
-    if(p.sky!=='night'){ s+='<ellipse cx="60" cy="34" rx="18" ry="8" fill="#fff" opacity=".8"/><ellipse cx="74" cy="30" rx="12" ry="7" fill="#fff" opacity=".8"/>'; }
-    var items=p.items||[],ground=[],sky=[];
+  var sceneN=0;
+  var BOATS={ship:1,dhow:1,steamship:1,canoe:1,bridge:1};
+  var TINT={night:['#0b1030',.16],dawn:['#ff9a5a',.08],smoky:['#8a7f6a',.14],orange:['#e0641a',.14]};
+  function rng(seed){var h=2166136261;for(var i=0;i<seed.length;i++){h^=seed.charCodeAt(i);h=Math.imul(h,16777619);}return function(){h^=h<<13;h^=h>>>17;h^=h<<5;return ((h>>>0)%1000)/1000;};}
+  function f1(n){return n.toFixed(1);}
+  function cloud(x,y,sc,col,op){return '<g fill="'+col+'" opacity="'+op+'" transform="translate('+f1(x)+' '+f1(y)+') scale('+f1(sc)+')"><ellipse cx="0" cy="0" rx="18" ry="6"/><ellipse cx="-8" cy="-5" rx="9" ry="7"/><ellipse cx="6" cy="-7" rx="11" ry="8"/></g>';}
+  function skyline(yr,r,night){
+    var x=-4,body='',win='';
+    while(x<244){
+      var w=10+r()*14,h=yr<1800?8+r()*10:yr<1900?10+r()*16:yr<2000?14+r()*34:18+r()*44,t=120-h;
+      body+='<rect x="'+f1(x)+'" y="'+f1(t)+'" width="'+f1(w)+'" height="'+f1(h)+'"/>';
+      if(yr<1800) body+='<polygon points="'+f1(x-1)+','+f1(t)+' '+f1(x+w/2)+','+f1(t-6)+' '+f1(x+w+1)+','+f1(t)+'"/>';
+      else if(yr<1900&&r()>.55) body+='<rect x="'+f1(x+2)+'" y="'+f1(t-6)+'" width="3" height="6"/>';
+      else if(yr>=1900&&h>40) body+='<rect x="'+f1(x+w/2-.8)+'" y="'+f1(t-8)+'" width="1.6" height="8"/>';
+      if(night&&h>12){for(var wy=t+4;wy<114;wy+=7){if(r()>.45)win+='<rect x="'+f1(x+2+r()*(w-6))+'" y="'+f1(wy)+'" width="2.6" height="3"/>';}}
+      x+=w+(yr<1900?r()*3:.5);
+    }
+    return '<g fill="'+(night?'#141a3c':'#4a5480')+'" opacity="'+(night?.95:.3)+'">'+body+'</g>'+(win?'<g fill="#ffe28a" opacity=".85">'+win+'</g>':'');
+  }
+  function backdrop(p,yr,r,night){
+    var g=p.ground,s='';
+    if(g==='sand'){
+      s+='<path d="M0 120 Q45 90 95 108 T175 102 T240 96 V120z" fill="#d9ae5c" opacity=".75"/><path d="M0 120 Q70 102 130 114 T240 106 V120z" fill="#e6c477"/>';
+    } else if(g==='stone'){
+      s+=skyline(yr,r,night);
+    } else if(g==='water'){
+      s+='<path d="M0 118 Q30 '+f1(100+r()*8)+' 72 112 T150 '+f1(104+r()*6)+' T240 110 V118z" fill="'+(night?'#1f2f4a':'#5d8a6a')+'" opacity=".6"/>';
+      if(yr>=1900) s+='<g transform="translate(0 64) scale(1 .45)">'+skyline(yr,r,night)+'</g>';
+    } else {
+      var m1=30+r()*50,m2=140+r()*50;
+      s+='<g opacity=".7"><polygon points="'+f1(m1-55)+',120 '+f1(m1)+',66 '+f1(m1+55)+',120" fill="#8ea6c6"/><polygon points="'+f1(m1-9)+',75 '+f1(m1)+',66 '+f1(m1+9)+',75 '+f1(m1+3)+',72 '+f1(m1-3)+',73" fill="#fff"/><polygon points="'+f1(m2-45)+',120 '+f1(m2)+',78 '+f1(m2+45)+',120" fill="#a3b8d4"/></g>';
+      s+='<path d="M0 120 Q60 98 120 112 T240 102 V120z" fill="#74c477"/>';
+    }
+    return s;
+  }
+  function groundArt(p,gr,r,sunX){
+    var g=p.ground,s='',i,x,y;
+    if(g==='water'){
+      s+='<rect x="0" y="118" width="240" height="42" fill="'+gr+'"/>';
+      if(sunX){for(i=0;i<5;i++){s+='<rect x="'+f1(sunX-10+r()*8-i)+'" y="'+(123+i*7)+'" width="'+f1(12+i*3+r()*6)+'" height="1.8" rx="1" fill="#fff3b0" opacity=".55"/>';}}
+      for(i=0;i<3;i++){y=128+i*11;s+='<path d="M'+f1(-20+r()*20)+' '+y+' q10 -4 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" fill="none" stroke="#fff" stroke-width="1.6" opacity="'+(.5-i*.1)+'"/>';}
+      return s;
+    }
+    s+='<rect x="0" y="120" width="240" height="40" fill="'+gr+'"/>';
+    if(g==='sand'){for(i=0;i<7;i++){x=r()*220;y=128+r()*28;s+='<path d="M'+f1(x)+' '+f1(y)+' q8 -3 16 0" fill="none" stroke="#cfa650" stroke-width="1.3" stroke-linecap="round"/>';}}
+    else if(g==='stone'){
+      s+='<g stroke="#000" opacity=".13" stroke-width="1"><line x1="0" y1="129" x2="240" y2="129"/><line x1="0" y1="141" x2="240" y2="141"/>';
+      for(i=0;i<16;i++){x=r()*240;var row=Math.floor(r()*3);y=[120,129,141][row];s+='<line x1="'+f1(x)+'" y1="'+y+'" x2="'+f1(x)+'" y2="'+[129,141,160][row]+'"/>';}
+      s+='</g>';
+    } else {
+      for(i=0;i<16;i++){x=r()*236+2;y=127+r()*30;s+='<path d="M'+f1(x)+' '+f1(y)+' l-2 -5 M'+f1(x)+' '+f1(y)+' l0 -6 M'+f1(x)+' '+f1(y)+' l2 -5" stroke="#3b8a45" stroke-width="1.1" stroke-linecap="round" fill="none"/>';}
+      var fc=['#fff','#ffd54a','#ff8fab'];
+      for(i=0;i<7;i++){s+='<circle cx="'+f1(r()*236+2)+'" cy="'+f1(130+r()*26)+'" r="1.6" fill="'+fc[i%3]+'"/>';}
+    }
+    return s;
+  }
+  function scene(p,mini,yr){
+    yr=yr||1500;
+    var sk=SKIES[p.sky]||SKIES.day,gr=GROUNDS[p.ground]||GROUNDS.grass,gid='skyg'+(++sceneN),night=p.sky==='night';
+    var items=p.items||[],ground=[],sky=[],r=rng(items.join()+p.sky+p.ground+yr),i;
     items.forEach(function(it){ (SKY_ITEMS[it]?sky:ground).push(it); });
-    if(p.ground==='water'){ s+='<rect x="0" y="118" width="240" height="42" fill="'+gr+'"/><path d="M0 132 q10 -5 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" fill="none" stroke="#fff" stroke-width="2" opacity=".5"/>'; }
-    else { s+='<ellipse cx="60" cy="124" rx="80" ry="14" fill="'+gr+'" opacity=".7"/><ellipse cx="190" cy="124" rx="90" ry="14" fill="'+gr+'" opacity=".7"/><rect x="0" y="120" width="240" height="40" fill="'+gr+'"/>'; }
-    var xs=[[120],[75,165],[46,120,194],[36,92,148,204]][Math.min(ground.length,4)-1]||[];
-    ground.forEach(function(it,i){ if(K[it]) s+=K[it](xs[i]); });
+    var s='<svg class="'+(mini?'mini':'scene')+'" viewBox="0 0 240 160" xmlns="http://www.w3.org/2000/svg" '+(mini?'aria-hidden="true"':'role="img" aria-label="A simple picture of this time and place"')+' style="--k-sky:'+sk.top+'">';
+    s+='<defs><linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+sk.top+'"/><stop offset="1" stop-color="'+sk.bottom+'"/></linearGradient><linearGradient id="'+gid+'s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".2"/></linearGradient></defs>';
+    s+='<rect width="240" height="160" fill="url(#'+gid+')"/>';
+    var sunX=0;
+    if(night){
+      for(i=0;i<26;i++){s+='<circle cx="'+f1(r()*236+2)+'" cy="'+f1(r()*84+4)+'" r="'+f1(.6+r()*1.1)+'" fill="#fff" opacity="'+f1(.5+r()*.5)+'"/>';}
+      s+=K.moon(206,30);sunX=206;
+    } else if(p.sky==='dawn'){
+      sunX=178;s+='<circle cx="178" cy="112" r="38" fill="#fff0a8" opacity=".3"/><circle cx="178" cy="112" r="22" fill="#ffd54a"/>';
+    } else if(p.sky==='day'){
+      sunX=206;s+='<circle cx="206" cy="30" r="23" fill="#fff0a8" opacity=".45"/>';
+      for(i=0;i<8;i++){var a=i*Math.PI/4;s+='<line x1="'+f1(206+Math.cos(a)*17)+'" y1="'+f1(30+Math.sin(a)*17)+'" x2="'+f1(206+Math.cos(a)*22)+'" y2="'+f1(30+Math.sin(a)*22)+'" stroke="#ffd54a" stroke-width="2" stroke-linecap="round"/>';}
+      s+='<circle cx="206" cy="30" r="13" fill="#ffd54a"/>';
+    }
+    if(!night){
+      var cc=p.sky==='smoky'?['#9a8f7c',.6]:p.sky==='orange'?['#b4521c',.5]:['#fff',.85],n=p.sky==='smoky'||p.sky==='orange'?4:2+Math.floor(r()*2);
+      for(i=0;i<n;i++){s+=cloud(16+r()*150,20+r()*34,.7+r()*.6,cc[0],cc[1]);}
+      if((p.sky==='day'||p.sky==='dawn')&&r()>.35){var bx=30+r()*90,by=44+r()*20;s+='<path d="M'+f1(bx)+' '+f1(by)+' q3 -4 6 0 q3 -4 6 0 M'+f1(bx+14)+' '+f1(by+7)+' q2.5 -3 5 0 q2.5 -3 5 0" fill="none" stroke="#3a3a4a" stroke-width="1.1" stroke-linecap="round"/>';}
+    }
+    s+=backdrop(p,yr,r,night);
+    s+=groundArt(p,gr,r,p.sky==='orange'||p.sky==='smoky'?0:sunX);
+    s+='<rect x="0" y="118" width="240" height="42" fill="url(#'+gid+'s)"/>';
+    var xs=[[120],[75,165],[46,120,194],[36,92,148,204]][Math.min(ground.length,4)-1]||[],sc=ground.length>3?1:1.12,water=p.ground==='water';
+    ground.forEach(function(it,i){
+      var x=xs[i];if(x===undefined||!K[it])return;
+      if(water&&!BOATS[it]) s+='<ellipse cx="'+x+'" cy="122" rx="40" ry="6.5" fill="'+(yr>=1800?'#a9a493':'#d9c07e')+'"/><ellipse cx="'+x+'" cy="120.5" rx="36" ry="4" fill="'+(yr>=1800?'#c2bdac':'#7cc47a')+'"/>';
+      else if(water) s+='<ellipse cx="'+x+'" cy="124" rx="28" ry="3" fill="#0d3f66" opacity=".3"/>';
+      else s+='<ellipse cx="'+x+'" cy="121.5" rx="25" ry="3" fill="#000" opacity=".14"/>';
+    });
+    ground.forEach(function(it,i){
+      var x=xs[i];if(x===undefined||!K[it])return;
+      s+='<g transform="translate('+f1(x*(1-sc))+' '+f1(120*(1-sc))+') scale('+sc+')">'+K[it](x)+'</g>';
+    });
     var sx=[150,60];
     sky.forEach(function(it,i){ if(K[it]) s+=K[it](sx[i]||100); });
+    var t=TINT[p.sky];if(t)s+='<rect width="240" height="160" fill="'+t[0]+'" opacity="'+t[1]+'"/>';
     return s+'</svg>';
   }
 
@@ -750,17 +1160,36 @@ window.TIME_CITIES.push(
     if(b.dataset.act==='close'){state.city=null;panel.classList.remove('open');story.hidden=true;syncSelection();}
     if(b.dataset.act==='prev')setCentury(state.c-1);
     if(b.dataset.act==='next')setCentury(state.c+1);
+    if(b.dataset.act==='jump')setCentury(+b.dataset.i);
+    if(b.dataset.act==='read')readAloud(b);
+  });
+
+  var canSpeak=('speechSynthesis' in window)&&typeof window.SpeechSynthesisUtterance==='function';
+  function hush(){if(canSpeak){try{window.speechSynthesis.cancel();}catch(err){}}}
+  function readAloud(btn){
+    if(!canSpeak)return;
+    if(window.speechSynthesis.speaking){hush();btn.textContent='Read to me';return;}
+    var city=CITIES.filter(function(c){return c.id===state.city;})[0],c=CENTURIES[state.c],e=city.eras[c];
+    var text=city.name+', in the '+c+'s. '+e.headline+' '+e.timeline.map(function(t){return 'In '+t[0]+', '+t[1];}).join(' ')+' Did you know? '+e.secret;
+    var u=new SpeechSynthesisUtterance(text);u.lang='en';u.rate=0.9;
+    u.onend=function(){btn.textContent='Read to me';};
+    try{window.speechSynthesis.speak(u);btn.textContent='Stop reading';}catch(err){}
+  }
+  document.addEventListener('keydown',function(e){
+    if(e.target.closest&&e.target.closest('input,textarea,select'))return;
+    if(e.key==='ArrowLeft')setCentury(state.c-1);
+    if(e.key==='ArrowRight')setCentury(state.c+1);
   });
 
   function setCentury(i){
     if(i<0||i>=CENTURIES.length)return;
-    state.c=i;
+    state.c=i;hush();
     chips.querySelectorAll('.chip').forEach(function(b){b.setAttribute('aria-pressed',String(+b.dataset.i===i));});
     try{localStorage.setItem('tt-century',i);}catch(err){}
     renderEverywhere();renderStory();
   }
   function openCity(id){
-    state.city=id;
+    state.city=id;hush();
     renderStory();
     panel.classList.add('open');
     syncSelection();
@@ -774,7 +1203,7 @@ window.TIME_CITIES.push(
     var c=CENTURIES[state.c];
     document.getElementById('evcent').textContent=c+'s';
     document.getElementById('hint').textContent='You are looking at the '+c+'s. Tap a city on the map.';
-    evlist.innerHTML=CITIES.map(function(city){var e=city.eras[c];return '<li data-id="'+city.id+'"><strong>'+city.name+'</strong><span>'+(e?e.headline:'')+'</span></li>';}).join('');
+    evlist.innerHTML=CITIES.map(function(city){var e=city.eras[c];return '<li data-id="'+city.id+'">'+(e?scene(e.pic,true,c):'')+'<div><strong>'+city.name+'</strong><span>'+(e?e.headline:'')+'</span></div></li>';}).join('');
   }
   function list(arr){return '<ul>'+arr.map(function(t){return '<li>'+t+'</li>';}).join('')+'</ul>';}
   function sec(cls,title,arr){return '<div class="sec '+cls+'"><h3>'+title+'</h3>'+list(arr)+'</div>';}
@@ -786,8 +1215,10 @@ window.TIME_CITIES.push(
     story.hidden=false;
     story.innerHTML=
       '<div class="ptop"><div><h2>'+city.name+'</h2><div class="when">'+c+'s · '+(e.name||'')+'</div></div><button class="close" data-act="close" aria-label="Close">×</button></div>'+
-      scene(e.pic)+
+      '<div class="strip" role="group" aria-label="This city in every century">'+CENTURIES.map(function(y,i){return '<button data-act="jump" data-i="'+i+'" aria-pressed="'+(i===state.c)+'" aria-label="'+y+'s">'+scene(city.eras[y].pic,true,y)+y+'s</button>';}).join('')+'</div>'+
+      scene(e.pic,false,c)+
       '<p class="headline">'+e.headline+'</p>'+
+      (canSpeak?'<button class="readbtn" data-act="read">Read to me</button>':'')+
       '<div class="navrow"><button data-act="prev" '+(state.c===0?'disabled':'')+'>◀ '+(state.c>0?CENTURIES[state.c-1]+'s':'')+'</button><button data-act="next" '+(state.c===CENTURIES.length-1?'disabled':'')+'>'+(state.c<CENTURIES.length-1?CENTURIES[state.c+1]+'s':'')+' ▶</button></div>'+
       '<div class="sec t1"><h3>Timeline</h3><ul class="tl">'+e.timeline.map(function(t){return '<li><b>'+t[0]+'</b>'+t[1]+'</li>';}).join('')+'</ul></div>'+
       sec('t3','Big names',e.players)+
@@ -797,6 +1228,32 @@ window.TIME_CITIES.push(
       sec('t5','Fun & culture',e.culture)+
       '<div class="sec t5"><h3>Did you know?</h3><div class="secret">'+e.secret+'</div></div>';
   }
+
+  /* ---------- quiz ---------- */
+  var q={stars:0,asked:0,cur:null,done:false};
+  var qtext=document.getElementById('qtext'),qopts=document.getElementById('qopts'),qfb=document.getElementById('qfb'),qscore=document.getElementById('qscore'),qsee=document.getElementById('qsee');
+  function newQ(){
+    var pool=[];
+    CITIES.forEach(function(city){CENTURIES.forEach(function(c,ci){city.eras[c].timeline.forEach(function(t){
+      if(Math.floor(t[0]/100)*100===c&&!/\d{4}/.test(t[1]))pool.push({city:city,ci:ci,year:t[0],text:t[1]});});});});
+    var pick;do{pick=pool[Math.floor(Math.random()*pool.length)];}while(q.cur&&pick.text===q.cur.text&&pool.length>1);
+    q.cur=pick;q.done=false;
+    qtext.innerHTML='In <b>'+pick.city.name+'</b>: '+pick.text;
+    qopts.innerHTML=CENTURIES.map(function(c,i){return '<button data-i="'+i+'">'+c+'s</button>';}).join('');
+    qfb.textContent='Which century was it? Tap your guess.';qsee.hidden=true;
+  }
+  qopts.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b||q.done)return;
+    q.done=true;q.asked++;
+    var ok=+b.dataset.i===q.cur.ci;
+    qopts.querySelectorAll('button').forEach(function(x){x.disabled=true;if(+x.dataset.i===q.cur.ci){x.classList.add('right');x.textContent='✓ '+x.textContent;}});
+    if(ok){q.stars++;qfb.textContent='Yes! That was in '+q.cur.year+'.';}
+    else{b.classList.add('wrong');b.textContent='✗ '+b.textContent;qfb.textContent='Not quite. It was in '+q.cur.year+', in the '+CENTURIES[q.cur.ci]+'s.';}
+    qscore.textContent='Stars: '+q.stars+' out of '+q.asked;qsee.hidden=false;
+  });
+  document.getElementById('qnext').addEventListener('click',newQ);
+  qsee.addEventListener('click',function(){setCentury(q.cur.ci);openCity(q.cur.city.id);if(window.innerWidth>860)window.scrollTo({top:0,behavior:'smooth'});});
+  newQ();
 
   var saved=0;try{saved=+localStorage.getItem('tt-century')||0;}catch(err){}
   setCentury(saved<CENTURIES.length?saved:0);
