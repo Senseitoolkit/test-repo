@@ -329,6 +329,7 @@
           <label class="toggle"><span>Title card for each bundle</span><input type="checkbox" id="optLabel"></label>
           <label class="toggle"><span>Colour bars <small style="font-weight:600;color:var(--muted)">(off saves ink)</small></span><input type="checkbox" id="optColour"></label>
           <label class="toggle"><span>Cut guide lines</span><input type="checkbox" id="optCut"></label>
+          <label class="toggle"><span>Card labels <small style="font-weight:600;color:var(--muted)">(year &amp; unit along the bottom)</small></span><input type="checkbox" id="optTags"></label>
           <button class="dl" id="dlPdf"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="dlPdfText">Download PDF</span></button>
           <p class="dl-note" id="dlNote"></p>
           <details class="howto">
@@ -1901,7 +1902,7 @@ window.BUNDLE_FONTS = { regular: "AAEAAAAOAIAAAwBgR0RFRhEDDvQAAIOkAAAAhkdQT1PGL7
       out.push({ t: "rect", x: 0, y: top, w: cw, h: ch - top, fill: E.tint(colour, 0.84), stroke: "" });
       var hb = [block(card.text, S.word * 0.86, S.wordMin, true, 4, INK)];
       pushCentred(hb, 0);
-      out.push({ t: "text", x: cw / 2, y: ch - pad * 0.8 - S.mean * 0.8 * PT_MM, lines: [card.foot || "sorting heading"], pt: S.mean * 0.8, lh: 1.2, align: "c", bold: false, color: FAINT });
+      if (card.foot) out.push({ t: "text", x: cw / 2, y: ch - pad * 0.8 - S.mean * 0.8 * PT_MM, lines: [card.foot], pt: S.mean * 0.8, lh: 1.2, align: "c", bold: false, color: FAINT });
       return out;
     }
 
@@ -6883,6 +6884,147 @@ window.WRM_VOCAB = {
       // Print at least the whole official list for this block, and never fewer
       // cards than the year group's usual bundle.
       if (u.wrm) u.def = Math.min(Math.max(u.wrm, lvl.def), u.words.length);
+    });
+  });
+})();
+
+// Age-pitch pass for the maths bundles.
+//
+// Runs last, after the official White Rose vocabulary has been merged and moved
+// to the front of each block. It only ever touches the *supporting* words — the
+// ones written to round a bundle out — and moves any that belong to a later year
+// into the year that actually teaches them. Official progression words are left
+// where White Rose puts them; a few of the most demanding ones get a more
+// concrete, child-sized meaning instead.
+//
+// DROP: supporting words that sit above the year they were in.
+// ADD:  where those ideas belong, when the later block did not already carry them.
+(function () {
+  if (!window.BUNDLE_DATA || !window.BUNDLE_DATA.maths) return;
+  var M = window.BUNDLE_DATA.maths;
+
+  var DROP = {
+    // Year 1 — faces, edges, vertices and symmetry are Year 2 shape work;
+    // clockwise turns, change and digital clocks all come later too.
+    "y1-shape": ["symmetry", "vertex", "face", "edge"],
+    "y1-length": ["centimetre"],                       // the official card says centimetres
+    "y1-frac": ["three quarters", "divide"],
+    "y1-position": ["clockwise", "anticlockwise"],
+    "y1-money": ["change"],
+    "y1-time": ["digital"],
+
+    // Year 2 — commutativity, products, remainders and the inverse are the
+    // official Year 3 words; ascending/descending and approximating are Year 3.
+    "y2-pv": ["ascending", "descending", "approximate"],
+    "y2-mult": ["commutative", "product", "remainder", "inverse"],
+    "y2-time": ["fortnight"],
+
+    // Year 3 — the formal names for the parts of a division, simplifying,
+    // kilometres, decimal money and construction are all Year 4 or later.
+    "y3-mult": ["quotient", "dividend", "divisor", "correspondence"],
+    "y3-frac": ["simplify"],
+    "y3-length": ["kilometre", "precision"],
+    "y3-money": ["decimal point", "dearer", "discount", "value for money"],
+    "y3-time": ["decade", "century"],
+    "y3-shape": ["construct", "diagonal"],
+    "y3-stats": ["misleading", "frequency"],
+
+    // Year 4 — the laws, primes, square numbers, simplifying fractions,
+    // reflex angles and data types are Year 5 and Year 6 vocabulary.
+    "y4-pv": ["magnitude"],
+    "y4-add": ["compensation"],
+    "y4-area": ["formula", "multiply", "surface"],
+    "y4-mult": ["distributive law", "associative law", "prime", "square number", "divisible"],
+    "y4-length": ["formula", "scale drawing"],
+    "y4-frac": ["simplify", "simplest form", "common denominator", "multiply"],
+    "y4-shape": ["reflex angle"],
+    "y4-stats": ["continuous data", "discrete data", "trend", "misleading"],
+    "y4-position": ["congruent"],
+
+    // Year 5 — reciprocals, recurring decimals, surface area and ratio are Year 6.
+    "y5-frac": ["reciprocal"],
+    "y5-decper": ["recurring decimal", "terminating decimal"],
+    "y5-volume": ["surface area", "displacement"],
+    "y5-convert": ["ratio"],
+
+    // Year 6 — significant figures, indices, algebraic manipulation and the
+    // other averages are secondary school, not the primary progression.
+    "y6-pv": ["significant figure", "index"],
+    "y6-ops": ["indices", "prime factorisation"],
+    "y6-algebra": ["coefficient", "constant", "simplify", "like terms", "expand", "identity"],
+    "y6-stats": ["median", "mode", "range", "outlier", "bias", "population"],
+    "y6-area": ["surface area"]
+  };
+
+  var ADD = {
+    "y2-shape": ["vertex|a corner where edges meet", "edge|where two faces of a solid meet"],
+    "y2-frac": ["three quarters|three of the four equal parts"],
+    "y2-position": ["clockwise|turning the way clock hands go"],
+    "y2-money": ["change|the money you get back"],
+    "y3-pv": ["ascending|going up in size", "descending|going down in size"],
+    "y5-mult": [
+      "associative law|you may group the numbers you multiply any way you like",
+      "prime number|a number with exactly two factors, 1 and itself",
+      "square number|the answer when a number is multiplied by itself"
+    ],
+    "y5-shape": ["reflex angle|an angle bigger than 180 degrees"],
+    "y6-ops": ["prime factor|a factor that is a prime number"]
+  };
+
+  // A handful of official words are correct for the year but need a meaning a
+  // child of that age can picture. Kept on the card, said more plainly.
+  var REWORD = {
+    "y3-mult": {
+      "scaling": "making something a number of times as big — twice as tall, 3 times as long",
+      "commutative": "4 × 3 and 3 × 4 give the same answer"
+    },
+    "y2-pv": { "unitise": "counting in groups, like counting tens instead of ones" },
+    "y1-money": { "unitise": "treating a coin as its whole value, so 5p counts as five" },
+    "y6-ops": { "powers": "multiplying a number by itself, like 5 × 5" },
+    "y6-ratio": { "multiplicative": "found by multiplying, not by adding" }
+  };
+
+  var byId = {};
+  M.levels.forEach(function (l) { l.units.forEach(function (u) { u.__lvl = l; byId[u.id] = u; }); });
+  var key = function (s) { return s.slice(0, s.indexOf("|")).toLowerCase(); };
+  var warn = function (m) { if (window.console && console.warn) console.warn("maths pitch: " + m); };
+
+  Object.keys(DROP).forEach(function (id) {
+    var u = byId[id];
+    if (!u) return warn("no unit " + id);
+    var lead = u.wrm || 0;
+    DROP[id].forEach(function (w) {
+      var k = w.toLowerCase(), hit = -1;
+      for (var i = 0; i < u.words.length; i++) if (key(u.words[i]) === k) { hit = i; break; }
+      if (hit < 0) return warn(id + ": nothing to drop for “" + w + "”");
+      if (hit < lead) return warn(id + ": “" + w + "” is official White Rose — kept");
+      u.words.splice(hit, 1);
+    });
+  });
+
+  Object.keys(ADD).forEach(function (id) {
+    var u = byId[id];
+    if (!u) return warn("no unit " + id);
+    var have = {};
+    u.words.forEach(function (w) { have[key(w)] = 1; });
+    ADD[id].forEach(function (w) { if (!have[key(w)]) { u.words.push(w); have[key(w)] = 1; } });
+  });
+
+  Object.keys(REWORD).forEach(function (id) {
+    var u = byId[id];
+    if (!u) return warn("no unit " + id);
+    var map = REWORD[id];
+    u.words = u.words.map(function (w) {
+      var k = key(w);
+      return map[k] ? w.slice(0, w.indexOf("|")) + "|" + map[k] : w;
+    });
+  });
+
+  // Keep the default bundle size honest now that some blocks are shorter.
+  M.levels.forEach(function (l) {
+    l.units.forEach(function (u) {
+      delete u.__lvl;
+      u.def = Math.min(Math.max(u.wrm || 0, l.def), u.words.length);
     });
   });
 })();
@@ -12246,7 +12388,7 @@ window.BUNDLE_DATA.music = {
     level: {},
     selected: {},
     order: [],
-    opts: { content: "meaning", paper: "a4", orient: "p", size: "auto", label: true, colour: true, cut: true }
+    opts: { content: "meaning", paper: "a4", orient: "p", size: "auto", label: true, colour: true, cut: true, tags: true }
   };
   PROGS.forEach(function (p) { state.level[p.id] = p.levels[0].id; });
 
@@ -12301,16 +12443,18 @@ window.BUNDLE_DATA.music = {
   // ---------- card building ----------
   function cardsFor(key) {
     var info = lookup(key), sel = state.selected[key], o = state.opts, cards = [];
-    var colour = themeColour(info), tag = tagText(info), ents = entriesFor(key), pic = isPic(info);
+    // "Card labels" off strips every footer line — the year-and-unit tag on word
+    // and picture cards, and the small print under a title or sorting card.
+    var colour = themeColour(info), tag = o.tags ? tagText(info) : "", ents = entriesFor(key), pic = isPic(info);
 
     if (o.label) cards.push({ kind: "label", colour: colour, title: info.unit.title,
       sub: info.lvl.label + " · " + (info.prog.themes[info.unit.theme] ? info.prog.themes[info.unit.theme].name : info.prog.name),
-      central: info.unit.central, foot: ents.length + (pic ? " pictures · " : " words · ") + info.prog.name, eyebrow: pic ? "PICTURE SET" : "WORD BUNDLE" });
+      central: info.unit.central, foot: o.tags ? ents.length + (pic ? " pictures · " : " words · ") + info.prog.name : "", eyebrow: pic ? "PICTURE SET" : "WORD BUNDLE" });
 
     (sel.sorts || []).forEach(function (si) {
       var s = (info.unit.sorts || [])[si]; if (!s) return;
       cards.push({ kind: "prompt", colour: colour, title: s.t, q: s.q, foot: tag });
-      s.g.forEach(function (g) { cards.push({ kind: "heading", colour: colour, text: g, foot: s.t }); });
+      s.g.forEach(function (g) { cards.push({ kind: "heading", colour: colour, text: g, foot: o.tags ? s.t : "" }); });
     });
 
     ents.forEach(function (en) {
@@ -12327,8 +12471,8 @@ window.BUNDLE_DATA.music = {
     });
     if (o.content === "match") {
       ents.forEach(function (en) {
-        if (pic) cards.push({ kind: "meaning", colour: colour, w: en.w, tag: tag + " · label" });
-        else if (en.m) cards.push({ kind: "meaning", colour: colour, m: en.m, tag: tag + " · meaning" });
+        if (pic) cards.push({ kind: "meaning", colour: colour, w: en.w, tag: tag && tag + " · label" });
+        else if (en.m) cards.push({ kind: "meaning", colour: colour, m: en.m, tag: tag && tag + " · meaning" });
       });
     }
     return cards;
@@ -12743,6 +12887,7 @@ window.BUNDLE_DATA.music = {
   document.getElementById("optLabel").addEventListener("change", function (e) { state.opts.label = e.target.checked; changed(); });
   document.getElementById("optColour").addEventListener("change", function (e) { state.opts.colour = e.target.checked; changed(); });
   document.getElementById("optCut").addEventListener("change", function (e) { state.opts.cut = e.target.checked; changed(); });
+  document.getElementById("optTags").addEventListener("change", function (e) { state.opts.tags = e.target.checked; changed(); });
   function renderOpts() {
     document.querySelectorAll(".seg[data-opt]").forEach(function (seg) {
       seg.querySelectorAll("button").forEach(function (b) { b.setAttribute("aria-pressed", String(state.opts[seg.dataset.opt] === b.dataset.v)); });
@@ -12750,6 +12895,7 @@ window.BUNDLE_DATA.music = {
     document.getElementById("optLabel").checked = state.opts.label;
     document.getElementById("optColour").checked = state.opts.colour;
     document.getElementById("optCut").checked = state.opts.cut;
+    document.getElementById("optTags").checked = state.opts.tags;
     // live per-page count for the current choice
     var size = state.opts.size;
     var txt;
