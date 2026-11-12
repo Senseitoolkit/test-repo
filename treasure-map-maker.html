@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Treasure Map Maker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pirata+One&family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&display=swap">
+<style>
+/* Layout: a captain's desk. Wooden tool chest on the left, the parchment chart on the right; stacks on phones.
+   One committed look (night sea, weathered wood, brass), so no light/dark switch. */
+:root{
+  --sea:#10303a; --sea-deep:#0a2129; --wood:#5e3c22; --wood-dark:#3d2513; --brass:#dba63f; --brass-dark:#9b6f1f;
+  --cream:#f3e3bd; --parch:#e6d19c; --ink:#3b2414; --blood:#b3301f;
+  --display:'Pirata One','IM Fell English SC',Georgia,serif;
+  --body:'IM Fell English',Georgia,'Times New Roman',serif;
+  --caps:'IM Fell English SC',Georgia,serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  background:
+    radial-gradient(circle at 50% 0,rgba(219,166,63,.10),transparent 55%),
+    repeating-radial-gradient(circle at 20% 120%,transparent 0 38px,rgba(255,255,255,.025) 38px 40px),
+    linear-gradient(var(--sea),var(--sea-deep));
+  background-color:var(--sea);
+  color:var(--cream); font-family:var(--body); font-size:16px; line-height:1.4;
+}
+.wrap{max-width:1560px;margin:0 auto;padding-block:16px 28px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:14px}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;justify-content:space-between}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,5vw,3.1rem);line-height:1;margin:0;color:var(--brass);
+  text-shadow:0 2px 0 var(--wood-dark),0 4px 10px rgba(0,0,0,.5);letter-spacing:.02em;text-wrap:balance}
+.tag{margin:4px 0 0;font-style:italic;color:var(--cream);opacity:.85}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font-family:var(--caps);font-size:1rem;letter-spacing:.04em;color:var(--wood-dark);cursor:pointer;
+  background:linear-gradient(#f0c665,var(--brass) 55%,var(--brass-dark));border:2px solid var(--wood-dark);border-radius:5px;
+  padding:6px 13px;box-shadow:0 2px 0 var(--wood-dark),inset 0 1px 0 rgba(255,255,255,.45)}
+.btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(2px);box-shadow:none}
+.btn:disabled{opacity:.45;cursor:default;filter:none}
+.btn.red{background:linear-gradient(#d4533f,var(--blood));color:var(--cream)}
+:focus-visible{outline:3px solid var(--cream);outline-offset:2px}
+.desk{display:grid;grid-template-columns:292px minmax(0,1fr);gap:16px;align-items:start}
+.chest{background:
+    repeating-linear-gradient(90deg,transparent 0 71px,rgba(0,0,0,.28) 71px 73px),
+    linear-gradient(var(--wood),var(--wood-dark));
+  border:3px solid var(--wood-dark);border-radius:8px;padding:12px;display:grid;gap:10px;
+  box-shadow:0 8px 20px rgba(0,0,0,.45),inset 0 0 0 1px rgba(219,166,63,.35)}
+.chest h2{font-family:var(--caps);font-weight:400;font-size:1rem;letter-spacing:.1em;color:var(--brass);margin:2px 0 -4px;
+  display:flex;align-items:center;gap:8px}
+.chest h2::after{content:"";flex:1;height:1px;background:rgba(219,166,63,.45)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px}
+.tile{background:var(--parch);border:2px solid var(--wood-dark);border-radius:5px;padding:2px 1px 3px;cursor:pointer;
+  display:grid;justify-items:center;gap:0;color:var(--ink);font-family:var(--caps);font-size:.72rem;line-height:1.05;min-width:0}
+.tile canvas{width:44px;height:44px;display:block}
+.tile span{overflow-wrap:anywhere;text-align:center}
+.tile:hover{background:#f3e2b3}
+.tile[aria-pressed="true"]{background:#fff3cf;border-color:var(--brass);box-shadow:0 0 0 2px var(--brass),0 0 12px rgba(219,166,63,.7)}
+.opts{display:grid;gap:8px}
+.opts label{display:flex;align-items:center;gap:10px;font-family:var(--caps);letter-spacing:.06em}
+.opts input[type=range]{flex:1;min-width:0;accent-color:var(--brass)}
+.stagebox{display:grid;gap:8px;min-width:0}
+.stage{position:relative;line-height:0}
+#map{width:100%;height:auto;aspect-ratio:1400/980;max-width:100%;display:block;touch-action:none;cursor:crosshair;
+  filter:drop-shadow(0 12px 16px rgba(0,0,0,.55))}
+#label{position:absolute;transform:translate(-50%,-50%);width:min(15em,80%);text-align:center;font:italic 18px var(--body);
+  color:var(--ink);background:rgba(255,247,220,.92);border:2px dashed var(--ink);border-radius:4px;padding:4px 6px}
+#say{margin:0;min-height:1.4em;font-style:italic;color:var(--cream)}
+#say b{font-family:var(--caps);font-style:normal;font-weight:400;color:var(--brass);letter-spacing:.05em}
+#pic{position:fixed;inset:0;z-index:20;background:rgba(5,16,20,.88);display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+#pic .card{display:grid;gap:10px;justify-items:center;max-width:900px;width:100%}
+#pic img{max-width:100%;max-height:70vh}
+#pic p{margin:0;text-align:center}
+@media (max-width:860px){
+  .desk{grid-template-columns:minmax(0,1fr)}
+  .stagebox{order:-1}
+}
+</style>
+</head>
+<body style="margin:0">
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Treasure Map Maker</h1>
+      <p class="tag">Stamp it, scribble it, and mark where the gold be buried.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="undo" type="button">Undo</button>
+      <button class="btn" id="redo" type="button">Redo</button>
+      <button class="btn" id="random" type="button">Surprise me</button>
+      <button class="btn red" id="clear" type="button">Wipe the map</button>
+      <button class="btn" id="save" type="button">Save picture</button>
+      <button class="btn" id="savepdf" type="button">Save PDF</button>
+    </div>
+  </header>
+
+  <div class="desk">
+    <aside class="chest" aria-label="Tool chest">
+      <div class="opts">
+        <label for="size">Size <input id="size" type="range" min="0.5" max="3" step="0.1" value="1.2"></label>
+        <button class="btn red" id="del" type="button" hidden>Remove selected</button>
+      </div>
+      <div id="groups" style="display:grid;gap:10px"></div>
+    </aside>
+
+    <div class="stagebox">
+      <div class="stage">
+        <canvas id="map" width="1400" height="980" aria-label="Your treasure map"></canvas>
+        <input id="label" type="text" maxlength="40" placeholder="Name this place" hidden autocomplete="off">
+      </div>
+      <p id="say" role="status"></p>
+    </div>
+  </div>
+</div>
+
+<div id="pic" hidden>
+  <div class="card">
+    <img id="picimg" alt="Your finished treasure map">
+    <p>Press and hold the picture (or right-click it) and choose Save image.</p>
+    <button class="btn" id="picclose" type="button">Back to the map</button>
+  </div>
+</div>
+
+<script>
+(()=>{
+const W=1400,H=980,INK='#3b2414',BLOOD='#a8281e',SEA='#2f5d6e',TAU=Math.PI*2;
+const cv=document.getElementById('map'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+function rng(seed){let s=(seed>>>0)||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}}
+
+/* ---------- parchment ---------- */
+const paper=document.createElement('canvas');paper.width=W;paper.height=H;
+const rag=new Path2D();
+(function(){
+  const p=paper.getContext('2d'),r=rng(4177),m=14;let first=true;
+  const edge=(x0,y0,x1,y1)=>{const dx=x1-x0,dy=y1-y0,L=Math.hypot(dx,dy),n=Math.round(L/20);
+    for(let i=0;i<n;i++){const t=i/n;let j=(r()-.5)*9;if(r()<.07)j+=8+r()*16;
+      const x=x0+dx*t-dy/L*j,y=y0+dy*t+dx/L*j;first?rag.moveTo(x,y):rag.lineTo(x,y);first=false}};
+  edge(m,m,W-m,m);edge(W-m,m,W-m,H-m);edge(W-m,H-m,m,H-m);edge(m,H-m,m,m);rag.closePath();
+  p.save();p.clip(rag);
+  const g=p.createRadialGradient(W/2,H/2,120,W/2,H/2,W*.68);g.addColorStop(0,'#e4d2a2');g.addColorStop(.7,'#d9c189');g.addColorStop(1,'#c09c5e');
+  p.fillStyle=g;p.fillRect(0,0,W,H);
+  for(let i=0;i<16;i++){const x=r()*W,y=r()*H,R=40+r()*150,s=p.createRadialGradient(x,y,0,x,y,R);
+    s.addColorStop(0,'rgba(120,80,30,.10)');s.addColorStop(.8,'rgba(120,80,30,.05)');s.addColorStop(1,'rgba(120,80,30,0)');p.fillStyle=s;p.fillRect(x-R,y-R,R*2,R*2)}
+  for(let i=0;i<3200;i++){p.fillStyle=`rgba(${r()<.5?'90,55,20':'255,245,215'},${.03+r()*.07})`;p.fillRect(r()*W,r()*H,1+r()*2.4,1+r()*2.4)}
+  p.strokeStyle='rgba(90,55,20,.07)';p.lineWidth=1;
+  for(let i=0;i<260;i++){const x=r()*W,y=r()*H,a=r()*TAU,l=6+r()*22;p.beginPath();p.moveTo(x,y);p.lineTo(x+Math.cos(a)*l,y+Math.sin(a)*l);p.stroke()}
+  [W/3,W*2/3].forEach(x=>{p.fillStyle='rgba(80,50,20,.10)';p.fillRect(x,0,2,H);p.fillStyle='rgba(255,245,215,.16)';p.fillRect(x+2,0,2,H)});
+  p.fillStyle='rgba(80,50,20,.08)';p.fillRect(0,H/2,W,2);
+  [70,46,26,12].forEach(w=>{p.strokeStyle='rgba(95,50,15,.085)';p.lineWidth=w;p.stroke(rag)});
+  // frame, rhumb lines and a scale bar, like an old sea chart
+  p.save();p.beginPath();p.rect(54,54,W-108,H-108);p.clip();
+  p.strokeStyle='rgba(59,36,20,.13)';p.lineWidth=1;
+  for(let i=0;i<16;i++){const a=i/16*TAU;p.beginPath();p.moveTo(W*.5,H*.5);p.lineTo(W*.5+Math.cos(a)*1600,H*.5+Math.sin(a)*1600);p.stroke()}
+  p.restore();
+  p.strokeStyle='rgba(59,36,20,.6)';p.lineWidth=3;p.strokeRect(46,46,W-92,H-92);p.lineWidth=1.2;p.strokeRect(54,54,W-108,H-108);
+  const bx=W-330,by=H-84;p.lineWidth=1.5;p.strokeStyle='rgba(59,36,20,.75)';
+  for(let i=0;i<5;i++){p.fillStyle=i%2?'rgba(240,226,185,.9)':'rgba(59,36,20,.75)';p.fillRect(bx+i*44,by,44,8);p.strokeRect(bx+i*44,by,44,8)}
+  p.fillStyle='rgba(59,36,20,.8)';p.font='italic 17px "IM Fell English",Georgia,serif';p.textAlign='center';
+  p.fillText('0',bx,by-6);p.fillText('5 leagues',bx+220,by-6);
+  p.restore();
+})();
+
+/* ---------- stamps ---------- */
+function P(c,d,fill,noStroke){const p=new Path2D(d);if(fill){c.fillStyle=fill;c.fill(p)}if(!noStroke)c.stroke(p)}
+function C(c,x,y,r,fill){c.beginPath();c.arc(x,y,r,0,TAU);if(fill){c.fillStyle=fill;c.fill()}c.stroke()}
+const WATER='M-30 22 Q-24 17 -18 22 M8 23 Q14 18 20 23 M22 21 Q27 17 31 21';
+const STAMPS={
+ mountain:{n:'Mountain',g:'Land',sc:1,d(c){P(c,'M-30 20 L-6 -24 L2 -10 L8 -18 L30 20','#c8b084');P(c,'M-6 -24 L-2 -6 L-8 6 M-2 -6 L4 8 M8 -18 L12 0 L8 10 M-16 10 L-12 2')}},
+ snow:{n:'Snowy peak',g:'Land',sc:1,d(c){P(c,'M-30 20 L-4 -30 L30 20','#b9a987');P(c,'M-12.3 -14 L-4 -30 L6.9 -14 L2 -18 L-3 -11 L-8 -17 Z','#faf5e6');P(c,'M-4 -11 L0 6 L-6 14 M8 -2 L12 12')}},
+ volcano:{n:'Volcano',g:'Land',d(c){C(c,-2,-22,5,'#d5c8ad');C(c,6,-29,6,'#d5c8ad');C(c,-1,-37,4.5,'#d5c8ad');P(c,'M-28 20 L-9 -14 L9 -14 L28 20','#b3946a');P(c,'M-9 -14 Q0 -9 9 -14 L6 -3 L2 -9 L-3 2 L-5 -8 Z','#d2492e');P(c,'M-14 8 L-11 0 M14 10 L11 2')}},
+ hills:{n:'Hills',g:'Land',sc:1,d(c){P(c,'M-30 20 Q-16 -8 -2 20','#bcc48c');P(c,'M-8 20 Q10 -16 30 20','#c4cb93');P(c,'M-20 10 l3 -4 M6 6 l3 -5 M14 10 l3 -4')}},
+ rocks:{n:'Rocks',g:'Land',sc:1,d(c){P(c,'M-22 20 L-18 4 L-6 -2 L2 8 L4 20 Z','#b3a588');P(c,'M2 20 L6 6 L16 2 L24 12 L24 20 Z','#c0b396');P(c,'M-14 8 L-8 4 M10 10 L16 8')}},
+ cave:{n:'Cave',g:'Land',d(c){P(c,'M-28 20 Q-28 -18 -4 -22 Q26 -22 28 20 Z','#b3a07a');P(c,'M-12 20 Q-13 -6 0 -7 Q12 -6 12 20 Z','#2a1a10');P(c,'M-20 2 l5 -4 M16 -4 l4 5 M-2 -16 l5 2')}},
+ dunes:{n:'Dunes',g:'Land',sc:1,d(c){P(c,'M-30 14 Q-18 -4 -6 14','#ecd596');P(c,'M-12 14 Q6 -12 30 14','#f0dba0');P(c,'M-2 4 Q5 0 9 9');c.fillStyle=INK;[[-20,18],[-2,19],[14,18],[22,19]].forEach(q=>c.fillRect(q[0],q[1],1.6,1.6))}},
+ lake:{n:'Lake',g:'Land',d(c){c.beginPath();c.ellipse(0,6,28,14,0,0,TAU);c.fillStyle='#a5cdc9';c.fill();c.stroke();P(c,'M-14 4 Q-9 0 -4 4 M2 11 Q7 7 12 11 M8 1 Q12 -2 16 1')}},
+ pine:{n:'Pine',g:'Wilds',sc:1,d(c){P(c,'M-2 12 V20 H2 V12','#7a5433');P(c,'M0 -28 L-12 -6 L-5 -6 L-16 12 L16 12 L5 -6 L12 -6 Z','#5f7a4a')}},
+ tree:{n:'Tree',g:'Wilds',sc:1,d(c){P(c,'M-2 6 L-3 20 L3 20 L2 6','#7a5433');P(c,'M-14 0 A9 9 0 0 1 -6 -14 A10 10 0 0 1 10 -14 A9 9 0 0 1 14 2 A9 9 0 0 1 0 8 A9 9 0 0 1 -14 0 Z','#7c9656');P(c,'M-6 -4 q3 3 6 0 M3 -8 q3 3 6 0')}},
+ palm:{n:'Palm',g:'Wilds',sc:1,d(c){P(c,'M-2 20 Q2 0 6 -12 L9 -11 Q6 2 3 20 Z','#9a7448');const g='#5f8a4e';P(c,'M7 -12 Q-6 -27 -20 -14 Q-8 -18 7 -12 Z',g);P(c,'M7 -12 Q20 -29 30 -12 Q18 -18 7 -12 Z',g);P(c,'M7 -12 Q-4 -8 -12 4 Q-2 -5 7 -12 Z',g);P(c,'M7 -12 Q20 -8 24 6 Q16 -5 7 -12 Z',g);P(c,'M7 -12 Q5 -28 14 -31 Q11 -22 7 -12 Z',g);C(c,5,-10,2,'#5a3b22');C(c,9,-9,2,'#5a3b22')}},
+ swamp:{n:'Swamp',g:'Wilds',sc:1,d(c){c.strokeStyle='#4f6b3c';P(c,'M-16 20 L-18 0 M-10 20 L-9 -6 M-2 20 L-4 2 M8 20 L10 -4 M16 20 L18 4');c.strokeStyle=INK;[[-18,-3],[-9,-9],[10,-7]].forEach(q=>{c.beginPath();c.ellipse(q[0],q[1],2.2,5,0,0,TAU);c.fillStyle='#6b4423';c.fill();c.stroke()});c.strokeStyle=SEA;P(c,'M-28 23 Q-22 19 -16 23 M-6 24 Q0 20 6 24 M14 23 Q20 19 26 23')}},
+ city:{n:'City',g:'Places',d(c){const w='#dcc091',rf='#a8452c';P(c,'M-26 20 V2 H-12 V20 Z',w);P(c,'M-12 20 V-10 H-2 V20 Z','#cfc4ad');P(c,'M-2 20 V-18 H10 V20 Z',w);P(c,'M10 20 V-2 H26 V20 Z',w);P(c,'M-28 2 L-19 -7 L-10 2 Z',rf);P(c,'M-4 -18 L4 -30 L12 -18 Z',rf);P(c,'M8 -2 L18 -11 L28 -2 Z',rf);P(c,'M-12 -10 V-14 H-9 V-10 M-5 -10 V-14 H-2 V-10 M4 -30 V-38');P(c,'M4 -38 L11 -35.5 L4 -33 Z',BLOOD);c.fillStyle=INK;[[-21,8],[-8,-3],[3,-10],[3,2],[16,6]].forEach(q=>c.fillRect(q[0],q[1],3,5))}},
+ hut:{n:'Village hut',g:'Places',sc:1,d(c){P(c,'M-13 20 V2 H13 V20 Z','#dcc091');P(c,'M-20 4 L0 -16 L20 4 Z','#b08a4a');P(c,'M-4 20 V8 H4 V20','#5a3b22');P(c,'M-10 -2 L-6 -8 M4 -6 L8 -2')}},
+ castle:{n:'Fort',g:'Places',d(c){P(c,'M-24 20 V-12 H-20 V-8 H-16 V-12 H-12 V0 H12 V-12 H16 V-8 H20 V-12 H24 V20 Z','#bcae94');P(c,'M-5 20 V8 Q0 1 5 8 V20 Z','#2a1a10');P(c,'M0 0 V-24');P(c,'M0 -24 L12 -20 L0 -16 Z',BLOOD);c.fillStyle=INK;c.fillRect(-19.5,0,3,6);c.fillRect(16.5,0,3,6)}},
+ tower:{n:'Watchtower',g:'Places',d(c){P(c,'M-7 20 V-12 H7 V20 Z','#bcae94');P(c,'M-10 -12 V-19 H-6 V-16 H-2 V-19 H2 V-16 H6 V-19 H10 V-12 Z','#cfc4ad');c.fillStyle=INK;c.fillRect(-1.5,-6,3,7);P(c,'M-3 20 V12 H3 V20','#5a3b22')}},
+ lighthouse:{n:'Lighthouse',g:'Places',d(c){P(c,'M-7 20 L-4 -14 H4 L7 20 Z','#efe4c8');P(c,'M-5.9 8 L-5 -2 H5 L5.9 8 Z',BLOOD);P(c,'M-6 -14 H6 V-20 H-6 Z','#e7c95a');P(c,'M-8 -20 L0 -28 L8 -20 Z',BLOOD);P(c,'M-10 -18 L-21 -21 M-10 -16 L-20 -12 M10 -18 L21 -21 M10 -16 L20 -12')}},
+ tent:{n:'Camp',g:'Places',d(c){P(c,'M-18 20 L0 -12 L18 20 Z','#d9c08a');P(c,'M-4 20 L0 0 L4 20 Z','#3b2414');P(c,'M0 -12 L-3 -18 M0 -12 L3 -18');P(c,'M22 20 L24 12 L27 16 L29 9 L32 20 Z','#d6652c')}},
+ bridge:{n:'Bridge',g:'Places',d(c){P(c,'M-28 8 Q0 -12 28 8 L28 14 Q0 -6 -28 14 Z','#b08a5a');P(c,'M-28 8 V-1 M-14 0 V-9 M0 -3 V-12 M14 0 V-9 M28 8 V-1 M-28 -1 Q0 -21 28 -1')}},
+ ruins:{n:'Ruins',g:'Places',d(c){const s='#d9cfb8';P(c,'M-18 20 V-10 H-10 V20 Z',s);P(c,'M-4 20 V-2 L4 -6 V20 Z',s);P(c,'M10 20 V-14 H18 V20 Z',s);P(c,'M-21 -10 H-7 V-14 H-21 Z',s);P(c,'M8 -14 H21 V-18 H8 Z',s);P(c,'M-14 -6 V16 M14 -10 V16 M22 20 l4 -5 l4 5 Z',s)}},
+ grave:{n:'Grave',g:'Places',sc:1,d(c){P(c,'M-8 20 V-6 Q-8 -16 0 -16 Q8 -16 8 -6 V20 Z','#bdb5a3');P(c,'M0 -10 V6 M-4 -4 H4 M-14 20 H14')}},
+ ship:{n:'Ship',g:'Sea',d(c){P(c,'M0 6 V-30');P(c,'M2 -27 Q17 -17 2 -7 Z','#f3ead2');P(c,'M-2 -23 Q-17 -13 -2 -3 Z','#f3ead2');P(c,'M0 -30 L9 -33 L0 -36 Z','#2a1a10');P(c,'M-24 6 Q-20 20 -10 20 H12 Q22 18 26 4 Z','#8a5a34');P(c,'M-19 11 H22');c.strokeStyle=SEA;P(c,'M-32 22 Q-26 17 -20 22 Q-14 27 -8 22 M16 23 Q22 18 28 23')}},
+ wreck:{n:'Shipwreck',g:'Sea',d(c){c.save();c.rotate(-.3);P(c,'M-6 8 L-13 -22 M-11 -14 L3 -17');P(c,'M-13 -20 L0 -17 L-4 -8 L-9 -11 L-10 -4 Z','#e0d6bc');P(c,'M-22 6 Q-16 20 -4 20 L2 10 L6 20 H14 Q22 16 24 6 Z','#7a5433');c.restore();c.strokeStyle=SEA;P(c,WATER)}},
+ serpent:{n:'Sea serpent',g:'Sea',d(c){const g='#5f8a7a';P(c,'M-28 20 Q-20 -8 -12 20 Z',g);P(c,'M-6 20 Q2 -12 10 20 Z',g);P(c,'M15 20 Q13 -14 23 -23 Q32 -21 30 -12 L22 -10 Q21 4 24 20 Z',g);C(c,24,-17,1.4,INK);P(c,'M30 -12 l5 2 M-20 6 l0 -5 M2 4 l0 -6');c.strokeStyle=SEA;P(c,WATER)}},
+ kraken:{n:'Kraken',g:'Sea',d(c){const k='#a8556a';P(c,'M-22 20 Q-28 -2 -18 -14 Q-12 -20 -11 -12 Q-16 -4 -13 20 Z',k);P(c,'M-4 20 Q-8 -14 2 -26 Q9 -32 9 -22 Q2 -12 5 20 Z',k);P(c,'M14 20 Q12 0 20 -8 Q27 -12 26 -5 Q20 2 23 20 Z',k);c.fillStyle='#f1d9c9';[[-17,2],[-18,10],[0,-4],[0,6],[18,6],[18,13]].forEach(q=>{c.beginPath();c.arc(q[0],q[1],1.5,0,TAU);c.fill()});c.strokeStyle=SEA;P(c,WATER)}},
+ whirl:{n:'Whirlpool',g:'Sea',d(c){c.strokeStyle=SEA;c.beginPath();for(let t=0;t<17;t+=.2){const R=1.5+t*1.55,x=Math.cos(t)*R,y=Math.sin(t)*R*.62;t?c.lineTo(x,y):c.moveTo(x,y)}c.stroke()}},
+ waves:{n:'Waves',g:'Sea',sc:1,d(c){c.strokeStyle=SEA;P(c,'M-28 0 Q-21 -8 -14 0 Q-7 8 0 0 Q7 -8 14 0 Q21 8 28 0 M-18 12 Q-11 4 -4 12 Q3 20 10 12 Q17 4 24 12')}},
+ fin:{n:'Shark',g:'Sea',d(c){P(c,'M-10 18 Q-2 -6 10 -16 Q8 2 14 18 Z','#7d8a8a');c.strokeStyle=SEA;P(c,'M-26 20 Q-20 15 -14 20 M10 21 Q17 16 24 21 M-6 24 Q0 20 6 24')}},
+ anchor:{n:'Anchor',g:'Sea',d(c){c.lineWidth=3.4;C(c,0,-22,4);P(c,'M0 -18 V19 M-9 -8 H9 M-17 5 Q-15 20 0 20 Q15 20 17 5 M-17 5 l-4 6 M-17 5 l6 3 M17 5 l4 6 M17 5 l-6 3')}},
+ x:{n:'X marks it',g:'Treasure',nf:1,d(c){c.strokeStyle=BLOOD;c.lineWidth=7;P(c,'M-15 -14 L14 15');P(c,'M15 -15 L-14 14');c.lineWidth=2.4;P(c,'M-17 -12 L-12 -17 M12 17 L17 12')}},
+ chest:{n:'Chest',g:'Treasure',d(c){P(c,'M-18 20 V2 H18 V20 Z','#9a6a34');P(c,'M-18 2 Q-18 -12 0 -12 Q18 -12 18 2 Z','#b07a3a');P(c,'M-8 -10.5 V20 M8 -10.5 V20 M-18 2 H18');C(c,0,5,3.4,'#e7c95a');c.strokeStyle='#c2901f';P(c,'M-24 -14 l3 -4 M24 -14 l-3 -4 M0 -18 v-6 M-12 -18 l-2 -5 M12 -18 l2 -5')}},
+ skull:{n:'Skull',g:'Treasure',d(c){c.lineWidth=8;P(c,'M-20 2 L20 22 M20 2 L-20 22');c.strokeStyle='#f1e8d2';c.lineWidth=4.5;P(c,'M-20 2 L20 22 M20 2 L-20 22');c.strokeStyle=INK;c.lineWidth=2;P(c,'M-14 -4 Q-14 -22 0 -22 Q14 -22 14 -4 Q14 4 8 6 V12 H-8 V6 Q-14 4 -14 -4 Z','#f1e8d2');C(c,-6,-6,3.8,INK);C(c,6,-6,3.8,INK);P(c,'M0 -1 L-2 3 H2 Z',INK);P(c,'M-4 6 V12 M0 6 V12 M4 6 V12')}},
+ flag:{n:'Pirate flag',g:'Treasure',d(c){P(c,'M-10 20 V-28');P(c,'M-10 -26 Q2 -31 12 -24 Q20 -20 26 -24 V-8 Q20 -4 12 -8 Q2 -14 -10 -10 Z','#2a1a10');c.strokeStyle='#f1e8d2';C(c,8,-18,3.4,'#f1e8d2');c.lineWidth=1.6;P(c,'M2 -12 L14 -10 M2 -9 L14 -13')}},
+ compass:{n:'Compass rose',g:'Treasure',nf:1,d(c){C(c,0,0,20);C(c,0,0,23);for(let k=1;k>=0;k--)for(let i=k;i<8;i+=2){const L=i%2?15:30;c.save();c.rotate(i*Math.PI/4);P(c,`M0 ${-L} L4.5 0 L0 0 Z`,INK);P(c,`M0 ${-L} L-4.5 0 L0 0 Z`,'#f1e3b4');c.restore()}C(c,0,0,2.5,BLOOD);c.fillStyle=INK;c.font='italic 15px "IM Fell English",Georgia,serif';c.textAlign='center';c.fillText('N',0,-34)}}
+};
+function drawStamp(c,it){const d=STAMPS[it.k];if(!d)return;c.save();c.translate(it.x,it.y);c.scale(it.s,it.s);if(it.f&&!d.nf)c.scale(-1,1);
+  c.lineWidth=2;c.strokeStyle=INK;c.lineJoin=c.lineCap='round';d.d(c);c.restore()}
+
+/* ---------- lines & land ---------- */
+const LINES={
+ land:{n:'Island',hint:'Drag a loop to draw an island or coastline.'},
+ trail:{n:'Dotted trail',hint:'Drag to dot out the path to the treasure.'},
+ road:{n:'Road',hint:'Drag to lay a road.'},
+ river:{n:'River',hint:'Drag to run a river.'},
+ wall:{n:'Wall',hint:'Drag to raise a stone wall with a tower at each end.'},
+ route:{n:'Sea route',hint:'Drag to plot a ship’s course. The arrow shows the heading.'}
+};
+function trace(c,p,closed){c.beginPath();const n=p.length;
+  if(n<2){c.moveTo(p[0][0],p[0][1]);c.lineTo(p[0][0]+.1,p[0][1]);return}
+  if(closed&&n>2){c.moveTo((p[n-1][0]+p[0][0])/2,(p[n-1][1]+p[0][1])/2);
+    for(let i=0;i<n;i++){const a=p[i],b=p[(i+1)%n];c.quadraticCurveTo(a[0],a[1],(a[0]+b[0])/2,(a[1]+b[1])/2)}c.closePath()}
+  else{c.moveTo(p[0][0],p[0][1]);for(let i=1;i<n-1;i++){const a=p[i],b=p[i+1];c.quadraticCurveTo(a[0],a[1],(a[0]+b[0])/2,(a[1]+b[1])/2)}c.lineTo(p[n-1][0],p[n-1][1])}}
+function drawPath(c,it){const w=it.s,p=it.pts;c.save();c.lineJoin=c.lineCap='round';trace(c,p,false);
+  const st=(col,lw,dash,cap)=>{c.strokeStyle=col;c.lineWidth=lw;c.setLineDash(dash||[]);c.lineCap=cap||'round';c.stroke()};
+  if(it.k==='trail')st('#8c2318',5.5*w,[.1,13*w]);
+  else if(it.k==='road'){st(INK,6.5*w);st('#ead7a2',3.6*w)}
+  else if(it.k==='river'){st(SEA,7.5*w);st('#a5cdc9',4.4*w)}
+  else if(it.k==='wall'){st(INK,9.5*w);st('#cfc4ad',5.6*w);st(INK,5.6*w,[1.6*w,9*w],'butt');c.setLineDash([]);
+    [p[0],p[p.length-1]].forEach(q=>{const s=8*w;c.fillStyle='#cfc4ad';c.strokeStyle=INK;c.lineWidth=2*w;c.fillRect(q[0]-s,q[1]-s,s*2,s*2);c.strokeRect(q[0]-s,q[1]-s,s*2,s*2)})}
+  else if(it.k==='route'){st(SEA,2.8*w,[14*w,9*w]);c.setLineDash([]);const n=p.length;
+    if(n>1){const b=p[n-1];let a=p[n-2];for(let i=n-2;i>=0;i--){a=p[i];if(Math.hypot(b[0]-a[0],b[1]-a[1])>14)break}
+      const an=Math.atan2(b[1]-a[1],b[0]-a[0]);c.translate(b[0],b[1]);c.rotate(an);c.fillStyle=SEA;c.beginPath();c.moveTo(9*w,0);c.lineTo(-8*w,-7*w);c.lineTo(-8*w,7*w);c.closePath();c.fill()}}
+  c.restore()}
+function setFont(c,s){c.font=`italic ${Math.round(28*s)}px "IM Fell English",Georgia,serif`;c.textAlign='center';c.textBaseline='middle'}
+function drawText(c,it){c.save();setFont(c,it.s);c.lineJoin='round';c.strokeStyle='rgba(236,220,172,.85)';c.lineWidth=5*it.s;c.strokeText(it.str,it.x,it.y);c.fillStyle=INK;c.fillText(it.str,it.x,it.y);c.restore()}
+
+/* ---------- state ---------- */
+let items=[],sel=null,ghost=null,live=null,tool={type:'stamp',k:'mountain'},size=1.2;
+const undoS=[],redoS=[];
+function snap(){undoS.push(JSON.stringify(items));if(undoS.length>80)undoS.shift();redoS.length=0;btns()}
+function store(){try{localStorage.setItem('tmm-map-v1',JSON.stringify(items))}catch(e){}}
+function btns(){$('undo').disabled=!undoS.length;$('redo').disabled=!redoS.length;$('del').hidden=!sel}
+function say(html){$('say').innerHTML=html}
+
+function render(){const c=ctx;c.clearRect(0,0,W,H);c.drawImage(paper,0,0);c.save();c.clip(rag);
+  const all=live?items.concat([live]):items;
+  const lands=all.filter(i=>i.t==='land'&&i.pts.length>2);
+  c.lineJoin='round';
+  [[38,.13],[20,.16]].forEach(q=>{c.strokeStyle=`rgba(47,110,125,${q[1]})`;c.lineWidth=q[0];lands.forEach(l=>{trace(c,l.pts,true);c.stroke()})});
+  c.strokeStyle=INK;c.lineWidth=5;lands.forEach(l=>{trace(c,l.pts,true);c.stroke()});
+  c.fillStyle='#f1e3b4';lands.forEach(l=>{trace(c,l.pts,true);c.fill()});
+  if(live&&live.t==='land'&&live.pts.length<=2){c.strokeStyle=INK;c.lineWidth=2.5;trace(c,live.pts,false);c.stroke()}
+  all.forEach(i=>{if(i.t==='path')drawPath(c,i)});
+  all.filter(i=>i.t==='stamp').sort((a,b)=>a.y-b.y).forEach(i=>drawStamp(c,i));
+  all.forEach(i=>{if(i.t==='text')drawText(c,i)});
+  if(sel){c.save();c.strokeStyle='#14607a';c.lineWidth=2.5;c.setLineDash([7,6]);
+    if(sel.t==='stamp'){c.beginPath();c.arc(sel.x,sel.y-4*sel.s,36*sel.s,0,TAU);c.stroke()}
+    else if(sel.t==='text'){setFont(c,sel.s);const w=c.measureText(sel.str).width/2+10,h=20*sel.s;c.strokeRect(sel.x-w,sel.y-h,w*2,h*2)}
+    else{trace(c,sel.pts,sel.t==='land');c.stroke()}
+    c.restore()}
+  if(ghost){c.save();
+    if(tool.type==='stamp'){c.globalAlpha=.5;drawStamp(c,{k:tool.k,x:ghost[0],y:ghost[1],s:size})}
+    else if(tool.type==='erase'){c.strokeStyle=BLOOD;c.lineWidth=2;c.beginPath();c.arc(ghost[0],ghost[1],16,0,TAU);c.stroke()}
+    c.restore()}
+  c.restore()}
+
+/* ---------- hit testing ---------- */
+function dseg(px,py,a,b){const vx=b[0]-a[0],vy=b[1]-a[1],L=vx*vx+vy*vy||1;let t=((px-a[0])*vx+(py-a[1])*vy)/L;t=Math.max(0,Math.min(1,t));return Math.hypot(px-a[0]-t*vx,py-a[1]-t*vy)}
+function pip(x,y,p){let inn=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const a=p[i],b=p[j];if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])inn=!inn}return inn}
+function hit(x,y){let i;
+  for(i=items.length-1;i>=0;i--){const t=items[i];if(t.t==='text'){setFont(ctx,t.s);if(Math.abs(x-t.x)<ctx.measureText(t.str).width/2+8&&Math.abs(y-t.y)<18*t.s+4)return t}}
+  const st=items.filter(t=>t.t==='stamp').sort((a,b)=>b.y-a.y);
+  for(i=0;i<st.length;i++){const t=st[i];if(Math.hypot(x-t.x,y-(t.y-4*t.s))<28*t.s+4)return t}
+  for(i=items.length-1;i>=0;i--){const t=items[i];if(t.t==='path'){const p=t.pts;for(let k=0;k<p.length-1;k++)if(dseg(x,y,p[k],p[k+1])<9+4*t.s)return t;if(p.length===1&&Math.hypot(x-p[0][0],y-p[0][1])<12)return t}}
+  for(i=items.length-1;i>=0;i--){const t=items[i];if(t.t==='land'&&pip(x,y,t.pts))return t}
+  return null}
+
+/* ---------- pointer ---------- */
+let down=false,last=null,dirty=false;
+function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]}
+function place(x,y){items.push({t:'stamp',k:tool.k,x:Math.round(x),y:Math.round(y),s:size,f:Math.random()<.5});last=[x,y]}
+function setSel(it){sel=it;if(it){size=it.s;$('size').value=it.s}btns()}
+function eraseAt(x,y){const it=hit(x,y);if(!it)return;if(!dirty){snap();dirty=true}items.splice(items.indexOf(it),1)}
+cv.addEventListener('pointerdown',e=>{if(e.button)return;e.preventDefault();commitLabel();
+  try{cv.setPointerCapture(e.pointerId)}catch(_){}
+  const[x,y]=pos(e);down=true;dirty=false;last=[x,y];ghost=null;
+  if(tool.type==='stamp'){setSel(null);snap();place(x,y)}
+  else if(tool.type==='line'){setSel(null);live=tool.k==='land'?{t:'land',pts:[[x,y]]}:{t:'path',k:tool.k,s:size,pts:[[x,y]]}}
+  else if(tool.type==='text'){down=false;const it=hit(x,y);openLabel(x,y,it&&it.t==='text'?it:null)}
+  else if(tool.type==='select'){setSel(hit(x,y));say(sel?'Drag to move it, use the <b>Size</b> slider to resize, or remove it.':'Nothing there. Tap a thing on the map to pick it up.')}
+  else if(tool.type==='erase')eraseAt(x,y);
+  render()});
+cv.addEventListener('pointermove',e=>{const[x,y]=pos(e);
+  if(!down){if(e.pointerType==='mouse'&&(tool.type==='stamp'||tool.type==='erase')){ghost=[x,y];render()}return}
+  if(tool.type==='stamp'){if(STAMPS[tool.k].sc&&Math.hypot(x-last[0],y-last[1])>44*size)place(x+(Math.random()-.5)*10*size,y+(Math.random()-.5)*14*size)}
+  else if(tool.type==='line'&&live){if(Math.hypot(x-last[0],y-last[1])>7){live.pts.push([Math.round(x),Math.round(y)]);last=[x,y]}}
+  else if(tool.type==='select'&&sel){const dx=x-last[0],dy=y-last[1];if(!dirty){if(Math.hypot(dx,dy)<3)return;snap();dirty=true}
+    if(sel.pts)sel.pts.forEach(p=>{p[0]+=dx;p[1]+=dy});else{sel.x+=dx;sel.y+=dy}last=[x,y]}
+  else if(tool.type==='erase')eraseAt(x,y);
+  render()});
+function up(){if(!down)return;down=false;
+  if(live){const need=live.t==='land'?4:2;if(live.pts.length>=need){snap();items.push(live)}live=null}
+  store();render()}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+cv.addEventListener('pointerleave',()=>{if(ghost){ghost=null;render()}});
+
+/* ---------- labels ---------- */
+const lab=$('label');let labAt=null,labItem=null;
+function openLabel(x,y,it){labItem=it;labAt=it?[it.x,it.y]:[x,y];lab.value=it?it.str:'';lab.style.left=labAt[0]/W*100+'%';lab.style.top=labAt[1]/H*100+'%';lab.hidden=false;setTimeout(()=>lab.focus(),0)}
+function commitLabel(){if(lab.hidden)return;const s=lab.value.trim();lab.hidden=true;
+  if(labItem){if(s!==labItem.str){snap();if(s)labItem.str=s;else items.splice(items.indexOf(labItem),1)}}
+  else if(s){snap();items.push({t:'text',x:labAt[0],y:labAt[1],s:size,str:s})}
+  labItem=null;store();render()}
+lab.addEventListener('keydown',e=>{if(e.key==='Enter')commitLabel();else if(e.key==='Escape'){lab.hidden=true;labItem=null}});
+lab.addEventListener('blur',commitLabel);
+
+/* ---------- random map ---------- */
+function genMap(seed){const r=rng(seed),R=(a,b)=>a+r()*(b-a),pick=a=>a[Math.floor(r()*a.length)],out=[];
+  const cx=W*R(.46,.52),cy=H*R(.46,.51),base=R(215,250),ph=[R(0,7),R(0,7),R(0,7)],am=[R(.1,.2),R(.06,.13),R(.03,.07)],isl=[];
+  for(let i=0;i<48;i++){const a=i/48*TAU,k=1+am[0]*Math.sin(2*a+ph[0])+am[1]*Math.sin(3*a+ph[1])+am[2]*Math.sin(7*a+ph[2]);isl.push([Math.round(cx+Math.cos(a)*base*1.4*k),Math.round(cy+Math.sin(a)*base*k)])}
+  out.push({t:'land',pts:isl});
+  const inside=(x,y,k)=>pip(cx+(x-cx)/k,cy+(y-cy)/k,isl),used=[];
+  const spot=(k,minD)=>{let best=[cx,cy];for(let i=0;i<300;i++){const x=cx+R(-1,1)*base*1.7,y=cy+R(-1,1)*base*1.2;if(!inside(x,y,k))continue;best=[x,y];if(used.every(u=>Math.hypot(u[0]-x,u[1]-y)>minD))break}used.push(best);return best};
+  const S=(k,x,y,s)=>out.push({t:'stamp',k,x:Math.round(x),y:Math.round(y),s:s||1.2,f:r()<.5});
+  const T=(str,x,y,s)=>out.push({t:'text',str,x:Math.round(x),y:Math.round(y),s});
+  const wig=(a,b,n,amp)=>{const p=[],dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1,f=R(1,2.2),o=R(0,6);for(let i=0;i<=n;i++){const t=i/n,w=Math.sin(t*Math.PI)*Math.sin(t*f*Math.PI*2+o)*amp;p.push([Math.round(a[0]+dx*t-dy/L*w),Math.round(a[1]+dy*t+dx/L*w)])}return p};
+  // mountains
+  const m0=spot(.5,0),ma=R(0,Math.PI),vol=Math.floor(R(1,5));
+  for(let i=-3;i<=3;i++){const x=m0[0]+Math.cos(ma)*i*54+R(-10,10),y=m0[1]+Math.sin(ma)*i*40+R(-8,8);if(inside(x,y,.82)){S(i+3===vol?'volcano':r()<.3?'snow':'mountain',x,y,R(1.25,1.6));used.push([x,y])}}
+  if(inside(m0[0]+30,m0[1]+56,.85))S('cave',m0[0]+30,m0[1]+56,1);
+  // river from the mountains to the coast
+  const rv=isl[Math.floor(r()*48)];out.splice(1,0,{t:'path',k:'river',s:1,pts:wig([m0[0],m0[1]+10],rv,14,26)});
+  // forests, palms
+  const f0=spot(.6,150);for(let i=0;i<14;i++){const x=f0[0]+R(-95,95),y=f0[1]+R(-62,62);if(inside(x,y,.88)&&used.every(u=>u===f0||Math.hypot(u[0]-x,u[1]-y)>42))S(r()<.6?'pine':'tree',x,y,R(.8,1.05))}
+  for(let i=0;i<7;i++){const v=isl[Math.floor(r()*48)];S('palm',cx+(v[0]-cx)*.88,cy+(v[1]-cy)*.86,R(.8,1.05))}
+  // settlements
+  const ct=spot(.55,150);S('city',ct[0],ct[1],1.3);const arc=[];for(let i=0;i<=10;i++){const a=Math.PI*(1+i/10);arc.push([Math.round(ct[0]+Math.cos(a)*74),Math.round(ct[1]+10+Math.sin(a)*62)])}
+  out.push({t:'path',k:'wall',s:.8,pts:arc});
+  const port=pick(['Port Grog','Rumtown','Barnacle Bay','Plunder Port','Scurvy Landing']);T(port,ct[0],ct[1]+44,.72);
+  const ft=spot(.6,140);S('castle',ft[0],ft[1],1.1);
+  for(let i=0;i<2;i++){const h=spot(.72,110);S('hut',h[0],h[1],.9)}
+  const tn=spot(.7,110);S('tent',tn[0],tn[1],.9);
+  const hl=spot(.7,100);S('hills',hl[0],hl[1],1.1);S('hills',hl[0]+48,hl[1]+14,1);
+  // the treasure and the trail to it
+  const xp=spot(.55,150),lv=isl[Math.floor(r()*48)],land=[cx+(lv[0]-cx)*.97,cy+(lv[1]-cy)*.97],w1=spot(.6,120),w2=spot(.6,120);
+  const tr=wig(land,w1,8,22).concat(wig(w1,w2,8,24).slice(1),wig(w2,xp,8,20).slice(1));out.push({t:'path',k:'trail',s:1,pts:tr});
+  out.push({t:'path',k:'road',s:.8,pts:wig(ct,ft,10,20)});
+  S('x',xp[0],xp[1],1.3);S('skull',xp[0]+50,xp[1]-34,.7);S('palm',xp[0]-46,xp[1]-6,1);
+  const sh=[cx+(lv[0]-cx)*1.2,cy+(lv[1]-cy)*1.2];S('ship',sh[0],sh[1],1.3);
+  const from=[sh[0]<W/2?80:W-80,sh[1]<H/2?120:H-150];out.push({t:'path',k:'route',s:1,pts:wig(from,[sh[0]+(from[0]<sh[0]?-46:46),sh[1]],12,34)});
+  // the sea
+  const sea=minD=>{let b=[100,100];for(let i=0;i<300;i++){const x=R(110,W-110),y=R(110,H-130);if(inside(x,y,1.22))continue;b=[x,y];if(used.every(u=>Math.hypot(u[0]-x,u[1]-y)>minD))break}used.push(b);return b};
+  used.push(sh,[W-220,H-90]);
+  const cp=[[160,165],[W-160,165],[160,H-180]].find(q=>!inside(q[0],q[1],1.25))||[160,165];S('compass',cp[0],cp[1],1.9);used.push(cp);
+  const il=[[W*.13,H*.8],[W*.87,H*.2],[W*.86,H*.74]].find(q=>!inside(q[0],q[1],1.3)&&Math.hypot(q[0]-cp[0],q[1]-cp[1])>200);
+  if(il){const b=[],rr=R(46,62),o=R(0,6);for(let i=0;i<14;i++){const a=i/14*TAU,k=1+.2*Math.sin(3*a+o);b.push([Math.round(il[0]+Math.cos(a)*rr*1.3*k),Math.round(il[1]+Math.sin(a)*rr*k)])}out.splice(1,0,{t:'land',pts:b});S('palm',il[0]-8,il[1]+4,.9);S('chest',il[0]+22,il[1]+6,.6);used.push(il)}
+  const sp=sea(170);S('serpent',sp[0],sp[1],1.3);T('Here be monsters',sp[0],sp[1]+46,.68);
+  const kr=sea(170);S('kraken',kr[0],kr[1],1.2);const wh=sea(150);S('whirl',wh[0],wh[1],1.2);
+  const wv=isl[Math.floor(r()*48)];S('wreck',cx+(wv[0]-cx)*1.14,cy+(wv[1]-cy)*1.14,1);used.push([cx+(wv[0]-cx)*1.14,cy+(wv[1]-cy)*1.14]);
+  const fn=sea(130);S('fin',fn[0],fn[1],.9);for(let i=0;i<7;i++){const w=sea(100);S('waves',w[0],w[1],R(.7,1))}
+  const name=pick(['Skull','Dead Man’s','Kraken','Cutlass','Black Tide','Rum Barrel','Parrot','Sunken','Devil’s','Marooned','Bilge Rat'])+' '+pick(['Isle','Cay','Atoll','Island','Reef','Key']);
+  T(name,cx,Math.min(H-112,Math.max.apply(null,isl.map(p=>p[1]))+50),1.6);
+  return{items:out,name}}
+
+/* ---------- toolbox ---------- */
+const UTIL={select:{n:'Move',hint:'Tap a thing to pick it up, then drag it about.'},text:{n:'Label',hint:'Tap the map and type a name. Tap an old label to rewrite it.'},erase:{n:'Scrub out',hint:'Tap or rub over things to scrub them off the map.'}};
+function icon(draw){const c=document.createElement('canvas');c.width=c.height=88;const x=c.getContext('2d');x.scale(2,2);x.translate(22,25);x.scale(.56,.56);x.lineJoin=x.lineCap='round';x.strokeStyle=INK;x.lineWidth=2;draw(x);return c}
+function tile(label,key,draw,pick){const b=document.createElement('button');b.type='button';b.className='tile';b.dataset.key=key;b.title=label;b.setAttribute('aria-pressed','false');
+  b.appendChild(icon(draw));const s=document.createElement('span');s.textContent=label;b.appendChild(s);b.addEventListener('click',pick);return b}
+function choose(t,key,hint){commitLabel();tool=t;if(t.type!=='select')setSel(null);ghost=null;
+  document.querySelectorAll('.tile').forEach(b=>b.setAttribute('aria-pressed',b.dataset.key===key?'true':'false'));
+  cv.style.cursor=t.type==='select'?'grab':t.type==='text'?'text':'crosshair';say(hint);render()}
+function group(title,tiles){const h=document.createElement('h2');h.textContent=title;const d=document.createElement('div');d.className='tiles';tiles.forEach(t=>d.appendChild(t));const w=document.createElement('section');w.style.display='grid';w.style.gap='8px';w.append(h,d);$('groups').appendChild(w)}
+const wavy=[[-28,12],[-16,-10],[-2,8],[12,-10],[28,10]];
+group('Quill & Tools',[
+  tile('Move','u:select',x=>P(x,'M-12 -22 L-12 16 L-3 8 L4 22 L10 19 L3 6 L15 6 Z','#f1e8d2'),()=>choose({type:'select'},'u:select',UTIL.select.hint)),
+  tile('Label','u:text',x=>{x.fillStyle=INK;x.font='italic 44px "IM Fell English",Georgia,serif';x.textAlign='center';x.fillText('Aa',0,14)},()=>choose({type:'text'},'u:text',UTIL.text.hint)),
+  tile('Scrub out','u:erase',x=>{x.rotate(-.6);P(x,'M-20 -9 H8 V9 H-20 Z','#d98a7a');P(x,'M8 -9 H22 V9 H8 Z','#f1e8d2')},()=>choose({type:'erase'},'u:erase',UTIL.erase.hint))
+].concat(Object.keys(LINES).map(k=>tile(LINES[k].n,'l:'+k,x=>{
+    if(k==='land'){const p=[[-24,2],[-14,-16],[6,-20],[24,-8],[22,12],[4,20],[-16,16]];x.lineWidth=2.5;trace(x,p,true);x.fillStyle='#f1e3b4';x.fill();x.stroke()}
+    else drawPath(x,{k,s:1.5,pts:wavy})},()=>choose({type:'line',k},'l:'+k,LINES[k].hint)))));
+['Land','Wilds','Places','Sea','Treasure'].forEach(g=>group(g,Object.keys(STAMPS).filter(k=>STAMPS[k].g===g).map(k=>
+  tile(STAMPS[k].n,'s:'+k,x=>STAMPS[k].d(x),()=>choose({type:'stamp',k},'s:'+k,'<b>'+STAMPS[k].n+'</b> Tap the map to stamp it.'+(STAMPS[k].sc?' Drag to scatter a whole bunch.':''))))));
+
+/* ---------- actions ---------- */
+let sliding=false;
+$('size').addEventListener('input',e=>{size=+e.target.value;if(sel){if(!sliding){snap();sliding=true}sel.s=size;render()}});
+$('size').addEventListener('change',()=>{sliding=false;store()});
+function removeSel(){if(!sel)return;snap();items.splice(items.indexOf(sel),1);setSel(null);store();render()}
+$('del').addEventListener('click',removeSel);
+function undo(){if(!undoS.length)return;redoS.push(JSON.stringify(items));items=JSON.parse(undoS.pop());setSel(null);store();render()}
+function redo(){if(!redoS.length)return;undoS.push(JSON.stringify(items));items=JSON.parse(redoS.pop());setSel(null);store();render()}
+$('undo').addEventListener('click',undo);$('redo').addEventListener('click',redo);
+$('clear').addEventListener('click',()=>{if(!items.length)return;snap();items=[];setSel(null);store();render();say('Map wiped clean. <b>Undo</b> brings it back.')});
+$('random').addEventListener('click',()=>{snap();const g=genMap(Date.now()%2147483647||7);items=g.items;setSel(null);store();render();say('A fresh chart of <b>'+g.name+'</b>. Change anything ye like.')});
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'&&e.target.type==='text')return;
+  if((e.key==='Delete'||e.key==='Backspace')&&sel){e.preventDefault();removeSel()}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo()}
+  else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo()}});
+
+let dl=null;try{const u=window.claude&&window.claude.use&&window.claude.use('downloads');if(u)u.then(d=>{dl=d}).catch(()=>{})}catch(e){}
+// Hands a file to the viewer. Resolves true when the save was handled (saved or called off), false when this view cannot save files.
+async function deliver(name,blob){
+  if(dl){try{await dl.save({filename:name,data:blob});say('Map saved as <b>'+name+'</b>.');return true}
+    catch(e){if(e&&e.code==='declined'){say('Save called off. The map is still here.');return true}if(e&&e.code==='rate_limited'){say('Hold fast a moment, then try saving again.');return true}}}
+  if(!window.claude){try{const a=document.createElement('a'),u=URL.createObjectURL(blob);a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);say('Map saved as <b>'+name+'</b>.');return true}catch(e){}}
+  return false}
+function tidy(){commitLabel();setSel(null);ghost=null;render()}
+$('save').addEventListener('click',async()=>{tidy();
+  try{const blob=await new Promise(r=>cv.toBlob(r,'image/png'));if(blob&&await deliver('treasure-map.png',blob))return}catch(e){}
+  try{$('picimg').src=cv.toDataURL('image/png');$('pic').hidden=false;$('picclose').focus()}catch(e){say('Could not make a picture of the map here.')}});
+// One landscape A4 page with the map as a JPEG on white paper.
+function makePdf(){
+  const t=document.createElement('canvas');t.width=W;t.height=H;const x=t.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,H);x.drawImage(cv,0,0);
+  const b64=t.toDataURL('image/jpeg',.93).split(',')[1],bin=atob(b64),jpg=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)jpg[i]=bin.charCodeAt(i);
+  const PW=842,PH=595,sc=Math.min((PW-36)/W,(PH-36)/H),iw=W*sc,ih=H*sc,ox=(PW-iw)/2,oy=(PH-ih)/2;
+  const draw=`q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${ox.toFixed(2)} ${oy.toFixed(2)} cm /Im0 Do Q`;
+  const parts=[],offs=[];let len=0;const put=p=>{parts.push(p);len+=typeof p==='string'?p.length:p.length};
+  const obj=(n,body)=>{offs[n]=len;put(n+' 0 obj\n'+body)};
+  put('%PDF-1.4\n');
+  obj(1,'<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+  obj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+  obj(3,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>\nendobj\n`);
+  obj(4,`<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`);put(jpg);put('\nendstream\nendobj\n');
+  obj(5,`<< /Length ${draw.length} >>\nstream\n${draw}\nendstream\nendobj\n`);
+  const xref=len;let x2='xref\n0 6\n0000000000 65535 f \n';for(let i=1;i<=5;i++)x2+=String(offs[i]).padStart(10,'0')+' 00000 n \n';
+  put(x2+`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts,{type:'application/pdf'})}
+$('savepdf').addEventListener('click',async()=>{tidy();
+  try{if(await deliver('treasure-map.pdf',makePdf()))return}catch(e){}
+  say('This view cannot save a PDF. Use <b>Save picture</b> instead.')});
+$('picclose').addEventListener('click',()=>{$('pic').hidden=true});
+$('pic').addEventListener('click',e=>{if(e.target===$('pic'))$('pic').hidden=true});
+
+/* ---------- start ---------- */
+let loaded=false;
+try{const s=JSON.parse(localStorage.getItem('tmm-map-v1')||'null');if(Array.isArray(s)&&s.length){items=s;loaded=true}}catch(e){}
+let first=null;if(!loaded){first=genMap(Date.now()%2147483647||7);items=first.items}
+choose({type:'stamp',k:'mountain'},'s:mountain',loaded?'Yer map is just as ye left it. Pick a stamp and carry on.':'An example chart of <b>'+first.name+'</b> to get ye started. Stamp on it, change it, or wipe it and draw yer own.');
+btns();render();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{render()});
+})();
+</script>
+</body>
+</html>
