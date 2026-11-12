@@ -175,6 +175,7 @@ select.btn { padding-right: 6px; }
 .help ul { margin: 0; padding-left: 18px; }
 kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: var(--chip); color: var(--ink); border-radius: 5px; padding: 1px 6px; border: 1px solid var(--line); }
 
+@media (max-width: 1420px) { .brand span { display: none; } }
 @media (max-width: 1180px) { .btn .lbl { display: none; } .btn.haslbl { width: 36px; padding: 0; justify-content: center; } .btn.go .lbl { display: inline; } .btn.go.haslbl { width: auto; padding: 0 14px; } }
 @media (max-width: 860px) {
   .brand span { display: none; }
@@ -1627,7 +1628,7 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
     return e;
   }
   const SVG = {
-    plus: '<path d="M12 5v14M5 12h14"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h10a4.5 4.5 0 0 1 0 9h-3"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H10a4.5 4.5 0 0 0 0 9h3"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>', undo: '<path d="M9 7 4 12l5 5"/><path d="M4 12h10a4.5 4.5 0 0 1 0 9h-3"/>', redo: '<path d="m15 7 5 5-5 5"/><path d="M20 12H10a4.5 4.5 0 0 0 0 9h3"/>',
     play: '<path d="M7 4v16l13-8z"/>', pause: '<path d="M7 5h4v14H7zM14 5h4v14h-4z"/>', step: '<path d="M6 5v14l9-7z"/><path d="M18 5v14"/>', reset: '<path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/>', help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>'
   };
   const ico = n => '<svg viewBox="0 0 24 24" aria-hidden="true">' + SVG[n] + '</svg>';
@@ -1708,7 +1709,7 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
     if (x0 > x1) { x0 = 0; x1 = Math.min(W, 1500); y0 = H - 760; } else { x0 -= 140; x1 += 140; y0 -= 150; }
     y1 = H - 40; let z = RG.clamp(Math.min(vw / (x1 - x0), (vh - 56) / (y1 - y0)), 0.22, 1.25); st.follow = false;
     const wide = all !== true && z < 0.44; if (wide) z = 0.44;                    // a very wide machine opens on its first stage; arrows or Fit show the rest
-    st.cam.z = z; st.cam.x = wide ? x0 : (x0 + x1) / 2 - vw / z / 2; st.cam.y = y1 + 56 / z - vh / z;      // leave a strip of floor for the status line
+    st.cam.z = z; st.cam.x = wide ? x0 : (x0 + x1) / 2 - vw / z / 2; st.cam.y = vh / z > H + 60 ? (H + 20) / 2 - vh / z / 2 : y1 + 56 / z - vh / z;      // a room shorter than the screen sits in the middle; otherwise leave a strip of floor for the status line
   }
 
   function unfollow() { if (st.follow) { st.follow = false; syncStatus(); } }
@@ -2034,12 +2035,16 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
     const btn = (id, label, icon, fn, cls, title) => B[id] = h('button', { class: 'btn ' + (icon && label ? 'haslbl ' : '') + (cls || ''), id: 'b-' + id, title: title || label, 'aria-label': title || label, html: (icon ? ico(icon) : '') + (label ? '<span class="lbl">' + label + '</span>' : ''), onclick: fn });
     const tog = (key, label, title) => B[key] = h('button', { class: 'btn', id: 'b-' + key, title, 'aria-pressed': String(!!st.prefs[key]), onclick: () => { st.prefs[key] = !st.prefs[key]; if (key === 'sound' && st.prefs.sound) audio.unlock(); save(); syncBar(); syncProps(); } }, label);
     const newMenu = h('div', { class: 'menu', id: 'newMenu', hidden: true });
-    B.speed = h('select', { class: 'btn', id: 'b-speed', title: 'Simulation speed', 'aria-label': 'Simulation speed', onchange: e => { st.speed = +e.target.value; } }, ...[[0.25, '¼× speed'], [0.5, '½× speed'], [1, '1× speed'], [2, '2× speed']].map(([v, t]) => h('option', { value: v, selected: v === 1 }, t)));
+    B.speed = h('select', { class: 'btn', id: 'b-speed', title: 'Simulation speed', 'aria-label': 'Simulation speed', onchange: e => { st.speed = +e.target.value; } }, ...[[0.25, '¼×'], [0.5, '½×'], [1, '1×'], [2, '2×']].map(([v, t]) => h('option', { value: v, selected: v === 1 }, t)));
     $('tools').append(
-      h('div', { class: 'grp' }, btn('new', 'New', 'plus', e => { e.stopPropagation(); const m = $('newMenu'); m.hidden = !m.hidden; if (!m.hidden) { fillNewMenu(); const r = B.new.getBoundingClientRect(); m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 268)) + 'px'; m.style.top = r.bottom + 6 + 'px'; } }), newMenu, btn('undo', '', 'undo', () => travel(st.undo, st.redo), 'ic', 'Undo (Ctrl+Z)'), btn('redo', '', 'redo', () => travel(st.redo, st.undo), 'ic', 'Redo (Ctrl+Y)')),
+      h('div', { class: 'grp' }, btn('new', 'New', 'plus', e => { e.stopPropagation(); const m = $('newMenu'); m.hidden = !m.hidden; if (!m.hidden) { fillNewMenu(); const r = B.new.getBoundingClientRect(); m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 268)) + 'px'; m.style.top = r.bottom + 6 + 'px'; } }), newMenu, btn('clear', 'Clear all', 'trash', clearAll, 'warn', 'Clear all: remove every part from the sandbox (Undo brings them back)'), btn('undo', '', 'undo', () => travel(st.undo, st.redo), 'ic', 'Undo (Ctrl+Z)'), btn('redo', '', 'redo', () => travel(st.redo, st.undo), 'ic', 'Redo (Ctrl+Y)')),
       h('div', { class: 'grp' }, btn('play', 'Play', 'play', play, 'go', 'Play (Space)'), btn('step', '', 'step', stepOnce, 'ic', 'Step forward a little'), btn('reset', 'Reset', 'reset', reset, '', 'Reset to how you built it'), B.speed),
       h('div', { class: 'grp' }, tog('grid', 'Grid', 'Show or hide the background grid'), tog('snap', 'Snap', 'Snap parts to the grid, the floor and each other'), tog('sound', 'Sound', 'Sound effects'), tog('learn', 'Learn', 'Predict before you run, and see short science notes while the machine runs')),
-      h('div', { class: 'grp' }, btn('help', 'Help', 'help', help)));
+      h('div', { class: 'grp' }, btn('help', '', 'help', help, 'ic', 'Help')));
+  }
+  function clearAll() {
+    if (st.level || st.mode !== 'build') return; if (!st.model.parts.length) return toast('The workbench is already empty.');
+    const w = st.model.world; put(RG.newModel()); Object.assign(st.model.world, w); st.sel.clear(); st.selLink = null; st.pend = null; commit(); toast('Everything cleared. Undo brings it back.');
   }
   function fillNewMenu() {
     const m = $('newMenu'), L = level(); let armed = false;
@@ -2052,7 +2057,7 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
   function syncBar() {
     const run = st.mode === 'run';
     B.play.innerHTML = ico(run && !st.paused ? 'pause' : 'play') + '<span class="lbl">' + (run ? (st.paused ? 'Resume' : 'Pause') : 'Play') + '</span>';
-    B.undo.disabled = run || !st.undo.length; B.redo.disabled = run || !st.redo.length; B.reset.disabled = !run; B.speed.value = String(st.speed);
+    B.clear.hidden = !!st.level; B.clear.disabled = run || !st.model.parts.length; B.undo.disabled = run || !st.undo.length; B.redo.disabled = run || !st.redo.length; B.reset.disabled = !run; B.speed.value = String(st.speed);
     for (const k of ['grid', 'snap', 'sound', 'learn']) B[k].setAttribute('aria-pressed', String(!!st.prefs[k]));
     stage.classList.toggle('run', run); $('palette').classList.toggle('dim', run); $('runtag').hidden = !run; $('runtag').textContent = st.paused ? 'PAUSED' : 'RUNNING';
     document.querySelectorAll('#modes button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === st.tab)));
