@@ -199,11 +199,36 @@ body.nokana .kana.auto{display:none!important}
 .prow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(60px,1fr) auto;gap:10px;align-items:center;font-size:13px}
 .prow .n{font-variant-numeric:tabular-nums;color:var(--ink-2);min-width:56px;text-align:right}
 .modes .mode:last-child:nth-child(odd){grid-column:1/-1}
+.guard{background:var(--shu-soft);border:1px solid var(--shu);border-radius:var(--radius);padding:12px 14px;font-size:14px;line-height:1.5;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.guard span{flex:1 1 280px;min-width:0}
+.guard.welcome{background:var(--indigo-soft);border-color:var(--line)}
+.dk{align-self:flex-start;font-size:13px}
+.chip{padding:4px 12px;font-size:13px}
+.chip.on{background:var(--indigo);color:var(--bg);border-color:var(--indigo)}
+.sched{margin-left:auto}
+.notebox{display:flex;flex-direction:column;gap:6px}
+.notein{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px dashed var(--ink-2);border-radius:8px;background:var(--bg);color:var(--ink)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.ptile{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 6px;text-align:center;min-width:0;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;min-height:64px}
+.ptile b{font-family:var(--display);font-weight:500;font-size:22px;line-height:1.2;overflow-wrap:anywhere}
+.ptile small{font-size:12px;color:var(--ink-2);overflow-wrap:anywhere;line-height:1.3}
+.ptile small.r{color:var(--shu)}
+.ptile.no{border-style:dashed;border-color:var(--bad);background:var(--bad-soft)}
+.ptile.no b{opacity:.55}
+.settings{grid-template-columns:minmax(0,1fr) minmax(0,auto)}
+.settings .row{justify-content:flex-end}
+.filebtn{cursor:pointer;display:inline-flex;align-items:center}
+.settings input[type=checkbox]{justify-self:start;width:20px;height:20px;accent-color:var(--indigo)}
+.settings input.num,.settings select.sel{justify-self:start;max-width:100%}
+.ghost{min-height:38px}
+.chip,.hintbtn{min-height:30px}
+.spk{width:38px;height:38px}
 .kbd-hint{font-size:12px;color:var(--ink-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
 .choice{display:flex;gap:10px;align-items:baseline}
 .choice span{min-width:0}
 @media (hover:hover) and (pointer:fine){ .choices{counter-reset:c} .choices .choice::before{counter-increment:c;content:counter(c);font:500 11px/1.5 var(--body);color:var(--ink-2);border:1px solid var(--line);border-radius:5px;padding:0 6px;flex:none} }
 @media (hover:none){ .kbd-hint{display:none} }
+@media (max-width:520px){ .settings{grid-template-columns:1fr} .settings .row{justify-content:flex-start} .sched{margin-left:0;flex-basis:100%} }
 @media (max-width:520px){ .stats{grid-template-columns:repeat(2,1fr)} .modes{grid-template-columns:1fr} .item{grid-template-columns:1fr;gap:2px} .item.two{grid-template-columns:1fr} .today{grid-template-columns:1fr} }
 @media (prefers-reduced-motion: reduce){ *{transition:none!important} }
 </style>
@@ -215,7 +240,7 @@ body.nokana .kana.auto{display:none!important}
   <div class="top">
     <div class="brand">
       <div class="hanko">練</div>
-      <h1>Wagotabi Practice<small>308 words · 204 kanji · 115 sentences · 30 grammar points · 12 passages</small></h1>
+      <h1>Wagotabi Practice<small id="tally">Japanese for the journey</small></h1>
     </div>
     <div class="row">
       <button class="ghost" id="btn-home">Home</button>
@@ -226,6 +251,8 @@ body.nokana .kana.auto{display:none!important}
   </div>
 
   <div id="view-home" class="view col" style="gap:18px">
+    <div id="guard" class="guard hidden"></div>
+    <div id="welcome" class="guard welcome hidden"></div>
     <div class="today" id="today"></div>
     <div class="stats" id="stats"></div>
     <div class="fc-wrap col" style="gap:6px"><div class="section-label">Reviews due over the next 7 days</div><div class="forecast" id="forecast"></div></div>
@@ -240,12 +267,16 @@ body.nokana .kana.auto{display:none!important}
       <summary>Settings</summary>
       <div class="settings" style="margin-top:10px">
         <label for="set-new">New items per day</label><input class="num" type="number" id="set-new" min="0" max="50">
+        <span class="note" style="grid-column:1/-1;margin-top:-4px">Each new item a day turns into several reviews a day within a few weeks. Lower this if reviews pile up; new items also pause on their own while a backlog is waiting.</span>
         <label for="set-goal">Daily goal (answers)</label><input class="num" type="number" id="set-goal" min="5" max="300">
         <label for="set-reviews">Max reviews per session</label><input class="num" type="number" id="set-reviews" min="5" max="200">
         <label for="set-audio">Audio (Japanese speech, when your device has a voice)</label><input type="checkbox" id="set-audio">
         <label for="set-rate">Speech speed</label><select class="sel" id="set-rate"><option value="0.65">Slow</option><option value="0.85">Normal</option><option value="1">Natural</option></select>
         <label for="set-kana">Show kana readings on answer cards</label><input type="checkbox" id="set-kana">
-        <label for="backup-box">Move progress to another device</label><span class="row"><button class="ghost" id="backup-copy">Copy backup</button><button class="ghost" id="backup-restore">Restore</button></span>
+        <label for="set-ret">Target recall when a review comes round</label><select class="sel" id="set-ret"><option value="0.85">85% · fewer reviews</option><option value="0.9">90% · balanced</option><option value="0.95">95% · more reviews</option></select>
+        <label for="btn-place">Skip what you already know</label><button class="ghost" id="btn-place">Placement check</button>
+        <label for="backup-box">Back up or move progress</label><span class="row"><button class="ghost" id="backup-copy">Copy backup</button><button class="ghost" id="backup-restore">Restore</button><button class="ghost" id="backup-dl">Download file</button><label class="ghost filebtn" for="backup-file">Load file</label><input type="file" id="backup-file" accept=".json,.txt,application/json,text/plain" class="hidden"></span>
+        <label for="snap-restore">Undo a reset or restore</label><button class="ghost" id="snap-restore">No snapshot yet</button>
         <label for="set-reset">Reset all progress</label><button class="ghost" id="set-reset">Reset</button>
       </div>
       <textarea id="backup-box" class="backup hidden" placeholder="Paste a backup here, then press Restore" spellcheck="false"></textarea>
@@ -254,7 +285,7 @@ body.nokana .kana.auto{display:none!important}
     <details>
       <summary>How this is designed</summary>
       <ol>
-        <li><b>Spaced repetition.</b> Every item has its own schedule (an SM-2 style algorithm). Reviews come back just before you would forget them; easy items spread out to weeks, hard ones return in minutes.</li>
+        <li><b>Spaced repetition.</b> Every item has its own memory model (FSRS, the open scheduler Anki also offers). It estimates how likely you are to still remember the item and brings it back when that falls to your target, 90% unless you change it. A correct answer can be re-rated Hard or Easy. Because picking from four choices is easier than recalling, a multiple-choice answer lengthens the interval less than a typed one, and new items start on shorter intervals than the FSRS default.</li>
         <li><b>Retrieval practice.</b> You are always tested, never just shown. New items get a short study card, then an immediate test, then another test later in the same session.</li>
         <li><b>Graduated difficulty.</b> Recognition first (pick the meaning), then recall (pick the Japanese), then production (type the reading, build the sentence, fill the blank from memory). The format gets harder as an item matures.</li>
         <li><b>Interleaving.</b> Sessions mix words, kanji, sentences and grammar in random order instead of blocking one type.</li>
@@ -264,6 +295,12 @@ body.nokana .kana.auto{display:none!important}
         <li><b>Kanji in context.</b> Every kanji in a feedback card, study card or dictionary entry is tappable: it reads the words that use it aloud and lists the sentences it appears in.</li>
         <li><b>Dual coding and listening.</b> Audio on every item and dictation-style listening questions where a Japanese voice is available.</li>
         <li><b>Extensive reading.</b> Short passages set in the game's prefectures, written almost entirely from the word list, with translations hidden until you ask and comprehension questions afterwards.</li>
+        <li><b>Honest evidence.</b> Every multiple-choice question has a Don't know button, because a lucky guess hides a gap. What you confuse an item with is remembered and offered again next time, and kanji you have met a few times are tested against their look-alikes (待 持 時).</li>
+        <li><b>Your own hooks.</b> When you miss an item you can write a memory hint in your own words. It is saved and shown each time that item returns.</li>
+        <li><b>Pacing.</b> New items arrive five at a time, pause while a backlog is waiting, and the home card estimates how long today's session will take. The placement check lets you skip what you already know. A study day ends at 4 a.m., and one missed day a week does not break a streak.</li>
+        <li><b>From zero.</b> A kana drill covers hiragana and katakana, including the voiced and combined sounds, tested against their look-alikes (シ ツ ソ ン). Dates and counters (ついたち, ひとり, さんがい, はたち) have their own drill, because they are irregular and come up constantly.</li>
+        <li><b>Where the content comes from.</b> Your original list; then words, places and grammar confirmed to be in the game from its public update notes, a community guide and reviews; then the rest of the standard beginner list. New items arrive in that order, with no more than two new kanji in one session.</li>
+        <li><b>Nothing leaves this browser.</b> So the page keeps a daily snapshot to undo a reset, offers a backup to copy or download, and reminds you every two weeks if you have not made one.</li>
         <li><b>Readings on demand.</b> Every sentence and passage line has a kana reading and every kanji its main on and kun readings. Question prompts keep them hidden behind a かな button so you try the kanji first.</li>
         <li><b>Rules, not just answers.</b> Verb forms, adjective forms, numbers, prices and clock times are generated fresh each round. The wrong options are the mistakes learners really make (帰ます, 行いて, 高いでした, さんひゃく), and the rule is stated after each answer.</li>
         <li><b>You have the last word.</b> Japanese word order is flexible and typing has typos, so a built or typed answer marked wrong can be overruled, and a word you already know can skip the learning steps.</li>
@@ -271,7 +308,7 @@ body.nokana .kana.auto{display:none!important}
         <li><b>Metacognition and habit.</b> Flashcards use four-level self-grading; the daily goal, streak and forecast keep the load visible and sustainable.</li>
       </ol>
     </details>
-    <div class="note">Content comes from the Wagotabi inventory you shared: beginner reference lists aligned with the game's level, not the game's exact entries. Progress is saved in this browser; Settings has a backup you can copy to another device. Keys: 1–4 answer, Enter continues, Space flips a flashcard.</div>
+    <div class="note">Content: the Wagotabi inventory you shared; words, places and grammar confirmed from the game's public update notes, a community guide and reviews (tagged in the Dictionary); and the rest of the standard beginner list the game says it is working towards. The game's own full word list is not published, so this is not its exact dictionary. Progress is saved in this browser only: Settings has a backup to copy or download, and a snapshot to undo a reset. Keys: 1–4 answer, 0 for don't know, H or E to re-rate a correct answer, Enter continues, Space flips a flashcard.</div>
   </div>
 
   <div id="view-session" class="view hidden col">
@@ -290,6 +327,7 @@ body.nokana .kana.auto{display:none!important}
     <div class="toolbar">
       <select class="sel" id="browse-type"><option value="vocab">Words</option><option value="kanji">Kanji</option><option value="sents">Sentences</option><option value="grammar">Grammar</option></select>
       <select class="sel" id="browse-cat"></select>
+      <select class="sel" id="browse-src"><option value="">Any source</option><option value="list">Your original list</option><option value="game">Confirmed in the game</option><option value="n5">Beginner (N5) additions</option></select>
       <select class="sel" id="browse-state"><option value="">Any state</option><option value="new">Not started</option><option value="learning">Learning</option><option value="review">In review</option><option value="due">Due now</option></select>
       <input class="search" id="browse-q" placeholder="Search Japanese, reading or English">
     </div>
@@ -357,6 +395,1049 @@ p4:['おかやまは ももで ゆうめいです。','みせで おばあさん
 p5:['まいあさ しちじに おきます。','あさごはんを たべてから、にほんごを べんきょうします。','ひるは でんしゃで まちに いきます。','まちで かいものを します。','よるは いえで りょうりを つくります。','じゅういちじに ねます。'],
 p6:['すみません、くらしきえきは どこですか。','この みちを まっすぐ いって ください。','それから、つぎの かどを みぎに まがって ください。','えきは ゆうびんきょくの まえです。','あるいて ごふんです。','ありがとうございます。'],
 p7:['とっとりには ゆうめいな すなの びじゅつかんが あります。','きのう、わたしは ともだちと そこに いきました。','なかは とても しずかでした。','すなで つくった おおきい いえや ひとが ありました。','すこし くらかったですが、おもしろかったです。','また いきたいです。']};
+/* ---------- added content. src 'game': confirmed in Wagotabi from its public update notes, a community guide or reviews.
+   src 'n5': the rest of the standard beginner (JLPT N5 level) list, which the game says it is working towards. ---------- */
+const MORE_WORDS = String.raw`
+# Wagotabi places | game
+香川県|かがわけん|Kagawa Prefecture
+高松市|たかまつし|Takamatsu City
+丸亀市|まるがめし|Marugame City
+栗林公園|りつりんこうえん|Ritsurin Garden, Takamatsu
+岡山県|おかやまけん|Okayama Prefecture
+倉敷|くらしき|Kurashiki, Okayama
+後楽園|こうらくえん|Korakuen Garden, Okayama
+吉備津神社|きびつじんじゃ|Kibitsu Shrine, Okayama
+閑谷学校|しずたにがっこう|Shizutani School, Okayama
+備前|びぜん|Bizen, Okayama
+日生|ひなせ|Hinase, Okayama
+蒜山|ひるぜん|Hiruzen highlands, Okayama
+鳥取県|とっとりけん|Tottori Prefecture
+鳥取市|とっとりし|Tottori City
+砂の美術館|すなのびじゅつかん|The Sand Museum, Tottori
+北栄町|ほくえいちょう|Hokuei Town, Tottori
+三朝|みささ|Misasa, Tottori
+# Seen in the game | game
+県|けん|Prefecture
+階|かい|Floor (storey)
+何階|なんがい／なんかい|Which floor
+何時|なんじ|What time
+何時間|なんじかん|How many hours
+側|がわ|Side
+左側|ひだりがわ|Left side
+右側|みぎがわ|Right side
+こちら||This way; here (polite)
+そちら||That way; there (polite)
+あちら||That way over there (polite)
+この||This … (before a noun)
+その||That … (before a noun)
+あの||That … over there (before a noun)
+どの||Which … (before a noun)
+何ですか|なんですか|What is it?
+いえいえ||No, not at all (reply to thanks)
+描く|かく|To draw
+死ぬ|しぬ|To die
+疲れる|つかれる|To get tired
+東|ひがし|East
+上手|じょうず|Skilful, good at
+漢字|かんじ|Kanji
+ひらがな||Hiragana
+カタカナ||Katakana
+マスター||Master
+テスト||Test
+漫画|まんが|Manga, comics
+コーヒー||Coffee
+ジュース||Juice
+忍者|にんじゃ|Ninja
+ロボット||Robot
+音|おと|Sound
+砂|すな|Sand
+美術館|びじゅつかん|Art museum
+花|はな|Flower
+犬|いぬ|Dog
+猫|ねこ|Cat
+はんこ||Personal seal (hanko)
+歌舞伎|かぶき|Kabuki theatre
+旅|たび|Journey
+和語|わご|Native Japanese words
+船|ふね|Boat, ship
+電話番号|でんわばんごう|Telephone number
+# Everyday phrases | n5
+おはようございます||Good morning (polite)
+ありがとうございます||Thank you (polite)
+どういたしまして||You're welcome
+いただきます||Said before eating
+ごちそうさまでした||Said after eating
+いってきます||I'm off (said when leaving home)
+いってらっしゃい||See you later (to someone leaving)
+ただいま||I'm home
+おかえりなさい||Welcome back
+お元気ですか|おげんきですか|How are you?
+元気です|げんきです|I'm fine
+失礼します|しつれいします|Excuse me (entering or leaving)
+お疲れ様でした|おつかれさまでした|Thank you for your hard work
+いらっしゃいませ||Welcome (said by shop staff)
+おめでとうございます||Congratulations
+お久しぶりです|おひさしぶりです|Long time no see
+気をつけて|きをつけて|Take care
+頑張ってください|がんばってください|Good luck, do your best
+そうです||That's right
+そうですか||Is that so? I see
+そうですね||That's true; let me think
+分かりました|わかりました|Understood
+分かりません|わかりません|I don't understand
+知りません|しりません|I don't know
+ちょっと待ってください|ちょっとまってください|Please wait a moment
+もう一度お願いします|もういちどおねがいします|Once more, please
+いくらですか||How much is it?
+これをください||This one, please
+お会計お願いします|おかいけいおねがいします|The bill, please
+大丈夫です|だいじょうぶです|It's fine; no, thank you
+結構です|けっこうです|No, thank you (polite)
+どうも||Thanks (casual)
+じゃあ、また||Well then, see you
+ようこそ||Welcome
+お邪魔します|おじゃまします|Excuse me for intruding (entering a home)
+こちらこそ||Likewise, the pleasure is mine
+英語が話せますか|えいごがはなせますか|Do you speak English?
+助けて|たすけて|Help!
+お大事に|おだいじに|Get well soon
+乾杯|かんぱい|Cheers!
+もしもし||Hello (on the phone)
+いいですね||That sounds good
+本当ですか|ほんとうですか|Really?
+なるほど||I see, that makes sense
+ええと||Um, let me see
+# People and society | n5
+父|ちち|My father
+母|はは|My mother
+両親|りょうしん|Parents
+兄弟|きょうだい|Siblings, brothers
+祖父|そふ|My grandfather
+祖母|そぼ|My grandmother
+おじさん||Uncle; middle-aged man
+おばさん||Aunt; middle-aged woman
+男の人|おとこのひと|Man (person)
+女の人|おんなのひと|Woman (person)
+男の子|おとこのこ|Boy
+女の子|おんなのこ|Girl
+彼|かれ|He; boyfriend
+彼女|かのじょ|She; girlfriend
+自分|じぶん|Oneself
+奥さん|おくさん|Someone's wife
+ご主人|ごしゅじん|Someone's husband
+赤ちゃん|あかちゃん|Baby
+お客さん|おきゃくさん|Customer, guest
+留学生|りゅうがくせい|International student
+生徒|せいと|Pupil
+大学生|だいがくせい|University student
+国|くに|Country
+外国|がいこく|Foreign country
+村|むら|Village
+世界|せかい|World
+# Body and health | n5
+体|からだ|Body
+頭|あたま|Head
+顔|かお|Face
+目|め|Eye
+耳|みみ|Ear
+鼻|はな|Nose
+口|くち|Mouth
+歯|は|Tooth
+手|て|Hand
+足|あし|Foot, leg
+お腹|おなか|Stomach, belly
+背|せ|Height; back
+髪|かみ|Hair
+声|こえ|Voice
+病気|びょうき|Illness
+風邪|かぜ|A cold (illness)
+薬|くすり|Medicine
+熱|ねつ|Fever
+# Home and everyday things | n5
+台所|だいどころ|Kitchen
+お風呂|おふろ|Bath
+トイレ||Toilet
+お手洗い|おてあらい|Restroom
+玄関|げんかん|Entrance hall
+階段|かいだん|Stairs
+庭|にわ|Garden
+門|もん|Gate
+冷蔵庫|れいぞうこ|Refrigerator
+テレビ||Television
+ラジオ||Radio
+カメラ||Camera
+パソコン||Computer (PC)
+電気|でんき|Electricity; electric light
+エアコン||Air conditioner
+ベッド||Bed
+テーブル||Table
+本棚|ほんだな|Bookshelf
+箱|はこ|Box
+石けん|せっけん|Soap
+洗濯|せんたく|Laundry
+掃除|そうじ|Cleaning
+新聞|しんぶん|Newspaper
+雑誌|ざっし|Magazine
+手紙|てがみ|Letter
+切手|きって|Postage stamp
+はがき||Postcard
+封筒|ふうとう|Envelope
+辞書|じしょ|Dictionary
+ノート||Notebook
+ペン||Pen
+ボールペン||Ballpoint pen
+眼鏡|めがね|Glasses
+荷物|にもつ|Luggage
+お土産|おみやげ|Souvenir
+プレゼント||Present, gift
+物|もの|Thing (object)
+映画|えいが|Film, movie
+音楽|おんがく|Music
+歌|うた|Song
+絵|え|Picture, painting
+ギター||Guitar
+スポーツ||Sport
+サッカー||Football (soccer)
+ゲーム||Game
+趣味|しゅみ|Hobby
+散歩|さんぽ|A walk, stroll
+パーティー||Party
+茶碗|ちゃわん|Rice bowl
+コップ||Glass, cup
+スプーン||Spoon
+フォーク||Fork
+ナイフ||Knife
+たばこ||Tobacco, cigarette
+# Clothes and colours | n5
+シャツ||Shirt
+ズボン||Trousers
+スカート||Skirt
+セーター||Sweater
+コート||Coat
+上着|うわぎ|Jacket
+靴下|くつした|Socks
+着る|きる|To wear (on the upper body)
+履く|はく|To wear (shoes, trousers)
+かぶる||To wear (a hat)
+脱ぐ|ぬぐ|To take off (clothes)
+色|いろ|Colour
+赤|あか|Red (noun)
+青|あお|Blue (noun)
+白|しろ|White (noun)
+黒|くろ|Black (noun)
+赤い|あかい|Red
+青い|あおい|Blue
+白い|しろい|White
+黒い|くろい|Black
+黄色い|きいろい|Yellow
+茶色|ちゃいろ|Brown
+緑|みどり|Green
+# More food and drink | n5
+食堂|しょくどう|Canteen, dining hall
+喫茶店|きっさてん|Coffee shop
+八百屋|やおや|Greengrocer
+本屋|ほんや|Bookshop
+花屋|はなや|Flower shop
+パン屋|パンや|Bakery
+牛肉|ぎゅうにく|Beef
+豚肉|ぶたにく|Pork
+鶏肉|とりにく|Chicken (meat)
+米|こめ|Rice (uncooked)
+味噌汁|みそしる|Miso soup
+しょうゆ||Soy sauce
+バター||Butter
+カレー||Curry
+お酒|おさけ|Alcohol, sake
+ビール||Beer
+紅茶|こうちゃ|Black tea
+甘い|あまい|Sweet
+辛い|からい|Spicy
+まずい||Bad-tasting
+メニュー||Menu
+注文|ちゅうもん|An order (food, goods)
+味|あじ|Taste, flavour
+# More places and transport | n5
+車|くるま|Car
+自動車|じどうしゃ|Automobile
+タクシー||Taxi
+地下鉄|ちかてつ|Subway
+新幹線|しんかんせん|Bullet train
+バス停|バスてい|Bus stop
+交差点|こうさてん|Intersection
+信号|しんごう|Traffic light
+角|かど|Corner
+建物|たてもの|Building
+ビル||Multi-storey building
+デパート||Department store
+スーパー||Supermarket
+コンビニ||Convenience store
+映画館|えいがかん|Cinema
+大使館|たいしかん|Embassy
+交番|こうばん|Police box
+会社|かいしゃ|Company
+大学|だいがく|University
+教室|きょうしつ|Classroom
+プール||Swimming pool
+池|いけ|Pond
+山|やま|Mountain
+空|そら|Sky
+外|そと|Outside
+横|よこ|Beside; side
+向こう|むこう|Over there; the other side
+間|あいだ|Between; interval
+先|さき|Ahead, further on
+西|にし|West
+南|みなみ|South
+北|きた|North
+まっすぐ||Straight ahead
+所|ところ|Place, spot
+住所|じゅうしょ|Address
+温泉|おんせん|Hot spring
+祭り|まつり|Festival
+観光|かんこう|Sightseeing
+予約|よやく|Reservation
+パスポート||Passport
+乗り場|のりば|Stand, boarding area (bus, taxi)
+出発|しゅっぱつ|Departure
+到着|とうちゃく|Arrival
+# Nature and animals | n5
+雨|あめ|Rain
+木|き|Tree
+石|いし|Stone
+火|ひ|Fire
+月|つき|Moon
+星|ほし|Star
+鳥|とり|Bird
+馬|うま|Horse
+牛|うし|Cow
+豚|ぶた|Pig
+虫|むし|Insect
+動物|どうぶつ|Animal
+桜|さくら|Cherry blossom
+台風|たいふう|Typhoon
+暖かい|あたたかい|Warm
+涼しい|すずしい|Cool (weather)
+降る|ふる|To fall (rain, snow)
+晴れる|はれる|To clear up (weather)
+曇る|くもる|To cloud over
+吹く|ふく|To blow (wind)
+咲く|さく|To bloom
+# Time and calendar | n5
+午前|ごぜん|a.m., morning
+午後|ごご|p.m., afternoon
+毎日|まいにち|Every day
+毎朝|まいあさ|Every morning
+毎晩|まいばん|Every evening
+毎週|まいしゅう|Every week
+毎月|まいつき|Every month
+毎年|まいとし|Every year
+今週|こんしゅう|This week
+来週|らいしゅう|Next week
+先週|せんしゅう|Last week
+今月|こんげつ|This month
+来月|らいげつ|Next month
+先月|せんげつ|Last month
+今年|ことし|This year
+来年|らいねん|Next year
+去年|きょねん|Last year
+今朝|けさ|This morning
+今晩|こんばん|This evening, tonight
+夕方|ゆうがた|Early evening
+おととい||The day before yesterday
+あさって||The day after tomorrow
+週末|しゅうまつ|Weekend
+休み|やすみ|Holiday, day off, break
+誕生日|たんじょうび|Birthday
+夏休み|なつやすみ|Summer holiday
+半分|はんぶん|Half
+週間|しゅうかん|Week (as a length of time)
+最初|さいしょ|First, beginning
+最後|さいご|Last, end
+次|つぎ|Next
+後|あと|After, later
+今度|こんど|Next time; this time
+さっき||A little while ago
+これから||From now on
+もうすぐ||Soon
+早い|はやい|Early
+初めて|はじめて|For the first time
+# Counters and amounts | n5
+万|まん|Ten thousand
+円|えん|Yen
+一人|ひとり|One person; alone
+二人|ふたり|Two people
+四つ|よっつ|Four things
+五つ|いつつ|Five things
+六つ|むっつ|Six things
+七つ|ななつ|Seven things
+八つ|やっつ|Eight things
+九つ|ここのつ|Nine things
+枚|まい|Counter for flat things
+個|こ|Counter for small objects
+回|かい|Counter for number of times
+歳|さい|Counter for age (years old)
+冊|さつ|Counter for books
+杯|はい|Counter for cups and glasses
+匹|ひき|Counter for small animals
+台|だい|Counter for machines and vehicles
+番号|ばんごう|Number (identifying)
+ゼロ||Zero
+大勢|おおぜい|Many people
+多い|おおい|Many, much
+少ない|すくない|Few, little
+もっと||More
+一番|いちばん|Number one; the most
+ほか||Other, another
+いろいろ||Various
+いっぱい||Full; a lot
+ちょうど||Exactly
+だいたい||Roughly, mostly
+# Adverbs and connectors | n5
+たぶん||Probably
+あまり||Not very (with a negative)
+全然|ぜんぜん|Not at all (with a negative)
+よく||Often; well
+たいてい||Usually
+また||Again
+だんだん||Gradually
+本当に|ほんとうに|Really, truly
+はじめに||First of all
+でも||But
+そして||And then
+それから||After that
+だから||So, therefore
+しかし||However
+じゃあ||Well then
+どうやって||How, in what way
+どんな||What kind of
+なぜ||Why (formal)
+どのくらい||How long; how much
+どなた||Who (polite)
+こんな||This kind of
+みんな||Everyone, all
+# More verbs | n5
+あげる||To give
+もらう||To receive
+くれる||To give (to me)
+入れる|いれる|To put in
+出す|だす|To take out; to hand in
+つける||To turn on (a light)
+消す|けす|To turn off; to erase
+かける||To make (a phone call); to put on (glasses)
+押す|おす|To push
+引く|ひく|To pull
+弾く|ひく|To play (guitar, piano)
+撮る|とる|To take (a photo)
+並ぶ|ならぶ|To line up
+並べる|ならべる|To arrange in a row
+答える|こたえる|To answer
+見せる|みせる|To show
+考える|かんがえる|To think about, consider
+困る|こまる|To be in trouble
+違う|ちがう|To be different; to be wrong
+要る|いる|To need
+かかる||To take (time, money)
+住む|すむ|To live (in a place)
+勤める|つとめる|To work for (a company)
+生まれる|うまれる|To be born
+出かける|でかける|To go out
+飛ぶ|とぶ|To fly
+登る|のぼる|To climb
+渡る|わたる|To cross
+始める|はじめる|To begin (something)
+止める|とめる|To stop (something)
+閉まる|しまる|To close (by itself)
+開く|あく|To open (by itself)
+消える|きえる|To go out, disappear
+なくす||To lose (something)
+浴びる|あびる|To take (a shower)
+磨く|みがく|To brush, polish
+吸う|すう|To smoke; to breathe in
+頼む|たのむ|To ask (a favour); to order
+払う|はらう|To pay
+笑う|わらう|To laugh
+泣く|なく|To cry
+急ぐ|いそぐ|To hurry
+泊まる|とまる|To stay overnight
+混む|こむ|To be crowded
+結婚する|けっこんする|To get married
+運転する|うんてんする|To drive
+紹介する|しょうかいする|To introduce
+説明する|せつめいする|To explain
+案内する|あんないする|To guide, show around
+心配する|しんぱいする|To worry
+準備する|じゅんびする|To prepare
+約束する|やくそくする|To promise
+散歩する|さんぽする|To take a walk
+掃除する|そうじする|To clean
+洗濯する|せんたくする|To do the laundry
+練習する|れんしゅうする|To practise
+質問する|しつもんする|To ask a question
+電話する|でんわする|To telephone
+旅行する|りょこうする|To travel
+料理する|りょうりする|To cook
+予約する|よやくする|To reserve
+注文する|ちゅうもんする|To order (food)
+出発する|しゅっぱつする|To depart
+# More adjectives | n5
+長い|ながい|Long
+短い|みじかい|Short
+広い|ひろい|Wide, spacious
+狭い|せまい|Narrow, cramped
+重い|おもい|Heavy
+軽い|かるい|Light (weight)
+太い|ふとい|Thick, fat
+細い|ほそい|Thin, slender
+厚い|あつい|Thick (flat things)
+薄い|うすい|Thin (flat things); weak (taste)
+低い|ひくい|Low; short (height)
+若い|わかい|Young
+丸い|まるい|Round
+熱い|あつい|Hot (to the touch)
+冷たい|つめたい|Cold (to the touch)
+痛い|いたい|Painful, sore
+汚い|きたない|Dirty
+危ない|あぶない|Dangerous
+眠い|ねむい|Sleepy
+うるさい||Noisy
+つまらない||Boring
+可愛い|かわいい|Cute
+嬉しい|うれしい|Happy, glad
+悲しい|かなしい|Sad
+怖い|こわい|Scary
+すごい||Amazing
+優しい|やさしい|Kind, gentle
+親切|しんせつ|Kind, helpful
+下手|へた|Unskilful, bad at
+暇|ひま|Free (not busy)
+大変|たいへん|Hard, tough; very
+丈夫|じょうぶ|Sturdy; healthy
+簡単|かんたん|Simple
+大好き|だいすき|Like very much, love
+嫌|いや|Unpleasant, unwanted
+同じ|おなじ|Same
+別|べつ|Separate, different
+結構|けっこう|Fine, good enough
+安全|あんぜん|Safe
+不便|ふべん|Inconvenient
+必要|ひつよう|Necessary
+残念|ざんねん|Unfortunate, a pity
+特別|とくべつ|Special
+変|へん|Strange
+無理|むり|Impossible, unreasonable
+だめ||No good; not allowed
+# School and work | n5
+仕事|しごと|Work, job
+授業|じゅぎょう|Class, lesson
+宿題|しゅくだい|Homework
+試験|しけん|Exam
+質問|しつもん|Question (asked)
+答え|こたえ|Answer
+問題|もんだい|Problem; exam question
+意味|いみ|Meaning
+言葉|ことば|Word; language
+文|ぶん|Sentence
+字|じ|Character, letter
+作文|さくぶん|Essay, composition
+文法|ぶんぽう|Grammar
+練習|れんしゅう|Practice
+ページ||Page
+クラス||Class (group)
+会議|かいぎ|Meeting
+用事|ようじ|Errand, something to do
+話|はなし|Talk, story
+ニュース||News
+コピー||Copy
+メール||Email
+インターネット||Internet
+携帯|けいたい|Mobile phone
+スマホ||Smartphone
+心|こころ|Heart, mind
+気持ち|きもち|Feeling
+`;
+(function(){
+  let cat = '', src = '';
+  const have = new Set(V.map(v => v.jp));
+  MORE_WORDS.split('\n').forEach(line => {
+    line = line.trim(); if (!line) return;
+    if (line[0] === '#'){ const p = line.slice(1).split('|').map(x => x.trim()); cat = p[0]; src = p[1]; return; }
+    const [jp, rd, en] = line.split('|');
+    if (have.has(jp)) return; have.add(jp);
+    V.push({ jp, rd: rd || jp, en, cat, lvl: 3, src });
+  });
+})();
+
+/* kanji used by the added words and by words that were already in the list */
+const MORE_KANJI = String.raw`
+県|prefecture|ケン|Places
+階|floor, storey|カイ|Places
+側|side|ソク · がわ|Directions
+描|draw|ビョウ · か(く)|Actions
+死|death|シ · し(ぬ)|Actions
+疲|tired|ヒ · つか(れる)|Qualities
+漢|China, kanji|カン|Language
+忍|endure, stealth|ニン · しの(ぶ)|Other
+音|sound|オン · おと|Other
+砂|sand|サ · すな|Nature
+美|beauty|ビ · うつく(しい)|Qualities
+術|art, technique|ジュツ|Other
+漫|comic, rambling|マン|Other
+画|picture, stroke|ガ / カク|Other
+花|flower|カ · はな|Nature
+犬|dog|ケン · いぬ|Nature
+猫|cat|ビョウ · ねこ|Nature
+寺|temple|ジ · てら|Places
+神|god, spirit|シン / ジン · かみ|Places
+香|fragrance|コウ · かお(り)|Other
+松|pine tree|ショウ · まつ|Nature
+岡|hill|おか|Nature
+鳥|bird|チョウ · とり|Nature
+天|heaven, sky|テン · あま|Nature
+間|interval, between|カン · あいだ|Time
+休|rest|キュウ · やす(む)|Actions
+手|hand|シュ · て|People
+足|foot, leg|ソク · あし|People
+目|eye|モク · め|People
+耳|ear|ジ · みみ|People
+口|mouth|コウ · くち|People
+立|stand|リツ · た(つ)|Actions
+色|colour|ショク · いろ|Qualities
+赤|red|セキ · あか(い)|Qualities
+青|blue|セイ · あお(い)|Qualities
+黒|black|コク · くろ(い)|Qualities
+黄|yellow|オウ · き|Qualities
+緑|green|リョク · みどり|Qualities
+体|body|タイ · からだ|People
+頭|head|トウ · あたま|People
+顔|face|ガン · かお|People
+声|voice|セイ · こえ|People
+背|back, height|ハイ · せ|People
+髪|hair|ハツ · かみ|People
+鼻|nose|ビ · はな|People
+歯|tooth|シ · は|People
+薬|medicine|ヤク · くすり|Objects
+映|reflect, project|エイ · うつ(る)|Other
+歌|song|カ · うた(う)|Actions
+絵|picture|カイ / エ|Objects
+屋|shop, roof|オク · や|Places
+酒|alcohol|シュ · さけ|Food
+石|stone|セキ · いし|Nature
+星|star|セイ · ほし|Nature
+馬|horse|バ · うま|Nature
+虫|insect|チュウ · むし|Nature
+池|pond|チ · いけ|Nature
+桜|cherry blossom|オウ · さくら|Nature
+角|corner, angle|カク · かど|Directions
+所|place|ショ · ところ|Places
+住|live, reside|ジュウ · す(む)|Actions
+番|number, turn|バン|Numbers
+号|number, sign|ゴウ|Numbers
+回|times, turn round|カイ · まわ(る)|Numbers
+歳|years old|サイ|Numbers
+枚|flat-thing counter|マイ|Numbers
+個|individual|コ|Numbers
+冊|book counter|サツ|Numbers
+杯|cup|ハイ|Numbers
+匹|small-animal counter|ヒツ · ひき|Numbers
+台|stand, machine counter|ダイ / タイ|Objects
+度|degree, occasion|ド · たび|Numbers
+次|next|ジ · つぎ|Time
+最|most|サイ · もっと(も)|Quantity
+初|first, beginning|ショ · はじ(めて)|Time
+去|leave, past|キョ · さ(る)|Time
+夕|evening|ゆう|Time
+末|end|マツ · すえ|Time
+昼|noon, daytime|チュウ · ひる|Time
+暇|free time|カ · ひま|Time
+味|taste|ミ · あじ|Food
+豚|pig|トン · ぶた|Food
+甘|sweet|カン · あま(い)|Food
+辛|spicy|シン · から(い)|Food
+飯|meal, cooked rice|ハン · めし|Food
+料|fee, material|リョウ|Food
+桃|peach|トウ · もも|Food
+意|mind, meaning|イ|Learning
+問|question|モン · と(う)|Learning
+題|topic, title|ダイ|Learning
+答|answer|トウ · こた(える)|Learning
+質|quality, nature|シツ|Learning
+試|try, test|シ · ため(す)|Learning
+験|test, effect|ケン|Learning
+業|work, business|ギョウ|Learning
+授|give, teach|ジュ|Learning
+練|practise|レン · ね(る)|Learning
+説|explain, theory|セツ · と(く)|Learning
+法|law, method|ホウ|Learning
+葉|leaf|ヨウ · は|Nature
+英|English, excellent|エイ|Language
+宿|lodging|シュク · やど|Places
+室|room|シツ|Places
+堂|hall|ドウ|Places
+庭|garden|テイ · にわ|Places
+門|gate|モン|Places
+段|step, grade|ダン|Places
+部|part, section|ブ|Places
+場|place|ジョウ · ば|Places
+地|ground|チ / ジ|Places
+建|build|ケン · た(てる)|Places
+橋|bridge|キョウ · はし|Places
+城|castle|ジョウ · しろ|Places
+洗|wash|セン · あら(う)|Actions
+脱|take off|ダツ · ぬ(ぐ)|Actions
+掃|sweep|ソウ · は(く)|Actions
+除|remove|ジョ · のぞ(く)|Actions
+散|scatter|サン · ち(る)|Actions
+並|line up|ヘイ · なら(ぶ)|Actions
+弾|play (strings), bullet|ダン · ひ(く)|Actions
+撮|take (a photo)|サツ · と(る)|Actions
+違|differ|イ · ちが(う)|Actions
+困|be in trouble|コン · こま(る)|Actions
+押|push|オウ · お(す)|Actions
+引|pull|イン · ひ(く)|Actions
+消|extinguish, vanish|ショウ · け(す)|Actions
+払|pay|フツ · はら(う)|Actions
+笑|laugh|ショウ · わら(う)|Actions
+泣|cry|キュウ · な(く)|Actions
+急|hurry, sudden|キュウ · いそ(ぐ)|Actions
+忘|forget|ボウ · わす(れる)|Actions
+起|wake, rise|キ · お(きる)|Actions
+寝|sleep, lie down|シン · ね(る)|Actions
+働|work|ドウ · はたら(く)|Actions
+探|search|タン · さが(す)|Actions
+遊|play|ユウ · あそ(ぶ)|Actions
+泳|swim|エイ · およ(ぐ)|Actions
+座|sit|ザ · すわ(る)|Actions
+呼|call|コ · よ(ぶ)|Actions
+伝|convey|デン · つた(える)|Actions
+泊|stay overnight|ハク · と(まる)|Travel
+観|view, observe|カン|Travel
+発|depart, emit|ハツ|Travel
+渡|cross, hand over|ト · わた(る)|Movement
+登|climb|トウ / ト · のぼ(る)|Movement
+動|move|ドウ · うご(く)|Movement
+運|carry, luck|ウン · はこ(ぶ)|Transport
+鉄|iron|テツ|Transport
+線|line|セン|Transport
+交|mix, exchange|コウ · まじ(わる)|Transport
+短|short|タン · みじか(い)|Size
+広|wide|コウ · ひろ(い)|Size
+重|heavy|ジュウ · おも(い)|Size
+軽|light (weight)|ケイ · かる(い)|Size
+低|low|テイ · ひく(い)|Size
+太|thick, fat|タイ · ふと(い)|Size
+細|thin, fine|サイ · ほそ(い)|Size
+厚|thick|コウ · あつ(い)|Size
+薄|thin, pale|ハク · うす(い)|Size
+丸|round|ガン · まる(い)|Size
+若|young|ジャク · わか(い)|Qualities
+熱|heat, fever|ネツ · あつ(い)|Qualities
+冷|cold, chill|レイ · つめ(たい)|Qualities
+痛|pain|ツウ · いた(い)|Qualities
+危|dangerous|キ · あぶ(ない)|Qualities
+眠|sleep|ミン · ねむ(い)|Qualities
+悲|sad|ヒ · かな(しい)|Qualities
+怖|scary|フ · こわ(い)|Qualities
+優|gentle, superior|ユウ · やさ(しい)|Qualities
+汚|dirty|オ · きたな(い)|Qualities
+嫌|dislike|ケン · きら(い) / いや|Qualities
+忙|busy|ボウ · いそが(しい)|Qualities
+寒|cold (weather)|カン · さむ(い)|Weather
+暑|hot (weather)|ショ · あつ(い)|Weather
+暖|warm|ダン · あたた(かい)|Weather
+涼|cool|リョウ · すず(しい)|Weather
+曇|cloudy|ドン · くも(る)|Weather
+吹|blow|スイ · ふ(く)|Weather
+咲|bloom|さ(く)|Nature
+温|warm|オン · あたた(かい)|Nature
+泉|spring (of water)|セン · いずみ|Nature
+光|light|コウ · ひかり|Nature
+悪|bad|アク · わる(い)|Qualities
+良|good|リョウ · よ(い)|Qualities
+近|near|キン · ちか(い)|Directions
+遠|far|エン · とお(い)|Directions
+向|face towards|コウ · む(く)|Directions
+横|side, horizontal|オウ · よこ|Directions
+内|inside|ナイ · うち|Directions
+変|change, strange|ヘン · か(わる)|Qualities
+無|nothing, without|ム · な(い)|Quantity
+両|both|リョウ|Quantity
+然|so, as it is|ゼン|Other
+理|reason, logic|リ|Other
+要|need, main point|ヨウ · い(る)|Other
+事|thing, matter|ジ · こと|Other
+用|use|ヨウ · もち(いる)|Other
+配|distribute|ハイ · くば(る)|Other
+信|trust, message|シン|Other
+点|point, dot|テン|Other
+予|beforehand|ヨ|Other
+約|promise, approximately|ヤク|Other
+祭|festival|サイ · まつ(り)|Other
+有|have, exist|ユウ · あ(る)|Other
+丈|length, sturdy|ジョウ · たけ|Other
+真|true|シン · ま|Other
+計|measure, plan|ケイ · はか(る)|Objects
+愛|love|アイ|Other
+単|simple, single|タン|Other
+必|certain, must|ヒツ · かなら(ず)|Other
+残|remain|ザン · のこ(る)|Other
+念|thought, wish|ネン|Other
+特|special|トク|Other
+注|pour, note|チュウ · そそ(ぐ)|Other
+産|produce, birth|サン · う(む)|Other
+銀|silver|ギン|Other
+世|world, generation|セ / セイ · よ|Other
+界|boundary, world|カイ|Other
+族|tribe, family|ゾク|People
+達|plural, reach|タツ · たち|People
+供|offer, companion|キョウ · とも|People
+夫|husband, man|フ · おっと|People
+妻|wife|サイ · つま|People
+彼|he, that|ヒ · かれ|People
+客|guest, customer|キャク|People
+主|master, main|シュ · おも|People
+窓|window|ソウ · まど|Objects
+机|desk|キ · つくえ|Objects
+皿|plate, dish|さら|Objects
+箱|box|はこ|Objects
+荷|luggage, load|カ · に|Objects
+私|I, private|シ · わたし|People
+皆|everyone|カイ · みな|People
+様|manner; Mr, Ms|ヨウ · さま|People
+祖|ancestor|ソ|People
+奥|interior|オウ · おく|People
+願|wish|ガン · ねが(う)|Actions
+助|help|ジョ · たす(ける)|Actions
+頼|rely, request|ライ · たの(む)|Actions
+浴|bathe|ヨク · あ(びる)|Actions
+履|wear (on the feet)|リ · は(く)|Actions
+勤|work for|キン · つと(める)|Actions
+混|mix, crowded|コン · こ(む)|Actions
+結|tie, conclude|ケツ · むす(ぶ)|Actions
+留|stay, fasten|リュウ · と(める)|Actions
+乾|dry|カン · かわ(く)|Actions
+舞|dance|ブ · ま(う)|Actions
+方|direction, way|ホウ · かた|Directions
+和|harmony, Japan|ワ|Other
+当|hit, appropriate|トウ · あ(たる)|Other
+失|lose|シツ · うしな(う)|Other
+礼|courtesy, thanks|レイ|Other
+久|long time|キュウ · ひさ(しい)|Time
+誕|birth|タン|Time
+婚|marriage|コン|Other
+不|not, un-|フ|Other
+可|possible|カ|Other
+案|plan, idea|アン|Other
+束|bundle|ソク · たば|Other
+簡|simple|カン|Other
+構|structure, mind|コウ · かま(う)|Other
+議|discussion|ギ|Other
+差|difference|サ · さ(す)|Other
+帯|belt, carry|タイ · おび|Objects
+眼|eye|ガン · め|Objects
+鏡|mirror|キョウ · かがみ|Objects
+雑|miscellaneous|ザツ|Objects
+誌|magazine, record|シ|Objects
+符|token, ticket|フ|Objects
+財|wealth|ザイ|Objects
+布|cloth|フ · ぬの|Objects
+帽|cap, hat|ボウ|Objects
+鍵|key|ケン · かぎ|Objects
+鉛|lead (metal)|エン · なまり|Objects
+筆|writing brush|ヒツ · ふで|Objects
+狭|narrow|キョウ · せま(い)|Size
+紅|crimson|コウ · べに|Qualities
+腹|belly|フク · はら|People
+停|stop|テイ|Transport
+到|arrive|トウ|Travel
+幹|trunk|カン · みき|Transport
+警|warn, guard|ケイ|Professions
+察|inspect, guess|サツ|Professions
+官|official|カン|Professions
+郵|mail|ユウ|Places
+隣|neighbour, next to|リン · となり|Directions
+乳|milk|ニュウ · ちち|Food
+塩|salt|エン · しお|Food
+糖|sugar|トウ|Food
+弁|valve, speech|ベン|Food
+菓|sweets|カ|Food
+緒|cord, beginning|ショ · お|Other
+亀|turtle|キ · かめ|Nature
+栗|chestnut|リツ · くり|Nature
+林|grove|リン · はやし|Nature
+谷|valley|コク · たに|Nature
+倉|storehouse|ソウ · くら|Places
+吉|good luck|キチ / キツ|Other
+備|prepare, equip|ビ · そな(える)|Other
+津|harbour|シン · つ|Places
+栄|flourish|エイ · さか(える)|Other
+`;
+(function(){
+  const have = new Set(K.map(k => k.k));
+  MORE_KANJI.split('\n').forEach(line => {
+    line = line.trim(); if (!line) return;
+    const [k, m, rd, cat] = line.split('|');
+    if (have.has(k)) return; have.add(k);
+    K.push({ k, m, rd, cat, lvl: 3 });
+  });
+})();
+/* added sentences: Japanese | blocks | English | reading */
+const MORE_SENTS = String.raw`
+# In the game's world
+このバスは高松に行きますか。|この バス は 高松 に 行きます か|Does this bus go to Takamatsu?|この バスは たかまつに いきますか。
+バスの切符はどこで買いますか。|バス の 切符 は どこ で 買います か|Where do I buy a bus ticket?|バスの きっぷは どこで かいますか。
+次のバスは何時ですか。|次 の バス は 何時 です か|What time is the next bus?|つぎの バスは なんじですか。
+私の犬を見ましたか。|私 の 犬 を 見ました か|Have you seen my dog?|わたしの いぬを みましたか。
+犬は公園にいます。|犬 は 公園 に います|The dog is in the park.|いぬは こうえんに います。
+お弁当を一つください。|お弁当 を 一つ ください|One bento, please.|おべんとうを ひとつ ください。
+美術館は何階ですか。|美術館 は 何階 です か|Which floor is the art museum on?|びじゅつかんは なんがいですか。
+レストランは八階にあります。|レストラン は 八階 に あります|The restaurant is on the eighth floor.|レストランは はちかいに あります。
+こちらへどうぞ。|こちら へ どうぞ|This way, please.|こちらへ どうぞ。
+出口はあちらです。|出口 は あちら です|The exit is over that way.|でぐちは あちらです。
+駅は道の右側にあります。|駅 は 道 の 右側 に あります|The station is on the right side of the road.|えきは みちの みぎがわに あります。
+その花はとても綺麗です。|その 花 は とても 綺麗 です|That flower is very pretty.|その はなは とても きれいです。
+どのバスに乗りますか。|どの バス に 乗ります か|Which bus do you take?|どの バスに のりますか。
+あの建物は美術館です。|あの 建物 は 美術館 です|That building over there is an art museum.|あの たてものは びじゅつかんです。
+猫が好きですか。|猫 が 好き です か|Do you like cats?|ねこが すきですか。
+犬より猫のほうが好きです。|犬 より 猫 の ほうが 好き です|I like cats more than dogs.|いぬより ねこの ほうが すきです。
+漢字を書くことが好きです。|漢字 を 書く こと が 好き です|I like writing kanji.|かんじを かく ことが すきです。
+日本語が上手ですね。|日本語 が 上手 です ね|Your Japanese is good, isn't it?|にほんごが じょうずですね。
+いえいえ、まだ下手です。|いえいえ まだ 下手 です|No, no, I'm still not good at it.|いえいえ、まだ へたです。
+絵を描くのが好きです。|絵 を 描く の が 好き です|I like drawing pictures.|えを かくのが すきです。
+今日はとても疲れました。|今日 は とても 疲れました|I got very tired today.|きょうは とても つかれました。
+東に行ってください。|東 に 行って ください|Please go east.|ひがしに いって ください。
+コーヒーを二つお願いします。|コーヒー を 二つ お願いします|Two coffees, please.|コーヒーを ふたつ おねがいします。
+このジュースは甘いです。|この ジュース は 甘い です|This juice is sweet.|この ジュースは あまいです。
+忍者はどこにいますか。|忍者 は どこ に います か|Where is the ninja?|にんじゃは どこに いますか。
+風の音が聞こえます。|風 の 音 が 聞こえます|I can hear the sound of the wind.|かぜの おとが きこえます。
+岡山県は桃で有名です。|岡山県 は 桃 で 有名 です|Okayama Prefecture is famous for peaches.|おかやまけんは ももで ゆうめいです。
+香川県のうどんは美味しいです。|香川県 の うどん は 美味しい です|Kagawa's udon is delicious.|かがわけんの うどんは おいしいです。
+鳥取県に砂の美術館があります。|鳥取県 に 砂の美術館 が あります|There is a sand museum in Tottori Prefecture.|とっとりけんに すなの びじゅつかんが あります。
+船で島に行きます。|船 で 島 に 行きます|I go to the island by boat.|ふねで しまに いきます。
+電話番号を教えてください。|電話番号 を 教えて ください|Please tell me your phone number.|でんわばんごうを おしえて ください。
+何時間かかりますか。|何時間 かかります か|How many hours does it take?|なんじかん かかりますか。
+この漢字の読み方を教えてください。|この 漢字 の 読み方 を 教えて ください|Please tell me how to read this kanji.|この かんじの よみかたを おしえて ください。
+静かな町が好きです。|静か な 町 が 好き です|I like quiet towns.|しずかな まちが すきです。
+温泉に入りたいです。|温泉 に 入りたい です|I want to get in a hot spring.|おんせんに はいりたいです。
+# Getting things done
+お会計をお願いします。|お会計 を お願いします|The bill, please.|おかいけいを おねがいします。
+英語が話せますか。|英語 が 話せます か|Can you speak English?|えいごが はなせますか。
+ちょっと待ってください。|ちょっと 待って ください|Please wait a moment.|ちょっと まって ください。
+写真を撮ってもいいですか。|写真 を 撮って も いい です か|May I take a photo?|しゃしんを とっても いいですか。
+ここで写真を撮らないでください。|ここ で 写真 を 撮らないで ください|Please do not take photos here.|ここで しゃしんを とらないで ください。
+一緒に昼ご飯を食べませんか。|一緒 に 昼ご飯 を 食べません か|Shall we have lunch together?|いっしょに ひるごはんを たべませんか。
+荷物を持ちましょうか。|荷物 を 持ちましょう か|Shall I carry your luggage?|にもつを もちましょうか。
+頭が痛いので、薬を飲みます。|頭 が 痛い ので 薬 を 飲みます|I have a headache, so I will take some medicine.|あたまが いたいので、くすりを のみます。
+風邪をひきました。|風邪 を ひきました|I caught a cold.|かぜを ひきました。
+お名前は漢字でどう書きますか。|お名前 は 漢字 で どう 書きます か|How do you write your name in kanji?|おなまえは かんじで どう かきますか。
+予約をお願いします。|予約 を お願いします|I would like to make a reservation.|よやくを おねがいします。
+交差点を渡って、左に曲がってください。|交差点 を 渡って 左 に 曲がって ください|Cross the intersection and turn left.|こうさてんを わたって、ひだりに まがって ください。
+信号の前で止まってください。|信号 の 前 で 止まって ください|Please stop in front of the traffic light.|しんごうの まえで とまって ください。
+部屋を掃除してください。|部屋 を 掃除して ください|Please clean the room.|へやを そうじして ください。
+電気を消してください。|電気 を 消して ください|Please turn off the light.|でんきを けして ください。
+家族は何人ですか。|家族 は 何人 です か|How many people are in your family?|かぞくは なんにんですか。
+今、何歳ですか。|今 何歳 です か|How old are you now?|いま、なんさいですか。
+# Everyday life
+日本に来たのは初めてです。|日本 に 来た の は 初めて です|This is my first time in Japan.|にほんに きたのは はじめてです。
+もう晩ご飯を食べましたか。|もう 晩ご飯 を 食べました か|Have you already eaten dinner?|もう ばんごはんを たべましたか。
+まだ宿題をしていません。|まだ 宿題 を して いません|I have not done my homework yet.|まだ しゅくだいを して いません。
+寝る前に本を読みます。|寝る 前 に 本 を 読みます|I read a book before going to bed.|ねる まえに ほんを よみます。
+手を洗ってから食べます。|手 を 洗って から 食べます|I eat after washing my hands.|てを あらってから たべます。
+音楽を聞きながら歩きます。|音楽 を 聞きながら 歩きます|I walk while listening to music.|おんがくを ききながら あるきます。
+明日は晴れると思います。|明日 は 晴れる と 思います|I think it will be sunny tomorrow.|あしたは はれると おもいます。
+早く寝たほうがいいです。|早く 寝た ほうが いい です|You should go to bed early.|はやく ねた ほうが いいです。
+来年、日本に行くつもりです。|来年 日本 に 行く つもり です|I plan to go to Japan next year.|らいねん、にほんに いく つもりです。
+映画を見に行きませんか。|映画 を 見 に 行きません か|Would you like to go and see a film?|えいがを みに いきませんか。
+新しい靴が欲しいです。|新しい 靴 が 欲しい です|I want new shoes.|あたらしい くつが ほしいです。
+この料理はあまり辛くないです。|この 料理 は あまり 辛くない です|This dish is not very spicy.|この りょうりは あまり からくないです。
+百円しかありません。|百円 しか ありません|I only have 100 yen.|ひゃくえんしか ありません。
+駅まで五分くらいかかります。|駅 まで 五分 くらい かかります|It takes about five minutes to the station.|えきまで ごふんくらい かかります。
+七時ごろ帰ります。|七時 ごろ 帰ります|I will go home around seven.|しちじごろ かえります。
+寒くなりましたね。|寒く なりました ね|It has got cold, hasn't it?|さむく なりましたね。
+医者になりたいです。|医者 に なりたい です|I want to become a doctor.|いしゃに なりたいです。
+明日は雨でしょう。|明日 は 雨 でしょう|It will probably rain tomorrow.|あしたは あめでしょう。
+この店は安くて美味しいです。|この 店 は 安くて 美味しい です|This shop is cheap and delicious.|この みせは やすくて おいしいです。
+子供の時、ここに住んでいました。|子供 の 時 ここ に 住んで いました|When I was a child, I lived here.|こどもの とき、ここに すんで いました。
+果物の中で桃がいちばん好きです。|果物 の 中 で 桃 が いちばん 好き です|Among fruits, I like peaches the most.|くだものの なかで ももが いちばん すきです。
+パンや卵を買いました。|パン や 卵 を 買いました|I bought bread, eggs and so on.|パンや たまごを かいました。
+水だけ飲みます。|水 だけ 飲みます|I drink only water.|みずだけ のみます。
+薬を飲まなければなりません。|薬 を 飲まなければ なりません|I must take medicine.|くすりを のまなければ なりません。
+今日は来なくてもいいです。|今日 は 来なくて も いい です|You do not have to come today.|きょうは こなくても いいです。
+歌ったり、遊んだりします。|歌ったり 遊んだり します|I do things like singing and playing.|うたったり、あそんだり します。
+ご飯を食べた後で散歩します。|ご飯 を 食べた 後 で 散歩します|After eating, I take a walk.|ごはんを たべた あとで さんぽします。
+毎朝、コーヒーを飲みます。|毎朝 コーヒー を 飲みます|I drink coffee every morning.|まいあさ、コーヒーを のみます。
+週末は家族と山に登ります。|週末 は 家族 と 山 に 登ります|At the weekend I climb a mountain with my family.|しゅうまつは かぞくと やまに のぼります。
+兄は会社で働いています。|兄 は 会社 で 働いて います|My older brother works at a company.|あには かいしゃで はたらいて います。
+赤い傘は私のです。|赤い 傘 は 私 の です|The red umbrella is mine.|あかい かさは わたしのです。
+髪が長い女の人は誰ですか。|髪 が 長い 女の人 は 誰 です か|Who is the woman with long hair?|かみが ながい おんなのひとは だれですか。
+駅の近くに住んでいます。|駅 の 近く に 住んで います|I live near the station.|えきの ちかくに すんで います。
+春になると、桜が咲きます。|春 に なる と 桜 が 咲きます|When spring comes, the cherry blossoms bloom.|はるに なると、さくらが さきます。
+昨日は雨が降りました。|昨日 は 雨 が 降りました|It rained yesterday.|きのうは あめが ふりました。
+`;
+(function(){
+  let cat = '';
+  const have = new Set(S.map(s => s.jp));
+  MORE_SENTS.split('\n').forEach(line => {
+    line = line.trim(); if (!line) return;
+    if (line[0] === '#'){ cat = line.slice(1).trim(); return; }
+    const [jp, tk, en, rd] = line.split('|');
+    if (have.has(jp)) return; have.add(jp);
+    S.push({ jp, en, rd, cat, lvl: 3, tk: tk.split(' ') });
+  });
+})();
+
+/* added grammar: pattern | what it does | example | English | form as it appears in the example */
+const MORE_GRAMMAR = String.raw`
+この|This … (near me)|この本は面白いです。|This book is interesting.
+その|That … (near you)|その本を見せてください。|Please show me that book.
+あの|That … over there|あの山は高いです。|That mountain over there is tall.
+どの|Which …|どのバスに乗りますか。|Which bus do you take?
+な|Links a な-adjective to a noun|静かな町です。|It is a quiet town.
+こと|Turns a verb into a noun|歌うことが好きです。|I like singing.
+や|And (a partial list)|パンや卵を買いました。|I bought bread, eggs and so on.
+だけ|Only|水だけ飲みます。|I drink only water.
+しか|Nothing but (with a negative)|百円しかありません。|I have only 100 yen.
+ませんか|Invitation|一緒に行きませんか。|Won't you come with me?
+ましょうか|Offer to do something|手伝いましょうか。|Shall I help?
+たことがある|Past experience|日本に行ったことがあります。|I have been to Japan.|たことがあります
+ないでください|Negative request|写真を撮らないでください。|Please do not take photos.
+なければならない|Obligation|薬を飲まなければなりません。|I must take medicine.|なければなりません
+なくてもいい|No need to|今日は来なくてもいいです。|You do not have to come today.
+つもり|Intention|明日、倉敷に行くつもりです。|I intend to go to Kurashiki tomorrow.
+ほうがいい|Advice|早く寝たほうがいいです。|You should go to bed early.
+と思う|Opinion or guess|明日は晴れると思います。|I think it will be sunny tomorrow.|と思います
+前に|Before doing|寝る前に本を読みます。|I read a book before going to bed.
+後で|After doing|食べた後で散歩します。|After eating, I take a walk.
+てから|After doing, then|手を洗ってから食べます。|I eat after washing my hands.
+ながら|While doing|音楽を聞きながら歩きます。|I walk while listening to music.
+たり|Listing example actions|歌ったり、遊んだりします。|I do things like singing and playing.
+に行く|Going in order to do|映画を見に行きます。|I am going to see a film.|に行きます
+が欲しい|Wanting a thing|新しい靴が欲しいです。|I want new shoes.
+あまり|Not very (with a negative)|この料理はあまり辛くないです。|This dish is not very spicy.
+もう|Already|もう昼ご飯を食べました。|I have already eaten lunch.
+まだ|Not yet; still|まだ宿題をしていません。|I have not done my homework yet.
+くなる|Becoming (い-adjective)|寒くなりました。|It has become cold.|くなりました
+になる|Becoming (noun or な-adjective)|医者になりました。|I became a doctor.|になりました
+でしょう|Probably|明日は雨でしょう。|It will probably rain tomorrow.
+くて|Linking an い-adjective|この店は安くて美味しいです。|This shop is cheap and tasty.
+時|When|子供の時、ここに住んでいました。|When I was a child, I lived here.
+くらい|About (an amount)|五分くらいかかります。|It takes about five minutes.
+ごろ|Around (a point in time)|七時ごろ帰ります。|I will go home around seven.
+のほうが|The preferred side of a comparison|犬より猫のほうが好きです。|I like cats more than dogs.
+の中で|Among|果物の中で桃がいちばん好きです。|Among fruits, I like peaches the most.
+方|Way of doing|この漢字の読み方を教えてください。|Please tell me how to read this kanji.
+何|What (なん before です and counters)|これは何ですか。|What is this?
+`;
+(function(){
+  const have = new Set(G.map(g => g.g));
+  MORE_GRAMMAR.split('\n').forEach(line => {
+    line = line.trim(); if (!line) return;
+    const [g, fn, ex, en, sf] = line.split('|');
+    if (have.has(g)) return; have.add(g);
+    G.push({ g, fn, ex, en, sf: sf || g, lvl: 3 });
+  });
+})();
+/* patterns whose kana also turns up inside unrelated early sentences are introduced with their own example instead */
+const ANCHOR_NEW = new Set(['な', 'や', '時', 'に行く', '前に', 'もう']);
 V.forEach((v, i) => { v.id = 'v' + i; v.type = 'v'; }); K.forEach((k, i) => { k.id = 'k' + i; k.type = 'k'; });
 S.forEach((s, i) => { s.id = 's' + i; s.type = 's'; }); G.forEach((g, i) => { g.id = 'g' + i; g.type = 'g'; });
 const ALL = [...V, ...K, ...S, ...G];
@@ -372,43 +1453,72 @@ const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { c
 const pick = (a, n) => shuffle(a).slice(0, n);
 const uniq = a => [...new Set(a)];
 const hasKanji = s => /[一-鿿]/.test(s);
-const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const dayKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+/* a study day runs from 4 a.m. to 4 a.m., so a session after midnight still counts for the evening it belongs to */
+const studyDay = back => { const d = new Date(Date.now() - 4 * 3600000); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - (back || 0)); return d; };
+const today = () => dayKey(studyDay(0));
 
 /* ---------- store ---------- */
 const STORE_KEY = 'wagotabi-practice-v2';
-let M = { items: {}, days: {}, log: [], settings: { newPerDay: 10, goal: 40, maxReviews: 40, audio: true, kana: true, rate: 0.85 } };
+let M = { items: {}, days: {}, log: [], settings: { newPerDay: 10, goal: 40, maxReviews: 25, audio: true, kana: true, rate: 0.85, retention: 0.9 } };
+let storageOK = true;
+try { localStorage.setItem(STORE_KEY + '-t', '1'); localStorage.removeItem(STORE_KEY + '-t'); } catch (e) { storageOK = false; }
 try { const raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (raw && raw.items) M = Object.assign(M, raw, { settings: Object.assign(M.settings, raw.settings || {}) }); } catch (e) {}
-function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(M)); } catch (e) {} }
+/* the first save of each study day first copies yesterday's state to a snapshot, so a reset, a bad restore or a bug can be undone */
+function save(){
+  try {
+    if (M.snapDay !== today()){ const old = localStorage.getItem(STORE_KEY); if (old) localStorage.setItem(STORE_KEY + '-prev', old); M.snapDay = today(); }
+    localStorage.setItem(STORE_KEY, JSON.stringify(M)); storageOK = true;
+  } catch (e) { storageOK = false; }
+}
 function rec(id){ return M.items[id] || (M.items[id] = { s: 'new', n: 0, e: 2.5, iv: 0, due: 0, lapses: 0, step: 0, hist: [] }); }
 function stage(id){ const r = rec(id); return r.s === 'new' ? 0 : r.s === 'learning' ? 1 : r.iv < 7 ? 2 : 3; }
 function mastery(id){ const r = rec(id); return r.s === 'new' ? 0 : r.s === 'learning' ? 1 : r.iv < 3 ? 2 : r.iv < 10 ? 3 : r.iv < 30 ? 4 : 5; }
 function isDue(id, now){ const r = rec(id); return r.s !== 'new' && r.due <= (now || Date.now()); }
 function masteryHTML(id){ const m = mastery(id); let s = '<span class="mastery">'; for (let i = 0; i < 5; i++) s += `<i class="${i < m ? 'f' : ''}"></i>`; return s + '</span>'; }
 
-/* SM-2 style scheduler. grade: 1 again, 2 hard, 3 good, 4 easy */
-function grade(id, g){
-  const r = rec(id), now = Date.now();
-  const fuzz = iv => iv * (0.95 + Math.random() * 0.1);
+/* FSRS memory model (formulas and default weights of FSRS-5). grade: 1 again, 2 hard, 3 good, 4 easy.
+   Each item keeps a stability st (days until the chance of recall falls to 90%) and a difficulty d (1 to 10). */
+const FW = [0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621];
+const F_FACTOR = 19 / 81, F_DECAY = -0.5;
+const clampD = d => Math.min(10, Math.max(1, d));
+const fsrsD0 = g => clampD(FW[4] - Math.exp(FW[5] * (g - 1)) + 1);
+const recallNow = (r, now) => Math.pow(1 + F_FACTOR * Math.max(0, (now - (r.last || now)) / DAY) / r.st, F_DECAY);
+const ivFor = st => Math.min(365, Math.max(1, st / F_FACTOR * (Math.pow(M.settings.retention || 0.9, 1 / F_DECAY) - 1)));
+/* w is the weight of the evidence: 1 for free recall, less for recognising the answer among four choices */
+function schedule(r, g, now, plain, w){
+  const fuzz = iv => plain ? iv : iv * (0.95 + Math.random() * 0.1);
   if (r.s === 'new' || r.s === 'learning'){
-    if (g === 1){ r.step = 0; r.due = now + 1 * MIN; r.s = 'learning'; }
+    if (g === 1){ r.step = 0; r.miss = (r.miss || 0) + 1; r.due = now + 1 * MIN; r.s = 'learning'; }
     else if (g === 2){ r.due = now + 5 * MIN; r.s = 'learning'; }
     else {
       r.step = (r.step || 0) + 1;
-      if (g === 4 || r.step >= 2){ r.s = 'review'; r.iv = g === 4 ? 4 : 1; r.due = now + fuzz(r.iv) * DAY; r.step = 0; }
-      else { r.s = 'learning'; r.due = now + 10 * MIN; }
+      if (g === 4 || r.step >= 2){
+        // multiple choice is easier than free recall, so a new item starts below the FSRS default of about three days
+        if (!r.re || r.st == null){ r.st = g === 4 ? 7 : r.miss ? FW[1] : 2.2; r.d = fsrsD0(g === 4 ? 4 : r.miss ? 2 : 3); }
+        r.s = 'review'; r.re = false; r.miss = 0; r.step = 0;
+        r.iv = Math.round(fuzz(ivFor(r.st)) * 10) / 10; r.due = now + r.iv * DAY;
+      } else { r.s = 'learning'; r.due = now + 10 * MIN; }
     }
   } else {
-    if (g === 1){ r.lapses++; r.s = 'learning'; r.step = 0; r.e = Math.max(1.3, r.e - 0.2); r.iv = 0; r.due = now + 10 * MIN; }
-    else {
-      const old = r.iv, early = r.due > now ? Math.max(0, Math.min(1, (now - (r.last || now)) / Math.max(1, r.iv * DAY))) : 1;
-      if (g === 2){ r.iv = Math.max(1, r.iv * 1.2); r.e = Math.max(1.3, r.e - 0.15); }
-      else if (g === 3){ r.iv = Math.max(1, r.iv * r.e); }
-      else { r.iv = Math.max(2, r.iv * r.e * 1.3); r.e = Math.min(3, r.e + 0.15); }
-      r.iv = old + (r.iv - old) * early;
-      r.iv = Math.min(365, Math.round(fuzz(r.iv) * 10) / 10);
-      r.due = now + r.iv * DAY;
+    if (!(r.st > 0)) r.st = Math.max(0.5, r.iv || 1);                          // scheduled by the earlier SM-2 version
+    if (!(r.d >= 1)) r.d = clampD(5.3 + (2.5 - (r.e || 2.5)) * 3.3);
+    const R = recallNow(r, now), d = r.d;
+    if (g === 1){
+      r.st = Math.max(0.3, Math.min(r.st, FW[11] * Math.pow(d, -FW[12]) * (Math.pow(r.st + 1, FW[13]) - 1) * Math.exp(FW[14] * (1 - R))));
+      r.lapses = (r.lapses || 0) + 1; r.s = 'learning'; r.re = true; r.step = 1; r.iv = 0; r.due = now + 10 * MIN;
+    } else {
+      // an early review (recall still near 100%) adds almost nothing, so cramming cannot inflate an interval
+      r.st = r.st * (1 + Math.exp(FW[8]) * (11 - d) * Math.pow(r.st, -FW[9]) * (Math.exp(FW[10] * (1 - R)) - 1) * (g === 2 ? FW[15] : 1) * (g === 4 ? FW[16] : 1) * (w == null ? 1 : w));
+      if (!isFinite(r.st)) r.st = Math.max(0.5, r.iv || 1);
+      r.iv = Math.round(fuzz(ivFor(r.st)) * 10) / 10; r.due = now + r.iv * DAY;
     }
+    r.d = clampD(FW[7] * fsrsD0(4) + (1 - FW[7]) * (d - FW[6] * (g - 3) * ((10 - d) / 9)));
   }
+}
+function grade(id, g, w){
+  const r = rec(id), now = Date.now();
+  schedule(r, g, now, false, w);
   r.n++; r.last = now; r.hist = (r.hist || []).concat(g > 1).slice(-10);
   const d = M.days[today()] || (M.days[today()] = { a: 0, c: 0, nw: 0 });
   d.a++; if (g > 1) d.c++;
@@ -418,15 +1528,25 @@ function grade(id, g){
 function introduce(id){ const r = rec(id); if (r.s === 'new'){ r.s = 'learning'; r.step = 0; r.due = Date.now(); const d = M.days[today()] || (M.days[today()] = { a: 0, c: 0, nw: 0 }); d.nw++; save(); } }
 
 /* ---------- curriculum order (i+1) ---------- */
+const ICHIDAN = new Set(['食べる','見る','いる','起きる','寝る','教える','覚える','忘れる','開ける','閉める','見つける','借りる','降りる','出る','出来る','着る','浴びる','出かける','かける','つける','あげる','くれる','入れる','見せる','考える','答える','並べる','勤める','生まれる','疲れる','晴れる','始める','止める','消える']);
+const GODAN_ROW = { う: 'わいうえおっ', く: 'かきくけこいっ', ぐ: 'がぎぐげごい', す: 'さしすせそ', つ: 'たちつてとっ', ぬ: 'なにぬねのん', ぶ: 'ばびぶべぼん', む: 'まみむめもん', る: 'らりるれろっ' };
+/* which kana can follow a word's stem when it is really that verb or adjective, so 話します is 話す but 話をします is the noun 話 */
+function endings(v){
+  const j = v.jp;
+  if (!/^To /.test(v.en)) return 'いくかけさ';
+  if (/する$/.test(j)) return 'しすさせ';
+  if (j === '来る' || ICHIDAN.has(j)) return 'まなてたるよれらずろえ';
+  return GODAN_ROW[j.slice(-1)] || '';
+}
 function stemOf(v){
   const j = v.jp;
   if (!hasKanji(j) || j.length < 2) return j;
   if (/する$/.test(j)) return j.slice(0, -2);
   if (/^To /.test(v.en) && /[うくぐすつぬぶむる]$/.test(j)) return j.slice(0, -1);
-  if (/い$/.test(j)) return j.slice(0, -1);
+  if (/^[\u4e00-\u9fff々]+[ぁ-ん]{0,2}い$/.test(j)) return j.slice(0, -1);
   return j;
 }
-V.forEach(v => { v.stem = stemOf(v); v.conj = v.stem !== v.jp; });
+V.forEach(v => { v.stem = stemOf(v); v.conj = v.stem !== v.jp; v.ends = v.conj ? endings(v) : ''; v.phrase = v.cat === 'Everyday phrases' || v.jp === '何ですか'; });
 /* find list words in a text by position, so 本 is not "found" inside 日本 and すぐ is not found inside まっすぐ */
 const isKanjiCh = c => !!c && /[一-鿿々]/.test(c);
 const isHiraCh = c => !!c && /[ぁ-ゟ]/.test(c);
@@ -437,13 +1557,16 @@ function occurrences(text){
     const st = v.stem; let p = -1;
     while ((p = text.indexOf(st, p + 1)) >= 0){
       const prev = text[p - 1], next = text[p + st.length];
-      if (v.conj){ if (!isHiraCh(next) || (st.length === 1 && isKanjiCh(prev))) continue; }
+      if (v.conj){ if (!next || !v.ends.includes(next) || (st.length === 1 && isKanjiCh(prev))) continue; }
       else if (hasKanji(st)){ if (st.length === 1 && (isKanjiCh(prev) || isKanjiCh(next))) continue; }
       else if (!/[ァ-ヶ]/.test(st) && ((isHiraCh(prev) && !PARTICLES.includes(prev)) || (st.length <= 2 && isHiraCh(next) && !(PARTICLES + 'だ').includes(next)))) continue;
       hits.push({ v, pos: p, len: st.length });
     }
   });
-  return hits.filter(h => !hits.some(o => o !== h && o.len > h.len && o.pos <= h.pos && o.pos + o.len >= h.pos + h.len)).sort((a, b) => a.pos - b.pos);
+  // a noun that is really the start of a verb or adjective here gives way to it: 赤 in 赤い, 休み in 休みます
+  const verbish = h => !h.v.conj && hits.some(o => o.v.conj && o.pos === h.pos && (o.len === h.len || (o.len < h.len && 'またなてせ'.includes(text[h.pos + h.len] || '') && isHiraCh(h.v.stem.slice(-1)))));
+  const kept = hits.filter(h => !verbish(h));
+  return kept.filter(h => !kept.some(o => o !== h && !o.v.phrase && o.len > h.len && o.pos <= h.pos && o.pos + o.len >= h.pos + h.len)).sort((a, b) => a.pos - b.pos);
 }
 const sentOcc = {}, sentWords = {};
 S.forEach(s => { sentOcc[s.id] = occurrences(s.jp); sentWords[s.id] = uniq(sentOcc[s.id].map(h => h.v)); });
@@ -458,7 +1581,7 @@ const order = [];
 V.forEach((v, i) => order.push({ id: v.id, key: i * 10 }));
 K.forEach(k => { const w = kanjiWords[k.id]; order.push({ id: k.id, key: w.length ? vIndex[w[0].id] * 10 + 5 : 9000 }); });
 S.forEach(s => { const w = sentWords[s.id]; order.push({ id: s.id, key: (w.length ? Math.max(...w.map(x => vIndex[x.id])) : 300) * 10 + 7 }); });
-G.forEach((g, i) => { const first = S.map((s, j) => s.jp.includes(g.sf) ? j : -1).filter(j => j >= 0)[0]; const k = first != null && first >= 0 ? order.find(o => o.id === S[first].id).key + 1 : 3000 + i; order.push({ id: g.id, key: k }); });
+G.forEach((g, i) => { const first = S.map((s, j) => s.jp.includes(g.sf) ? j : -1).filter(j => j >= (ANCHOR_NEW.has(g.g) ? 115 : 0))[0]; const k = first != null && first >= 0 ? order.find(o => o.id === S[first].id).key + 1 : 3000 + i; order.push({ id: g.id, key: k }); });
 order.sort((a, b) => a.key - b.key);
 const CURRICULUM = order.map(o => o.id);
 
@@ -521,6 +1644,29 @@ p8:['きょうの ホテルは えきの ちかくに あります。','へや�
 p9:['どようびに ともだちと かいものを しました。','わたしは あたらしい くつと ぼうしが ほしいです。','えきの となりの みせに はいりました。','くつは たかいですが、ぼうしは やすいです。','ぼうしは せんえんでした。','くつは かいませんでした。'],
 p10:['わたしの かぞくは よにんです。','ちちは かいしゃいんで、まいにち いそがしいです。','ははは いしゃです。びょういんで はたらいて います。','あねは がくせいで、えいごを べんきょうして います。','にちようびは かぞくと いっしょに ばんごはんを たべます。','ははの りょうりは いつも おいしいです。'],
 p11:['にほんには はる、なつ、あき、ふゆが あります。','はるは こうえんが とても きれいです。','なつは あついので、うみで およぎます。','あきは くだものが おいしいです。','ふゆは さむくて、ゆきの ひも あります。','わたしは あきが いちばん すきです。']});
+PARAS.push(
+ { id:'p12', title:'丸亀の城', en:'Marugame Castle', lvl:3,
+   lines:[['丸亀市に古い城があります。','There is an old castle in Marugame City.'],['城は高い山の上にあります。','The castle stands on top of a high hill.'],['私は友達とゆっくり登りました。','I climbed up slowly with a friend.'],['上から町と海が見えます。','From the top you can see the town and the sea.'],['少し疲れましたが、とても楽しかったです。','I got a little tired, but it was a lot of fun.'],['城の前で写真を撮りました。','I took a photo in front of the castle.']],
+   gloss:[['見えます','みえます','can be seen']],
+   qs:[['Where is the castle?',['On top of a high hill','Next to the station','In a park','On an island'],0],['Who did the writer go with?',['A friend','Family','A teacher','Nobody'],0],['What can be seen from the top?',['The town and the sea','A river and a bridge','Only mountains','The airport'],0],['How did the writer feel afterwards?',['A little tired, but happy','Bored','Cold and hungry','Very sleepy'],0]] },
+ { id:'p13', title:'バスに乗る', en:'Taking the bus', lvl:3,
+   lines:[['すみません、このバスは倉敷に行きますか。','Excuse me, does this bus go to Kurashiki?'],['いいえ、行きません。次のバスに乗ってください。','No, it does not. Please take the next bus.'],['次のバスは何時に来ますか。','What time does the next bus come?'],['十時半に来ます。切符はあちらで買ってください。','It comes at half past ten. Please buy your ticket over there.'],['倉敷まで何時間かかりますか。','How many hours does it take to Kurashiki?'],['一時間くらいです。','About one hour.']],
+   gloss:[['十時半','じゅうじはん','half past ten'],['一時間','いちじかん','one hour']],
+   qs:[['Where does the traveller want to go?',['Kurashiki','Takamatsu','Tottori','The airport'],0],['Which bus should they take?',['The next one','This one','The last one of the day','None: they should walk'],0],['When does it come?',['At half past ten','At ten','At half past nine','At eleven'],0],['How long is the ride?',['About one hour','About ten minutes','About three hours','Half a day'],0]] },
+ { id:'p14', title:'漫画の町', en:'The manga town', lvl:3,
+   lines:[['北栄町は漫画で有名な町です。','Hokuei is a town famous for manga.'],['駅の前に小さい喫茶店があります。','There is a small coffee shop in front of the station.'],['私はそこでコーヒーを飲みました。','I drank coffee there.'],['店の人はとても親切でした。','The people in the shop were very kind.'],['コーヒーは少し高かったですが、美味しかったです。','The coffee was a little expensive, but it was good.'],['お土産に漫画の本を買いました。','I bought a manga book as a souvenir.']],
+   gloss:[],
+   qs:[['What is Hokuei famous for?',['Manga','Peaches','Udon','Sand'],0],['Where is the coffee shop?',['In front of the station','Next to the library','On the eighth floor','Near the sea'],0],['What was the coffee like?',['A little expensive, but good','Cheap and bad','Too sweet','Cold'],0],['What did the writer buy as a souvenir?',['A manga book','A hat','Peaches','A ticket'],0]] },
+ { id:'p15', title:'三朝の温泉', en:'The hot spring at Misasa', lvl:3,
+   lines:[['週末に三朝に行きました。','At the weekend I went to Misasa.'],['三朝は温泉で有名です。','Misasa is famous for its hot springs.'],['町は静かで、川がとても綺麗です。','The town is quiet and the river is very beautiful.'],['夜、温泉に入りました。','At night I got in the hot spring.'],['お湯は熱かったですが、気持ちがよかったです。','The water was hot, but it felt good.'],['来年、また行くつもりです。','I intend to go again next year.']],
+   gloss:[['お湯','おゆ','hot water']],
+   qs:[['When did the writer go?',['At the weekend','On Monday','Last year','In the summer holiday'],0],['What is Misasa famous for?',['Hot springs','A castle','Manga','A sand museum'],0],['What is the town like?',['Quiet, with a beautiful river','Lively and big','Dark and cold','New and expensive'],0],['What does the writer plan to do?',['Go again next year','Never go back','Move there','Go again tomorrow'],0]] }
+);
+Object.assign(PR, {
+p12:['まるがめしに ふるい しろが あります。','しろは たかい やまの うえに あります。','わたしは ともだちと ゆっくり のぼりました。','うえから まちと うみが みえます。','すこし つかれましたが、とても たのしかったです。','しろの まえで しゃしんを とりました。'],
+p13:['すみません、この バスは くらしきに いきますか。','いいえ、いきません。つぎの バスに のって ください。','つぎの バスは なんじに きますか。','じゅうじはんに きます。きっぷは あちらで かって ください。','くらしきまで なんじかん かかりますか。','いちじかんくらいです。'],
+p14:['ほくえいちょうは まんがで ゆうめいな まちです。','えきの まえに ちいさい きっさてんが あります。','わたしは そこで コーヒーを のみました。','みせの ひとは とても しんせつでした。','コーヒーは すこし たかかったですが、おいしかったです。','おみやげに まんがの ほんを かいました。'],
+p15:['しゅうまつに みささに いきました。','みささは おんせんで ゆうめいです。','まちは しずかで、かわが とても きれいです。','よる、おんせんに はいりました。','おゆは あつかったですが、きもちが よかったです。','らいねん、また いく つもりです。']});
 PARAS.forEach(p => { p.type = 'p'; p.jp = p.lines.map(l => l[0]).join(''); p.lines.forEach((l, i) => l[2] = (PR[p.id] || [])[i] || ''); p.words = uniq(occurrences(p.jp).map(h => h.v)); });
 
 /* ---------- kana → romaji ---------- */
@@ -556,7 +1702,7 @@ try { findVoice(); speechSynthesis.onvoiceschanged = findVoice; } catch (e) {}
 const audioOn = () => M.settings.audio && !!jaVoice;
 function speak(text){ if (!audioOn()) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.voice = jaVoice; u.lang = 'ja-JP'; u.rate = M.settings.rate || 0.85; speechSynthesis.speak(u); } catch (e) {} }
 const SPK = '<svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
-function spkBtn(text, big){ if (!audioOn()) return null; const b = el('button', 'spk' + (big ? ' big' : ''), SPK); b.title = 'Listen'; b.type = 'button'; b.onclick = e => { e.stopPropagation(); speak(text); }; return b; }
+function spkBtn(text, big){ if (!audioOn()) return null; const b = el('button', 'spk' + (big ? ' big' : ''), SPK); b.title = 'Listen'; b.setAttribute('aria-label', 'Listen'); b.type = 'button'; b.onclick = e => { e.stopPropagation(); speak(text); }; return b; }
 function withSpk(html, text){ const d = el('div', 'row'); d.style.gap = '12px'; d.innerHTML = html; const b = spkBtn(text); if (b) d.appendChild(b); return d; }
 
 
@@ -604,25 +1750,52 @@ const MODES = [
   { key:'sq', jp:'文', name:'Sentence drill', desc:'Comprehension, then building from blocks, then cloze from memory.' },
   { key:'gram', jp:'助', name:'Grammar drill', desc:'Particles and patterns, blanked out of example sentences.' },
   { key:'conj', jp:'活', name:'Verb and adjective forms', desc:'Polite, negative, past and て-forms of verbs, and the negative and past of い and な adjectives, with the rule after each answer.' },
-  { key:'num', jp:'数', name:'Numbers and time', desc:'Numbers to 99,999, prices in yen and clock times: read them, pick the reading, or hear them.' },
+  { key:'num', jp:'数', name:'Numbers, dates and counters', desc:'Numbers to 99,999, prices, clock times, days of the month, and counting people, things, floors and ages.' },
+  { key:'kana', jp:'あ', name:'Kana', desc:'Hiragana and katakana, including the voiced and combined sounds, tested against their look-alikes.' },
+  { key:'phr', jp:'話', name:'Phrases', desc:'Greetings and set expressions for shops, homes, mealtimes and the phone.' },
   { key:'lis', jp:'聴', name:'Listening', desc:'Audio only: pick the meaning of a word or sentence, or rebuild the sentence you hear.' },
   { key:'para', jp:'読', name:'Reading passages', desc:'Twelve short texts: a trip through Kagawa, Okayama and Tottori, then everyday life. Reveal readings or translations line by line, then answer questions.' },
 ];
 
+const NEW_PER_SESSION = 5;
+/* a missed day does not end a streak if the day before it was studied and no other rest day fell in the same week */
 function streak(){
-  let n = 0; const d = new Date();
-  for (;;){ const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); const day = M.days[k]; if (day && day.a > 0) n++; else if (n > 0 || k !== today()) break; d.setDate(d.getDate() - 1); if (n > 3650) break; }
+  const act = i => { const x = M.days[dayKey(studyDay(i))]; return !!(x && x.a > 0); };
+  let n = 0, lastRest = -99;
+  for (let i = 0; i < 3650; i++){
+    if (act(i)) n++;
+    else if (i === 0) continue;
+    else if (act(i + 1) && i - lastRest >= 7) lastRest = i;
+    else break;
+  }
   return n;
 }
 function counts(){
   const now = Date.now();
   const due = ALL.filter(x => isDue(x.id, now)).length;
   const d = M.days[today()] || { a: 0, c: 0, nw: 0 };
-  const newLeft = Math.max(0, M.settings.newPerDay + (d.bonus || 0) - d.nw);
+  // new items pause while a backlog is waiting, so reviews never snowball
+  const limit = Math.max(50, M.settings.maxReviews * 2), paused = due > limit;
+  const allowance = (paused ? Math.min(d.nw, M.settings.newPerDay) : M.settings.newPerDay) + (d.bonus || 0);
   const newAvail = CURRICULUM.filter(id => rec(id).s === 'new').length;
-  return { due, newLeft: Math.min(newLeft, newAvail), newAvail, done: d.a, goal: M.settings.goal };
+  const newLeft = Math.min(Math.max(0, allowance - d.nw), newAvail);
+  const sec = M.stats && M.stats.n >= 20 ? M.stats.ms / M.stats.n / 1000 : 9;
+  const n = Math.min(due, M.settings.maxReviews) + Math.min(newLeft, NEW_PER_SESSION) * 3;
+  return { due, newLeft, newAvail, done: d.a, goal: M.settings.goal, paused: paused && newAvail > 0, limit, mins: Math.max(1, Math.round(n * sec / 60)) };
 }
-
+function nextDueText(){
+  const now = Date.now(); let m = Infinity;
+  ALL.forEach(x => { const r = M.items[x.id]; if (r && r.s !== 'new' && r.due > now && r.due < m) m = r.due; });
+  return m === Infinity ? '' : ' · next in ' + fmtIv(m - now);
+}
+function afterSession(){
+  const now = Date.now(); let soon = 0, day = 0;
+  ALL.forEach(x => { const r = M.items[x.id]; if (!r || r.s === 'new' || r.due <= now) return; if (r.due < now + 60 * MIN) soon++; else if (r.due < now + DAY) day++; });
+  return (soon ? `${soon} item${soon === 1 ? '' : 's'} still being learned ${soon === 1 ? 'comes' : 'come'} back within the hour. ` : '') + `${day} review${day === 1 ? ' falls' : 's fall'} due in the next 24 hours.`;
+}
+let persistAsked = false;
+function askPersist(){ if (persistAsked) return; persistAsked = true; try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) {} }
+const FRAMED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 function renderHome(){
   const c = counts();
   const pct = Math.min(100, Math.round(100 * c.done / c.goal));
@@ -630,8 +1803,8 @@ function renderHome(){
   const t = $('#today');
   t.innerHTML = `<div class="ring"><svg viewBox="0 0 92 92"><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--shu)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - pct / 100)}"/></svg><div class="lbl">${c.done}<small>of ${c.goal}</small></div></div>
     <div><h2>${c.due === 0 && c.newLeft === 0 ? (c.done >= c.goal ? 'Done for today. お疲れ様でした。' : 'Nothing due. Drill anything below, or raise your new-items setting.') : 'Today\'s session'}</h2>
-    <div class="facts"><span><b>${c.due}</b> reviews due</span><span><b>${c.newLeft}</b> new to learn</span><span class="streak">${streak()} day streak</span><span><b>${retention()}</b> recent accuracy</span></div>
-    <div class="row" style="margin-top:12px"><button class="btn shu" id="btn-today" ${c.due === 0 && c.newLeft === 0 ? 'disabled' : ''}>Start session</button><button class="btn quiet" id="btn-smart">Extra practice</button>${c.newLeft === 0 && c.newAvail > 0 ? '<button class="btn quiet" id="btn-more">Learn 5 more new items</button>' : ''}</div></div>`;
+    <div class="facts"><span><b>${c.due}</b> reviews due${c.due ? '' : esc(nextDueText())}</span><span><b>${c.newLeft}</b> new to learn</span>${c.due || c.newLeft ? `<span>about <b>${c.mins}</b> min</span>` : ''}<span class="streak">${streak()} day streak</span><span><b>${retention()}</b> recent accuracy</span></div>
+    ${c.paused ? `<div class="note" style="margin-top:6px">New items are paused until fewer than ${c.limit} reviews are waiting, so the backlog shrinks first.</div>` : ''}<div class="row" style="margin-top:12px"><button class="btn shu" id="btn-today" ${c.due === 0 && c.newLeft === 0 ? 'disabled' : ''}>Start session</button><button class="btn quiet" id="btn-smart">Extra practice</button>${c.newLeft === 0 && c.newAvail > 0 ? '<button class="btn quiet" id="btn-more">Learn 5 more new items</button>' : ''}</div></div>`;
   $('#btn-today').onclick = () => startMode('today');
   $('#btn-smart').onclick = () => startMode('smart');
   const mb = $('#btn-more'); if (mb) mb.onclick = () => { const d = M.days[today()] || (M.days[today()] = { a: 0, c: 0, nw: 0 }); d.bonus = (d.bonus || 0) + 5; save(); startMode('today'); };
@@ -650,7 +1823,8 @@ function renderHome(){
   const modes = $('#modes'); modes.innerHTML = '';
   MODES.forEach(m => { const b = el('button', 'mode', `<span class="jp">${m.jp}</span><span style="min-width:0"><b>${m.name}</b><small>${m.desc}</small></span>`); b.onclick = () => startMode(m.key); modes.appendChild(b); });
 
-  $('#set-new').value = M.settings.newPerDay; $('#set-goal').value = M.settings.goal; $('#set-reviews').value = M.settings.maxReviews; $('#set-audio').checked = M.settings.audio; $('#set-kana').checked = M.settings.kana; $('#set-rate').value = String(M.settings.rate || 0.85); document.body.classList.toggle('nokana', !M.settings.kana); renderHeat(); renderProgress();
+  $('#set-new').value = M.settings.newPerDay; $('#set-goal').value = M.settings.goal; $('#set-reviews').value = M.settings.maxReviews; $('#tally').textContent = `${V.length} words and phrases · ${K.length} kanji · ${S.length} sentences · ${G.length} grammar points · ${PARAS.length} passages`;
+  $('#set-audio').checked = M.settings.audio; $('#set-kana').checked = M.settings.kana; $('#set-rate').value = String(M.settings.rate || 0.85); $('#set-ret').value = String(M.settings.retention || 0.9); renderSnap(); renderGuard(); document.body.classList.toggle('nokana', !M.settings.kana); renderHeat(); renderProgress();
 }
 function retention(){ const l = M.log || []; if (l.length < 5) return '—'; return Math.round(100 * l.filter(Boolean).length / l.length) + '%'; }
 $('#set-new').onchange = e => { M.settings.newPerDay = Math.max(0, +e.target.value || 0); save(); renderHome(); };
@@ -658,7 +1832,7 @@ $('#set-goal').onchange = e => { M.settings.goal = Math.max(5, +e.target.value |
 $('#set-reviews').onchange = e => { M.settings.maxReviews = Math.max(5, +e.target.value || 40); save(); renderHome(); };
 $('#set-audio').onchange = e => { M.settings.audio = e.target.checked; save(); };
 /* reset: two clicks within 4 seconds, no dialog */
-function resetAll(){ M.items = {}; M.days = {}; M.log = []; save(); sess = null; renderHome(); show('home'); }
+function resetAll(){ try { localStorage.setItem(STORE_KEY + '-prev', JSON.stringify(M)); } catch (e) {} M.items = {}; M.days = {}; M.log = []; M.stats = null; M.snapDay = today(); save(); sess = null; renderHome(); show('home'); }
 function armReset(btn){
   let armed = false, timer = null;
   btn.onclick = () => {
@@ -687,7 +1861,7 @@ document.addEventListener('fullscreenchange', updateFullBtn); document.addEventL
 /* ---------- session engine ---------- */
 let sess = null;
 function startMode(key){
-  nextHook = null;
+  nextHook = null; askPersist();
   $('#sess-title').textContent = key === 'today' ? "Today's session" : key === 'smart' ? 'Extra practice' : MODES.find(m => m.key === key).name;
   $('#sess-filters').innerHTML = '';
   show('session');
@@ -696,6 +1870,8 @@ function startMode(key){
   if (key === 'para') return readingList();
   if (key === 'conj') return conjDrill();
   if (key === 'num') return numDrill();
+  if (key === 'kana') return kanaDrill();
+  if (key === 'phr') return startRound('vq', 'Everyday phrases');
   startRound(key);
 }
 
@@ -707,7 +1883,9 @@ function buildQueue(key, filter){
   if (key === 'today'){
     const due = ALL.filter(x => isDue(x.id, now)).sort((a, b) => rec(a.id).due - rec(b.id).due).slice(0, M.settings.maxReviews);
     const q = shuffle(due.map(x => ({ id: x.id })));
-    const fresh = CURRICULUM.filter(id => rec(id).s === 'new').slice(0, c.newLeft).map(id => ({ id, learn: true }));
+    // at most two new kanji a session, so a run of kanji never crowds out new words and sentences
+    const fresh = []; let kn = 0;
+    for (const id of CURRICULUM){ if (fresh.length >= Math.min(c.newLeft, NEW_PER_SESSION)) break; if (rec(id).s !== 'new') continue; if (BY_ID[id].type === 'k'){ if (kn >= 2) continue; kn++; } fresh.push({ id, learn: true }); }
     // interleave new items into the review stream
     fresh.forEach((f, i) => q.splice(Math.min(q.length, Math.round((i + 1) * q.length / (fresh.length + 1)) + i), 0, f));
     return q;
@@ -754,14 +1932,14 @@ function nextQ(){
   $('#sess-count').textContent = `${Math.min(sess.i + 1, n)} / ${n}`;
   $('#sess-bar').style.width = (100 * sess.i / Math.max(1, n)) + '%';
   if (sess.i >= n) return finishRound();
-  const entry = sess.q[sess.i], item = BY_ID[entry.id];
+  const entry = sess.q[sess.i], item = BY_ID[entry.id]; sess.t0 = Date.now();
   if (entry.learn) return learnCard(entry, item, stage_);
   askItem(entry, item, stage_);
 }
 
 /* choose a question format by item type and maturity (graduated difficulty) */
 function askItem(entry, item, stage_){
-  if (entry.force && QUESTIONS[entry.force]) return QUESTIONS[entry.force](entry, item, stage_);
+  if (entry.force && QUESTIONS[entry.force]){ sess.fmt = entry.force; return QUESTIONS[entry.force](entry, item, stage_); }
   const st = entry.retry ? Math.max(0, stage(item.id) - 1) : entry.followup ? Math.max(1, stage(item.id)) : stage(item.id);
   let fmt;
   if (item.type === 'v'){
@@ -772,12 +1950,13 @@ function askItem(entry, item, stage_){
   } else if (item.type === 's'){
     fmt = pickFmt(st === 0 ? ['s-je'] : st === 1 ? ['s-ej', 'build'] : st === 2 ? ['build', 's-cloze', 's-listen', 's-dictate'] : ['build-hard', 's-cloze', 's-listen', 's-dictate'], item);
   } else fmt = st <= 1 ? 'gram' : pickFmt(['gram-hard', 'gram-fn'], item);
-  QUESTIONS[fmt](entry, item, stage_);
+  sess.fmt = fmt; QUESTIONS[fmt](entry, item, stage_);
 }
 function pickFmt(opts, item){
   const ok = opts.filter(f => {
     if (f === 's-dictate') return audioOn() && item.tk.length >= 3;
-    if (f === 'read') return hasKanji(item.jp);
+    if (f === 'v-type') return item.rd.length <= 9;
+    if (f === 'read') return hasKanji(item.jp) && item.rd.length <= 12;
     if (f === 'listen' || f === 's-listen') return audioOn();
     if (f === 'cloze') return (vocabSents[item.id] || []).length > 0;
     if (f === 's-cloze') return (sentWords[item.id] || []).some(w => hasKanji(w.jp) || w.jp.length >= 3);
@@ -793,7 +1972,7 @@ function finishRound(){
   $('#sess-bar').style.width = '100%';
   const n = sess.total, c = sess.correct, total = Object.keys(sess.asked).length;
   const card = el('div', 'card done');
-  card.innerHTML = `<div class="prompt-label">Session complete</div><div class="score">${Math.round(100 * c / Math.max(1, total))}%</div><div class="sub">${c} of ${total} first attempts correct · ${sess.learned || 0} new items started</div>`;
+  card.innerHTML = `<div class="prompt-label">Session complete</div><div class="score">${Math.round(100 * c / Math.max(1, total))}%</div><div class="sub">${c} of ${total} first attempts correct · ${sess.learned || 0} new items started</div><div class="note">${esc(afterSession())}</div>`;
   if (sess.misses.length){
     const list = el('div', 'list'); list.style.textAlign = 'left'; list.style.width = '100%';
     list.appendChild(el('div', 'section-label', 'Missed this session (they will return sooner)'));
@@ -808,17 +1987,69 @@ function finishRound(){
   row.appendChild(home); card.appendChild(row); stage_.appendChild(card);
 }
 
-function record(entry, item, ok, miss){
+/* ---------- recording an answer; any answer can be re-rated afterwards ---------- */
+function snapState(id){ return { id, r: JSON.stringify(rec(id)), day: JSON.stringify(M.days[today()] || null), log: (M.log || []).slice(), stats: JSON.stringify(M.stats || null), asked: sess.asked[id], correct: sess.correct, misses: sess.misses.slice(), q: sess.q.slice(), retries: sess.retries[id] }; }
+function restoreState(s){
+  const note = (M.items[s.id] || {}).note;
+  M.items[s.id] = JSON.parse(s.r); if (note != null) M.items[s.id].note = note;
+  const d = JSON.parse(s.day); if (d) M.days[today()] = d; else delete M.days[today()];
+  M.log = s.log.slice(); M.stats = JSON.parse(s.stats);
+  sess.asked[s.id] = s.asked; sess.correct = s.correct; sess.misses = s.misses.slice(); sess.q = s.q.slice(); sess.retries[s.id] = s.retries;
+}
+const EVIDENCE = { read: 1, 'v-type': 1, build: 0.8, 'build-hard': 0.8, 's-dictate': 0.8 };   // typed recall, rebuilt sentences; everything else is multiple choice
+function record(entry, item, ok, miss, g){
+  const s = snapState(item.id); sess.snap = s; sess.last = { entry, item, ok, miss, g: ok ? (g || 3) : 1, was: JSON.parse(s.r).s };
+  const ms = Math.min(60000, Math.max(0, Date.now() - (sess.t0 || Date.now()))); M.stats = M.stats || { ms: 0, n: 0 }; M.stats.ms += ms; M.stats.n++;
   if (!sess.asked[item.id]){ sess.asked[item.id] = true; if (ok) sess.correct++; }
   if (!ok) sess.misses.push(Object.assign({ id: item.id }, miss));
-  grade(item.id, ok ? (entry.followup || entry.retry ? 3 : 3) : 1);
+  grade(item.id, ok ? (g || 3) : 1, EVIDENCE[sess.fmt] || 0.6);
   requeue(entry, ok);
+}
+function regrade(g){
+  const L = sess.last, s = sess.snap; if (!L || !s) return;
+  restoreState(s); record(L.entry, L.item, g > 1, L.miss, g); sess.snap = s;
+  $('#sess-count').textContent = `${Math.min(sess.i + 1, sess.q.length)} / ${sess.q.length}`;
+  if (sess.repaint) sess.repaint();
+}
+function fmtIv(ms){
+  const m = ms / MIN; if (m < 60) return Math.max(1, Math.round(m)) + ' min'; if (m < 1440) return Math.round(m / 60) + ' h';
+  const d = Math.round(m / 1440); return d < 30 ? d + (d === 1 ? ' day' : ' days') : d < 350 ? Math.round(d / 30.4) + ' mo' : '1 yr';
+}
+function overrideBtn(card, text){
+  const b = el('button', 'btn quiet', text || 'My answer was right'); b.type = 'button';
+  b.onclick = () => { regrade(3); b.disabled = true; b.textContent = 'Counted as correct'; const fb = card.querySelector('.feedback'); if (fb){ fb.classList.remove('bad'); fb.classList.add('ok'); } };
+  const row = el('div', 'row'); row.appendChild(b); return row;
+}
+/* a hint in the learner's own words, offered when an item is missed and shown again whenever it comes back */
+function noteField(item){
+  const r = rec(item.id), w = el('div', 'notebox');
+  if (r.lapses >= 3 && !r.note) w.appendChild(el('div', 'note', `Forgotten ${r.lapses} times. A hint in your own words (a picture, a pun, where you met it) is the most reliable fix for a stubborn item.`));
+  const inp = el('input', 'notein'); inp.type = 'text'; inp.id = 'note-in'; inp.maxLength = 140; inp.value = r.note || ''; inp.autocomplete = 'off';
+  inp.placeholder = 'Your own memory hint (saved, shown whenever this comes back)'; inp.setAttribute('aria-label', 'Your memory hint for this item');
+  inp.oninput = () => { rec(item.id).note = inp.value.trim(); };
+  inp.onchange = () => { rec(item.id).note = inp.value.trim(); save(); };
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.stopPropagation(); e.preventDefault(); inp.blur(); const nb = $('#stage [data-next]'); if (nb) nb.focus(); } });
+  w.appendChild(inp); return w;
 }
 let nextHook = null;
 function nextButton(card, label){
   const b = el('button', 'btn', label || 'Next →'); b.dataset.next = '1';
-  b.onclick = () => { if (nextHook) return nextHook(); sess.i++; nextQ(); };
-  const row = el('div', 'row'); row.appendChild(b); row.appendChild(el('span', 'kbd-hint', 'Enter')); card.appendChild(row); b.focus();
+  b.onclick = () => { if (nextHook) return nextHook(); save(); sess.i++; nextQ(); };
+  const row = el('div', 'row'); row.appendChild(b); row.appendChild(el('span', 'kbd-hint', 'Enter'));
+  if (!nextHook && sess && sess.last){
+    const L = sess.last, r0 = rec(L.item.id), chips = [];
+    if (!L.ok || r0.note || r0.lapses >= 3) card.appendChild(noteField(L.item));
+    const info = el('span', 'note sched'); row.appendChild(info);
+    if (L.ok && L.was === 'review') [[2, 'Hard', 'Right, but only just (H)'], [4, 'Easy', 'Instant, no effort (E)']].forEach(([g, name, tip]) => {
+      const c = el('button', 'ghost chip', name); c.type = 'button'; c.dataset.g = g; c.title = tip; c.onclick = () => regrade(sess.last.g === g ? 3 : g); chips.push(c); row.appendChild(c); });
+    sess.repaint = () => {
+      const r = rec(L.item.id), cur = sess.last;
+      info.textContent = !cur.ok ? 'Comes back until you get it' : r.s === 'review' ? 'Next review in ' + fmtIv(r.due - Date.now()) : 'Still learning: back in about ' + fmtIv(r.due - Date.now());
+      chips.forEach(c => { const on = +c.dataset.g === cur.g; c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+    };
+    sess.repaint();
+  }
+  card.appendChild(row); b.focus();
 }
 function labelFor(entry, text){ return `${text}${entry.retry ? ' <span class="tag">retry</span>' : ''}${entry.followup ? ' <span class="tag">follow-up</span>' : ''}`; }
 
@@ -866,36 +2097,49 @@ function learnCard(entry, item, stage_){
     card.appendChild(withSpk(`<div class="ex"><div class="j">${jpHTML(item.ex)}</div></div>`, item.ex));
     const more = S.filter(s => s.jp.includes(item.g) && s.jp !== item.ex).slice(0, 2); if (more.length) card.appendChild(el('div', 'col', more.map(s => `<div class="ex"><div class="j">${jpHTML(s.jp)}</div><div class="kana auto">${esc(s.rd)}</div><div class="e">${esc(s.en)}</div></div>`).join('')));
   }
-  const b = el('button', 'btn gold', 'Got it — test me'); b.onclick = () => { stage_.innerHTML = ''; askItem(Object.assign({}, entry, { learn: true }), item, stage_); };
+  const b = el('button', 'btn gold', 'Got it — test me'); b.onclick = () => { stage_.innerHTML = ''; sess.t0 = Date.now(); askItem(Object.assign({}, entry, { learn: true }), item, stage_); };
   const known = el('button', 'btn quiet', 'I already know this'); known.onclick = () => { grade(item.id, 4); sess.i++; nextQ(); };
   const row = el('div', 'row'); row.append(b, known); card.appendChild(row); stage_.appendChild(card); b.focus();
   if (item.type === 'v' || item.type === 's') speak(item.type === 'v' ? item.jp : item.jp);
 }
 
 /* ---------- generic multiple choice ---------- */
+/* look-alike kanji, offered as wrong answers once a kanji has been seen a couple of times, so telling them apart gets practised */
+const LOOK = {};
+['人入八','日白百自','木本来米','小少水','土上下止','右左友古','千午牛半年先生','待持時','聞開閉','読話語言誰','学字子覚','今会全金分公傘','明朝晴暗昨早','姉妹始好女安','兄元見','買員貸','借作昨','道送返遅速週','館飲食','使便仕何借作','歩走止少','外名多夜','終紙','町村校森','東車電乗転','教強勉弱','国図園','院降','新親','家安字空','切物利別易','思心','果菜茶楽','雪電雨','海毎母港','同円局古','文父','考者','社仕','市姉','火大人','川三山','一二三十千土','四西','六大','七十','出山','難曜','静晴','気米','犬大太天夫','目日白自','口回国','石右','鳥島馬','休体','間問門聞','寺時持待特','音暗意','住主注','末未','次吹','赤青','花化','熱暑','冷令','短豆','若苦','低底','渡度','洗先','押引','悪悲','近道遠','部都','場所','夕外名','歳成','枚杯','彼波','客各','窓空','机村','箱相','色巴']
+  .forEach(g => [...g].forEach(c => { LOOK[c] = uniq((LOOK[c] || []).concat([...g].filter(x => x !== c))); }));
+const K_BY = Object.fromEntries(K.map(k => [k.k, k]));
+let lastDistract = null;
 function choiceQuestion(card, { label, promptNode, options, answer, isJP, onDone }){
   card.appendChild(el('div', 'prompt-label', label));
   card.appendChild(promptNode);
-  const box = el('div', 'choices');
+  const box = el('div', 'choices'), ld = lastDistract; lastDistract = null;
+  const dk = el('button', 'ghost dk', "Don't know"); dk.type = 'button'; dk.title = 'Better than a lucky guess: a guess that lands hides the gap (0)';
+  const settle = (ok, picked) => {
+    [...box.children].forEach(c => { c.disabled = true; if (c.dataset.v === answer) c.classList.add('ok'); });
+    dk.remove();
+    // remember what this item was mistaken for, so the same pair is put side by side next time
+    if (!ok && picked != null && ld){ const x = ld.list.find(o => ld.keyfn(o) === picked); if (x){ const r = rec(ld.item.id); r.conf = uniq([x.id].concat(r.conf || [])).slice(0, 3); } }
+    onDone(ok); nextButton(card);
+  };
   uniq(options).forEach(opt => {
     const b = el('button', 'choice' + (isJP ? ' jp' : ''), `<span>${esc(opt)}</span>`); b.dataset.v = opt;
-    b.onclick = () => {
-      const ok = opt === answer;
-      [...box.children].forEach(c => { c.disabled = true; if (c.dataset.v === answer) c.classList.add('ok'); });
-      if (!ok) b.classList.add('bad');
-      onDone(ok); nextButton(card);
-    };
+    b.onclick = () => { const ok = opt === answer; if (!ok) b.classList.add('bad'); settle(ok, opt); };
     box.appendChild(b);
   });
-  card.appendChild(box);
+  dk.onclick = () => settle(false, null);
+  card.append(box, dk);
 }
 const distract = (pool, item, n, keyfn) => {
   // never offer a second correct answer (思 and 考 both mean "think") or the same text twice
   const gloss = x => x.en || x.m || '';
-  const ok = x => x.id !== item.id && keyfn(x) !== keyfn(item) && gloss(x) !== gloss(item);
-  const seen = new Set(), out = [];
+  const ok = x => x.id !== item.id && keyfn(x) !== keyfn(item) && gloss(x) !== gloss(item) && !(item.stem && x.stem === item.stem) && !(item.rd && item.type === 'v' && x.rd === item.rd);
+  const seen = new Set(), out = [], r = M.items[item.id] || {};
   const take = arr => { for (const x of shuffle(arr)){ if (out.length >= n) break; const k = keyfn(x); if (seen.has(k)) continue; seen.add(k); out.push(x); } };
+  take((r.conf || []).map(id => BY_ID[id]).filter(x => x && pool.includes(x) && ok(x)));
+  if (item.type === 'k' && (r.n || 0) >= 2) take(pick((LOOK[item.k] || []).map(c => K_BY[c]).filter(x => x && pool.includes(x) && ok(x)), 2));
   take(pool.filter(x => ok(x) && x.cat === item.cat)); take(pool.filter(ok));
+  lastDistract = { item, list: out, keyfn };
   return out;
 };
 
@@ -913,7 +2157,7 @@ const QUESTIONS = {
     stage_.appendChild(card);
   },
   'listen'(entry, v, stage_){
-    const card = el('div', 'card'); const others = distract(V, v, 3, x => x.en);
+    const card = el('div', 'card'); const others = distract(V.filter(x => x.rd !== v.rd), v, 3, x => x.en);
     const p = el('div', 'row'); p.style.gap = '14px'; p.appendChild(spkBtn(v.jp, true)); p.appendChild(el('div', 'sub', 'Listen, then choose the meaning. Tap to replay.'));
     choiceQuestion(card, { label: labelFor(entry, 'Listening'), promptNode: p, options: shuffle([v, ...others].map(x => x.en)), answer: v.en, isJP: false,
       onDone: ok => { record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en }); card.appendChild(fbVocab(ok, v)); } });
@@ -926,8 +2170,8 @@ const QUESTIONS = {
     const inp = el('input', 'text'); inp.id = 'read-input'; inp.placeholder = 'よみかた / yomikata'; inp.autocomplete = 'off'; inp.setAttribute('autocapitalize', 'off'); card.appendChild(inp);
     const row = el('div', 'row'); const check = el('button', 'btn', 'Check'); const skip = el('button', 'btn quiet', "Don't know"); row.append(check, skip); card.appendChild(row);
     let done = false;
-    const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; const sn = snap(v.id); record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en });
-      card.appendChild(el('div', 'feedback ' + (ok ? 'ok' : 'bad'), `<div>${ok ? 'Correct.' : 'The reading is'} <span class="ans">${esc(v.rd)}</span> <span class="sub">(${esc(kanaToRomaji(v.rd.split(/[／/]/)[0]))})</span> — ${esc(v.en)} ${masteryHTML(v.id)}</div>${exampleHTML(v, 1)}`)); addSpeak(card, v.jp); speak(v.jp); if (!ok && inp.value.trim()) card.appendChild(overrideBtn(card, entry, v, sn)); nextButton(card); };
+    const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en });
+      card.appendChild(el('div', 'feedback ' + (ok ? 'ok' : 'bad'), `<div>${ok ? 'Correct.' : 'The reading is'} <span class="ans">${esc(v.rd)}</span> <span class="sub">(${esc(kanaToRomaji(v.rd.split(/[／/]/)[0]))})</span> — ${esc(v.en)} ${masteryHTML(v.id)}</div>${exampleHTML(v, 1)}`)); addSpeak(card, v.jp); speak(v.jp); if (!ok && inp.value.trim()) card.appendChild(overrideBtn(card)); nextButton(card); };
     check.onclick = () => { if (inp.value.trim()) finish(readingMatches(inp.value, v.rd)); };
     skip.onclick = () => finish(false);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !done){ e.stopPropagation(); check.onclick(); } });
@@ -1020,12 +2264,16 @@ function buildQ(entry, s, stage_, hard, listen){
   card.appendChild(row);
   let done = false;
   const finish = ok => { if (done) return; done = true; check.disabled = reveal.disabled = true; [...line.children, ...bank.children].forEach(b => b.disabled = true); line.classList.add(ok ? 'ok' : 'bad');
-    const sn = snap(s.id); record(entry, s, ok, { a: s.jp, b: '', c: s.en }); card.appendChild(fbSent(ok, s)); addSpeak(card, s.jp); if (ok) speak(s.jp); if (!ok && placed.length) card.appendChild(overrideBtn(card, entry, s, sn, 'My order is also correct')); nextButton(card); };
+    record(entry, s, ok, { a: s.jp, b: '', c: s.en }); card.appendChild(fbSent(ok, s)); addSpeak(card, s.jp); if (ok) speak(s.jp); if (!ok && placed.length) card.appendChild(overrideBtn(card, 'My order is also correct')); nextButton(card); };
   check.onclick = () => finish(placed.map(p => p.t).join('') === s.tk.join(''));
   reveal.onclick = () => finish(false);
   render(); stage_.appendChild(card);
 }
-const GRAM_CONFUSE = { 'は': ['が'], 'が': ['は'], 'に': ['へ', 'まで'], 'へ': ['に', 'まで'], 'まで': ['に', 'へ', 'から'], 'から': ['まで'], 'ね': ['よ'], 'よ': ['ね'], 'ので': ['から', 'けど'], 'けど': ['ので'] };
+const GRAM_CONFUSE = { 'は': ['が', 'のほうが'], 'が': ['は', 'のほうが'], 'に': ['へ', 'まで'], 'へ': ['に', 'まで'], 'まで': ['に', 'へ', 'から'], 'から': ['まで', 'てから'], 'ね': ['よ'], 'よ': ['ね'], 'ので': ['から', 'けど'], 'けど': ['ので'],
+  'と': ['や'], 'や': ['と', 'も'], 'こと': ['の'], 'の': ['こと', 'な'], 'です': ['でしょう'], 'でしょう': ['です'], 'のほうが': ['が', 'は', 'も'], 'くらい': ['ごろ'], 'ごろ': ['くらい', 'に'],
+  'ましょう': ['ましょうか', 'ませんか'], 'ましょうか': ['ましょう', 'ませんか', 'ます'], 'ませんか': ['ましょう', 'ましょうか', 'ません', 'ます'], 'ません': ['ませんか'], 'ます': ['ましょうか', 'ませんか'],
+  'に行く': ['ます', 'ません', 'ました', 'ましょう', 'たい', 'ませんか', 'ましょうか'], 'あまり': ['もう', 'まだ'], 'もう': ['まだ'], 'まだ': ['もう', 'あまり'], 'この': ['その', 'あの'], 'その': ['この', 'あの'], 'あの': ['この', 'その'],
+  'だけ': ['しか'], 'しか': ['だけ'], '前に': ['後で'], '後で': ['前に', 'てから'], 'てから': ['後で'], '時': ['前に', '後で'] };
 function gramQ(entry, g, stage_, hard){
   const card = el('div', 'card');
   const blanked = g.ex.includes(g.sf) ? esc(g.ex).replace(esc(g.sf), '<span class="blank">　</span>') : esc(g.ex) + ' <span class="blank">　</span>';
@@ -1049,11 +2297,7 @@ function flashcards(){
   const build = () => { const pool = sel.value ? V.filter(v => v.cat === sel.value) : V; const now = Date.now();
     deck = pool.map(x => ({ x, w: (isDue(x.id, now) ? 3 : 0) + (rec(x.id).s === 'new' ? 0.5 : 1) + Math.random() })).sort((a, b) => b.w - a.w).slice(0, 20).map(o => o.x); i = 0; render(); };
   sel.onchange = build;
-  const ivLabel = (id, g) => { // preview of the next interval for each grade
-    const r = JSON.parse(JSON.stringify(rec(id)));
-    if (r.s === 'new' || r.s === 'learning') return g === 1 ? '1 min' : g === 2 ? '5 min' : g === 3 ? ((r.step || 0) + 1 >= 2 ? '1 day' : '10 min') : '4 days';
-    if (g === 1) return '10 min'; const iv = g === 2 ? Math.max(1, r.iv * 1.2) : g === 3 ? Math.max(1, r.iv * r.e) : Math.max(2, r.iv * r.e * 1.3); return iv < 1.5 ? '1 day' : Math.round(iv) + ' days';
-  };
+  const ivLabel = (id, g) => { const c = JSON.parse(JSON.stringify(rec(id))), now = Date.now(); schedule(c, g, now, true); return fmtIv(c.due - now); };
   const render = () => {
     stage_.innerHTML = '';
     $('#sess-count').textContent = `${Math.min(i + 1, deck.length)} / ${deck.length}`;
@@ -1183,7 +2427,7 @@ function kanjiBrowser(){
 /* ---------- dictionary ---------- */
 function dueLabel(id){ const r = rec(id); if (r.s === 'new') return 'not started'; const d = r.due - Date.now(); if (d <= 0) return 'due now'; if (d < DAY) return 'due today'; return 'in ' + Math.round(d / DAY) + 'd'; }
 function renderBrowse(){
-  const type = $('#browse-type'), cat = $('#browse-cat'), st = $('#browse-state'), q = $('#browse-q'), out = $('#browse-out');
+  const type = $('#browse-type'), cat = $('#browse-cat'), st = $('#browse-state'), q = $('#browse-q'), out = $('#browse-out'), srcSel = $('#browse-src');
   const fillCats = () => {
     const src = { vocab: V, kanji: K, sents: S, grammar: G }[type.value];
     const cats = type.value === 'grammar' ? [] : uniq(src.map(x => x.cat));
@@ -1197,9 +2441,9 @@ function renderBrowse(){
     const hit = s => !needle || s.toLowerCase().includes(needle);
     const meta = id => `${masteryHTML(id)} <span class="note">${dueLabel(id)}</span>`;
     if (t === 'vocab'){
-      const rows = V.filter(v => (!c || v.cat === c) && stateOk(v.id) && (hit(v.jp) || hit(v.rd) || hit(v.en)));
+      const rows = V.filter(v => (!c || v.cat === c) && (!srcSel.value || (v.src || 'list') === srcSel.value) && stateOk(v.id) && (hit(v.jp) || hit(v.rd) || hit(v.en)));
       out.appendChild(el('div', 'note', `${rows.length} words`));
-      const list = el('div', 'list'); rows.forEach(v => list.appendChild(el('div', 'item', `<span class="j">${jpHTML(v.jp)}</span><span class="r">${esc(v.rd)}</span><span class="e">${esc(v.en)} ${meta(v.id)}</span>`))); out.appendChild(list);
+      const list = el('div', 'list'); rows.forEach(v => list.appendChild(el('div', 'item', `<span class="j">${jpHTML(v.jp)}</span><span class="r">${esc(v.rd)}</span><span class="e">${esc(v.en)} ${v.src === 'game' ? '<span class="tag">in the game</span> ' : ''}${meta(v.id)}</span>`))); out.appendChild(list);
     } else if (t === 'kanji'){
       const rows = K.filter(k => (!c || k.cat === c) && stateOk(k.id) && (hit(k.k) || hit(k.m) || hit(k.cat)));
       out.appendChild(el('div', 'note', `${rows.length} kanji`));
@@ -1214,7 +2458,7 @@ function renderBrowse(){
       const list = el('div', 'list'); rows.forEach(g => list.appendChild(el('div', 'item', `<span class="j">${esc(g.g)}</span><span class="r">${esc(g.fn)}</span><span class="e">${jpHTML(g.ex)} ${meta(g.id)}</span>`))); out.appendChild(list);
     }
   };
-  type.onchange = () => { fillCats(); draw(); }; cat.onchange = draw; st.onchange = draw; q.oninput = draw;
+  type.onchange = () => { srcSel.style.display = type.value === 'vocab' ? '' : 'none'; fillCats(); draw(); }; cat.onchange = draw; st.onchange = draw; q.oninput = draw; srcSel.onchange = draw;
   fillCats(); draw();
 }
 
@@ -1227,7 +2471,7 @@ QUESTIONS['v-type'] = function(entry, v, stage_){
   const inp = el('input', 'text'); inp.id = 'type-input'; inp.placeholder = 'にほんご / nihongo'; inp.autocomplete = 'off'; inp.setAttribute('autocapitalize', 'off'); card.appendChild(inp);
   const row = el('div', 'row'); const check = el('button', 'btn', 'Check'); const skip = el('button', 'btn quiet', "Don't know"); row.append(check, skip); card.appendChild(row);
   let done = false;
-  const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; const sn = snap(v.id); record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en }); card.appendChild(fbVocab(ok, v)); addSpeak(card, v.jp); speak(v.jp); if (!ok && inp.value.trim()) card.appendChild(overrideBtn(card, entry, v, sn)); nextButton(card); };
+  const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en }); card.appendChild(fbVocab(ok, v)); addSpeak(card, v.jp); speak(v.jp); if (!ok && inp.value.trim()) card.appendChild(overrideBtn(card)); nextButton(card); };
   check.onclick = () => { const t = inp.value.trim(); if (t) finish(t === v.jp || readingMatches(t, v.rd)); };
   skip.onclick = () => finish(false);
   inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !done){ e.stopPropagation(); e.preventDefault(); check.onclick(); } });
@@ -1250,6 +2494,8 @@ document.addEventListener('keydown', e => {
     if (b && !b.disabled){ e.preventDefault(); b.click(); }
     return;
   }
+  if (e.key === '0' || e.key === '?'){ const dk = st.querySelector('.dk'); if (dk){ e.preventDefault(); dk.click(); } return; }
+  if (/^[he]$/i.test(e.key)){ const c = st.querySelector('.chip[data-g="' + (e.key.toLowerCase() === 'h' ? 2 : 4) + '"]'); if (c){ e.preventDefault(); c.click(); } return; }
   if (e.key === 'Enter' || e.key === ' '){
     if (t && t.tagName === 'BUTTON') return;
     const flip = st.querySelector('.flip:not([data-flipped])');
@@ -1259,8 +2505,7 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---------- verb forms ---------- */
-const ICHIDAN = new Set(['食べる','見る','いる','起きる','寝る','教える','覚える','忘れる','開ける','閉める','見つける','借りる','降りる','出る','出来る']);
-const NONVOL = new Set(['ある','いる','分かる','出来る','始まる','終わる','知る']);
+const NONVOL = new Set(['ある','いる','分かる','出来る','始まる','終わる','知る','疲れる','晴れる','曇る','降る','咲く','吹く','生まれる','要る','かかる','困る','違う','閉まる','開く','消える','混む','死ぬ']);
 const VERBS = V.filter(v => /^To /.test(v.en));
 const GI = { う:'い', く:'き', ぐ:'ぎ', す:'し', つ:'ち', ぬ:'に', ぶ:'び', む:'み', る:'り' };
 const GT = { う:'って', つ:'って', る:'って', む:'んで', ぶ:'んで', ぬ:'んで', く:'いて', ぐ:'いで', す:'して' };
@@ -1307,35 +2552,86 @@ function conjRule(v, f){
   return f.base === 'te' ? `う-verb (godan): final ${last} changes to ${GT[last]}${f.suf ? ', then add ' + f.suf : ''}.` : `う-verb (godan): final ${last} changes to ${GI[last]}, then add ${f.suf}.`;
 }
 
-/* ---------- study calendar and backup ---------- */
+/* ---------- study calendar, storage safety and backup ---------- */
 function renderHeat(){
   const h = $('#heat'); if (!h) return; h.innerHTML = '';
-  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - 83);
-  for (let n = 0; n < 84; n++){
-    const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    const a = (M.days[k] || {}).a || 0, lvl = a === 0 ? 0 : a < M.settings.goal / 2 ? 1 : a < M.settings.goal ? 2 : 3;
-    const c = el('i', (lvl ? 'l' + lvl : '') + (n === 83 ? ' now' : '')); c.title = `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}: ${a} answers`;
-    h.appendChild(c); d.setDate(d.getDate() + 1);
+  for (let n = 83; n >= 0; n--){
+    const d = studyDay(n), a = (M.days[dayKey(d)] || {}).a || 0, lvl = a === 0 ? 0 : a < M.settings.goal / 2 ? 1 : a < M.settings.goal ? 2 : 3;
+    const c = el('i', (lvl ? 'l' + lvl : '') + (n === 0 ? ' now' : '')); c.title = `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}: ${a} answers`;
+    h.appendChild(c);
   }
 }
+function setMsg(t){ const m = $('#backup-msg'); if (m) m.textContent = t; }
+function openSettings(){ const d = $('#backup-box').closest('details'); if (d) d.open = true; }
+async function copyBackup(){
+  M.backupAt = Date.now(); save();
+  const text = JSON.stringify(M);
+  try { await navigator.clipboard.writeText(text); openSettings(); setMsg('Backup copied. Paste it somewhere safe, such as a note or an email to yourself. To move devices, open this page there, choose Restore and paste it.'); }
+  catch (e) { openSettings(); const box = $('#backup-box'); box.classList.remove('hidden'); box.value = text; box.focus(); box.select(); setMsg('Copying is blocked here, so the backup is selected below. Copy it by hand.'); }
+  renderGuard();
+}
+/* a file backup: the published page asks the viewer's app to save it; the standalone HTML file uses an ordinary download */
+let dlCap = null;
+const canDownload = () => !!dlCap || !FRAMED;
+try { if (window.claude && window.claude.use) window.claude.use('downloads').then(c => { dlCap = c || null; const b = $('#backup-dl'); if (b) b.classList.toggle('hidden', !canDownload()); renderGuard(); }).catch(() => {}); } catch (e) {}
+async function downloadBackup(){
+  const name = 'wagotabi-progress-' + today() + '.json', text = JSON.stringify(Object.assign({}, M, { backupAt: Date.now() }));
+  try {
+    if (dlCap) await dlCap.save({ filename: name, data: text });
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+    M.backupAt = Date.now(); save(); setMsg('Backup file saved. Load file brings it back on any device.');
+  } catch (e) { setMsg(e && e.code === 'declined' ? 'No file was saved.' : 'This view would not save a file. Use Copy backup instead.'); }
+  renderGuard();
+}
+function restoreFrom(text){
+  try {
+    const raw = JSON.parse(text);
+    if (!raw || typeof raw.items !== 'object') throw new Error('not a backup');
+    try { localStorage.setItem(STORE_KEY + '-prev', JSON.stringify(M)); } catch (e) {}
+    M = Object.assign({ days: {}, log: [] }, raw, { settings: Object.assign({}, M.settings, raw.settings || {}) }); M.snapDay = today();
+    save(); renderHome();
+    setMsg(`Restored ${Object.keys(M.items).length} items and ${Object.keys(M.days).length} study days. What was here before is kept as the snapshot, in case this was a mistake.`);
+    return true;
+  } catch (e) { setMsg('That is not a Wagotabi Practice backup. Copy or choose the whole backup and try again.'); return false; }
+}
+function snapInfo(){ try { const raw = JSON.parse(localStorage.getItem(STORE_KEY + '-prev') || 'null'); if (raw && raw.items) return { raw, n: Object.values(raw.items).filter(r => r.s !== 'new').length }; } catch (e) {} return null; }
+function renderSnap(){ const b = $('#snap-restore'), s = snapInfo(); if (!b) return; b.disabled = !s; b.classList.remove('danger'); b.dataset.armed = ''; b.textContent = s ? `Restore snapshot (${s.n} items)` : 'No snapshot yet'; }
+function renderGuard(){
+  const g = $('#guard'), w = $('#welcome'); if (!g || !w) return;
+  const started = Object.values(M.items).filter(r => r.s !== 'new').length;
+  let html = '';
+  if (!storageOK) html = '<span><b>Progress is not being saved.</b> This browser window blocks storage (private browsing, or site data switched off). Copy a backup before you close it.</span>';
+  else if (started >= 30 && (!M.backupAt || Date.now() - M.backupAt > 14 * DAY) && !(M.backupSnooze && Date.now() - M.backupSnooze < 7 * DAY))
+    html = `<span><b>Your ${started} items of progress exist only in this browser.</b> Clearing site data erases them, and some browsers clear sites you have not opened for a while. ${M.backupAt ? 'Last backup ' + Math.round((Date.now() - M.backupAt) / DAY) + ' days ago.' : 'No backup yet.'}</span>`;
+  g.classList.toggle('hidden', !html);
+  g.innerHTML = html ? html + '<button class="ghost" id="guard-copy">Copy backup</button>' + (canDownload() ? '<button class="ghost" id="guard-dl">Download file</button>' : '') + (storageOK ? '<button class="ghost" id="guard-later">Remind me next week</button>' : '') : '';
+  if (html){
+    $('#guard-copy').onclick = copyBackup;
+    if ($('#guard-dl')) $('#guard-dl').onclick = downloadBackup;
+    if ($('#guard-later')) $('#guard-later').onclick = () => { M.backupSnooze = Date.now(); save(); renderGuard(); };
+  }
+  w.classList.toggle('hidden', started > 0);
+  w.innerHTML = started > 0 ? '' : '<span><b>Ten minutes a day is enough.</b> Start session teaches five new items at a time, tests each one straight away and brings it back just before you would forget it. Know some Japanese already? Mark it first, so you are not taught what you know.</span><button class="btn quiet" id="w-place">Placement check</button>';
+  if (started === 0) $('#w-place').onclick = placement;
+}
 (function(){
-  const box = $('#backup-box'), msg = $('#backup-msg');
+  const box = $('#backup-box');
   $('#set-kana').onchange = e => { M.settings.kana = e.target.checked; save(); document.body.classList.toggle('nokana', !M.settings.kana); };
   $('#set-rate').onchange = e => { M.settings.rate = +e.target.value || 0.85; save(); speak('こんにちは。'); };
-  $('#backup-copy').onclick = async () => {
-    const text = JSON.stringify(M);
-    try { await navigator.clipboard.writeText(text); msg.textContent = 'Backup copied. Open this page on the other device, choose Restore and paste it.'; }
-    catch (e) { box.classList.remove('hidden'); box.value = text; box.focus(); box.select(); msg.textContent = 'Copying is blocked here, so the backup is selected below. Copy it by hand.'; }
-  };
+  $('#set-ret').onchange = e => { M.settings.retention = +e.target.value || 0.9; save(); };
+  $('#btn-place').onclick = placement;
+  $('#backup-copy').onclick = copyBackup;
+  $('#backup-dl').onclick = downloadBackup; $('#backup-dl').classList.toggle('hidden', !canDownload());
   $('#backup-restore').onclick = () => {
-    if (box.classList.contains('hidden') || !box.value.trim()){ box.classList.remove('hidden'); box.value = ''; box.focus(); msg.textContent = 'Paste the backup into the box, then press Restore again.'; return; }
-    try {
-      const raw = JSON.parse(box.value);
-      if (!raw || typeof raw.items !== 'object') throw new Error('not a backup');
-      M = { items: raw.items, days: raw.days || {}, log: raw.log || [], settings: Object.assign({}, M.settings, raw.settings || {}) };
-      save(); box.value = ''; box.classList.add('hidden'); renderHome();
-      msg.textContent = `Restored ${Object.keys(M.items).length} items and ${Object.keys(M.days).length} study days.`;
-    } catch (e) { msg.textContent = 'That text is not a Wagotabi Practice backup. Copy the whole backup and try again.'; }
+    if (box.classList.contains('hidden') || !box.value.trim()){ box.classList.remove('hidden'); box.value = ''; box.focus(); setMsg('Paste the backup into the box, then press Restore again.'); return; }
+    if (restoreFrom(box.value)){ box.value = ''; box.classList.add('hidden'); }
+  };
+  $('#backup-file').onchange = e => { const f = e.target.files && e.target.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = () => restoreFrom(String(fr.result)); fr.onerror = () => setMsg('That file could not be read.'); fr.readAsText(f); e.target.value = ''; };
+  const sb = $('#snap-restore'); let timer = null;
+  sb.onclick = () => {
+    const s = snapInfo(); if (!s) return;
+    if (!sb.dataset.armed){ sb.dataset.armed = '1'; sb.classList.add('danger'); sb.textContent = 'Click again to replace current progress'; timer = setTimeout(renderSnap, 4000); return; }
+    clearTimeout(timer); restoreFrom(JSON.stringify(s.raw)); renderSnap();
   };
 })();
 function tally(ok){ const d = M.days[today()] || (M.days[today()] = { a: 0, c: 0, nw: 0 }); d.a++; if (ok) d.c++; M.log = (M.log || []).concat(ok).slice(-200); save(); }
@@ -1368,7 +2664,7 @@ function runDrill({ title, selLabel, selOptions, make }){
 }
 
 /* ---------- adjective forms ---------- */
-const NA = ['好き','静か','賑やか','綺麗','便利','有名','元気','大切','嫌い','大丈夫'];
+const NA = ['好き','静か','賑やか','綺麗','便利','有名','元気','大切','嫌い','大丈夫','上手','下手','暇','大変','親切','丈夫','簡単','大好き','嫌','安全','不便','必要','残念','特別','変','無理'];
 const ADJS = V.filter(v => NA.includes(v.jp) || (v.conj && !/^To /.test(v.en) && /い$/.test(v.jp)));
 const AFORMS = [
   { k:'neg', name:'Negative', gloss:'is not', i:'くないです', na:'じゃありません' },
@@ -1471,22 +2767,9 @@ function numDrill(){
   };
   const gen = { '99': () => numQ(rnd(1, 99)), '9999': () => numQ(Math.random() < 0.5 ? rnd(1, 99) * 100 + (Math.random() < 0.5 ? 0 : rnd(1, 9) * 10) : rnd(100, 9999)),
     'big': () => numQ(rnd(10, 99) * 1000 + (Math.random() < 0.5 ? 0 : rnd(1, 9) * 100)), 'yen': () => numQ([rnd(1, 99) * 10, rnd(1, 99) * 100, rnd(1, 30) * 1000 + rnd(0, 9) * 100][rnd(0, 2)], true), 'time': timeQ };
-  runDrill({ title: 'Numbers and time', selLabel: 'Practise:', selOptions: [['', 'Mixed'], ['99', '1 to 99'], ['9999', '100 to 9,999'], ['big', '10,000 to 99,999'], ['yen', 'Prices in yen'], ['time', 'Clock times']],
-    make: val => gen[val || ['99', '9999', 'big', 'yen', 'yen', 'time', 'time'][rnd(0, 6)]]() });
-}
-
-/* ---------- "my answer was right": undo a wrong mark on typed and built answers ---------- */
-function snap(id){ return { id, r: JSON.stringify(rec(id)), day: JSON.stringify(M.days[today()] || null), log: (M.log || []).slice(), asked: sess.asked[id], correct: sess.correct, misses: sess.misses.slice(), q: sess.q.slice(), retries: sess.retries[id] }; }
-function overrideBtn(card, entry, item, s, text){
-  const b = el('button', 'btn quiet', text || 'My answer was right'); b.type = 'button';
-  b.onclick = () => {
-    M.items[s.id] = JSON.parse(s.r); const d = JSON.parse(s.day); if (d) M.days[today()] = d; else delete M.days[today()];
-    M.log = s.log; sess.asked[s.id] = s.asked; sess.correct = s.correct; sess.misses = s.misses; sess.q = s.q; sess.retries[s.id] = s.retries;
-    record(entry, item, true); b.disabled = true; b.textContent = 'Counted as correct';
-    const fb = card.querySelector('.feedback'); if (fb){ fb.classList.remove('bad'); fb.classList.add('ok'); }
-    $('#sess-count').textContent = `${Math.min(sess.i + 1, sess.q.length)} / ${sess.q.length}`;
-  };
-  const row = el('div', 'row'); row.appendChild(b); return row;
+  Object.keys(COUNT).forEach(k => { gen[k] = () => countQ(k); });
+  runDrill({ title: 'Numbers, dates and counters', selLabel: 'Practise:', selOptions: [['', 'Mixed'], ['99', '1 to 99'], ['9999', '100 to 9,999'], ['big', '10,000 to 99,999'], ['yen', 'Prices in yen'], ['time', 'Clock times'], ['days', 'Days of the month'], ['months', 'Months'], ['people', 'Counting people'], ['things', 'Counting things'], ['floors', 'Floors'], ['ages', 'Ages']],
+    make: val => gen[val || ['99', '9999', 'big', 'yen', 'time', 'time', 'days', 'days', 'months', 'people', 'things', 'floors', 'ages'][rnd(0, 12)]]() });
 }
 
 /* ---------- progress by topic ---------- */
@@ -1500,6 +2783,109 @@ function renderProgress(){
     out.appendChild(el('div', 'section-label', 'Forgotten most often'));
     const list = el('div', 'list'); hard.forEach(x => list.appendChild(el('div', 'item two', `<span><span class="j">${jpHTML(x.jp || x.k || x.g)}</span> <span class="r">${esc(x.type === 'v' ? x.rd : '')}</span> <span class="e">${esc(x.en || x.m || x.fn)}</span></span><span class="note">forgotten ${rec(x.id).lapses}×</span>`))); out.appendChild(list);
   } else out.appendChild(el('div', 'note', 'Red is in long-term review, gold is still being learned. Items you forget after learning them will be listed here.'));
+}
+
+/* ---------- dates and counters (used by the numbers drill) ---------- */
+const KNUM = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+const COUNT = {
+  days: { ask: 'How do you read this date?', label: n => n + '日', note: 'Days 1 to 10, 14, 20 and 24 have their own readings. The rest are the number plus にち.',
+    rd: { 1: 'ついたち', 2: 'ふつか', 3: 'みっか', 4: 'よっか', 5: 'いつか', 6: 'むいか', 7: 'なのか', 8: 'ようか', 9: 'ここのか', 10: 'とおか', 11: 'じゅういちにち', 12: 'じゅうににち', 14: 'じゅうよっか', 15: 'じゅうごにち', 17: 'じゅうしちにち', 19: 'じゅうくにち', 20: 'はつか', 21: 'にじゅういちにち', 24: 'にじゅうよっか', 25: 'にじゅうごにち', 29: 'にじゅうくにち', 30: 'さんじゅうにち', 31: 'さんじゅういちにち' },
+    traps: { 2: 'ににち', 3: 'さんにち', 4: 'よんにち', 5: 'ごにち', 6: 'ろくにち', 7: 'しちにち', 8: 'はちにち', 9: 'きゅうにち', 10: 'じゅうにち', 14: 'じゅうよんにち', 20: 'にじゅうにち', 24: 'にじゅうよんにち' } },
+  months: { ask: 'How do you read this month?', label: n => n + '月', note: 'April, July and September are しがつ, しちがつ and くがつ.',
+    rd: { 1: 'いちがつ', 2: 'にがつ', 3: 'さんがつ', 4: 'しがつ', 5: 'ごがつ', 6: 'ろくがつ', 7: 'しちがつ', 8: 'はちがつ', 9: 'くがつ', 10: 'じゅうがつ', 11: 'じゅういちがつ', 12: 'じゅうにがつ' },
+    traps: { 4: 'よんがつ', 7: 'なながつ', 9: 'きゅうがつ' } },
+  people: { ask: 'How do you count these people?', label: n => n + '人', note: 'One and two people are ひとり and ふたり. Four is よにん, not よんにん.',
+    rd: { 1: 'ひとり', 2: 'ふたり', 3: 'さんにん', 4: 'よにん', 5: 'ごにん', 6: 'ろくにん', 7: 'ななにん', 8: 'はちにん', 9: 'きゅうにん', 10: 'じゅうにん' },
+    traps: { 1: 'いちにん', 2: 'ににん', 4: 'よんにん' } },
+  floors: { ask: 'How do you read this floor?', label: n => n + '階', note: '1, 6, 8 and 10 shorten (いっかい, ろっかい, はっかい, じゅっかい) and 3 is usually さんがい. 八階 can also be read はちかい.',
+    rd: { 1: 'いっかい', 2: 'にかい', 3: 'さんがい', 4: 'よんかい', 5: 'ごかい', 6: 'ろっかい', 7: 'ななかい', 8: 'はっかい', 9: 'きゅうかい', 10: 'じゅっかい' },
+    traps: { 1: 'いちかい', 6: 'ろくかい' } },
+  things: { ask: 'How do you count these things?', label: n => n < 10 ? KNUM[n] + 'つ' : '十', note: 'The native counter runs from ひとつ to とお. From eleven on, plain numbers are used.',
+    rd: { 1: 'ひとつ', 2: 'ふたつ', 3: 'みっつ', 4: 'よっつ', 5: 'いつつ', 6: 'むっつ', 7: 'ななつ', 8: 'やっつ', 9: 'ここのつ', 10: 'とお' }, traps: {} },
+  ages: { ask: 'How do you say this age?', label: n => n + '歳', note: '1, 8 and 10 shorten (いっさい, はっさい, じゅっさい) and twenty years old is はたち.',
+    rd: { 1: 'いっさい', 2: 'にさい', 3: 'さんさい', 4: 'よんさい', 5: 'ごさい', 6: 'ろくさい', 7: 'ななさい', 8: 'はっさい', 9: 'きゅうさい', 10: 'じゅっさい', 20: 'はたち' },
+    traps: { 1: 'いちさい', 8: 'はちさい', 10: 'じゅうさい' } },
+};
+function countQ(kind){
+  const T = COUNT[kind], ns = Object.keys(T.rd).map(Number), n = ns[Math.random() * ns.length | 0], right = T.rd[n];
+  const near = ns.filter(x => x !== n).sort((a, b) => Math.abs(a - n) - Math.abs(b - n)).slice(0, 5);
+  const types = ['l2r', 'l2r', 'r2l'].concat(audioOn() ? ['a2l'] : []), t = types[Math.random() * types.length | 0];
+  const q = { key: kind + n + t, say: right, feedback: `<div><span class="ans">${esc(T.label(n))}</span> <span class="kr">${esc(right)}</span></div><div class="sub">${esc(T.note)}</div>` };
+  if (t === 'l2r') return Object.assign(q, { label: T.ask, prompt: () => el('div', 'big', esc(T.label(n))), right, wrong: uniq([T.traps[n], ...pick(near, 3).map(x => T.rd[x])].filter(Boolean)).slice(0, 3), jp: false });
+  const others = pick(near, 3).map(x => T.label(x));
+  if (t === 'a2l') return Object.assign(q, { label: 'Listening · which one do you hear?', prompt: () => { const p = el('div', 'row'); p.style.gap = '14px'; p.appendChild(spkBtn(right, true)); p.appendChild(el('div', 'sub', 'Tap to replay.')); return p; }, right: T.label(n), wrong: others, auto: right });
+  return Object.assign(q, { label: 'Which one is this?', prompt: () => el('div', 'big', esc(right)), right: T.label(n), wrong: others });
+}
+
+/* ---------- kana ---------- */
+const kanaPairs = s => { const a = s.split(' '), o = []; for (let i = 0; i < a.length; i += 2) o.push([a[i], a[i + 1]]); return o; };
+const toKata = s => s.replace(/[ぁ-ん]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60));
+const KANA_SETS = {
+  h1: kanaPairs('あ a い i う u え e お o か ka き ki く ku け ke こ ko さ sa し shi す su せ se そ so た ta ち chi つ tsu て te と to な na に ni ぬ nu ね ne の no は ha ひ hi ふ fu へ he ほ ho ま ma み mi む mu め me も mo や ya ゆ yu よ yo ら ra り ri る ru れ re ろ ro わ wa を wo ん n'),
+  h2: kanaPairs('が ga ぎ gi ぐ gu げ ge ご go ざ za じ ji ず zu ぜ ze ぞ zo だ da で de ど do ば ba び bi ぶ bu べ be ぼ bo ぱ pa ぴ pi ぷ pu ぺ pe ぽ po'),
+  h3: kanaPairs('きゃ kya きゅ kyu きょ kyo しゃ sha しゅ shu しょ sho ちゃ cha ちゅ chu ちょ cho にゃ nya にゅ nyu にょ nyo ひゃ hya ひゅ hyu ひょ hyo みゃ mya みゅ myu みょ myo りゃ rya りゅ ryu りょ ryo ぎゃ gya ぎゅ gyu ぎょ gyo じゃ ja じゅ ju じょ jo びゃ bya びゅ byu びょ byo ぴゃ pya ぴゅ pyu ぴょ pyo'),
+};
+['1', '2', '3'].forEach(n => { KANA_SETS['k' + n] = KANA_SETS['h' + n].map(([k, r]) => [toKata(k), r]); });
+const KANA_LOOK = ['あお', 'いり', 'きさち', 'ぬめねれわ', 'はほま', 'るろ', 'こに', 'たな', 'くへ', 'しつ', 'うえ', 'すむ', 'シツソン', 'アマ', 'ウワフ', 'クケタ', 'コユヨ', 'スヌ', 'チテ', 'ナメノ', 'ラフ', 'ルレ', 'セヤ'];
+function kanaDrill(){
+  const make = val => {
+    const key = val || ['h1', 'h1', 'h2', 'h3', 'k1', 'k1', 'k2', 'k3'][Math.random() * 8 | 0], set = KANA_SETS[key];
+    const [k, r] = set[Math.random() * set.length | 0];
+    const look = uniq(KANA_LOOK.filter(g => g.includes(k)).join('').split('').filter(c => c !== k)).map(c => set.find(p => p[0] === c)).filter(Boolean);
+    const others = uniq([...shuffle(look), ...shuffle(set.filter(p => p[0] !== k && p[1] !== r && (p[1][0] === r[0] || p[1].slice(-1) === r.slice(-1)))), ...shuffle(set.filter(p => p[0] !== k && p[1] !== r))]).slice(0, 3);
+    const hira = /[ぁ-ん]/.test(k), ex = V.find(v => (hira ? v.rd : v.jp).startsWith(k) && (hira || /^[ァ-ヶー]+$/.test(v.jp)));
+    const types = ['k2r', 'r2k'].concat(audioOn() && k !== 'を' && k !== 'ヲ' ? ['a2k'] : []), t = types[Math.random() * types.length | 0];
+    const q = { key: k + t, say: k, feedback: `<div><span class="ans">${esc(k)}</span> = ${esc(r)}</div>${ex ? `<div class="sub">As in ${esc(ex.jp)}${ex.rd !== ex.jp ? ' (' + esc(ex.rd) + ')' : ''}: ${esc(ex.en)}</div>` : ''}` };
+    if (t === 'k2r') return Object.assign(q, { label: 'How is this read?', prompt: () => el('div', 'big', esc(k)), right: r, wrong: others.map(p => p[1]), jp: false });
+    if (t === 'a2k') return Object.assign(q, { label: 'Listening · which kana do you hear?', prompt: () => { const p = el('div', 'row'); p.style.gap = '14px'; p.appendChild(spkBtn(k, true)); p.appendChild(el('div', 'sub', 'Tap to replay.')); return p; }, right: k, wrong: others.map(p => p[0]), auto: k });
+    return Object.assign(q, { label: 'Which kana is this?', prompt: () => el('div', 'big en', esc(r)), right: k, wrong: others.map(p => p[0]) });
+  };
+  runDrill({ title: 'Kana', selLabel: 'Practise:', make,
+    selOptions: [['', 'Mixed'], ['h1', 'Hiragana · the 46 basic'], ['h2', 'Hiragana · voiced (が, ぱ…)'], ['h3', 'Hiragana · combined (きゃ…)'], ['k1', 'Katakana · the 46 basic'], ['k2', 'Katakana · voiced (ガ, パ…)'], ['k3', 'Katakana · combined (キャ…)']] });
+}
+
+/* ---------- placement check: page through the list, flag what you do not know, check yourself, mark the rest as known ---------- */
+function placement(){
+  nextHook = null; sess = null;
+  $('#sess-title').textContent = 'Placement check'; $('#sess-filters').innerHTML = ''; show('session');
+  const stage_ = $('#stage'), fresh = arr => arr.filter(x => rec(x.id).s === 'new'), pages = [];
+  const chunk = (arr, kind) => { for (let i = 0; i < arr.length; i += 24) pages.push({ kind, items: arr.slice(i, i + 24) }); };
+  chunk(fresh(V), 'Words'); chunk(fresh(K), 'Kanji');
+  let pi = 0, marked = 0;
+  const finish = why => {
+    stage_.innerHTML = ''; $('#sess-bar').style.width = '100%'; $('#sess-count').textContent = '';
+    const card = el('div', 'card done', `<div class="prompt-label">Placement check</div><div class="score">${marked}</div><div class="sub">${marked === 1 ? 'item' : 'items'} marked as known${why ? '. ' + esc(why) + '.' : '.'}</div><div class="note">They skip the learning steps and come back for one check each over the next 4 to 10 days. Anything you miss then is taught from the start, so an optimistic guess here costs little.</div>`);
+    const home = el('button', 'btn shu', 'Home'); home.onclick = () => { renderHome(); show('home'); };
+    const row = el('div', 'row'); row.style.justifyContent = 'center'; row.appendChild(home); card.appendChild(row); stage_.appendChild(card);
+  };
+  const step = () => {
+    stage_.innerHTML = '';
+    if (pi >= pages.length) return finish(pages.length ? 'That was the whole list' : 'Nothing is left to place: every word and kanji has already been started');
+    const pg = pages[pi], no = new Set(); let shown = false;
+    $('#sess-count').textContent = `page ${pi + 1} / ${pages.length}`; $('#sess-bar').style.width = (100 * pi / pages.length) + '%';
+    const card = el('div', 'card');
+    card.appendChild(el('div', 'prompt-label', `${pg.kind} · tap everything you could not read and translate`));
+    const grid = el('div', 'pgrid');
+    const hint = el('div', 'note', 'Be strict: if you hesitated, tap it. Then show the answers and correct yourself before confirming.');
+    const reveal = el('button', 'btn', 'Show answers'), ok = el('button', 'btn shu', ''), stop = el('button', 'btn quiet', 'Stop here');
+    const upd = () => { const n = pg.items.length - no.size; ok.textContent = n ? `Mark ${n} as known · next page` : 'None known · finish'; ok.disabled = !shown; };
+    pg.items.forEach(x => {
+      const t = el('button', 'ptile', `<b>${esc(x.jp || x.k)}</b><small class="r hidden">${esc(x.rd || '')}</small><small class="hidden">${esc(x.en || x.m)}</small>`); t.type = 'button';
+      t.onclick = () => { if (no.has(x.id)) no.delete(x.id); else no.add(x.id); t.classList.toggle('no'); t.setAttribute('aria-pressed', no.has(x.id)); upd(); };
+      grid.appendChild(t);
+    });
+    reveal.onclick = () => { shown = true; grid.querySelectorAll('small').forEach(s => s.classList.remove('hidden')); reveal.disabled = true; hint.textContent = 'Compare each one with what you had in mind. Tap any you got wrong, then confirm.'; upd(); };
+    ok.onclick = () => {
+      const now = Date.now();
+      pg.items.forEach(x => { if (no.has(x.id)) return; const iv = 4 + Math.random() * 6; Object.assign(rec(x.id), { s: 'review', st: 7, d: fsrsD0(3), iv: Math.round(iv * 10) / 10, due: now + iv * DAY, last: now, step: 0, placed: true }); marked++; });
+      save();
+      if (no.size > pg.items.length * 0.6) return finish('Most of that page was new to you, so this is where your learning starts');
+      pi++; step();
+    };
+    stop.onclick = () => finish('');
+    const row = el('div', 'row'); row.append(reveal, ok, stop); card.append(grid, hint, row); stage_.appendChild(card); upd(); window.scrollTo(0, 0);
+  };
+  step();
 }
 
 renderHome();
