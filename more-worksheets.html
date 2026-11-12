@@ -528,6 +528,8 @@ footer strong { color: #d6cebf; }
 .switch { display: inline-flex; gap: 9px; align-items: center; font-size: .95rem; cursor: pointer; color: var(--ink); }
 .switch input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: none; }
 .hint { font-size: .85rem; color: var(--muted); }
+.line select { width: auto; flex: 1 1 11rem; max-width: 100%; }
+.work { height: 97px; border: 1px solid #c3d0dc; border-radius: 3px; background-color: #fff; background-image: linear-gradient(#d3dee8 1px, transparent 1px), linear-gradient(90deg, #d3dee8 1px, transparent 1px); background-size: 16px 16px; background-position: -1px -1px; }
 
 details.more { border-top: 1px dashed var(--line); padding: 14px 0 16px; }
 details.more summary { cursor: pointer; font-weight: 700; font-size: .95rem; color: var(--ink); list-style: none; display: inline-flex; gap: 8px; align-items: center; }
@@ -684,6 +686,13 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
           <button class="link" type="button" id="mixAll">Mix every topic shown</button>
           <span class="hint">Pick several topics to mix them on one sheet.</span>
         </div>
+        <div class="line">
+          <span class="k">Mix types</span>
+          <select id="extra1" aria-label="Second type of problem"></select>
+          <select id="extra2" aria-label="Third type of problem"></select>
+          <button class="link" type="button" id="mix3">Mix 3 types for me</button>
+        </div>
+        <span class="hint">Add a second and third type of problem, from any strand, to the same sheet.</span>
         <ul class="objs" id="objs"></ul>
       </div>
     </div>
@@ -695,6 +704,10 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
           <span class="k">Copies</span>
           <div class="seg" id="versions"><button type="button" data-v="1">1</button><button type="button" data-v="5">5</button><button type="button" data-v="10">10</button><button type="button" data-v="20">20</button></div>
           <span class="hint">each copy has different numbers</span>
+        </div>
+        <div class="line">
+          <span class="k">Working out</span>
+          <label class="switch"><input type="checkbox" id="work"> <span>Add squared-paper working space to each question</span></label>
         </div>
       </div>
     </div>
@@ -1393,23 +1406,26 @@ window.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ---------- state ---------- */
-  const DEFAULTS = { year: 2, strand: "as", term: "all", pick: {}, count: 0, versions: 5, minutes: 0, paper: "a4", titleCustom: "", tipCustom: "", showTip: true, showObj: true, seed: 1 + Math.floor(Math.random() * 9999) };
+  const DEFAULTS = { year: 2, strand: "as", term: "all", pick: {}, count: 0, versions: 5, minutes: 0, paper: "a4", titleCustom: "", tipCustom: "", showTip: true, showObj: true, work: false, extra: {}, seed: 1 + Math.floor(Math.random() * 9999) };
   let S = load(), sets = [], mode = "sheet", vIndex = 0;
-  function load() { let s = null; try { s = JSON.parse(localStorage.getItem("tt-maths-maker") || "null"); } catch (e) { } return Object.assign({}, DEFAULTS, s || {}, { pick: Object.assign({}, (s && s.pick) || {}) }); }
+  function load() { let s = null; try { s = JSON.parse(localStorage.getItem("tt-maths-maker") || "null"); } catch (e) { } return Object.assign({}, DEFAULTS, s || {}, { pick: Object.assign({}, (s && s.pick) || {}), extra: Object.assign({}, (s && s.extra) || {}) }); }
   function save() { try { localStorage.setItem("tt-maths-maker", JSON.stringify(S)); } catch (e) { } }
   const key = () => S.year + "-" + S.strand;
   const pool = () => BYKEY[key()] || [];
   const shown = () => pool().filter(s => S.term === "all" || s.terms.includes(S.term));
-  function selected() {
+  function mainSel() {
     const p = pool(); let ids = (S.pick[key()] || []).filter(i => p[i]);
     if (!ids.length) { const sh = shown(); ids = sh.length ? [sh[0].idx] : p.length ? [0] : []; }
     return ids.map(i => p[i]);
   }
+  function extras() { return (S.extra[S.year] || []).map(v => { const [s, i] = String(v).split(":"); return (BYKEY[S.year + "-" + s] || [])[+i]; }).filter(Boolean); }
+  function selected() { const m = mainSel(); return m.concat(extras().filter(e => !m.includes(e))); }
+  const strandsUsed = () => [...new Set(selected().map(s => s.s))];
   function layout() {
     const sk = selected();
     if (!sk.length) return { lay: "fact", cols: 2, counts: [12, 24, 36, 48] };
-    if (sk.every(s => s.lay === "fact")) { const c = sk.find(s => s.counts); return { lay: "fact", cols: Math.min(...sk.map(s => s.cols || 4)), counts: (c && c.counts) || [12, 24, 36, 48] }; }
-    const cards = sk.filter(s => s.lay !== "fact"); let cols = Math.min(...cards.map(s => s.cols || 2)); if (cols === 1 && sk.length > 1 && cards.some(s => (s.cols || 2) > 1)) cols = 2; const base = cards.find(s => (s.cols || 2) === cols) || cards[0];
+    if (!S.work && sk.every(s => s.lay === "fact")) { const c = sk.find(s => s.counts); return { lay: "fact", cols: Math.min(...sk.map(s => s.cols || 4)), counts: (c && c.counts) || [12, 24, 36, 48] }; }
+    const cards = sk.filter(s => s.lay !== "fact"); if (!cards.length) return { lay: "card", cols: 2, ph: 30, counts: [6, 8, 10, 12] }; let cols = Math.min(...cards.map(s => s.cols || 2)); if (cols === 1 && sk.length > 1 && cards.some(s => (s.cols || 2) > 1)) cols = 2; const base = cards.find(s => (s.cols || 2) === cols) || cards[0];
     const ph = Math.max(...cards.map(s => s.ph || 0)) || 30;
     const def = { 1: [4, 6, 8, 10], 2: [4, 6, 8, 10, 12], 3: [6, 9, 12, 15], 4: [8, 12, 16, 20] }[cols];
     return { lay: "card", cols, ph, counts: base.counts || def };
@@ -1446,26 +1462,29 @@ window.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ---------- words on the sheet ---------- */
-  function autoTitle() { const sk = selected(); if (sk.length === 1) return sk[0].title || sk[0].name; return strandShort(S.year, S.strand).replace(/^./, c => c.toUpperCase()) + " mix"; }
+  function autoTitle() { const sk = selected(); if (sk.length === 1) return sk[0].title || sk[0].name; if (strandsUsed().length > 1) return "Mixed practice"; return strandShort(S.year, S.strand).replace(/^./, c => c.toUpperCase()) + " mix"; }
   function autoTip() { const sk = selected(); const t = sk.find(s => s.tip); return t ? t.tip : ""; }
   const title = () => (S.titleCustom || "").trim() || autoTitle();
   const tip = () => S.showTip ? ((S.tipCustom || "").trim() || autoTip()) : "";
   function termText() { const sk = selected(); if (S.term !== "all") return TERMN[S.term] + " term"; const ts = new Set(sk.flatMap(s => s.terms.split(""))); return ts.size === 3 ? "" : "ASU".split("").filter(t => ts.has(t)).map(t => TERMN[t]).join(" / ") + " term"; }
-  const subtitle = () => [yearName(S.year), strandLabel(S.year, S.strand), termText()].filter(Boolean).join(" · ");
+  const strandsText = () => { const u = strandsUsed(); return u.length > 1 ? u.map(s => strandShort(S.year, s)).join(" + ") : strandLabel(S.year, u[0] || S.strand); };
+  const subtitle = () => [yearName(S.year), strandsText(), termText()].filter(Boolean).join(" · ");
   const objText = () => { if (!S.showObj) return ""; const sk = selected(); return sk.length === 1 ? sk[0].obj : sk.length <= 3 ? sk.map(s => s.obj).join(" ") : ""; };
   const versionTag = set => S.versions <= 1 ? "" : "Version " + String(set.vi + 1).padStart(2, "0");
   const footLeft = () => [S.minutes > 0 ? S.minutes + " minutes" : "", S.count + " questions"].filter(Boolean).join(" · ");
 
   /* ---------- sheet code ---------- */
-  function makeCode() { const ids = selected().map(s => s.idx.toString(36).toUpperCase()); return "Y" + S.year + "-" + S.strand.toUpperCase() + "-" + ids.join(".") + "-N" + S.count + "-" + S.seed; }
+  function makeCode() { const m = mainSel(), ids = m.map(s => s.idx.toString(36).toUpperCase()), ex = extras().filter(e => !m.includes(e)).map(e => "_" + e.s.toUpperCase() + "." + e.idx.toString(36).toUpperCase()).join(""); return "Y" + S.year + "-" + S.strand.toUpperCase() + "-" + ids.join(".") + ex + "-N" + S.count + "-" + S.seed; }
   function parseCode(str) {
-    const m = str.toUpperCase().replace(/\s/g, "").match(/^Y([0-6])-([A-Z]+)-([0-9A-Z.]+)-N(\d+)-(\d+)$/);
+    const m = str.toUpperCase().replace(/\s/g, "").match(/^Y([0-6])-([A-Z]+)-([0-9A-Z.]+)((?:_[A-Z]+\.[0-9A-Z]+)*)-N(\d+)-(\d+)$/);
     if (!m) return null;
     const y = +m[1], s = m[2].toLowerCase(), k = y + "-" + s;
     if (!BYKEY[k]) return null;
     const ids = m[3].split(".").map(x => parseInt(x, 36));
     if (ids.some(i => !BYKEY[k][i])) return null;
-    return { year: y, strand: s, ids, count: +m[4], seed: +m[5] };
+    const extra = (m[4] ? m[4].slice(1).split("_") : []).map(x => { const [es, ei] = x.split("."); return es.toLowerCase() + ":" + parseInt(ei, 36); });
+    if (extra.some(v => { const [es, ei] = v.split(":"); return !(BYKEY[y + "-" + es] || [])[+ei]; })) return null;
+    return { year: y, strand: s, ids, extra, count: +m[5], seed: +m[6] };
   }
 
   /* ---------- screen rendering ---------- */
@@ -1529,6 +1548,7 @@ window.addEventListener("DOMContentLoaded", function () {
         if (q.p) h += '<p class="cp">' + esc(q.p) + '</p>';
         if (q.pic) h += picHTML(q.pic, mode === "key", L);
         if (q.eq) h += eqHTML(q.eq, ctx);
+        if (S.work && mode === "sheet") h += '<div class="work"></div>';
         if (q.line) h += '<div class="aline"><span>' + esc(q.line.pre) + '</span>' + blankHTML(q.line.b, ctx, true) + '<span>' + esc(q.line.post) + '</span></div>';
         if (mode === "practice") h += '<div class="aline"><span class="tick" hidden>✓</span><span class="fix">' + esc(ansStr(q)) + '</span></div>';
         h += '</div></div>';
@@ -1705,7 +1725,7 @@ window.addEventListener("DOMContentLoaded", function () {
           if (q.p) { setFont(10.5); const ls = doc.splitTextToSize(pdfText(q.p), innerW); ls.forEach((ln, li) => say(ln, innerX, cy + li * 4.5)); cy += ls.length * 4.5; } else cy -= 1.5;
           const eqFs0 = 13, eqH = q.eq ? (hasFrac(q.eq) ? 11 : 8) : 0, lineH = q.line ? 9 : 0;
           if (q.pic) {
-            const avail = y0 + cellH - cy - eqH - lineH - 2.5, ph = Math.min(avail, Math.max(L.ph || 30, avail * 0.8));
+            const avail = y0 + cellH - cy - eqH - lineH - 2.5, ph = S.work ? avail * 0.55 : Math.min(avail, Math.max(L.ph || 30, avail * 0.8));
             const sc = Math.min(ph / q.pic.h, innerW / q.pic.w, 0.46), pw = q.pic.w * sc, phh = q.pic.h * sc;
             const data = imgs.get(q.pic.s(withAnswers));
             if (data && phh > 2) doc.addImage(data, "PNG", innerX + (innerW - pw) / 2, cy, pw, phh, undefined, "FAST");
@@ -1716,6 +1736,10 @@ window.addEventListener("DOMContentLoaded", function () {
             const by = cy + (hasFrac(q.eq) ? 6.5 : 5); let x = innerX;
             q.eq.forEach(t => { x = drawTok(t, x, by, fs, 8, withAnswers); });
             cy += eqH;
+          }
+          if (S.work && !withAnswers) {
+            const g = 5, gy = cy + 1.5, lim = y0 + cellH - (q.line ? 10.5 : 2.5), gr = Math.floor((lim - gy) / g), gc = Math.floor(innerW / g);
+            if (gr >= 2 && gc >= 2) { doc.setDrawColor(188, 203, 218); doc.setLineWidth(0.12); for (let i = 0; i <= gr; i++) doc.line(innerX, gy + i * g, innerX + gc * g, gy + i * g); for (let j = 0; j <= gc; j++) doc.line(innerX + j * g, gy, innerX + j * g, gy + gr * g); }
           }
           if (q.line) {
             const by = y0 + cellH - 4.5, fs = 11, bw = blankW(q.line.b, fs, 26), postW = q.line.post ? tw(q.line.post, fs) + 1.5 : 0;
@@ -1775,18 +1799,26 @@ window.addEventListener("DOMContentLoaded", function () {
     press("#years button", b => +b.dataset.v === S.year);
     $("strands").innerHTML = YEAR_STRANDS(S.year).map(s => '<button class="optile" type="button" data-s="' + s + '" style="--op:var(--s-' + s + ')" aria-pressed="' + (s === S.strand) + '"><b>' + STRANDS[s].icon + '</b><span>' + esc(strandShort(S.year, s)) + '</span></button>').join("");
     press("#term button", b => b.dataset.v === S.term);
-    const sel = selected().map(s => s.idx), sh = shown();
+    const sel = mainSel().map(s => s.idx), sh = shown();
     $("topics").innerHTML = sh.length ? sh.map(s => '<button class="tchip" type="button" data-i="' + s.idx + '" style="--op:var(--s-' + S.strand + ')" aria-pressed="' + sel.includes(s.idx) + '" title="' + esc(s.obj) + '">' + esc(s.name) + '<small>' + s.terms.split("").map(t => TERMN[t][0] + TERMN[t][1]).join(" ") + '</small></button>').join("") : '<p class="hint">No topics for this strand in the ' + TERMN[S.term] + ' term. Choose another term.</p>';
     $("objs").innerHTML = selected().slice(0, 6).map(s => '<li><span class="tm">' + s.terms.split("").map(t => TERMN[t].slice(0, 3)).join(" · ") + '</span><b>' + esc(s.name) + '.</b> ' + esc(s.obj) + '</li>').join("") + (selected().length > 6 ? '<li>…and ' + (selected().length - 6) + ' more topics</li>' : "");
     const L = layout();
     $("count").innerHTML = L.counts.map(c => '<button type="button" data-v="' + c + '" aria-pressed="' + (c === S.count) + '">' + c + '</button>').join("");
     press("#versions button", b => +b.dataset.v === S.versions);
-    $("minutes").value = S.minutes; $("paperSize").value = S.paper; $("showTip").checked = S.showTip; $("showObj").checked = S.showObj;
+    $("minutes").value = S.minutes; $("paperSize").value = S.paper; $("showTip").checked = S.showTip; $("showObj").checked = S.showObj; $("work").checked = !!S.work; fillExtras();
     if (document.activeElement !== $("title")) $("title").value = S.titleCustom; $("title").placeholder = autoTitle();
     if (document.activeElement !== $("tip")) $("tip").value = S.tipCustom; $("tip").placeholder = autoTip() || "Add a hint for pupils";
     $("codeIn").value = makeCode(); $("codeIn").setCustomValidity("");
     const vp = $("vpick"); vp.innerHTML = ""; for (let v = 0; v < S.versions; v++) { const o = document.createElement("option"); o.value = v; o.textContent = (v + 1) + " of " + S.versions; vp.appendChild(o); }
     if (vIndex >= S.versions) vIndex = 0; vp.value = vIndex; $("copyWrap").hidden = S.versions <= 1;
+  }
+  function fillExtras() {
+    const cur = S.extra[S.year] || [];
+    ["extra1", "extra2"].forEach((id, k) => {
+      let h = '<option value="">' + (k ? "Third type: none" : "Second type: none") + '</option>';
+      YEAR_STRANDS(S.year).forEach(s => { const list = BYKEY[S.year + "-" + s] || []; if (!list.length) return; h += '<optgroup label="' + esc(strandShort(S.year, s)) + '">' + list.map(t => '<option value="' + s + ':' + t.idx + '">' + esc(t.name) + '</option>').join("") + '</optgroup>'; });
+      const el = $(id); el.innerHTML = h; el.value = cur[k] || "";
+    });
   }
   function update() { try { regenerate(); } catch (e) { console.error(e); sets = []; } syncControls(); renderPreview(); save(); $("status").textContent = ""; }
   const setPick = ids => { S.pick[key()] = ids; };
@@ -1794,10 +1826,10 @@ window.addEventListener("DOMContentLoaded", function () {
   document.addEventListener("click", e => {
     const yb = e.target.closest("#years button"); if (yb) { S.year = +yb.dataset.v; S.titleCustom = ""; update(); return; }
     const st = e.target.closest("#strands .optile"); if (st) { S.strand = st.dataset.s; S.titleCustom = ""; update(); return; }
-    const tb = e.target.closest("#term button"); if (tb) { S.term = tb.dataset.v; const sh = shown().map(s => s.idx), cur = selected().map(s => s.idx).filter(i => sh.includes(i)); setPick(cur.length ? cur : sh.slice(0, 1)); update(); return; }
+    const tb = e.target.closest("#term button"); if (tb) { S.term = tb.dataset.v; const sh = shown().map(s => s.idx), cur = mainSel().map(s => s.idx).filter(i => sh.includes(i)); setPick(cur.length ? cur : sh.slice(0, 1)); update(); return; }
     const tc = e.target.closest("#topics .tchip");
     if (tc) {
-      const i = +tc.dataset.i; let cur = selected().map(s => s.idx);
+      const i = +tc.dataset.i; let cur = mainSel().map(s => s.idx);
       if (e.shiftKey || e.metaKey || e.ctrlKey || cur.length > 1 || tc.getAttribute("aria-pressed") === "true") cur = cur.includes(i) ? cur.filter(x => x !== i) : cur.concat(i); else cur = [i];
       if (!cur.length) cur = [i];
       setPick(cur); S.titleCustom = ""; update(); return;
@@ -1806,8 +1838,17 @@ window.addEventListener("DOMContentLoaded", function () {
     const tab = e.target.closest(".tabs button");
     if (tab) { mode = tab.dataset.mode; document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b === tab ? "true" : "false")); renderPreview(); return; }
   });
-  $("surprise").addEventListener("click", () => { const sh = shown(); if (!sh.length) return; const cur = selected().map(s => s.idx); const opts = sh.filter(s => !cur.includes(s.idx)); setPick([(opts.length ? opts : sh)[Math.floor(Math.random() * (opts.length || sh.length))].idx]); S.seed = 1 + Math.floor(Math.random() * 99998); S.titleCustom = ""; update(); });
+  $("surprise").addEventListener("click", () => { const sh = shown(); if (!sh.length) return; const cur = mainSel().map(s => s.idx); const opts = sh.filter(s => !cur.includes(s.idx)); setPick([(opts.length ? opts : sh)[Math.floor(Math.random() * (opts.length || sh.length))].idx]); S.seed = 1 + Math.floor(Math.random() * 99998); S.titleCustom = ""; update(); });
   $("mixAll").addEventListener("click", () => { setPick(shown().map(s => s.idx)); S.titleCustom = ""; update(); });
+  ["extra1", "extra2"].forEach(id => $(id).addEventListener("change", () => { S.extra[S.year] = [$("extra1").value, $("extra2").value]; S.titleCustom = ""; update(); }));
+  $("mix3").addEventListener("click", () => {
+    const rp = a => a[Math.floor(Math.random() * a.length)], sh = shown().length ? shown() : pool(); if (!sh.length) return;
+    setPick([rp(sh).idx]);
+    const others = YEAR_STRANDS(S.year).filter(s => s !== S.strand && (BYKEY[S.year + "-" + s] || []).length).sort(() => Math.random() - .5).slice(0, 2);
+    S.extra[S.year] = others.map(s => s + ":" + rp(BYKEY[S.year + "-" + s]).idx);
+    S.seed = 1 + Math.floor(Math.random() * 99998); S.titleCustom = ""; update();
+  });
+  $("work").addEventListener("change", e => { S.work = e.target.checked; update(); });
   $("minutes").addEventListener("change", e => { S.minutes = +e.target.value; update(); });
   $("paperSize").addEventListener("change", e => { S.paper = e.target.value; save(); });
   $("showTip").addEventListener("change", e => { S.showTip = e.target.checked; update(); });
@@ -1819,7 +1860,7 @@ window.addEventListener("DOMContentLoaded", function () {
   function loadCode() {
     const el = $("codeIn"), c = parseCode(el.value);
     if (!c) { el.setCustomValidity("Use a code like Y3-MD-0.4-N12-4821"); el.reportValidity(); return; }
-    S.year = c.year; S.strand = c.strand; S.term = "all"; S.pick[c.year + "-" + c.strand] = c.ids; S.count = c.count; S.seed = c.seed; S.titleCustom = "";
+    S.year = c.year; S.strand = c.strand; S.term = "all"; S.pick[c.year + "-" + c.strand] = c.ids; S.extra[c.year] = c.extra; S.count = c.count; S.seed = c.seed; S.titleCustom = "";
     update();
   }
   $("loadBtn").addEventListener("click", loadCode);
