@@ -196,6 +196,9 @@ body.nokana .kana.auto{display:none!important}
 .heat i.l3{background:var(--shu)}
 .heat i.now{outline:1.5px solid var(--ink-2);outline-offset:1px}
 .backup{width:100%;min-height:90px;margin-top:10px;font:12px/1.4 ui-monospace,Menlo,monospace;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.prow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(60px,1fr) auto;gap:10px;align-items:center;font-size:13px}
+.prow .n{font-variant-numeric:tabular-nums;color:var(--ink-2);min-width:56px;text-align:right}
+.modes .mode:last-child:nth-child(odd){grid-column:1/-1}
 .kbd-hint{font-size:12px;color:var(--ink-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
 .choice{display:flex;gap:10px;align-items:baseline}
 .choice span{min-width:0}
@@ -212,7 +215,7 @@ body.nokana .kana.auto{display:none!important}
   <div class="top">
     <div class="brand">
       <div class="hanko">練</div>
-      <h1>Wagotabi Practice<small>308 words · 204 kanji · 115 sentences · 30 grammar points · 8 passages · 9 verb forms</small></h1>
+      <h1>Wagotabi Practice<small>308 words · 204 kanji · 115 sentences · 30 grammar points · 12 passages</small></h1>
     </div>
     <div class="row">
       <button class="ghost" id="btn-home">Home</button>
@@ -229,6 +232,10 @@ body.nokana .kana.auto{display:none!important}
     <div class="col" style="gap:6px"><div class="section-label">Study days, last 12 weeks</div><div class="heat" id="heat"></div></div>
     <div class="section-label">Focused practice</div>
     <div class="modes" id="modes"></div>
+    <details id="prog">
+      <summary>Progress by topic</summary>
+      <div id="prog-out" class="col" style="margin-top:10px;gap:10px"></div>
+    </details>
     <details>
       <summary>Settings</summary>
       <div class="settings" style="margin-top:10px">
@@ -236,6 +243,7 @@ body.nokana .kana.auto{display:none!important}
         <label for="set-goal">Daily goal (answers)</label><input class="num" type="number" id="set-goal" min="5" max="300">
         <label for="set-reviews">Max reviews per session</label><input class="num" type="number" id="set-reviews" min="5" max="200">
         <label for="set-audio">Audio (Japanese speech, when your device has a voice)</label><input type="checkbox" id="set-audio">
+        <label for="set-rate">Speech speed</label><select class="sel" id="set-rate"><option value="0.65">Slow</option><option value="0.85">Normal</option><option value="1">Natural</option></select>
         <label for="set-kana">Show kana readings on answer cards</label><input type="checkbox" id="set-kana">
         <label for="backup-box">Move progress to another device</label><span class="row"><button class="ghost" id="backup-copy">Copy backup</button><button class="ghost" id="backup-restore">Restore</button></span>
         <label for="set-reset">Reset all progress</label><button class="ghost" id="set-reset">Reset</button>
@@ -257,7 +265,8 @@ body.nokana .kana.auto{display:none!important}
         <li><b>Dual coding and listening.</b> Audio on every item and dictation-style listening questions where a Japanese voice is available.</li>
         <li><b>Extensive reading.</b> Short passages set in the game's prefectures, written almost entirely from the word list, with translations hidden until you ask and comprehension questions afterwards.</li>
         <li><b>Readings on demand.</b> Every sentence and passage line has a kana reading and every kanji its main on and kun readings. Question prompts keep them hidden behind a かな button so you try the kanji first.</li>
-        <li><b>Rules, not just answers.</b> The verb-form drill uses wrong answers a learner would really produce (帰ます, 行いて) and states the rule after each one.</li>
+        <li><b>Rules, not just answers.</b> Verb forms, adjective forms, numbers, prices and clock times are generated fresh each round. The wrong options are the mistakes learners really make (帰ます, 行いて, 高いでした, さんひゃく), and the rule is stated after each answer.</li>
+        <li><b>You have the last word.</b> Japanese word order is flexible and typing has typos, so a built or typed answer marked wrong can be overruled, and a word you already know can skip the learning steps.</li>
         <li><b>Honest scheduling.</b> Extra drilling before an item is due barely moves its interval, so cramming cannot fake long-term memory.</li>
         <li><b>Metacognition and habit.</b> Flashcards use four-level self-grading; the daily goal, streak and forecast keep the load visible and sustainable.</li>
       </ol>
@@ -367,7 +376,7 @@ const today = () => { const d = new Date(); return d.getFullYear() + '-' + Strin
 
 /* ---------- store ---------- */
 const STORE_KEY = 'wagotabi-practice-v2';
-let M = { items: {}, days: {}, log: [], settings: { newPerDay: 10, goal: 40, maxReviews: 40, audio: true, kana: true } };
+let M = { items: {}, days: {}, log: [], settings: { newPerDay: 10, goal: 40, maxReviews: 40, audio: true, kana: true, rate: 0.85 } };
 try { const raw = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); if (raw && raw.items) M = Object.assign(M, raw, { settings: Object.assign(M.settings, raw.settings || {}) }); } catch (e) {}
 function save(){ try { localStorage.setItem(STORE_KEY, JSON.stringify(M)); } catch (e) {} }
 function rec(id){ return M.items[id] || (M.items[id] = { s: 'new', n: 0, e: 2.5, iv: 0, due: 0, lapses: 0, step: 0, hist: [] }); }
@@ -489,6 +498,29 @@ const PARAS = [
    gloss:[['鳥取','とっとり','Tottori'],['砂','すな','sand'],['美術館','びじゅつかん','art museum'],['また','また','again']],
    qs:[['What is in Tottori?',['A famous sand museum','A famous castle','A big library','A peach farm'],0],['When did the writer go?',['Yesterday','Today','Last week','Tomorrow'],0],['What was it like inside?',['Very quiet','Very lively','Very cold','Very bright'],0],['How does the writer feel about it?',['Wants to go again','Never wants to go back','Found it boring','Found it too expensive'],0]] },
 ];
+PARAS.push(
+ { id:'p8', title:'ホテルで', en:'At the hotel', lvl:2,
+   lines:[['今日のホテルは駅の近くにあります。','Today\'s hotel is near the station.'],['部屋は小さいですが、とても綺麗です。','The room is small, but it is very clean.'],['窓から海と島が見えます。','From the window I can see the sea and some islands.'],['夜は静かなので、ゆっくり休みます。','It is quiet at night, so I rest well.'],['朝ご飯は七時から九時までです。','Breakfast is from seven until nine.'],['明日は八時にホテルを出ます。','Tomorrow I leave the hotel at eight.']],
+   gloss:[['見えます','みえます','can be seen']],
+   qs:[['Where is the hotel?',['Near the station','Next to the park','In front of the castle','Far from town'],0],['What is the room like?',['Small but very clean','Big and old','Dark and cold','New and expensive'],0],['What can the writer see from the window?',['The sea and islands','A river and a bridge','The station','A forest'],0],['When does the writer leave tomorrow?',['At eight','At seven','At nine','At noon'],0]] },
+ { id:'p9', title:'買い物', en:'Shopping', lvl:2,
+   lines:[['土曜日に友達と買い物をしました。','On Saturday I went shopping with a friend.'],['私は新しい靴と帽子が欲しいです。','I want new shoes and a hat.'],['駅の隣の店に入りました。','We went into the shop next to the station.'],['靴は高いですが、帽子は安いです。','The shoes are expensive, but the hat is cheap.'],['帽子は千円でした。','The hat was 1,000 yen.'],['靴は買いませんでした。','I did not buy the shoes.']],
+   gloss:[['千円','せんえん','1,000 yen']],
+   qs:[['When did they go shopping?',['On Saturday','On Sunday','On Friday','Yesterday'],0],['What does the writer want?',['New shoes and a hat','A new bag','An umbrella and a watch','Clothes'],0],['How much was the hat?',['1,000 yen','100 yen','10,000 yen','2,000 yen'],0],['What did the writer buy in the end?',['Only the hat','Only the shoes','Both','Nothing'],0]] },
+ { id:'p10', title:'私の家族', en:'My family', lvl:2,
+   lines:[['私の家族は四人です。','There are four people in my family.'],['父は会社員で、毎日忙しいです。','My father is a company employee and is busy every day.'],['母は医者です。病院で働いています。','My mother is a doctor. She works at a hospital.'],['姉は学生で、英語を勉強しています。','My older sister is a student and is studying English.'],['日曜日は家族と一緒に晩ご飯を食べます。','On Sundays I eat dinner together with my family.'],['母の料理はいつも美味しいです。','My mother\'s cooking is always delicious.']],
+   gloss:[['四人','よにん','four people'],['父','ちち','my father'],['母','はは','my mother'],['毎日','まいにち','every day']],
+   qs:[['How many people are in the family?',['Four','Three','Five','Two'],0],['What is the mother\'s job?',['Doctor','Teacher','Company employee','Police officer'],0],['What does the older sister study?',['English','Japanese','Cooking','Medicine'],0],['When does the family eat dinner together?',['On Sundays','Every day','On Saturdays','On Mondays'],0]] },
+ { id:'p11', title:'四つの季節', en:'The four seasons', lvl:2,
+   lines:[['日本には春、夏、秋、冬があります。','Japan has spring, summer, autumn and winter.'],['春は公園がとても綺麗です。','In spring the parks are very beautiful.'],['夏は暑いので、海で泳ぎます。','Summer is hot, so I swim in the sea.'],['秋は果物が美味しいです。','In autumn the fruit is delicious.'],['冬は寒くて、雪の日もあります。','Winter is cold, and there are snowy days too.'],['私は秋がいちばん好きです。','I like autumn the most.']],
+   gloss:[['季節','きせつ','season'],['四つ','よっつ','four (things)'],['日','ひ','day']],
+   qs:[['What is beautiful in spring?',['The parks','The sea','The snow','The castle'],0],['What does the writer do in summer?',['Swims in the sea','Stays at home','Goes to the library','Travels by train'],0],['What is delicious in autumn?',['Fruit','Fish','Udon','Tea'],0],['Which season does the writer like best?',['Autumn','Spring','Summer','Winter'],0]] }
+);
+Object.assign(PR, {
+p8:['きょうの ホテルは えきの ちかくに あります。','へやは ちいさいですが、とても きれいです。','まどから うみと しまが みえます。','よるは しずかなので、ゆっくり やすみます。','あさごはんは しちじから くじまでです。','あしたは はちじに ホテルを でます。'],
+p9:['どようびに ともだちと かいものを しました。','わたしは あたらしい くつと ぼうしが ほしいです。','えきの となりの みせに はいりました。','くつは たかいですが、ぼうしは やすいです。','ぼうしは せんえんでした。','くつは かいませんでした。'],
+p10:['わたしの かぞくは よにんです。','ちちは かいしゃいんで、まいにち いそがしいです。','ははは いしゃです。びょういんで はたらいて います。','あねは がくせいで、えいごを べんきょうして います。','にちようびは かぞくと いっしょに ばんごはんを たべます。','ははの りょうりは いつも おいしいです。'],
+p11:['にほんには はる、なつ、あき、ふゆが あります。','はるは こうえんが とても きれいです。','なつは あついので、うみで およぎます。','あきは くだものが おいしいです。','ふゆは さむくて、ゆきの ひも あります。','わたしは あきが いちばん すきです。']});
 PARAS.forEach(p => { p.type = 'p'; p.jp = p.lines.map(l => l[0]).join(''); p.lines.forEach((l, i) => l[2] = (PR[p.id] || [])[i] || ''); p.words = uniq(occurrences(p.jp).map(h => h.v)); });
 
 /* ---------- kana → romaji ---------- */
@@ -522,7 +554,7 @@ let jaVoice = null;
 function findVoice(){ try { const vs = speechSynthesis.getVoices(); jaVoice = vs.find(v => /^ja/i.test(v.lang)) || null; } catch (e) { jaVoice = null; } }
 try { findVoice(); speechSynthesis.onvoiceschanged = findVoice; } catch (e) {}
 const audioOn = () => M.settings.audio && !!jaVoice;
-function speak(text){ if (!audioOn()) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.voice = jaVoice; u.lang = 'ja-JP'; u.rate = 0.85; speechSynthesis.speak(u); } catch (e) {} }
+function speak(text){ if (!audioOn()) return; try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.voice = jaVoice; u.lang = 'ja-JP'; u.rate = M.settings.rate || 0.85; speechSynthesis.speak(u); } catch (e) {} }
 const SPK = '<svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
 function spkBtn(text, big){ if (!audioOn()) return null; const b = el('button', 'spk' + (big ? ' big' : ''), SPK); b.title = 'Listen'; b.type = 'button'; b.onclick = e => { e.stopPropagation(); speak(text); }; return b; }
 function withSpk(html, text){ const d = el('div', 'row'); d.style.gap = '12px'; d.innerHTML = html; const b = spkBtn(text); if (b) d.appendChild(b); return d; }
@@ -571,9 +603,10 @@ const MODES = [
   { key:'kb', jp:'字', name:'Kanji browser', desc:'All kanji with the words that use them.' },
   { key:'sq', jp:'文', name:'Sentence drill', desc:'Comprehension, then building from blocks, then cloze from memory.' },
   { key:'gram', jp:'助', name:'Grammar drill', desc:'Particles and patterns, blanked out of example sentences.' },
-  { key:'conj', jp:'活', name:'Verb forms', desc:'Polite, negative, past and て-forms of the verbs in the list, with the rule after each answer.' },
+  { key:'conj', jp:'活', name:'Verb and adjective forms', desc:'Polite, negative, past and て-forms of verbs, and the negative and past of い and な adjectives, with the rule after each answer.' },
+  { key:'num', jp:'数', name:'Numbers and time', desc:'Numbers to 99,999, prices in yen and clock times: read them, pick the reading, or hear them.' },
   { key:'lis', jp:'聴', name:'Listening', desc:'Audio only: pick the meaning of a word or sentence, or rebuild the sentence you hear.' },
-  { key:'para', jp:'読', name:'Reading passages', desc:'Short texts set in Kagawa, Okayama and Tottori. Read, reveal translations line by line, then answer questions.' },
+  { key:'para', jp:'読', name:'Reading passages', desc:'Twelve short texts: a trip through Kagawa, Okayama and Tottori, then everyday life. Reveal readings or translations line by line, then answer questions.' },
 ];
 
 function streak(){
@@ -585,7 +618,7 @@ function counts(){
   const now = Date.now();
   const due = ALL.filter(x => isDue(x.id, now)).length;
   const d = M.days[today()] || { a: 0, c: 0, nw: 0 };
-  const newLeft = Math.max(0, M.settings.newPerDay - d.nw);
+  const newLeft = Math.max(0, M.settings.newPerDay + (d.bonus || 0) - d.nw);
   const newAvail = CURRICULUM.filter(id => rec(id).s === 'new').length;
   return { due, newLeft: Math.min(newLeft, newAvail), newAvail, done: d.a, goal: M.settings.goal };
 }
@@ -598,9 +631,10 @@ function renderHome(){
   t.innerHTML = `<div class="ring"><svg viewBox="0 0 92 92"><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/><circle cx="46" cy="46" r="${r}" fill="none" stroke="var(--shu)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - pct / 100)}"/></svg><div class="lbl">${c.done}<small>of ${c.goal}</small></div></div>
     <div><h2>${c.due === 0 && c.newLeft === 0 ? (c.done >= c.goal ? 'Done for today. お疲れ様でした。' : 'Nothing due. Drill anything below, or raise your new-items setting.') : 'Today\'s session'}</h2>
     <div class="facts"><span><b>${c.due}</b> reviews due</span><span><b>${c.newLeft}</b> new to learn</span><span class="streak">${streak()} day streak</span><span><b>${retention()}</b> recent accuracy</span></div>
-    <div class="row" style="margin-top:12px"><button class="btn shu" id="btn-today" ${c.due === 0 && c.newLeft === 0 ? 'disabled' : ''}>Start session</button><button class="btn quiet" id="btn-smart">Extra practice</button></div></div>`;
+    <div class="row" style="margin-top:12px"><button class="btn shu" id="btn-today" ${c.due === 0 && c.newLeft === 0 ? 'disabled' : ''}>Start session</button><button class="btn quiet" id="btn-smart">Extra practice</button>${c.newLeft === 0 && c.newAvail > 0 ? '<button class="btn quiet" id="btn-more">Learn 5 more new items</button>' : ''}</div></div>`;
   $('#btn-today').onclick = () => startMode('today');
   $('#btn-smart').onclick = () => startMode('smart');
+  const mb = $('#btn-more'); if (mb) mb.onclick = () => { const d = M.days[today()] || (M.days[today()] = { a: 0, c: 0, nw: 0 }); d.bonus = (d.bonus || 0) + 5; save(); startMode('today'); };
 
   const stats = $('#stats'); stats.innerHTML = '';
   [['Words', V], ['Kanji', K], ['Sentences', S], ['Grammar', G]].forEach(([name, arr]) => {
@@ -616,7 +650,7 @@ function renderHome(){
   const modes = $('#modes'); modes.innerHTML = '';
   MODES.forEach(m => { const b = el('button', 'mode', `<span class="jp">${m.jp}</span><span style="min-width:0"><b>${m.name}</b><small>${m.desc}</small></span>`); b.onclick = () => startMode(m.key); modes.appendChild(b); });
 
-  $('#set-new').value = M.settings.newPerDay; $('#set-goal').value = M.settings.goal; $('#set-reviews').value = M.settings.maxReviews; $('#set-audio').checked = M.settings.audio; $('#set-kana').checked = M.settings.kana; document.body.classList.toggle('nokana', !M.settings.kana); renderHeat();
+  $('#set-new').value = M.settings.newPerDay; $('#set-goal').value = M.settings.goal; $('#set-reviews').value = M.settings.maxReviews; $('#set-audio').checked = M.settings.audio; $('#set-kana').checked = M.settings.kana; $('#set-rate').value = String(M.settings.rate || 0.85); document.body.classList.toggle('nokana', !M.settings.kana); renderHeat(); renderProgress();
 }
 function retention(){ const l = M.log || []; if (l.length < 5) return '—'; return Math.round(100 * l.filter(Boolean).length / l.length) + '%'; }
 $('#set-new').onchange = e => { M.settings.newPerDay = Math.max(0, +e.target.value || 0); save(); renderHome(); };
@@ -661,6 +695,7 @@ function startMode(key){
   if (key === 'kb') return kanjiBrowser();
   if (key === 'para') return readingList();
   if (key === 'conj') return conjDrill();
+  if (key === 'num') return numDrill();
   startRound(key);
 }
 
@@ -832,7 +867,8 @@ function learnCard(entry, item, stage_){
     const more = S.filter(s => s.jp.includes(item.g) && s.jp !== item.ex).slice(0, 2); if (more.length) card.appendChild(el('div', 'col', more.map(s => `<div class="ex"><div class="j">${jpHTML(s.jp)}</div><div class="kana auto">${esc(s.rd)}</div><div class="e">${esc(s.en)}</div></div>`).join('')));
   }
   const b = el('button', 'btn gold', 'Got it — test me'); b.onclick = () => { stage_.innerHTML = ''; askItem(Object.assign({}, entry, { learn: true }), item, stage_); };
-  const row = el('div', 'row'); row.appendChild(b); card.appendChild(row); stage_.appendChild(card); b.focus();
+  const known = el('button', 'btn quiet', 'I already know this'); known.onclick = () => { grade(item.id, 4); sess.i++; nextQ(); };
+  const row = el('div', 'row'); row.append(b, known); card.appendChild(row); stage_.appendChild(card); b.focus();
   if (item.type === 'v' || item.type === 's') speak(item.type === 'v' ? item.jp : item.jp);
 }
 
@@ -890,8 +926,8 @@ const QUESTIONS = {
     const inp = el('input', 'text'); inp.id = 'read-input'; inp.placeholder = 'よみかた / yomikata'; inp.autocomplete = 'off'; inp.setAttribute('autocapitalize', 'off'); card.appendChild(inp);
     const row = el('div', 'row'); const check = el('button', 'btn', 'Check'); const skip = el('button', 'btn quiet', "Don't know"); row.append(check, skip); card.appendChild(row);
     let done = false;
-    const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en });
-      card.appendChild(el('div', 'feedback ' + (ok ? 'ok' : 'bad'), `<div>${ok ? 'Correct.' : 'The reading is'} <span class="ans">${esc(v.rd)}</span> <span class="sub">(${esc(kanaToRomaji(v.rd.split(/[／/]/)[0]))})</span> — ${esc(v.en)} ${masteryHTML(v.id)}</div>${exampleHTML(v, 1)}`)); addSpeak(card, v.jp); speak(v.jp); nextButton(card); };
+    const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; const sn = snap(v.id); record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en });
+      card.appendChild(el('div', 'feedback ' + (ok ? 'ok' : 'bad'), `<div>${ok ? 'Correct.' : 'The reading is'} <span class="ans">${esc(v.rd)}</span> <span class="sub">(${esc(kanaToRomaji(v.rd.split(/[／/]/)[0]))})</span> — ${esc(v.en)} ${masteryHTML(v.id)}</div>${exampleHTML(v, 1)}`)); addSpeak(card, v.jp); speak(v.jp); if (!ok && inp.value.trim()) card.appendChild(overrideBtn(card, entry, v, sn)); nextButton(card); };
     check.onclick = () => { if (inp.value.trim()) finish(readingMatches(inp.value, v.rd)); };
     skip.onclick = () => finish(false);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !done){ e.stopPropagation(); check.onclick(); } });
@@ -984,7 +1020,7 @@ function buildQ(entry, s, stage_, hard, listen){
   card.appendChild(row);
   let done = false;
   const finish = ok => { if (done) return; done = true; check.disabled = reveal.disabled = true; [...line.children, ...bank.children].forEach(b => b.disabled = true); line.classList.add(ok ? 'ok' : 'bad');
-    record(entry, s, ok, { a: s.jp, b: '', c: s.en }); card.appendChild(fbSent(ok, s)); addSpeak(card, s.jp); if (ok) speak(s.jp); nextButton(card); };
+    const sn = snap(s.id); record(entry, s, ok, { a: s.jp, b: '', c: s.en }); card.appendChild(fbSent(ok, s)); addSpeak(card, s.jp); if (ok) speak(s.jp); if (!ok && placed.length) card.appendChild(overrideBtn(card, entry, s, sn, 'My order is also correct')); nextButton(card); };
   check.onclick = () => finish(placed.map(p => p.t).join('') === s.tk.join(''));
   reveal.onclick = () => finish(false);
   render(); stage_.appendChild(card);
@@ -1191,7 +1227,7 @@ QUESTIONS['v-type'] = function(entry, v, stage_){
   const inp = el('input', 'text'); inp.id = 'type-input'; inp.placeholder = 'にほんご / nihongo'; inp.autocomplete = 'off'; inp.setAttribute('autocapitalize', 'off'); card.appendChild(inp);
   const row = el('div', 'row'); const check = el('button', 'btn', 'Check'); const skip = el('button', 'btn quiet', "Don't know"); row.append(check, skip); card.appendChild(row);
   let done = false;
-  const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en }); card.appendChild(fbVocab(ok, v)); addSpeak(card, v.jp); speak(v.jp); nextButton(card); };
+  const finish = ok => { if (done) return; done = true; inp.disabled = check.disabled = skip.disabled = true; const sn = snap(v.id); record(entry, v, ok, { a: v.jp, b: v.rd, c: v.en }); card.appendChild(fbVocab(ok, v)); addSpeak(card, v.jp); speak(v.jp); if (!ok && inp.value.trim()) card.appendChild(overrideBtn(card, entry, v, sn)); nextButton(card); };
   check.onclick = () => { const t = inp.value.trim(); if (t) finish(t === v.jp || readingMatches(t, v.rd)); };
   skip.onclick = () => finish(false);
   inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !done){ e.stopPropagation(); e.preventDefault(); check.onclick(); } });
@@ -1270,43 +1306,6 @@ function conjRule(v, f){
   if (v.jp === '行く' && f.base === 'te') return 'う-verb (godan), with the one exception: 行く becomes 行って, not 行いて.';
   return f.base === 'te' ? `う-verb (godan): final ${last} changes to ${GT[last]}${f.suf ? ', then add ' + f.suf : ''}.` : `う-verb (godan): final ${last} changes to ${GI[last]}, then add ${f.suf}.`;
 }
-function conjDrill(){
-  const stage_ = $('#stage'), f = $('#sess-filters'); f.innerHTML = '';
-  const sel = el('select', 'sel'); sel.id = 'conj-form';
-  sel.innerHTML = '<option value="">All forms</option>' + FORMS.map(x => `<option value="${x.k}">${esc(x.name)} · 〜${esc(x.k)}</option>`).join('');
-  f.appendChild(el('span', 'note', 'Form:')); f.appendChild(sel);
-  let qs = [], i = 0, correct = 0;
-  let cur = null; const lab = o => cur && cur.jp === '来る' ? `${o.j}（${o.r}）` : o.j;
-  const build = () => {
-    const started = VERBS.filter(v => rec(v.id).s !== 'new'), pool = started.length >= 8 ? started : VERBS;
-    qs = pick(pool, 10).map(v => { const fs = FORMS.filter(x => (!sel.value || x.k === sel.value) && !(x.vol && NONVOL.has(v.jp))); return fs.length ? { v, f: fs[Math.random() * fs.length | 0] } : null; }).filter(Boolean);
-    i = 0; correct = 0; step();
-  };
-  const step = () => {
-    stage_.innerHTML = '';
-    $('#sess-count').textContent = `${Math.min(i + 1, qs.length)} / ${qs.length}`; $('#sess-bar').style.width = (100 * i / Math.max(1, qs.length)) + '%';
-    if (i >= qs.length){
-      const card = el('div', 'card done', `<div class="prompt-label">Verb forms</div><div class="score">${correct} / ${qs.length}</div><div class="sub">${correct === qs.length ? 'Every form correct. よくできました。' : 'The rule is shown after each answer; the same verbs come round again.'}</div>`);
-      const row = el('div', 'row'); row.style.justifyContent = 'center';
-      const again = el('button', 'btn shu', 'Another round'); again.onclick = build;
-      const home = el('button', 'btn quiet', 'Home'); home.onclick = () => { renderHome(); show('home'); };
-      row.append(again, home); card.appendChild(row); stage_.appendChild(card); return;
-    }
-    const { v, f: form } = qs[i]; cur = v; const right = conjugate(v, form), card = el('div', 'card');
-    nextHook = () => { i++; step(); };
-    choiceQuestion(card, { label: `${esc(form.name)} · 〜${esc(form.k)} <span class="tag">${esc(form.gloss)}</span>`,
-      promptNode: el('div', '', `<div class="big">${esc(v.jp)}</div><div class="reading">${esc(v.rd)}</div><div class="sub">${esc(v.en)}</div>`),
-      options: shuffle([right, ...conjWrong(v, form)].map(lab)), answer: lab(right), isJP: true,
-      onDone: ok => {
-        if (ok) correct++;
-        const d = M.days[today()] || (M.days[today()] = { a: 0, c: 0, nw: 0 }); d.a++; if (ok) d.c++; M.log = (M.log || []).concat(ok).slice(-200); save();
-        card.appendChild(el('div', 'feedback ' + (ok ? 'ok' : 'bad'), `<div><span class="ans">${esc(right.j)}</span> <span class="kr">${esc(right.r)}</span></div><div class="sub">${esc(conjRule(v, form))}</div>`));
-        addSpeak(card, right.j); speak(right.r);
-      } });
-    stage_.appendChild(card);
-  };
-  sel.onchange = build; build();
-}
 
 /* ---------- study calendar and backup ---------- */
 function renderHeat(){
@@ -1322,6 +1321,7 @@ function renderHeat(){
 (function(){
   const box = $('#backup-box'), msg = $('#backup-msg');
   $('#set-kana').onchange = e => { M.settings.kana = e.target.checked; save(); document.body.classList.toggle('nokana', !M.settings.kana); };
+  $('#set-rate').onchange = e => { M.settings.rate = +e.target.value || 0.85; save(); speak('こんにちは。'); };
   $('#backup-copy').onclick = async () => {
     const text = JSON.stringify(M);
     try { await navigator.clipboard.writeText(text); msg.textContent = 'Backup copied. Open this page on the other device, choose Restore and paste it.'; }
@@ -1338,6 +1338,169 @@ function renderHeat(){
     } catch (e) { msg.textContent = 'That text is not a Wagotabi Practice backup. Copy the whole backup and try again.'; }
   };
 })();
+function tally(ok){ const d = M.days[today()] || (M.days[today()] = { a: 0, c: 0, nw: 0 }); d.a++; if (ok) d.c++; M.log = (M.log || []).concat(ok).slice(-200); save(); }
+/* generated drills (forms, numbers): ten questions, a filter, the rule after each answer */
+function runDrill({ title, selLabel, selOptions, make }){
+  const stage_ = $('#stage'), f = $('#sess-filters'); f.innerHTML = '';
+  const sel = el('select', 'sel'); sel.id = 'drill-filter';
+  sel.innerHTML = selOptions.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
+  f.appendChild(el('span', 'note', selLabel)); f.appendChild(sel);
+  let qs = [], i = 0, correct = 0;
+  const build = () => { qs = []; for (let guard = 0; qs.length < 10 && guard < 300; guard++){ const q = make(sel.value); if (q && q.wrong.length >= 2 && !qs.some(x => x.key === q.key)) qs.push(q); } i = 0; correct = 0; step(); };
+  const step = () => {
+    stage_.innerHTML = '';
+    $('#sess-count').textContent = `${Math.min(i + 1, qs.length)} / ${qs.length}`; $('#sess-bar').style.width = (100 * i / Math.max(1, qs.length)) + '%';
+    if (i >= qs.length){
+      const card = el('div', 'card done', `<div class="prompt-label">${esc(title)}</div><div class="score">${correct} / ${qs.length}</div><div class="sub">${correct === qs.length ? 'All correct. よくできました。' : 'The rule is shown after each answer. Another round mixes in new ones.'}</div>`);
+      const row = el('div', 'row'); row.style.justifyContent = 'center';
+      const again = el('button', 'btn shu', 'Another round'); again.onclick = build;
+      const home = el('button', 'btn quiet', 'Home'); home.onclick = () => { renderHome(); show('home'); };
+      row.append(again, home); card.appendChild(row); stage_.appendChild(card); return;
+    }
+    const q = qs[i], card = el('div', 'card');
+    nextHook = () => { i++; step(); };
+    choiceQuestion(card, { label: q.label, promptNode: q.prompt(), options: shuffle([q.right, ...q.wrong]), answer: q.right, isJP: q.jp !== false,
+      onDone: ok => { if (ok) correct++; tally(ok); card.appendChild(el('div', 'feedback ' + (ok ? 'ok' : 'bad'), q.feedback)); if (q.say){ addSpeak(card, q.say); speak(q.say); } } });
+    stage_.appendChild(card);
+    if (q.auto) setTimeout(() => speak(q.auto), 150);
+  };
+  sel.onchange = build; build();
+}
+
+/* ---------- adjective forms ---------- */
+const NA = ['好き','静か','賑やか','綺麗','便利','有名','元気','大切','嫌い','大丈夫'];
+const ADJS = V.filter(v => NA.includes(v.jp) || (v.conj && !/^To /.test(v.en) && /い$/.test(v.jp)));
+const AFORMS = [
+  { k:'neg', name:'Negative', gloss:'is not', i:'くないです', na:'じゃありません' },
+  { k:'past', name:'Past', gloss:'was', i:'かったです', na:'でした' },
+  { k:'pastneg', name:'Past negative', gloss:'was not', i:'くなかったです', na:'じゃありませんでした' },
+  { k:'link', name:'Linking form', gloss:'is … and', i:'くて', na:'で' },
+];
+function adjConj(v, f){
+  const na = NA.includes(v.jp), rd = v.jp === '良い' ? 'よい' : v.rd.split(/[／/]/)[0];
+  const mk = w => na ? w + f.na : w.slice(0, -1) + f.i;
+  return { j: mk(v.jp), r: mk(rd) };
+}
+function adjWrong(v, f){
+  const na = NA.includes(v.jp), right = adjConj(v, f).j, w = v.jp, out = [];
+  const add = j => { if (j !== right && !out.includes(j)) out.push(j); };
+  if (na){ add(w + f.i); if (/い$/.test(w)) add(w.slice(0, -1) + f.i); add(w + 'な' + f.na); }
+  else { add(w + f.na); add(w + f.i); add(w.slice(0, -1) + f.na); }
+  AFORMS.forEach(x => { if (out.length < 3 && x !== f) add(adjConj(v, x).j); });
+  return out.slice(0, 3);
+}
+function adjRule(v, f){
+  if (v.jp === '良い') return 'いい is irregular: every form is built on よ (よくない, よかった, よくて).';
+  if (NA.includes(v.jp)) return `な-adjective: keep the whole word and add ${f.na}.` + (['綺麗', '嫌い'].includes(v.jp) ? ` ${v.jp} sounds like an い-adjective but is not one.` : '');
+  return `い-adjective: drop the final い and add ${f.i}.` + (/past/.test(f.k) ? ' Never 〜いでした: the adjective itself carries the tense, and です only makes it polite.' : '');
+}
+
+function conjDrill(){
+  const startedOr = pool => { const s = pool.filter(v => rec(v.id).s !== 'new'); return s.length >= 8 ? s : pool; };
+  const vq = k => {
+    const v = pick(startedOr(VERBS), 1)[0], fs = FORMS.filter(x => (!k || x.k === k) && !(x.vol && NONVOL.has(v.jp)));
+    if (!fs.length) return null;
+    const form = fs[Math.random() * fs.length | 0], right = conjugate(v, form), lab = o => v.jp === '来る' ? `${o.j}（${o.r}）` : o.j;
+    return { key: v.jp + form.k, label: `Verb · ${esc(form.name)} · 〜${esc(form.k)} <span class="tag">${esc(form.gloss)}</span>`,
+      prompt: () => el('div', '', `<div class="big">${esc(v.jp)}</div><div class="reading">${esc(v.rd)}</div><div class="sub">${esc(v.en)}</div>`),
+      right: lab(right), wrong: conjWrong(v, form).map(lab), say: right.r,
+      feedback: `<div><span class="ans">${esc(right.j)}</span> <span class="kr">${esc(right.r)}</span></div><div class="sub">${esc(conjRule(v, form))}</div>` };
+  };
+  const aq = k => {
+    const v = pick(startedOr(ADJS), 1)[0], form = k ? AFORMS.find(x => x.k === k) : AFORMS[Math.random() * AFORMS.length | 0], right = adjConj(v, form);
+    return { key: v.jp + form.k, label: `Adjective · ${esc(form.name)} <span class="tag">${esc(form.gloss)}</span>`,
+      prompt: () => el('div', '', `<div class="big">${esc(v.jp)}</div><div class="reading">${esc(v.rd)}</div><div class="sub">${esc(v.en)}</div>`),
+      right: right.j, wrong: adjWrong(v, form), say: right.r,
+      feedback: `<div><span class="ans">${esc(right.j)}</span> <span class="kr">${esc(right.r)}</span></div><div class="sub">${esc(adjRule(v, form))}</div>` };
+  };
+  runDrill({ title: 'Verb and adjective forms', selLabel: 'Form:',
+    selOptions: [['', 'Everything'], ['v:', 'All verb forms'], ...FORMS.map(x => ['v:' + x.k, `Verb · ${x.name} · 〜${x.k}`]), ['a:', 'All adjective forms'], ...AFORMS.map(x => ['a:' + x.k, `Adjective · ${x.name}`])],
+    make: val => val === '' ? (Math.random() < 0.65 ? vq('') : aq('')) : val[0] === 'v' ? vq(val.slice(2)) : aq(val.slice(2)) });
+}
+
+/* ---------- numbers, prices and clock times ---------- */
+const DIG = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'], DR = ['', 'いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'];
+function numJP(n){
+  let k = '', r = ''; const man = Math.floor(n / 10000); if (man){ k += DIG[man] + '万'; r += DR[man] + 'まん'; n %= 10000; }
+  const th = Math.floor(n / 1000), h = Math.floor(n % 1000 / 100), t = Math.floor(n % 100 / 10), o = n % 10;
+  if (th){ k += (th > 1 ? DIG[th] : '') + '千'; r += th === 1 ? 'せん' : th === 3 ? 'さんぜん' : th === 8 ? 'はっせん' : DR[th] + 'せん'; }
+  if (h){ k += (h > 1 ? DIG[h] : '') + '百'; r += h === 1 ? 'ひゃく' : h === 3 ? 'さんびゃく' : h === 6 ? 'ろっぴゃく' : h === 8 ? 'はっぴゃく' : DR[h] + 'ひゃく'; }
+  if (t){ k += (t > 1 ? DIG[t] : '') + '十'; r += (t > 1 ? DR[t] : '') + 'じゅう'; }
+  if (o){ k += DIG[o]; r += DR[o]; }
+  return { k, r };
+}
+const HOURS = ['', 'いちじ', 'にじ', 'さんじ', 'よじ', 'ごじ', 'ろくじ', 'しちじ', 'はちじ', 'くじ', 'じゅうじ', 'じゅういちじ', 'じゅうにじ'];
+function timeJP(h, m, half){
+  const d = h + ':' + String(m).padStart(2, '0'); let k = numJP(h).k + '時', r = HOURS[h];
+  if (m === 30 && half){ k += '半'; r += 'はん'; }
+  else if (m){ const t = Math.floor(m / 10); k += numJP(m).k + '分'; r += m % 10 === 0 ? (t > 1 ? DR[t] : '') + 'じゅっぷん' : (t ? (t > 1 ? DR[t] : '') + 'じゅう' : '') + 'ごふん'; }
+  return { d, k, r };
+}
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const fmtN = n => n.toLocaleString('en-US');
+function nearNums(n){
+  const s = String(n), set = new Set();
+  for (let i = 0; i < s.length; i++) for (const d of [1, 9, 3]){ const c = (+s[i] + d) % 10; if (i === 0 && c === 0) continue; set.add(+(s.slice(0, i) + c + s.slice(i + 1))); }
+  if (s.length > 1 && s[1] !== '0') set.add(+(s[1] + s[0] + s.slice(2)));
+  set.add(n * 10); if (n % 10 === 0) set.add(n / 10);
+  set.delete(n); return pick([...set].filter(x => x > 0 && x < 1000000), 3);
+}
+const IRREG = [['さんびゃく', 'さんひゃく', '300 is さんびゃく'], ['ろっぴゃく', 'ろくひゃく', '600 is ろっぴゃく'], ['はっぴゃく', 'はちひゃく', '800 is はっぴゃく'], ['さんぜん', 'さんせん', '3,000 is さんぜん'], ['はっせん', 'はちせん', '8,000 is はっせん']];
+function numDrill(){
+  const numQ = (n, yen) => {
+    const j = numJP(n), unit = yen ? '円' : '', ur = yen ? 'えん' : '', dig = x => (yen ? '¥' : '') + fmtN(x), near = nearNums(n);
+    const types = ['k2d', 'd2r'].concat(audioOn() ? ['a2d'] : []), t = types[Math.random() * types.length | 0];
+    const notes = IRREG.filter(x => j.r.includes(x[0])).map(x => x[2]);
+    const fb = `<div><span class="ans">${esc(j.k + unit)}</span> <span class="kr">${esc(j.r + ur)}</span> = ${esc(dig(n))}</div>${notes.length ? `<div class="sub">Sound change: ${esc(notes.join(', '))}.</div>` : ''}`;
+    const q = { key: n + t + unit, feedback: fb, say: j.r + ur };
+    if (t === 'd2r'){
+      const wrong = near.map(x => numJP(x).r + ur); const trap = IRREG.find(x => j.r.includes(x[0])); if (trap) wrong[0] = j.r.replace(trap[0], trap[1]) + ur;
+      return Object.assign(q, { label: 'How do you read it?', prompt: () => el('div', 'big', esc(dig(n))), right: j.r + ur, wrong: uniq(wrong).filter(x => x !== j.r + ur), jp: false });
+    }
+    if (t === 'a2d') return Object.assign(q, { label: 'Listening · which number is it?', prompt: () => { const p = el('div', 'row'); p.style.gap = '14px'; p.appendChild(spkBtn(j.r + ur, true)); p.appendChild(el('div', 'sub', 'Tap to replay.')); return p; }, right: dig(n), wrong: near.map(dig), jp: false, auto: j.r + ur });
+    return Object.assign(q, { label: 'Which number is this?', prompt: () => el('div', 'big', esc(j.k + unit)), right: dig(n), wrong: near.map(dig), jp: false });
+  };
+  const timeQ = () => {
+    const h = rnd(1, 12), m = rnd(0, 11) * 5, half = Math.random() < 0.5, x = timeJP(h, m, half), alt = new Map();
+    [[h % 12 + 1, m], [(h + 10) % 12 + 1, m], [h, (m + 5) % 60], [h, (m + 30) % 60], [h === 4 ? 7 : h === 7 ? 4 : h === 9 ? 6 : (h + 5) % 12 + 1, m], [h, (m + 10) % 60]].forEach(([a, b]) => { const y = timeJP(a, b, half); if (y.d !== x.d) alt.set(y.d, y); });
+    const others = pick([...alt.values()], 3), types = ['k2d', 'd2r'].concat(audioOn() ? ['a2d'] : []), t = types[Math.random() * types.length | 0];
+    const q = { key: x.d + t, say: x.r, jp: false, feedback: `<div><span class="ans">${esc(x.k)}</span> <span class="kr">${esc(x.r)}</span> = ${esc(x.d)}</div><div class="sub">Hours to watch: 4 is よじ, 7 is しちじ, 9 is くじ. Minutes ending in 0 take っぷん (じゅっぷん), minutes ending in 5 take ふん (ごふん).</div>` };
+    if (t === 'd2r') return Object.assign(q, { label: 'How do you say this time?', prompt: () => el('div', 'big', esc(x.d)), right: x.r, wrong: others.map(o => o.r) });
+    if (t === 'a2d') return Object.assign(q, { label: 'Listening · what time is it?', prompt: () => { const p = el('div', 'row'); p.style.gap = '14px'; p.appendChild(spkBtn(x.r, true)); p.appendChild(el('div', 'sub', 'Tap to replay.')); return p; }, right: x.d, wrong: others.map(o => o.d), auto: x.r });
+    return Object.assign(q, { label: 'What time is this?', prompt: () => el('div', 'big', esc(x.k)), right: x.d, wrong: others.map(o => o.d) });
+  };
+  const gen = { '99': () => numQ(rnd(1, 99)), '9999': () => numQ(Math.random() < 0.5 ? rnd(1, 99) * 100 + (Math.random() < 0.5 ? 0 : rnd(1, 9) * 10) : rnd(100, 9999)),
+    'big': () => numQ(rnd(10, 99) * 1000 + (Math.random() < 0.5 ? 0 : rnd(1, 9) * 100)), 'yen': () => numQ([rnd(1, 99) * 10, rnd(1, 99) * 100, rnd(1, 30) * 1000 + rnd(0, 9) * 100][rnd(0, 2)], true), 'time': timeQ };
+  runDrill({ title: 'Numbers and time', selLabel: 'Practise:', selOptions: [['', 'Mixed'], ['99', '1 to 99'], ['9999', '100 to 9,999'], ['big', '10,000 to 99,999'], ['yen', 'Prices in yen'], ['time', 'Clock times']],
+    make: val => gen[val || ['99', '9999', 'big', 'yen', 'yen', 'time', 'time'][rnd(0, 6)]]() });
+}
+
+/* ---------- "my answer was right": undo a wrong mark on typed and built answers ---------- */
+function snap(id){ return { id, r: JSON.stringify(rec(id)), day: JSON.stringify(M.days[today()] || null), log: (M.log || []).slice(), asked: sess.asked[id], correct: sess.correct, misses: sess.misses.slice(), q: sess.q.slice(), retries: sess.retries[id] }; }
+function overrideBtn(card, entry, item, s, text){
+  const b = el('button', 'btn quiet', text || 'My answer was right'); b.type = 'button';
+  b.onclick = () => {
+    M.items[s.id] = JSON.parse(s.r); const d = JSON.parse(s.day); if (d) M.days[today()] = d; else delete M.days[today()];
+    M.log = s.log; sess.asked[s.id] = s.asked; sess.correct = s.correct; sess.misses = s.misses; sess.q = s.q; sess.retries[s.id] = s.retries;
+    record(entry, item, true); b.disabled = true; b.textContent = 'Counted as correct';
+    const fb = card.querySelector('.feedback'); if (fb){ fb.classList.remove('bad'); fb.classList.add('ok'); }
+    $('#sess-count').textContent = `${Math.min(sess.i + 1, sess.q.length)} / ${sess.q.length}`;
+  };
+  const row = el('div', 'row'); row.appendChild(b); return row;
+}
+
+/* ---------- progress by topic ---------- */
+function renderProgress(){
+  const out = $('#prog-out'); if (!out) return; out.innerHTML = '';
+  const row = (name, arr) => { const rev = arr.filter(x => rec(x.id).s === 'review').length, lrn = arr.filter(x => rec(x.id).s === 'learning').length;
+    return `<div class="prow"><span>${esc(name)}</span><div class="bar" style="margin:0"><i style="width:${100 * rev / arr.length}%;background:var(--shu)"></i><i style="width:${100 * lrn / arr.length}%;background:var(--gold)"></i></div><span class="n">${rev + lrn} / ${arr.length}</span></div>`; };
+  out.appendChild(el('div', 'col', uniq(V.map(v => v.cat)).map(c => row(c, V.filter(v => v.cat === c))).join('') + row('Kanji, level 1', K.filter(k => k.lvl === 1)) + row('Kanji, level 2', K.filter(k => k.lvl === 2)) + row('Sentences', S) + row('Grammar', G))).style.gap = '6px';
+  const hard = ALL.filter(x => rec(x.id).lapses > 0).sort((a, b) => rec(b.id).lapses - rec(a.id).lapses).slice(0, 8);
+  if (hard.length){
+    out.appendChild(el('div', 'section-label', 'Forgotten most often'));
+    const list = el('div', 'list'); hard.forEach(x => list.appendChild(el('div', 'item two', `<span><span class="j">${jpHTML(x.jp || x.k || x.g)}</span> <span class="r">${esc(x.type === 'v' ? x.rd : '')}</span> <span class="e">${esc(x.en || x.m || x.fn)}</span></span><span class="note">forgotten ${rec(x.id).lapses}×</span>`))); out.appendChild(list);
+  } else out.appendChild(el('div', 'note', 'Red is in long-term review, gold is still being learned. Items you forget after learning them will be listed here.'));
+}
 
 renderHome();
 </script>
