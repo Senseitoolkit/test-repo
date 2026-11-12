@@ -1130,27 +1130,57 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
     for (let i = 0; i < 6; i++) o.add('domino', 700 + i * 40, F - 32); o.add('bell', 700 + 5 * 40 + 76, F - 22);
   });
 
-  /* ---- the starting machine: one long chain across a wide room ---- */
+  /* ---- the starting machine: one long chain across a very wide room, using as many kinds of part as possible ---- */
   EXAMPLES.unshift({
-    id: 'big', name: 'The big one', blurb: 'The machine you see when you first arrive. Sixteen stages in a row, from a rolling ball to a marble in a cup, with a party at the end.',
-    goals: [{ type: 'cup' }, { type: 'kinds', n: 14 }],
+    id: 'big', name: 'The big one', blurb: 'The machine you see when you first arrive. One chain reaction that sets off nearly every kind of mechanism in the workshop.',
+    goals: [{ type: 'zone' }, { type: 'kinds', n: 34 }],
     build: maker(o => {
-      o.m.world.w = 3700;
-      const bell = grand(o, 100, true).bell;                                     // ramp, dominoes, button, gate, seesaw, tripwire, pin, hammer, bell
+      o.m.world.w = 6000;
+      const hold = (type, x, y, over) => { const id = o.add(type, x, y, over), pin = o.add('relpin', x, y); return pin; };   // a part held by a release pin
+      const after = (src, secs, ...targets) => { const d = o.add('delay', o.get(src).x + 60 * secs, o.get(src).y - 90, { delay: secs }); o.wire(src, d); for (const t of targets) o.wire(d, t); };
+      // 1. ramp, dominoes, button, gate, seesaw, tripwire, release pin, hammer, bell
+      const bell = grand(o, 100, true).bell;
+      // 2. boxing glove, dominoes, button
       const glove = o.add('glove', 2000, F - 22); o.wire(bell, glove); o.add('steel', 2070, F - 14);
       for (let i = 0; i < 6; i++) o.add('domino', 2300 + i * 40, F - 32, { color: i % 2 ? '#f6c85f' : '#9ad1d4' });
-      const b2 = o.add('button', 2552, F + 6), fan = o.add('fan', 2680, F - 42); o.wire(b2, fan);
-      o.add('light', 2730, F - 11);
-      const trip = o.add('tripwire', 3050, F - 56), pin = o.add('relpin', 3200, 950); o.wire(trip, pin);
-      o.add('balloon', 3200, 950, { color: '#f2a541' });
-      const bell2 = o.add('bell', 3204, 520);
+      const b2 = o.add('button', 2552, F + 6);
+      // 3. pulley: a counterweight drops and hauls an egg up on a lift
+      const pul = o.add('pulley', 2400, 460), lift = o.add('lift', 2370, 760, { w: 90 }); o.add('egg', 2370, 742);
+      const cwPin = hold('cweight', 2430, 560, { density: 0.4 }); o.link('pulley', lift, null, o.m.parts[o.m.parts.length - 2].id, { x: 0, y: -27 }, { via: pul });
+      // 4. fan blows a ping-pong ball through a tripwire, which frees two balloons: one rings a bell, one meets a spike
+      const fan = o.add('fan', 2680, F - 42); o.wire(b2, fan); o.wire(b2, cwPin); o.add('light', 2730, F - 11);
+      const trip = o.add('tripwire', 3050, F - 56);
+      o.wire(trip, hold('balloon', 3200, 950, { color: '#f2a541' })); o.wire(trip, hold('balloon', 3280, 950));
+      const bell2 = o.add('bell', 3204, 520); o.add('popper', 3280, 430, { a: D(180) });
+      // 5. the party: trapdoor and marble into a cup, wrecking ball through glass into crates, confetti, flag, light, alarm
       const td = o.add('trapdoor', 2800, 560); o.add('bigmarble', 2866, 538);
       o.add('funnel', 2880, 700, { w: 200, h: 90 }); o.add('cup', 2880, 800, { w: 76 }); o.add('shelf', 2880, 842, { w: 120 });
-      const wx = 3400, wa = D(-70), bob = RG.add({ x: wx, y: 860 }, RG.rot({ x: 0, y: 240 }, wa));
-      o.add('wrecker', wx, 860, { a: wa }); const wpin = o.add('relpin', bob.x, bob.y);
-      for (let i = 0; i < 4; i++) o.add('crate', 3330, F - 22 - i * 44);
-      const party = [td, wpin, o.add('confetti', 2700, 800), o.add('confetti', 3060, 800, { a: D(0) }), o.add('flag', 2980, 790), o.add('bulb', 2780, 800), o.add('alarm', 2990, 700)];
-      for (const x of party) o.wire(bell2, x);
+      const wa = D(-70), bob = RG.add({ x: 3400, y: 860 }, RG.rot({ x: 0, y: 240 }, wa));
+      o.add('wrecker', 3400, 860, { a: wa }); const wpin = o.add('relpin', bob.x, bob.y);
+      o.add('panel', 3374, F - 60, { a: D(90) }); for (let i = 0; i < 4; i++) o.add('crate', 3330, F - 22 - i * 44);
+      for (const x of [td, wpin, o.add('confetti', 2700, 800), o.add('confetti', 3060, 800), o.add('flag', 2980, 790), o.add('bulb', 2780, 800), o.add('alarm', 2990, 700)]) o.wire(bell2, x);
+      // 6. electromagnet drags a steel ball along a shelf into a third bell
+      const mag = o.add('emagnet', 3600, 270, { range: 320 }); after(bell2, 1.5, mag);
+      o.add('shelf', 3400, 300); o.add('steel', 3360, 280); const bell3 = o.add('bell', 3550, 270);
+      // 7. water tap, waterwheel, giant button, gate, marble into a cup
+      const tap = o.add('tap', 3850, 560); o.wire(bell3, tap); o.add('waterwheel', 3886, 720);
+      const big = o.add('bigbutton', 3870, F + 9), gate = o.add('gate', 4230, 782, { h: 70, travel: 80 }); o.wire(big, gate);
+      o.add('ramp', 4310, 840, { a: D(10), w: 320 }); o.add('bigmarble', 4192, 790); o.add('wall', 4540, 880, { h: 150 }); o.add('cup', 4500, 930, { w: 70 });
+      // 8. motor gears carry a dispensed marble into another cup
+      const pg = o.add('pgear', 4600, 340), disp = o.add('dispenser', 4776, 200, { count: 1 }); o.wire(big, pg); o.wire(big, disp);
+      o.add('gear', 4674, 340); o.add('biggear', 4778, 340); o.add('cup', 4900, 460, { w: 80 }); o.add('wall', 4950, 410, { h: 120 });
+      // 9. a pinned ball is released onto a conveyor that tips it into a basket, while a catapult arm flings a marble
+      const conv = o.add('conveyor', 4750, 900, { w: 300, belt: 150 }), cat = o.add('catapult', 4300, 420, { strength: 4 });
+      after(big, 2, conv, cat, hold('wood', 4650, 800), hold('marble', 4496, 404)); o.add('basket', 4990, F - 35);
+      // 10. an elevator lifts a ball, and a dropped ball lands on a kicker that fires it over a wall into the goal zone
+      const el = o.add('elevator', 5080, 640, { w: 90, travel: 200 }); o.add('wood', 5080, 618);
+      after(big, 5, el, hold('rubber', 5200, F - 220)); o.add('kicker', 5206, F - 14, { a: D(22), strength: 17 });
+      o.add('wall', 5460, F - 90, { h: 180 }); const zone = o.add('zone', 5720, F - 50, { w: 300, h: 100 });
+      // 11. the goal zone frees a toy car, which rolls down and flips a lever switch for the finale
+      o.add('ramp', 5350, 560, { a: D(12), w: 420 }); o.wire(zone, hold('car', 5210, 506, { a: D(12) }));
+      o.add('shelf', 5700, 618, { w: 270 }); o.add('wall', 5842, 560, { h: 130 }); const sw = o.add('switch', 5760, 604);
+      const flip = o.add('flipper', 5870, 420); o.add('bouncy', 5940, 400);
+      for (const x of [flip, o.add('confetti', 5600, 760), o.add('confetti', 5900, 760), o.add('alarm', 5750, 760), o.add('flag', 5660, 750), o.add('bulb', 5830, 760)]) o.wire(sw, x);
     })
   });
 
@@ -1539,8 +1569,8 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
     const w = R.wirePath(a, b); c.save(); c.lineCap = 'round';
     c.beginPath(); c.moveTo(w[0].x, w[0].y); c.bezierCurveTo(w[1].x, w[1].y, w[2].x, w[2].y, w[3].x, w[3].y);
     if (sel) { c.strokeStyle = C.sel; c.lineWidth = 9; c.globalAlpha = 0.6; c.stroke(); }
-    c.globalAlpha = faint && !on ? 0.3 : 1; c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 5; c.stroke();
-    c.strokeStyle = on ? '#ffffff' : WIRECOL[idx % WIRECOL.length]; c.lineWidth = on ? 3.5 : 2.5; c.setLineDash(on ? [] : [9, 6]); c.stroke(); c.setLineDash([]);
+    c.globalAlpha = faint && !on ? 0.3 : 1; if (!faint) { c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 5; c.stroke(); }
+    c.strokeStyle = on ? 'rgba(255,255,255,.8)' : WIRECOL[idx % WIRECOL.length]; c.lineWidth = on ? 2 : 2.5; c.setLineDash(on ? [] : [9, 6]); c.stroke(); c.setLineDash([]);
     circ(c, a.x, a.y, 5); fs(c, WIRECOL[idx % WIRECOL.length], OUT, 1.5);
     const t = Math.atan2(b.y - w[2].y, b.x - w[2].x); c.translate(b.x, b.y); c.rotate(t); c.beginPath(); c.moveTo(0, 0); c.lineTo(-12, -6); c.lineTo(-12, 6); c.closePath(); fs(c, WIRECOL[idx % WIRECOL.length], OUT, 1.5);
     c.restore();
@@ -2137,7 +2167,7 @@ kbd { font-family: var(--body); font-weight: 800; font-size: 12px; background: v
   }
   function syncStatus() {
     let s = '';
-    if (st.mode === 'run') s = st.paused ? 'Paused. Step forward, or press Play to carry on.' : st.follow ? 'Following the action. Arrow keys or two fingers take over.' : 'Arrow keys, two fingers or drag to look around. Reset goes back to building.';
+    if (st.mode === 'run') s = st.paused ? 'Paused. Step forward, or press Play to carry on.' : st.follow ? 'Following the action. Arrow keys take over.' : 'Arrow keys, two fingers or drag to look around. Reset goes back to building.';
     else if (st.armed) s = 'Click the workbench to place: ' + RG.DEFS[st.armed].n + '. Hold Shift to place several.';
     else if (st.tool === 'wire') s = st.pend ? 'Wire: now click what it should switch on (blue outline).' : 'Wire: click a trigger (yellow outline). Click a wire to remove it.';
     else if (st.tool === 'hinge') s = 'Hinge pin: click where the pin should go.';
