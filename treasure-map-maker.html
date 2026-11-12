@@ -41,6 +41,9 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,5vw,3.1rem);l
   padding:6px 13px;box-shadow:0 2px 0 var(--wood-dark),inset 0 1px 0 rgba(255,255,255,.45)}
 .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(2px);box-shadow:none}
 .btn:disabled{opacity:.45;cursor:default;filter:none}
+
+.bar{display:flex;flex-wrap:wrap;gap:8px}
+.btn[aria-pressed="true"]{background:linear-gradient(#fff3cf,#f0c665);box-shadow:0 0 0 2px var(--cream),0 0 14px rgba(219,166,63,.8)}
 .btn.red{background:linear-gradient(#d4533f,var(--blood));color:var(--cream)}
 :focus-visible{outline:3px solid var(--cream);outline-offset:2px}
 .desk{display:grid;grid-template-columns:292px minmax(0,1fr);gap:16px;align-items:start}
@@ -87,8 +90,6 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,5vw,3.1rem);l
       <p class="tag">Stamp it, scribble it, and mark where the gold be buried.</p>
     </div>
     <div class="actions">
-      <button class="btn" id="undo" type="button">Undo</button>
-      <button class="btn" id="redo" type="button">Redo</button>
       <button class="btn" id="random" type="button">Surprise me</button>
       <button class="btn red" id="clear" type="button">Wipe the map</button>
       <button class="btn" id="save" type="button">Save picture</button>
@@ -100,12 +101,17 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,5vw,3.1rem);l
     <aside class="chest" aria-label="Tool chest">
       <div class="opts">
         <label for="size">Size <input id="size" type="range" min="0.5" max="3" step="0.1" value="1.2"></label>
-        <button class="btn red" id="del" type="button" hidden>Remove selected</button>
       </div>
       <div id="groups" style="display:grid;gap:10px"></div>
     </aside>
 
     <div class="stagebox">
+      <div class="bar" role="toolbar" aria-label="Map controls">
+        <button class="btn" id="grab" type="button" aria-pressed="false">Grab &amp; drag</button>
+        <button class="btn" id="undo" type="button">Undo</button>
+        <button class="btn" id="redo" type="button">Redo</button>
+        <button class="btn red" id="del" type="button">Delete</button>
+      </div>
       <div class="stage">
         <canvas id="map" width="1400" height="980" aria-label="Your treasure map"></canvas>
         <input id="label" type="text" maxlength="40" placeholder="Name this place" hidden autocomplete="off">
@@ -321,7 +327,7 @@ let items=[],sel=null,ghost=null,live=null,tool={type:'stamp',k:'mountain'},size
 const undoS=[],redoS=[];
 function snap(){undoS.push(JSON.stringify(items));if(undoS.length>80)undoS.shift();redoS.length=0;btns()}
 function store(){try{localStorage.setItem('tmm-map-v1',JSON.stringify(items))}catch(e){}}
-function btns(){$('undo').disabled=!undoS.length;$('redo').disabled=!redoS.length;$('del').hidden=!sel}
+function btns(){$('undo').disabled=!undoS.length;$('redo').disabled=!redoS.length}
 function say(html){$('say').innerHTML=html}
 
 function render(){const c=ctx;c.clearRect(0,0,W,H);c.drawImage(paper,0,0);c.save();c.clip(rag);
@@ -361,18 +367,42 @@ function hit(x,y){let i;
 let down=false,last=null,dirty=false;
 function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]}
 function place(x,y){items.push({t:'stamp',k:tool.k,x:Math.round(x),y:Math.round(y),s:size,f:Math.random()<.5});last=[x,y]}
-function setSel(it){sel=it;if(it){size=it.s;$('size').value=it.s}btns()}
+function setSel(it){sel=it;if(it&&it.s){size=Math.max(.5,Math.min(3,it.s));$('size').value=size}btns()}
 function eraseAt(x,y){const it=hit(x,y);if(!it)return;if(!dirty){snap();dirty=true}items.splice(items.indexOf(it),1)}
-cv.addEventListener('pointerdown',e=>{if(e.button)return;e.preventDefault();commitLabel();
+/* two-finger pinch: grows or shrinks the thing under the fingers, or the stamp size when nothing is there */
+const touches=new Map();let pinch=null;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function centre(t){const n=t.pts.length;return[t.pts.reduce((q,p)=>q+p[0],0)/n,t.pts.reduce((q,p)=>q+p[1],0)/n]}
+function startPinch(){const[a,b]=[...touches.values()];
+  if((tool.type==='stamp'||(tool.type==='erase'&&dirty))&&down&&undoS.length){items=JSON.parse(undoS.pop());sel=null;btns()}
+  live=null;if(!lab.hidden){lab.hidden=true;labItem=null}
+  down=false;dirty=false;
+  const m=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  const t=sel&&items.includes(sel)?sel:(hit(m[0],m[1])||hit(a[0],a[1])||hit(b[0],b[1]));
+  pinch={d0:Math.max(30,Math.hypot(a[0]-b[0],a[1]-b[1])),t,s0:t&&t.s?t.s:size,snapped:false};
+  if(t){if(t.t==='land'){pinch.c=centre(t);pinch.o=t.pts.map(p=>p.slice())}setSel(t);pinch.s0=t.s||size}}
+function movePinch(){const[a,b]=[...touches.values()],k=Math.hypot(a[0]-b[0],a[1]-b[1])/pinch.d0,t=pinch.t;
+  if(t){if(!pinch.snapped){snap();pinch.snapped=true}
+    if(t.t==='land'){const kk=clamp(k,.2,6),o=pinch.c;t.pts=pinch.o.map(p=>[Math.round(o[0]+(p[0]-o[0])*kk),Math.round(o[1]+(p[1]-o[1])*kk)])}
+    else{t.s=clamp(+(pinch.s0*k).toFixed(2),.3,6);size=clamp(t.s,.5,3);$('size').value=size}}
+  else{size=clamp(+(pinch.s0*k).toFixed(2),.5,3);$('size').value=size;if(tool.type==='stamp')ghost=[(a[0]+b[0])/2,(a[1]+b[1])/2]}
+  render()}
+cv.addEventListener('pointerdown',e=>{if(e.button)return;e.preventDefault();
+  if(e.isPrimary)touches.clear();touches.set(e.pointerId,pos(e));
+  if(touches.size===2){startPinch();render();return}
+  if(touches.size>2)return;
+  commitLabel();
   try{cv.setPointerCapture(e.pointerId)}catch(_){}
   const[x,y]=pos(e);down=true;dirty=false;last=[x,y];ghost=null;
   if(tool.type==='stamp'){setSel(null);snap();place(x,y)}
   else if(tool.type==='line'){setSel(null);live=tool.k==='land'?{t:'land',pts:[[x,y]]}:{t:'path',k:tool.k,s:size,pts:[[x,y]]}}
   else if(tool.type==='text'){down=false;const it=hit(x,y);openLabel(x,y,it&&it.t==='text'?it:null)}
-  else if(tool.type==='select'){setSel(hit(x,y));say(sel?'Drag to move it, use the <b>Size</b> slider to resize, or remove it.':'Nothing there. Tap a thing on the map to pick it up.')}
+  else if(tool.type==='select'){setSel(hit(x,y));if(sel)cv.style.cursor='grabbing';say(sel?'Drag to move it, pinch or use the <b>Size</b> slider to resize, or press <b>Delete</b>.':'Nothing there. Tap a thing on the map to pick it up.')}
   else if(tool.type==='erase')eraseAt(x,y);
   render()});
 cv.addEventListener('pointermove',e=>{const[x,y]=pos(e);
+  if(touches.has(e.pointerId))touches.set(e.pointerId,[x,y]);
+  if(pinch){if(touches.size>=2)movePinch();return}
   if(!down){if(e.pointerType==='mouse'&&(tool.type==='stamp'||tool.type==='erase')){ghost=[x,y];render()}return}
   if(tool.type==='stamp'){if(STAMPS[tool.k].sc&&Math.hypot(x-last[0],y-last[1])>44*size)place(x+(Math.random()-.5)*10*size,y+(Math.random()-.5)*14*size)}
   else if(tool.type==='line'&&live){if(Math.hypot(x-last[0],y-last[1])>7){live.pts.push([Math.round(x),Math.round(y)]);last=[x,y]}}
@@ -380,11 +410,22 @@ cv.addEventListener('pointermove',e=>{const[x,y]=pos(e);
     if(sel.pts)sel.pts.forEach(p=>{p[0]+=dx;p[1]+=dy});else{sel.x+=dx;sel.y+=dy}last=[x,y]}
   else if(tool.type==='erase')eraseAt(x,y);
   render()});
-function up(){if(!down)return;down=false;
+function up(e){if(e)touches.delete(e.pointerId);
+  if(pinch){if(touches.size<2){const t=pinch.t;pinch=null;ghost=null;store();render();say(t?'Resized. Pinch again to fine-tune it.':'Stamp size set. Tap the map to stamp at this size.')}return}
+  if(tool.type==='select')cv.style.cursor='grab';
+  if(!down)return;down=false;
   if(live){const need=live.t==='land'?4:2;if(live.pts.length>=need){snap();items.push(live)}live=null}
   store();render()}
 cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
-cv.addEventListener('pointerleave',()=>{if(ghost){ghost=null;render()}});
+cv.addEventListener('pointerleave',()=>{if(ghost&&!pinch){ghost=null;render()}});
+// trackpad pinch (and Ctrl + scroll) does the same on a laptop
+let wheelT=null;
+cv.addEventListener('wheel',e=>{if(!e.ctrlKey)return;e.preventDefault();const[x,y]=pos(e),t=sel||hit(x,y),k=Math.exp(-e.deltaY*.01);
+  if(t){if(!wheelT)snap();clearTimeout(wheelT);wheelT=setTimeout(()=>{wheelT=null;store()},400);
+    if(t.t==='land'){const o=centre(t);t.pts=t.pts.map(p=>[o[0]+(p[0]-o[0])*k,o[1]+(p[1]-o[1])*k])}
+    else{t.s=clamp(+(t.s*k).toFixed(3),.3,6);if(t===sel){size=clamp(t.s,.5,3);$('size').value=size}}}
+  else{size=clamp(+(size*k).toFixed(3),.5,3);$('size').value=size;if(tool.type==='stamp')ghost=[x,y]}
+  render()},{passive:false});
 
 /* ---------- labels ---------- */
 const lab=$('label');let labAt=null,labItem=null;
@@ -445,31 +486,33 @@ function genMap(seed){const r=rng(seed),R=(a,b)=>a+r()*(b-a),pick=a=>a[Math.floo
   return{items:out,name}}
 
 /* ---------- toolbox ---------- */
-const UTIL={select:{n:'Move',hint:'Tap a thing to pick it up, then drag it about.'},text:{n:'Label',hint:'Tap the map and type a name. Tap an old label to rewrite it.'},erase:{n:'Scrub out',hint:'Tap or rub over things to scrub them off the map.'}};
+const UTIL={select:{n:'Move',hint:'Grab a thing and drag it where ye want it. Pinch with two fingers to grow or shrink it.'},text:{n:'Label',hint:'Tap the map and type a name. Tap an old label to rewrite it.'},erase:{n:'Scrub out',hint:'Tap or rub over things to scrub them off the map.'}};
 function icon(draw){const c=document.createElement('canvas');c.width=c.height=88;const x=c.getContext('2d');x.scale(2,2);x.translate(22,25);x.scale(.56,.56);x.lineJoin=x.lineCap='round';x.strokeStyle=INK;x.lineWidth=2;draw(x);return c}
 function tile(label,key,draw,pick){const b=document.createElement('button');b.type='button';b.className='tile';b.dataset.key=key;b.title=label;b.setAttribute('aria-pressed','false');
   b.appendChild(icon(draw));const s=document.createElement('span');s.textContent=label;b.appendChild(s);b.addEventListener('click',pick);return b}
 function choose(t,key,hint){commitLabel();tool=t;if(t.type!=='select')setSel(null);ghost=null;
-  document.querySelectorAll('.tile').forEach(b=>b.setAttribute('aria-pressed',b.dataset.key===key?'true':'false'));
+  document.querySelectorAll('.tile').forEach(b=>b.setAttribute('aria-pressed',b.dataset.key===key?'true':'false'));$('grab').setAttribute('aria-pressed',t.type==='select'?'true':'false');
   cv.style.cursor=t.type==='select'?'grab':t.type==='text'?'text':'crosshair';say(hint);render()}
 function group(title,tiles){const h=document.createElement('h2');h.textContent=title;const d=document.createElement('div');d.className='tiles';tiles.forEach(t=>d.appendChild(t));const w=document.createElement('section');w.style.display='grid';w.style.gap='8px';w.append(h,d);$('groups').appendChild(w)}
 const wavy=[[-28,12],[-16,-10],[-2,8],[12,-10],[28,10]];
 group('Quill & Tools',[
-  tile('Move','u:select',x=>P(x,'M-12 -22 L-12 16 L-3 8 L4 22 L10 19 L3 6 L15 6 Z','#f1e8d2'),()=>choose({type:'select'},'u:select',UTIL.select.hint)),
+  tile('Grab','u:select',x=>P(x,'M-12 -22 L-12 16 L-3 8 L4 22 L10 19 L3 6 L15 6 Z','#f1e8d2'),()=>choose({type:'select'},'u:select',UTIL.select.hint)),
   tile('Label','u:text',x=>{x.fillStyle=INK;x.font='italic 44px "IM Fell English",Georgia,serif';x.textAlign='center';x.fillText('Aa',0,14)},()=>choose({type:'text'},'u:text',UTIL.text.hint)),
   tile('Scrub out','u:erase',x=>{x.rotate(-.6);P(x,'M-20 -9 H8 V9 H-20 Z','#d98a7a');P(x,'M8 -9 H22 V9 H8 Z','#f1e8d2')},()=>choose({type:'erase'},'u:erase',UTIL.erase.hint))
 ].concat(Object.keys(LINES).map(k=>tile(LINES[k].n,'l:'+k,x=>{
     if(k==='land'){const p=[[-24,2],[-14,-16],[6,-20],[24,-8],[22,12],[4,20],[-16,16]];x.lineWidth=2.5;trace(x,p,true);x.fillStyle='#f1e3b4';x.fill();x.stroke()}
     else drawPath(x,{k,s:1.5,pts:wavy})},()=>choose({type:'line',k},'l:'+k,LINES[k].hint)))));
 ['Land','Wilds','Places','Strongholds','Sea','Monsters','Creatures','Treasure','Gear','Sky & signs'].forEach(g=>group(g,Object.keys(STAMPS).filter(k=>STAMPS[k].g===g).map(k=>
-  tile(STAMPS[k].n,'s:'+k,x=>STAMPS[k].d(x),()=>choose({type:'stamp',k},'s:'+k,'<b>'+STAMPS[k].n+'</b> Tap the map to stamp it.'+(STAMPS[k].sc?' Drag to scatter a whole bunch.':''))))));
+  tile(STAMPS[k].n,'s:'+k,x=>STAMPS[k].d(x),()=>choose({type:'stamp',k},'s:'+k,'<b>'+STAMPS[k].n+'</b> Tap the map to stamp it.'+(STAMPS[k].sc?' Drag to scatter a whole bunch.':'')+' Pinch with two fingers to grow or shrink.')))));
 
 /* ---------- actions ---------- */
 let sliding=false;
 $('size').addEventListener('input',e=>{size=+e.target.value;if(sel){if(!sliding){snap();sliding=true}sel.s=size;render()}});
 $('size').addEventListener('change',()=>{sliding=false;store()});
 function removeSel(){if(!sel)return;snap();items.splice(items.indexOf(sel),1);setSel(null);store();render()}
-$('del').addEventListener('click',removeSel);
+const grabTool=()=>choose({type:'select'},'u:select',UTIL.select.hint);
+$('grab').addEventListener('click',grabTool);
+$('del').addEventListener('click',()=>{if(sel){removeSel();say('Deleted. <b>Undo</b> brings it back.')}else{grabTool();say('Tap a thing on the map to pick it, then press <b>Delete</b>.')}});
 function undo(){if(!undoS.length)return;redoS.push(JSON.stringify(items));items=JSON.parse(undoS.pop());setSel(null);store();render()}
 function redo(){if(!redoS.length)return;undoS.push(JSON.stringify(items));items=JSON.parse(redoS.pop());setSel(null);store();render()}
 $('undo').addEventListener('click',undo);$('redo').addEventListener('click',redo);
