@@ -529,6 +529,24 @@ footer strong { color: #d6cebf; }
 .switch input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: none; }
 .hint { font-size: .85rem; color: var(--muted); }
 .line select { width: auto; flex: 1 1 11rem; max-width: 100%; }
+.quick { display: grid; gap: 12px; padding: 16px 0 18px; border-bottom: 1px dashed var(--line); }
+.findrow { display: flex; gap: 14px; align-items: center; }
+.findrow input { flex: 1; }
+.schip { display: inline-flex; max-width: 100%; }
+.schip .tchip { border-radius: 10px 0 0 10px; }
+.schip .x { font: inherit; font-weight: 700; border: 1.5px solid var(--line); border-left: 0; border-radius: 0 10px 10px 0; background: var(--panel); color: var(--muted); padding: 0 9px; cursor: pointer; }
+.schip .x:hover { color: var(--red); border-color: var(--red); }
+.preview { display: grid; gap: 18px; min-width: 0; align-content: start; }
+.pnote { margin: 0 0 12px; font-size: .92rem; font-weight: 700; }
+@media (min-width: 1180px) {
+  .wrap { max-width: 1400px; grid-template-columns: minmax(0, 33rem) minmax(0, 1fr); align-items: start; gap: 24px; }
+  .hero-inner { max-width: 1400px; }
+  .header-content { max-width: 1400px; }
+  .step { grid-template-columns: minmax(0, 1fr); }
+  .step h2 { padding-top: 0; }
+  .preview { position: sticky; top: 80px; max-height: calc(100vh - 92px); overflow-y: auto; padding: 0 6px 16px 2px; }
+  .preview .toolbar { margin-top: 0; }
+}
 .work { height: 97px; border: 1px solid #c3d0dc; border-radius: 3px; background-color: #fff; background-image: linear-gradient(#d3dee8 1px, transparent 1px), linear-gradient(90deg, #d3dee8 1px, transparent 1px); background-size: 16px 16px; background-position: -1px -1px; }
 
 details.more { border-top: 1px dashed var(--line); padding: 14px 0 16px; }
@@ -541,8 +559,8 @@ details.more[open] summary::before { content: "−"; }
 .field { display: grid; gap: 6px; min-width: 0; align-content: start; }
 .field.wide { grid-column: 1 / -1; }
 .field > label { font-size: .85rem; color: var(--muted); }
-input[type="text"], select { font: inherit; font-size: .95rem; color: var(--ink); background: var(--panel); border: 1.5px solid var(--line); border-radius: 9px; padding: 8px 10px; width: 100%; min-width: 0; }
-input[type="text"]:focus, select:focus { border-color: var(--accent); outline: none; }
+input[type="text"], input[type="search"], select { font: inherit; font-size: .95rem; color: var(--ink); background: var(--panel); border: 1.5px solid var(--line); border-radius: 9px; padding: 8px 10px; width: 100%; min-width: 0; }
+input[type="text"]:focus, input[type="search"]:focus, select:focus { border-color: var(--accent); outline: none; }
 .coderow { display: flex; gap: 8px; }
 #codeIn { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .04em; text-transform: uppercase; }
 
@@ -661,6 +679,18 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
 <main class="main-container gut">
 <div class="wrap">
   <section class="builder" aria-label="Build a worksheet">
+    <div class="quick">
+      <div class="findrow">
+        <input type="search" id="find" placeholder="Search every topic, e.g. fractions, time, column addition" aria-label="Search every topic" autocomplete="off">
+        <button class="link" type="button" id="resetAll">Reset all</button>
+      </div>
+      <div class="topics" id="findRes" hidden></div>
+      <div class="line">
+        <span class="k">Saved sheets</span>
+        <div class="topics" id="saved"></div>
+        <button class="link" type="button" id="saveBtn">Save this sheet</button>
+      </div>
+    </div>
     <div class="step">
       <h2><i>1</i>Year</h2>
       <div class="stepbody">
@@ -684,13 +714,14 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
         <div class="links">
           <button class="link" type="button" id="surprise">Surprise me</button>
           <button class="link" type="button" id="mixAll">Mix every topic shown</button>
-          <span class="hint">Pick several topics to mix them on one sheet.</span>
+          <label class="switch"><input type="checkbox" id="multi"> <span>Select several topics</span></label>
         </div>
         <div class="line">
           <span class="k">Mix types</span>
           <select id="extra1" aria-label="Second type of problem"></select>
           <select id="extra2" aria-label="Third type of problem"></select>
           <button class="link" type="button" id="mix3">Mix 3 types for me</button>
+          <button class="link" type="button" id="mixClear" hidden>Clear</button>
         </div>
         <span class="hint">Add a second and third type of problem, from any strand, to the same sheet.</span>
         <ul class="objs" id="objs"></ul>
@@ -702,12 +733,20 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
         <div class="line"><span class="k">Questions</span><div class="seg" id="count"></div></div>
         <div class="line">
           <span class="k">Copies</span>
-          <div class="seg" id="versions"><button type="button" data-v="1">1</button><button type="button" data-v="5">5</button><button type="button" data-v="10">10</button><button type="button" data-v="20">20</button></div>
+          <div class="seg" id="versions"><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="5">5</button><button type="button" data-v="10">10</button><button type="button" data-v="20">20</button><button type="button" data-v="30">30</button></div>
           <span class="hint">each copy has different numbers</span>
         </div>
         <div class="line">
           <span class="k">Working out</span>
           <label class="switch"><input type="checkbox" id="work"> <span>Add squared-paper working space to each question</span></label>
+        </div>
+        <div class="line" id="orderRow">
+          <span class="k">Question order</span>
+          <div class="seg" id="order"><button type="button" data-v="0">Shuffled</button><button type="button" data-v="1">Grouped by type</button></div>
+        </div>
+        <div class="line">
+          <span class="k">Answers</span>
+          <label class="switch"><input type="checkbox" id="keyIn"> <span>Put the answer key at the end of the worksheet PDF</span></label>
         </div>
       </div>
     </div>
@@ -719,6 +758,11 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
           <label for="minutes">Time limit</label>
           <select id="minutes"><option value="0">None (stopwatch)</option><option value="3">3 minutes</option><option value="5">5 minutes</option><option value="8">8 minutes</option><option value="10">10 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option></select>
         </div>
+        <div class="field wide">
+          <label for="note">Instructions for pupils</label>
+          <input type="text" id="note" maxlength="110" placeholder="e.g. Show your working. No calculators.">
+        </div>
+        <div class="field wide"><label class="switch"><input type="checkbox" id="nameLine"> <span>Print the name, date and score line</span></label></div>
         <div class="field wide">
           <label for="tip">Strategy tip at the bottom</label>
           <input type="text" id="tip" maxlength="140">
@@ -735,6 +779,7 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
     </details>
   </section>
 
+  <div class="preview">
   <div class="toolbar">
     <div class="tabs" role="tablist" aria-label="View">
       <button type="button" role="tab" data-mode="sheet" aria-selected="true">Worksheet</button>
@@ -742,7 +787,7 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
       <button type="button" role="tab" data-mode="practice" aria-selected="false">Do it on screen</button>
     </div>
     <div class="saves">
-      <button class="btn" type="button" id="dlSheets"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg>Download worksheets</button>
+      <button class="btn" type="button" id="dlSheets"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg><span id="dlLabel">Download worksheets</span></button>
       <button class="btn redpen" type="button" id="dlKey"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg>Answer key</button>
     </div>
   </div>
@@ -758,6 +803,7 @@ input[type="text"]:focus, select:focus { border-color: var(--accent); outline: n
     <label class="switch"><input type="checkbox" id="peek"> <span>Show answers</span></label>
   </div>
   <article class="paper" id="paper"></article>
+  </div>
 </div>
 </main>
 <div class="result" id="result" hidden><span>Score</span><b id="resScore">0 / 0</b><span id="resPct"></span></div>
@@ -1406,7 +1452,7 @@ window.addEventListener("DOMContentLoaded", function () {
   }
 
   /* ---------- state ---------- */
-  const DEFAULTS = { year: 2, strand: "as", term: "all", pick: {}, count: 0, versions: 5, minutes: 0, paper: "a4", titleCustom: "", tipCustom: "", showTip: true, showObj: true, work: false, extra: {}, seed: 1 + Math.floor(Math.random() * 9999) };
+  const DEFAULTS = { year: 2, strand: "as", term: "all", pick: {}, count: 0, versions: 5, minutes: 0, paper: "a4", titleCustom: "", tipCustom: "", showTip: true, showObj: true, work: false, group: false, multi: false, keyIn: false, nameLine: true, note: "", extra: {}, seed: 1 + Math.floor(Math.random() * 9999) };
   let S = load(), sets = [], mode = "sheet", vIndex = 0;
   function load() { let s = null; try { s = JSON.parse(localStorage.getItem("tt-maths-maker") || "null"); } catch (e) { } return Object.assign({}, DEFAULTS, s || {}, { pick: Object.assign({}, (s && s.pick) || {}), extra: Object.assign({}, (s && s.extra) || {}) }); }
   function save() { try { localStorage.setItem("tt-maths-maker", JSON.stringify(S)); } catch (e) { } }
@@ -1444,8 +1490,8 @@ window.addEventListener("DOMContentLoaded", function () {
   const sig = q => JSON.stringify([q.p, q.eq, q.ans, q.pic ? q.pic.s(false).length + ":" + q.pic.s(false).slice(0, 400) : 0]);
   function genSheet(vi) {
     const r = makeR(mulberry32((S.seed * 1009 + vi * 7919) >>> 0)), sk = selected(), L = layout(), n = S.count || L.counts[1] || L.counts[0], seen = new Set();
-    let plan = []; for (let i = 0; i < n; i++) plan.push(sk[i % sk.length]);
-    if (sk.length > 1) plan = r.shuffle(plan);
+    let plan = []; for (let i = 0; i < n; i++) plan.push(S.group ? sk[Math.min(sk.length - 1, Math.floor(i * sk.length / n))] : sk[i % sk.length]);
+    if (sk.length > 1 && !S.group) plan = r.shuffle(plan);
     const items = plan.map(s => {
       let q;
       for (let t = 0; t < 40; t++) { q = norm(s.gen(r)); const g = sig(q); if (!seen.has(g)) { seen.add(g); break; } }
@@ -1474,9 +1520,9 @@ window.addEventListener("DOMContentLoaded", function () {
   const footLeft = () => [S.minutes > 0 ? S.minutes + " minutes" : "", S.count + " questions"].filter(Boolean).join(" · ");
 
   /* ---------- sheet code ---------- */
-  function makeCode() { const m = mainSel(), ids = m.map(s => s.idx.toString(36).toUpperCase()), ex = extras().filter(e => !m.includes(e)).map(e => "_" + e.s.toUpperCase() + "." + e.idx.toString(36).toUpperCase()).join(""); return "Y" + S.year + "-" + S.strand.toUpperCase() + "-" + ids.join(".") + ex + "-N" + S.count + "-" + S.seed; }
+  function makeCode() { const m = mainSel(), ids = m.map(s => s.idx.toString(36).toUpperCase()), ex = extras().filter(e => !m.includes(e)).map(e => "_" + e.s.toUpperCase() + "." + e.idx.toString(36).toUpperCase()).join(""); return "Y" + S.year + "-" + S.strand.toUpperCase() + "-" + ids.join(".") + ex + "-N" + S.count + "-" + S.seed + (S.work || S.group ? "-" + (S.work ? "W" : "") + (S.group ? "G" : "") : ""); }
   function parseCode(str) {
-    const m = str.toUpperCase().replace(/\s/g, "").match(/^Y([0-6])-([A-Z]+)-([0-9A-Z.]+)((?:_[A-Z]+\.[0-9A-Z]+)*)-N(\d+)-(\d+)$/);
+    const m = str.toUpperCase().replace(/\s/g, "").match(/^Y([0-6])-([A-Z]+)-([0-9A-Z.]+)((?:_[A-Z]+\.[0-9A-Z]+)*)-N(\d+)-(\d+)(?:-([WG]+))?$/);
     if (!m) return null;
     const y = +m[1], s = m[2].toLowerCase(), k = y + "-" + s;
     if (!BYKEY[k]) return null;
@@ -1484,7 +1530,7 @@ window.addEventListener("DOMContentLoaded", function () {
     if (ids.some(i => !BYKEY[k][i])) return null;
     const extra = (m[4] ? m[4].slice(1).split("_") : []).map(x => { const [es, ei] = x.split("."); return es.toLowerCase() + ":" + parseInt(ei, 36); });
     if (extra.some(v => { const [es, ei] = v.split(":"); return !(BYKEY[y + "-" + es] || [])[+ei]; })) return null;
-    return { year: y, strand: s, ids, extra, count: +m[5], seed: +m[6] };
+    return { year: y, strand: s, ids, extra, count: +m[5], seed: +m[6], work: /W/.test(m[7] || ""), group: /G/.test(m[7] || "") };
   }
 
   /* ---------- screen rendering ---------- */
@@ -1526,8 +1572,10 @@ window.addEventListener("DOMContentLoaded", function () {
     if (vt) h += '<div class="tag">' + esc(vt) + '</div>';
     h += '</div></div><p class="psub">' + esc(subtitle()) + '</p>';
     const ob = objText(); if (ob) h += '<p class="pobj">' + esc(ob) + '</p>';
+    if ((S.note || "").trim()) h += '<p class="pnote">' + esc(S.note.trim()) + '</p>';
+    if (S.nameLine === false) h += '<div class="namebar" style="padding:0"></div>'; else
     h += '<div class="namebar"><span>Name <i></i></span><span>Date <i style="width:6em"></i></span><span>Score <i style="width:3em"></i> / ' + set.items.length + '</span>' + (S.minutes > 0 ? '<span>Finish time <i style="width:4em"></i></span>' : '') + '</div>';
-    const narrow = window.innerWidth < 600;
+    const narrow = (paper.clientWidth || window.innerWidth) < 560;
     if (L.lay === "fact") {
       const len = Math.max(...set.items.map(q => (q.eq || []).reduce((a, t) => a + (typeof t === "object" ? (t.f ? 2 : String(t.b).length + 2) : String(t).length + 1), 0)));
       let cols = Math.max(1, Math.min(L.cols, Math.floor(56 / (len + 6)) || 1, Math.ceil(set.items.length / 8)));
@@ -1611,7 +1659,8 @@ window.addEventListener("DOMContentLoaded", function () {
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
     });
   }
-  async function buildPdf(withAnswers, onProgress) {
+  async function buildPdf(withAnswers, onProgress, both) {
+    const passes = both ? [false, true] : [!!withAnswers];
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: S.paper, orientation: "portrait", compress: true });
     const W = doc.internal.pageSize.getWidth(), Hp = doc.internal.pageSize.getHeight(), M = 14, CW = W - 2 * M;
@@ -1619,7 +1668,7 @@ window.addEventListener("DOMContentLoaded", function () {
     const code = makeCode(), tipText = tip(), L = layout(), ob = objText();
     // rasterise pictures up front
     const imgs = new Map(), jobs = [];
-    sets.forEach(set => set.items.forEach(q => { if (q.pic) { const s = q.pic.s(withAnswers); if (!imgs.has(s)) { imgs.set(s, null); jobs.push([s, q.pic]); } } }));
+    passes.forEach(wa => sets.forEach(set => set.items.forEach(q => { if (q.pic) { const s = q.pic.s(wa); if (!imgs.has(s)) { imgs.set(s, null); jobs.push([s, q.pic]); } } })));
     let done = 0;
     for (const [s, p] of jobs) { imgs.set(s, await rasterize(s, p.w, p.h, Math.min(8, 1400 / Math.max(p.w, p.h)))); done++; if (onProgress && done % 8 === 0) { onProgress(done / jobs.length); await new Promise(r => setTimeout(r, 0)); } }
 
@@ -1673,8 +1722,8 @@ window.addEventListener("DOMContentLoaded", function () {
     const eqW = (eq, fs, minB) => eq.reduce((a, t) => a + tokW(t, fs, minB) + tw(" ", fs) * 0.9, 0);
     const hasFrac = eq => (eq || []).some(t => t && t.f);
 
-    sets.forEach((set, vi) => {
-      if (vi) doc.addPage();
+    passes.forEach((wa, pi) => { withAnswers = wa; sets.forEach((set, vi) => {
+      if (vi || pi) doc.addPage();
       let y = M + 6;
       doc.setTextColor(...INK); setFont(19, true);
       doc.text(pdfText(title()), M, y, { maxWidth: CW * 0.68 });
@@ -1683,9 +1732,11 @@ window.addEventListener("DOMContentLoaded", function () {
       if (rightTag) { if (withAnswers) doc.setTextColor(...RED); doc.text(rightTag, W - M, y - 1, { align: "right" }); doc.setTextColor(...INK); }
       y += 6.5; setFont(10); doc.setTextColor(...MUTED); doc.text(pdfText(subtitle()), M, y);
       if (ob) { setFont(8.5); doc.setFont("helvetica", "italic"); const ls = doc.splitTextToSize(pdfText(ob), CW).slice(0, 3); y += 4.6; doc.text(ls, M, y); y += (ls.length - 1) * 3.7; }
+      const nt = (S.note || "").trim(); if (nt && !withAnswers) { y += 5.2; setFont(9.5, true); doc.setTextColor(...INK); doc.text(pdfText(nt), M, y, { maxWidth: CW }); }
       y += 8;
       setFont(10); doc.setTextColor(...MUTED);
-      if (!withAnswers) {
+      if (!withAnswers && S.nameLine === false) { y -= 4; }
+      else if (!withAnswers) {
         doc.setDrawColor(...MUTED); doc.setLineWidth(0.25);
         const nameEnd = M + CW * 0.48; doc.text("Name", M, y); doc.line(M + 11, y + 0.8, nameEnd, y + 0.8);
         const dx = nameEnd + 5, dEnd = M + CW * 0.73; doc.text("Date", dx, y); doc.line(dx + 9, y + 0.8, dEnd, y + 0.8);
@@ -1757,8 +1808,8 @@ window.addEventListener("DOMContentLoaded", function () {
         setFont(8.5, true); doc.setTextColor(...INK); doc.text("STRATEGY", M + 3, ty + 5.7); setFont(8.5); doc.text(pdfText(tipText), M + 21, ty + 5.7, { maxWidth: CW - 24 });
       }
       setFont(8); doc.setTextColor(...MUTED); doc.text(pdfText(footLeft()), M, Hp - M);
-      doc.text("Code " + code + "  ·  page " + (vi + 1) + " / " + sets.length, W - M, Hp - M, { align: "right" });
-    });
+      doc.text("Code " + code + "  ·  page " + (pi * sets.length + vi + 1) + " / " + (sets.length * passes.length), W - M, Hp - M, { align: "right" });
+    }); });
     return doc.output("blob");
   }
   window.__buildPdf = buildPdf;
@@ -1775,11 +1826,12 @@ window.addEventListener("DOMContentLoaded", function () {
     busy = true; $("dlSheets").disabled = $("dlKey").disabled = true;
     st.textContent = "Making the PDF…";
     let blob;
-    try { blob = await buildPdf(withAnswers, p => { st.textContent = "Drawing pictures… " + Math.round(p * 100) + "%"; }); }
+    const both = !withAnswers && !!S.keyIn;
+    try { blob = await buildPdf(withAnswers, p => { st.textContent = "Drawing pictures… " + Math.round(p * 100) + "%"; }, both); }
     catch (e) { st.textContent = "The PDF couldn't be made: " + e.message; st.className = "status err"; busy = false; $("dlSheets").disabled = $("dlKey").disabled = false; return; }
     busy = false; $("dlSheets").disabled = $("dlKey").disabled = false;
-    const filename = slug(yearName(S.year) + " " + title()) + "_" + makeCode().toLowerCase().replace(/\./g, "") + (withAnswers ? "_answer_key" : "") + ".pdf";
-    const pages = sets.length + " page" + (sets.length > 1 ? "s" : "");
+    const filename = slug(yearName(S.year) + " " + title()) + "_" + makeCode().toLowerCase().replace(/\./g, "") + (withAnswers ? "_answer_key" : both ? "_with_answers" : "") + ".pdf";
+    const np = sets.length * (both ? 2 : 1), pages = np + " page" + (np > 1 ? "s" : "") + (both ? ", answer key at the end" : "");
     const dl = await getDownloads();
     if (!dl) {
       const url = URL.createObjectURL(blob), a = document.createElement("a");
@@ -1806,6 +1858,11 @@ window.addEventListener("DOMContentLoaded", function () {
     $("count").innerHTML = L.counts.map(c => '<button type="button" data-v="' + c + '" aria-pressed="' + (c === S.count) + '">' + c + '</button>').join("");
     press("#versions button", b => +b.dataset.v === S.versions);
     $("minutes").value = S.minutes; $("paperSize").value = S.paper; $("showTip").checked = S.showTip; $("showObj").checked = S.showObj; $("work").checked = !!S.work; fillExtras();
+    $("multi").checked = !!S.multi; $("keyIn").checked = !!S.keyIn; $("nameLine").checked = S.nameLine !== false;
+    if (document.activeElement !== $("note")) $("note").value = S.note || "";
+    press("#order button", b => (b.dataset.v === "1") === !!S.group); $("orderRow").hidden = selected().length < 2;
+    $("mixClear").hidden = !extras().length; $("dlLabel").textContent = S.keyIn ? "Download worksheets + answers" : "Download worksheets"; $("dlKey").hidden = !!S.keyIn;
+    renderSaved();
     if (document.activeElement !== $("title")) $("title").value = S.titleCustom; $("title").placeholder = autoTitle();
     if (document.activeElement !== $("tip")) $("tip").value = S.tipCustom; $("tip").placeholder = autoTip() || "Add a hint for pupils";
     $("codeIn").value = makeCode(); $("codeIn").setCustomValidity("");
@@ -1820,6 +1877,23 @@ window.addEventListener("DOMContentLoaded", function () {
       const el = $(id); el.innerHTML = h; el.value = cur[k] || "";
     });
   }
+  /* ---------- saved sheets, search, reset ---------- */
+  let SAVED = []; try { SAVED = JSON.parse(localStorage.getItem("tt-maths-saved") || "[]") || []; } catch (e) { }
+  const snap = () => JSON.parse(JSON.stringify(S));
+  function applyState(s) { S = Object.assign({}, DEFAULTS, s, { pick: Object.assign({}, s.pick || {}), extra: Object.assign({}, s.extra || {}) }); vIndex = 0; }
+  function keepSaved() { try { localStorage.setItem("tt-maths-saved", JSON.stringify(SAVED)); } catch (e) { } }
+  function renderSaved() {
+    $("saved").innerHTML = SAVED.length ? SAVED.map((v, i) => '<span class="schip"><button class="tchip" type="button" data-sv="' + i + '" title="' + esc(v.code) + '">' + esc(v.name) + '</button><button class="x" type="button" data-del="' + i + '" aria-label="Remove ' + esc(v.name) + '">×</button></span>').join("") : '<span class="hint">None yet. Save a sheet to bring it back with one click.</span>';
+  }
+  function renderFind() {
+    const box = $("findRes"); let txt = $("find").value.toLowerCase(), yr = null;
+    txt = txt.replace(/\b(?:year\s*|yr\s*|y)([1-6])\b/, (m, d) => { yr = +d; return " "; }).replace(/\breception\b/, () => { yr = 0; return " "; });
+    const words = txt.split(/\s+/).filter(Boolean);
+    if (!words.length && yr === null) { box.hidden = true; box.innerHTML = ""; return; }
+    const hits = SKILLS.filter(s => { if (yr !== null && s.y !== yr) return false; const hay = (yearName(s.y) + " y" + s.y + " " + s.name + " " + (s.title || "") + " " + s.obj + " " + strandLabel(s.y, s.s) + " " + strandShort(s.y, s.s)).toLowerCase(); return words.every(w => hay.includes(w)); });
+    box.hidden = false;
+    box.innerHTML = hits.length ? hits.slice(0, 30).map(s => '<button class="tchip" type="button" data-y="' + s.y + '" data-s="' + s.s + '" data-i="' + s.idx + '" style="--op:var(--s-' + s.s + ')" title="' + esc(s.obj) + '"><small style="margin:0 6px 0 0">' + (s.y === 0 ? "R" : "Y" + s.y) + '</small>' + esc(s.name) + '</button>').join("") + (hits.length > 30 ? '<span class="hint">…and ' + (hits.length - 30) + ' more. Keep typing to narrow it down.</span>' : "") : '<span class="hint">No topic matches that. Try a shorter word.</span>';
+  }
   function update() { try { regenerate(); } catch (e) { console.error(e); sets = []; } syncControls(); renderPreview(); save(); $("status").textContent = ""; }
   const setPick = ids => { S.pick[key()] = ids; };
 
@@ -1827,10 +1901,15 @@ window.addEventListener("DOMContentLoaded", function () {
     const yb = e.target.closest("#years button"); if (yb) { S.year = +yb.dataset.v; S.titleCustom = ""; update(); return; }
     const st = e.target.closest("#strands .optile"); if (st) { S.strand = st.dataset.s; S.titleCustom = ""; update(); return; }
     const tb = e.target.closest("#term button"); if (tb) { S.term = tb.dataset.v; const sh = shown().map(s => s.idx), cur = mainSel().map(s => s.idx).filter(i => sh.includes(i)); setPick(cur.length ? cur : sh.slice(0, 1)); update(); return; }
+    const fr = e.target.closest("#findRes .tchip");
+    if (fr) { S.year = +fr.dataset.y; S.strand = fr.dataset.s; S.term = "all"; setPick([+fr.dataset.i]); S.titleCustom = ""; $("find").value = ""; renderFind(); update(); return; }
+    const del = e.target.closest("#saved .x"); if (del) { SAVED.splice(+del.dataset.del, 1); keepSaved(); renderSaved(); return; }
+    const sv = e.target.closest("#saved .tchip"); if (sv) { applyState(SAVED[+sv.dataset.sv].s); update(); return; }
+    const od = e.target.closest("#order button"); if (od) { S.group = od.dataset.v === "1"; update(); return; }
     const tc = e.target.closest("#topics .tchip");
     if (tc) {
       const i = +tc.dataset.i; let cur = mainSel().map(s => s.idx);
-      if (e.shiftKey || e.metaKey || e.ctrlKey || cur.length > 1 || tc.getAttribute("aria-pressed") === "true") cur = cur.includes(i) ? cur.filter(x => x !== i) : cur.concat(i); else cur = [i];
+      if (S.multi || e.shiftKey || e.metaKey || e.ctrlKey || tc.getAttribute("aria-pressed") === "true") cur = cur.includes(i) ? cur.filter(x => x !== i) : cur.concat(i); else cur = [i];
       if (!cur.length) cur = [i];
       setPick(cur); S.titleCustom = ""; update(); return;
     }
@@ -1839,7 +1918,7 @@ window.addEventListener("DOMContentLoaded", function () {
     if (tab) { mode = tab.dataset.mode; document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b === tab ? "true" : "false")); renderPreview(); return; }
   });
   $("surprise").addEventListener("click", () => { const sh = shown(); if (!sh.length) return; const cur = mainSel().map(s => s.idx); const opts = sh.filter(s => !cur.includes(s.idx)); setPick([(opts.length ? opts : sh)[Math.floor(Math.random() * (opts.length || sh.length))].idx]); S.seed = 1 + Math.floor(Math.random() * 99998); S.titleCustom = ""; update(); });
-  $("mixAll").addEventListener("click", () => { setPick(shown().map(s => s.idx)); S.titleCustom = ""; update(); });
+  $("mixAll").addEventListener("click", () => { S.multi = true; setPick(shown().map(s => s.idx)); S.titleCustom = ""; update(); });
   ["extra1", "extra2"].forEach(id => $(id).addEventListener("change", () => { S.extra[S.year] = [$("extra1").value, $("extra2").value]; S.titleCustom = ""; update(); }));
   $("mix3").addEventListener("click", () => {
     const rp = a => a[Math.floor(Math.random() * a.length)], sh = shown().length ? shown() : pool(); if (!sh.length) return;
@@ -1849,6 +1928,18 @@ window.addEventListener("DOMContentLoaded", function () {
     S.seed = 1 + Math.floor(Math.random() * 99998); S.titleCustom = ""; update();
   });
   $("work").addEventListener("change", e => { S.work = e.target.checked; update(); });
+  $("multi").addEventListener("change", e => { S.multi = e.target.checked; if (!S.multi) setPick(mainSel().slice(0, 1).map(s => s.idx)); update(); });
+  $("keyIn").addEventListener("change", e => { S.keyIn = e.target.checked; update(); });
+  $("nameLine").addEventListener("change", e => { S.nameLine = e.target.checked; update(); });
+  $("note").addEventListener("input", e => { S.note = e.target.value; renderPreview(); save(); });
+  $("mixClear").addEventListener("click", () => { S.extra[S.year] = []; S.titleCustom = ""; update(); });
+  $("find").addEventListener("input", renderFind);
+  $("saveBtn").addEventListener("click", () => {
+    const code = makeCode(), name = (S.year === 0 ? "R" : "Y" + S.year) + " · " + title();
+    SAVED = SAVED.filter(v => v.code !== code); SAVED.unshift({ name, code, s: snap() }); SAVED = SAVED.slice(0, 12);
+    keepSaved(); renderSaved(); $("status").className = "status"; $("status").textContent = "Saved “" + name + "”. Find it under Saved sheets.";
+  });
+  $("resetAll").addEventListener("click", () => { applyState({ seed: 1 + Math.floor(Math.random() * 9999) }); mode = "sheet"; document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.mode === "sheet" ? "true" : "false")); $("find").value = ""; renderFind(); update(); });
   $("minutes").addEventListener("change", e => { S.minutes = +e.target.value; update(); });
   $("paperSize").addEventListener("change", e => { S.paper = e.target.value; save(); });
   $("showTip").addEventListener("change", e => { S.showTip = e.target.checked; update(); });
@@ -1860,7 +1951,7 @@ window.addEventListener("DOMContentLoaded", function () {
   function loadCode() {
     const el = $("codeIn"), c = parseCode(el.value);
     if (!c) { el.setCustomValidity("Use a code like Y3-MD-0.4-N12-4821"); el.reportValidity(); return; }
-    S.year = c.year; S.strand = c.strand; S.term = "all"; S.pick[c.year + "-" + c.strand] = c.ids; S.extra[c.year] = c.extra; S.count = c.count; S.seed = c.seed; S.titleCustom = "";
+    S.year = c.year; S.strand = c.strand; S.term = "all"; S.pick[c.year + "-" + c.strand] = c.ids; S.extra[c.year] = c.extra; S.count = c.count; S.seed = c.seed; S.work = c.work; S.group = c.group; S.multi = c.ids.length > 1; S.titleCustom = "";
     update();
   }
   $("loadBtn").addEventListener("click", loadCode);
