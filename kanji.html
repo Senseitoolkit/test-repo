@@ -138,6 +138,20 @@
   .ex-loading{font-size:12px;color:var(--ink-soft);font-style:italic;padding:2px 0;text-align:center}
   .ex-loading::after{content:"";animation:dots 1.2s steps(4,end) infinite}
 
+  /* ----- RTK order: mnemonic story shown on the answer face next to the meaning ----- */
+  .face{justify-content:safe center}
+  .card-story{align-self:center;width:100%;max-width:430px;margin-top:14px;padding:10px 13px;background:#fffdf7;
+    border:1px solid var(--washi-line);border-radius:11px;font-size:14.5px;line-height:1.55;color:var(--ink);
+    text-align:left;font-weight:500}
+  .card-story .tag{display:block;font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--gold);margin-bottom:3px}
+  .card-story .seed{font-family:var(--ff-jp);color:var(--shu);font-weight:700}
+  .card-story .cs-kw{font-weight:800;color:var(--indigo)}
+  .card-story .cs-extra{display:block;margin-top:6px;font-size:13.5px;color:var(--ink-soft)}
+  .card-story .cs-extra b{color:var(--indigo)}
+  body.rtk-story .card-inner{min-height:420px}
+  body.rtk-story:not(.no-read) .card-inner{min-height:640px}
+
   .nav{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .nav button{flex:1;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);
     color:var(--washi);cursor:pointer;padding:13px;border-radius:12px;font-family:var(--ff-ui);
@@ -405,7 +419,7 @@
         <label for="mystory-text">My story <span id="mystory-saved" style="font-weight:500;letter-spacing:0;text-transform:none"></span></label>
         <textarea id="mystory-text" placeholder="Write a stronger personal image for this kanji&hellip;"></textarea>
       </div>
-      <div class="story-foot">Parts-based hook, plus the memory image or scene from your RTK study guide. Your own story is saved in this browser.</div>
+      <div class="story-foot">Parts-based hook, plus the memory image or scene from your RTK study guide. In RTK order the story also appears on the answer side of the card, with the meaning. Your own story is saved in this browser.</div>
     </div>
   </section>
 
@@ -563,9 +577,23 @@ function rebuildDecks(startK){
 }
 
 /* ---------- learn ---------- */
+const escH=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+// RTK order only: meaning + mnemonic story together, for the answer face of the card
+function cardStoryHTML(r){
+  if(state.sortBy!=="rtk") return "";
+  const c=CONTENT[r.k];
+  const story=(c&&c.m)?c.m.replace(new RegExp(r.k,"g"),`<span class="seed">${r.k}</span>`):mnemFallback(r);
+  let extra="";
+  if(c&&c.c) extra+=`<span class="cs-extra"><b>Memory image:</b> ${escH(c.c)}</span>`;
+  const mine=state.stories[r.k];
+  if(mine&&mine.trim()) extra+=`<span class="cs-extra"><b>My story:</b> ${escH(mine)}</span>`;
+  return `<div class="card-story"><span class="tag">Meaning &amp; mnemonic</span>`
+    +`<span class="seed">${r.k}</span> = <span class="cs-kw">${escH(r.m[0])}</span> \u2014 ${story}${extra}</div>`;
+}
 function renderLearn(){
   const r=state.deck[state.idx];
   $("card").classList.toggle("flipped",state.flipped);
+  document.body.classList.toggle("rtk-story",state.sortBy==="rtk");
   const kb=$("known-btn");
   if(!r){
     const msg=`<div class="empty-msg"><b>済</b>Every kanji in this set is marked known.<br>Pick another set, or turn off \u201cHide known\u201d to review.</div>`;
@@ -582,11 +610,11 @@ function renderLearn(){
   // withReads: readings + example sentences appear ONLY on the answer (back) face
   const kanjiFace=(withReads)=>`<span class="face-tag">${state.sortBy==="rtk"?"RTK #"+r.r:"漢字 No."+(posOf(r)+1)}</span><span class="${pillCls}">${setLabel}</span>`
     +`<span class="kanji-big">${r.k}</span>`
-    +(withReads?`<div class="reads-front">${readsHTML(r,true)}</div>`:"")
+    +(withReads?cardStoryHTML(r)+`<div class="reads-front">${readsHTML(r,true)}</div>`:"")
     +`<span class="flip-hint">${withReads?"tap to flip back":"tap to reveal"}</span>`;
   const meaningFace=(withReads)=>`<span class="face-tag">Meaning</span><span class="${pillCls}">${setLabel}</span>`
     +`<div style="display:flex;flex-direction:column;align-items:center">`
-    +kwHTML(r)+(withReads?readsHTML(r,true)+metaHTML(r):"")+`</div>`
+    +kwHTML(r)+(withReads?cardStoryHTML(r)+readsHTML(r,true)+metaHTML(r):"")+`</div>`
     +`<span class="flip-hint">${withReads?"tap to flip back":"tap to reveal"}</span>`;
   const frontIsKanji=state.learnFront==="kanji";
   // front = question (no readings); back = answer (readings + examples)
@@ -791,7 +819,8 @@ $("mystory-text").addEventListener("input",e=>{
   clearTimeout(storyTimer);
   storyTimer=setTimeout(()=>{save();$("mystory-saved").textContent="\u00b7 saved";},400);
 });
-$("mystory-text").addEventListener("blur",()=>{clearTimeout(storyTimer);save();});
+$("mystory-text").addEventListener("blur",()=>{clearTimeout(storyTimer);save();
+  if(state.sortBy==="rtk"&&state.deck.length){renderLearn();}});
 $("hide-toggle").onclick=()=>{state.hideKnown=!state.hideKnown;
   $("hide-toggle").setAttribute("aria-pressed",state.hideKnown);
   const cur=state.deck[state.idx];rebuildDecks(cur&&cur.k);};
