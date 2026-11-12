@@ -89,7 +89,7 @@ button:disabled { opacity: .4; cursor: default; }
 #bClear { color: var(--danger); }
 #bGear { display: none; }
 
-#pal { grid-area: pal; align-self: start; max-height: 100%; overflow-y: auto; padding: 10px; width: 164px; scrollbar-width: thin; }
+#pal { grid-area: pal; align-self: start; max-height: 100%; overflow-y: auto; padding: 10px; width: 186px; box-sizing: border-box; scrollbar-width: thin; }
 #pal h2, #side h2 {
   font-family: var(--body); font-weight: 700; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
   color: var(--muted); margin: 0 0 6px 2px;
@@ -105,7 +105,7 @@ button:disabled { opacity: .4; cursor: default; }
 .part:hover { box-shadow: inset 0 0 0 2px var(--select); }
 #app.playing #pal { opacity: .45; pointer-events: none; }
 
-#side { grid-area: side; align-self: start; max-height: 100%; overflow-y: auto; width: 214px; padding: 12px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; }
+#side { grid-area: side; align-self: start; max-height: 100%; overflow-y: auto; width: 240px; box-sizing: border-box; padding: 12px; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin; }
 #side section { display: flex; flex-direction: column; gap: 10px; }
 #piece { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 #pName { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 0; }
@@ -145,6 +145,7 @@ details ul { margin: 8px 0 0; padding-left: 16px; color: var(--muted); font-size
   box-shadow: 0 2px 8px rgba(0, 0, 0, .3); font-size: 16px; line-height: 1; font-weight: 700;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
+.h.row { background: var(--accent); color: var(--accent-ink); border-color: var(--panel); font-size: 20px; }
 .h.size { width: 22px; height: 22px; margin: -11px 0 0 -11px; background: var(--select); border-color: var(--panel); }
 .h.size::after { content: ""; position: absolute; inset: -9px; }
 @media (pointer: coarse) {
@@ -223,10 +224,10 @@ details ul { margin: 8px 0 0; padding-left: 16px; color: var(--muted); font-size
         <div class="row">
           <button class="btn" id="pRot" title="Turn a quarter (R)"><span class="g" aria-hidden="true">⟳</span><span class="t">Turn</span></button>
           <button class="btn" id="pTip" title="Tip onto its side (T)"><span class="g" aria-hidden="true">⤵</span><span class="t">Tip</span></button>
-          <button class="btn" id="pDup" title="Duplicate (Ctrl+D). Keep pressing to continue the row."><span class="g" aria-hidden="true">⧉</span><span class="t">Copy</span></button>
+          <button class="btn" id="pDup" title="Copy (Ctrl+D). Keep pressing to continue the row, or drag the + handle."><span class="g" aria-hidden="true">⧉</span><span class="t">Copy</span></button>
           <button class="btn del" id="pDel" title="Delete (Del, or double-click the piece)"><span class="g" aria-hidden="true">✕</span><span class="t">Delete</span></button>
         </div>
-        <p class="hint">Drag the blue dots to resize, ↕ to lift, ⟳ to turn.</p>
+        <p class="hint">Drag + to lay a row of copies. Blue dots resize, ↕ lifts, ⟳ turns.</p>
       </section>
 
       <section id="world">
@@ -241,7 +242,8 @@ details ul { margin: 8px 0 0; padding-left: 16px; color: var(--muted); font-size
           </div>
         </div>
         <label class="check"><input type="checkbox" id="cAnchor" checked> Keep buildings standing</label>
-        <p class="hint" id="anchorHint">Building pieces stay put in Play. Balls, dominoes, crates and barrels move.</p>
+        <p class="hint" id="anchorHint">Building pieces stay put in Play. Everything under Moving pieces moves.</p>
+        <label class="check"><input type="checkbox" id="cSlow"> Slow motion</label>
         <div class="field"><span>View</span>
           <div class="seg" id="segView" role="group" aria-label="Camera view">
             <button data-v="top">Top</button><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="iso">Corner</button>
@@ -252,7 +254,9 @@ details ul { margin: 8px 0 0; padding-left: 16px; color: var(--muted); font-size
           <ul>
             <li>Drag a part onto the mat to add it</li>
             <li>Drag a piece to move it</li>
+            <li>Drag the + beside a piece to lay a row of copies facing the same way</li>
             <li>Double-click or double-tap a piece to delete it</li>
+            <li>In Play: drag a loose piece to throw it, tap to flick it</li>
             <li>Drag empty space to look around</li>
             <li>Two fingers: move together to slide the view, twist to spin, spread to zoom out, close to zoom in</li>
             <li>Mouse: right-drag looks around, middle-drag slides the view, scroll zooms</li>
@@ -294,6 +298,19 @@ const PARTS = {
   domino: { name: 'Domino',      shape: 'box',    size: [0.2, 1, 0.5],  color: '#ece7da', group: 'Moving', loose: true },
   crate:  { name: 'Crate',       shape: 'box',    size: [1, 1, 1],      color: '#c99a5b', group: 'Moving', loose: true },
   barrel: { name: 'Barrel',      shape: 'cyl',    size: [1, 1.25, 1],   color: '#d8402f', group: 'Moving', loose: true, tip: true },
+  wheel:  { name: 'Wheel',       shape: 'cyl',    size: [1.5, 0.3, 1.5], color: '#3b3f4a', group: 'Moving', loose: true, tip: true },
+  log:    { name: 'Log',         shape: 'cyl',    size: [0.6, 3, 0.6],  color: '#c99a5b', group: 'Moving', loose: true, tip: true },
+  beach:  { name: 'Beach ball',  shape: 'sphere', size: [1.5, 1.5, 1.5], color: '#f0b429', group: 'Moving', loose: true, density: 0.15, rest: 0.8 },
+  brick:  { name: 'Brick',       shape: 'box',    size: [1, 0.5, 0.5],  color: '#d8402f', group: 'Moving', loose: true },
+  beam:   { name: 'Beam',        shape: 'box',    size: [3, 0.25, 0.5], color: '#c99a5b', group: 'Moving', loose: true },
+  wedge:  { name: 'Wedge',       shape: 'wedge',  size: [1.5, 1, 1],    color: '#2e9e6b', group: 'Moving', loose: true },
+  cone:   { name: 'Cone',        shape: 'cone',   size: [1, 1.5, 1],    color: '#f0b429', group: 'Moving', loose: true },
+  arch:   { name: 'Arch',        shape: 'multi',  size: [3, 2, 1],      color: '#2f6fd0', group: 'Moving', loose: true,
+            boxes: [{ c: [-0.375, -0.125, 0], s: [0.25, 0.75, 1] }, { c: [0.375, -0.125, 0], s: [0.25, 0.75, 1] }, { c: [0, 0.375, 0], s: [1, 0.25, 1] }] },
+  elbow:  { name: 'L-block',     shape: 'multi',  size: [2, 2, 1],      color: '#e667a0', group: 'Moving', loose: true,
+            boxes: [{ c: [0, -0.25, 0], s: [1, 0.5, 1] }, { c: [-0.25, 0.25, 0], s: [0.5, 0.5, 1] }] },
+  tee:    { name: 'T-block',     shape: 'multi',  size: [3, 2, 1],      color: '#3aa7b5', group: 'Moving', loose: true,
+            boxes: [{ c: [0, 0.25, 0], s: [1, 0.5, 1] }, { c: [0, -0.25, 0], s: [1 / 3, 0.5, 1] }] },
 };
 const COLORS = ['#d8402f', '#f0b429', '#2e9e6b', '#3aa7b5', '#2f6fd0', '#e667a0', '#c99a5b', '#ece7da', '#3b3f4a'];
 const COLOR_NAMES = ['Red', 'Yellow', 'Green', 'Teal', 'Blue', 'Pink', 'Wood', 'Ivory', 'Iron'];
@@ -376,7 +393,19 @@ function wedgeGeometry() {
   g.computeVertexNormals();
   return g;
 }
+function multiGeometry(boxes) {   // several boxes fused into one piece, in a 1 x 1 x 1 frame
+  const pos = [], nor = [];
+  for (const b of boxes) {
+    const g = new THREE.BoxGeometry(b.s[0], b.s[1], b.s[2]).translate(b.c[0], b.c[1], b.c[2]).toNonIndexed();
+    pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array); g.dispose();
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  return g;
+}
 const GEO = {
+  cone: new THREE.ConeGeometry(0.5, 1, 28),
   box: new THREE.BoxGeometry(1, 1, 1),
   sphere: new THREE.SphereGeometry(0.5, 28, 18),
   cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 28),
@@ -386,8 +415,16 @@ const EDGE = {
   box: new THREE.EdgesGeometry(GEO.box),
   sphere: new THREE.EdgesGeometry(GEO.box),
   cyl: new THREE.EdgesGeometry(GEO.cyl, 30),
+  cone: new THREE.EdgesGeometry(GEO.cone, 30),
   wedge: new THREE.EdgesGeometry(GEO.wedge),
 };
+for (const type in PARTS) {
+  if (PARTS[type].shape !== 'multi') continue;
+  GEO[type] = multiGeometry(PARTS[type].boxes); EDGE[type] = new THREE.EdgesGeometry(GEO[type]);
+}
+const geoOf = (type) => GEO[type] || GEO[PARTS[type].shape];
+const edgeOf = (type) => EDGE[type] || EDGE[PARTS[type].shape];
+const isRound = (sh) => sh === 'cyl' || sh === 'cone';
 const selMat = new THREE.LineBasicMaterial({ color: 0x1463ff, depthTest: false, transparent: true });
 const selLines = new THREE.LineSegments(EDGE.box, selMat);
 selLines.renderOrder = 10; selLines.scale.setScalar(1.02);
@@ -409,7 +446,7 @@ function makeObj(type, over) {
 }
 function buildMesh(o) {
   const shape = PARTS[o.type].shape;
-  const m = new THREE.Mesh(GEO[shape], new THREE.MeshStandardMaterial({
+  const m = new THREE.Mesh(geoOf(o.type), new THREE.MeshStandardMaterial({
     color: o.color, roughness: shape === 'sphere' ? 0.35 : 0.7, metalness: o.type === 'heavy' ? 0.5 : 0,
   }));
   m.castShadow = true; m.receiveShadow = true; m.userData.obj = o;
@@ -438,17 +475,30 @@ function box(o) { const h = halfExt(o); return { min: o.pos.clone().sub(h), max:
 function overlaps(a, b, e) {
   return a.min.x + e < b.max.x && a.max.x - e > b.min.x && a.min.y + e < b.max.y && a.max.y - e > b.min.y && a.min.z + e < b.max.z && a.max.z - e > b.min.z;
 }
-// Lift a piece until it no longer sits inside another one.
+// Ramps count as four stair steps, so pieces rest on the slope instead of floating at its top.
+const STAIRS = [0, 1, 2, 3].map((k) => ({ c: [k / 8, -0.5 + (k + 0.5) / 4, 0], s: [1 - k / 4, 0.25, 1] }));
+// The solid parts of a piece as world boxes (an arch is two legs and a top, not one big block).
+function partBoxes(o) {
+  const d = PARTS[o.type], list = d.shape === 'multi' ? d.boxes : d.shape === 'wedge' ? STAIRS : null;
+  if (!list) return [box(o)];
+  const e = _m.makeRotationFromQuaternion(o.quat).elements, a = Math.abs, s = o.size;
+  return list.map((b) => {
+    const c = new V3(b.c[0] * s.x, b.c[1] * s.y, b.c[2] * s.z).applyQuaternion(o.quat).add(o.pos);
+    const x = b.s[0] * s.x, y = b.s[1] * s.y, z = b.s[2] * s.z;
+    const h = new V3((a(e[0]) * x + a(e[4]) * y + a(e[8]) * z) / 2, (a(e[1]) * x + a(e[5]) * y + a(e[9]) * z) / 2, (a(e[2]) * x + a(e[6]) * y + a(e[10]) * z) / 2);
+    return { min: c.clone().sub(h), max: c.clone().add(h) };
+  });
+}
+// Lift a piece to the lowest spot where it no longer sits inside another one.
 function raise(o, skip) {
-  const h = halfExt(o);
-  for (let i = 0; i < 40; i++) {
-    let moved = false; const a = box(o);
+  for (let i = 0; i < 80; i++) {
+    const whole = box(o), A = partBoxes(o); let up = Infinity;
     for (const t of objects) {
-      if (t === o || t === skip) continue;
-      const b = box(t);
-      if (overlaps(a, b, 0.02)) { o.pos.y = b.max.y + h.y; moved = true; break; }
+      if (t === o || t === skip || !overlaps(whole, box(t), 0.02)) continue;
+      for (const b of partBoxes(t)) for (const a of A) if (overlaps(a, b, 0.02)) up = Math.min(up, b.max.y - a.min.y);
     }
-    if (!moved) break;
+    if (up === Infinity) break;
+    o.pos.y += up;
   }
 }
 function keepInBounds(o) {
@@ -567,7 +617,7 @@ function select(o) {
   if (selected === o) return;
   if (selLines.parent) selLines.parent.remove(selLines);
   selected = o;
-  if (o) { selLines.geometry = EDGE[PARTS[o.type].shape]; o.mesh.add(selLines); }
+  if (o) { selLines.geometry = edgeOf(o.type); o.mesh.add(selLines); }
   refreshUI();
 }
 function byId(id) { return objects.find((o) => o.id === id) || null; }
@@ -613,12 +663,29 @@ function rotateSel(axis, angle) {
   o.quat.premultiply(new Q().setFromAxisAngle(axis, angle)).normalize();
   o.pos.y = bottom + halfExt(o).y; keepInBounds(o); syncMesh(o); commit();
 }
+// The level directions a piece can be repeated along, each with the spacing between copies.
+// Copies sit flush, except upright dominoes, which are spaced so that they knock each other over.
+function rowAxes(o) {
+  const sh = PARTS[o.type].shape, out = [];
+  if (sh === 'sphere') return [{ d: new V3(1, 0, 0), step: o.size.x }, { d: new V3(0, 0, 1), step: o.size.x }];
+  const upright = Math.abs(AX[1].clone().applyQuaternion(o.quat).y) > 0.9;
+  for (let i = 0; i < 3; i++) {
+    const d = AX[i].clone().applyQuaternion(o.quat);
+    if (Math.abs(d.y) > 0.5) continue;
+    d.y = 0; d.normalize();
+    let step = (isRound(sh) && i === 2) ? o.size.x : o.size.getComponent(i);
+    if (o.type === 'domino' && i === 0 && upright) step = Math.max(0.6 * o.size.y, o.size.x * 2);
+    out.push({ d, step });
+  }
+  return out.length ? out : [{ d: new V3(1, 0, 0), step: halfExt(o).x * 2 }];
+}
+function cloneOf(s) { return makeObj(s.type, Object.assign(ser(s), { id: nextId++ })); }
 function duplicate() {
   const s = selected; if (!s || mode !== 'build') return;
   const src = byId(s.dupFrom), off = new V3();
   if (src) off.subVectors(s.pos, src.pos);
-  if (off.length() < 0.05) off.set(halfExt(s).x * 2, 0, 0);
-  const n = makeObj(s.type, Object.assign(ser(s), { id: nextId++ }));
+  if (off.length() < 0.05) { const a = rowAxes(s)[0]; off.copy(a.d).multiplyScalar(a.step); }
+  const n = cloneOf(s);
   n.pos.add(off); n.dupFrom = s.id; n.lift = Math.max(0, n.pos.y - halfExt(n).y);
   keepInBounds(n); raise(n); syncMesh(n);
   addObj(n);
@@ -633,7 +700,7 @@ function quickAdd(type) {
 }
 
 /* ================= physics ================= */
-let world = null, bodies = [], simClock = 0, simAcc = 0;
+let world = null, bodies = [], simClock = 0, simAcc = 0, slowMo = false;
 const STEP = 1 / 120;
 function makeBody(o) {
   const d = PARTS[o.type], P = PRESETS[preset], s = o.size;
@@ -648,15 +715,29 @@ function makeBody(o) {
   else if (d.shape === 'wedge') {
     // a slab under the sloped face plus two blocks filling the tall end
     const th = Math.atan2(s.y, s.x), L = Math.hypot(s.x, s.y), t = Math.min(0.3, s.y * 0.6);
-    sc.relativePosition.set(Math.sin(th) * t / 2, -Math.cos(th) * t / 2, 0);
+    const cut = dyn ? Math.min(L * 0.5, t / Math.tan(th)) : 0;   // a loose ramp must not poke below its own base
+    sc.relativePosition.set(Math.sin(th) * t / 2 + Math.cos(th) * cut / 2, -Math.cos(th) * t / 2 + Math.sin(th) * cut / 2, 0);
     sc.relativeRotation.setQuat(new OIMO.Quat(0, 0, Math.sin(th / 2), Math.cos(th / 2)));
-    b.addShape(new OIMO.Box(sc, L, t, s.z));
+    b.addShape(new OIMO.Box(sc, L - cut, t, s.z));
     sc.relativeRotation.setQuat(new OIMO.Quat(0, 0, 0, 1));
     sc.relativePosition.set(s.x / 4, -s.y / 4, 0); b.addShape(new OIMO.Box(sc, s.x / 2, s.y / 2, s.z));
     sc.relativePosition.set(s.x * 0.375, -s.y * 0.125, 0); b.addShape(new OIMO.Box(sc, s.x / 4, s.y * 0.75, s.z));
   }
+  else if (d.shape === 'cone') {
+    const n = 4;   // a stack of shrinking discs
+    for (let k = 0; k < n; k++) {
+      sc.relativePosition.set(0, -s.y / 2 + (k + 0.5) * s.y / n, 0);
+      b.addShape(new OIMO.Cylinder(sc, (s.x / 2) * (1 - (k + 0.5) / n), s.y / n));
+    }
+  }
+  else if (d.shape === 'multi') {
+    for (const x of d.boxes) {
+      sc.relativePosition.set(x.c[0] * s.x, x.c[1] * s.y, x.c[2] * s.z);
+      b.addShape(new OIMO.Box(sc, x.s[0] * s.x, x.s[1] * s.y, x.s[2] * s.z));
+    }
+  }
   else b.addShape(new OIMO.Box(sc, s.x, s.y, s.z));
-  b.setupMass(dyn ? OIMO.BODY_DYNAMIC : OIMO.BODY_STATIC, d.shape !== 'wedge');
+  b.setupMass(dyn ? OIMO.BODY_DYNAMIC : OIMO.BODY_STATIC, d.shape === 'box' || d.shape === 'sphere' || d.shape === 'cyl');
   return { o, b, dyn };
 }
 function startPlay() {
@@ -670,7 +751,7 @@ function startPlay() {
   bodies = objects.map((o) => { const e = makeBody(o); world.addRigidBody(e.b); return e; });
   mode = 'play'; simClock = performance.now(); simAcc = 0;
   refreshUI();
-  status(bodies.some((x) => x.dyn) ? 'Playing. Tap a loose piece to flick it.' : 'Nothing here can move yet. Add a ball, or turn off "Keep buildings standing".');
+  status(bodies.some((x) => x.dyn) ? 'Playing. Drag a loose piece to throw it, or tap to flick it.' : 'Nothing here can move yet. Add a ball, or turn off "Keep buildings standing".');
 }
 function stopPlay() {
   if (mode !== 'play') return;
@@ -678,9 +759,21 @@ function stopPlay() {
   objects.forEach(syncMesh);   // every piece returns to where it was before Play
   hideStatus(); refreshUI();
 }
+const _gt = new V3();
+function pullGrabbed() {   // a held piece chases the pointer; letting go throws it
+  const g = gest; if (!g || g.type !== 'grab' || !g.moved) return;
+  setRay(g.x, g.y); if (!ray.ray.intersectPlane(g.plane, _gt)) return;
+  const b = g.e.b, v = b.linearVelocity;
+  _gt.sub(g.off); _gt.y = Math.max(_gt.y, 0.3);
+  _gt.set(_gt.x - b.position.x, _gt.y - b.position.y, _gt.z - b.position.z).multiplyScalar(12);
+  if (_gt.length() > 30) _gt.setLength(30);
+  b.awake(); v.x = _gt.x; v.y = _gt.y; v.z = _gt.z;
+  b.angularVelocity.x *= 0.9; b.angularVelocity.y *= 0.9; b.angularVelocity.z *= 0.9;
+}
 function stepPhysics(now) {
   const P = PRESETS[preset];
-  simAcc += Math.min(0.05, (now - simClock) / 1000); simClock = now;
+  pullGrabbed();
+  simAcc += Math.min(0.05, (now - simClock) / 1000) * (slowMo ? 0.3 : 1); simClock = now;
   const kl = 1 - P.lin * STEP, ka = 1 - P.ang * STEP;
   let n = 0;
   while (simAcc >= STEP && n++ < 8) {
@@ -731,7 +824,17 @@ canvas.addEventListener('pointerdown', (e) => {
   if (e.button === 2) { gest = { type: 'orbit', x: p.x, y: p.y, moved: true }; return; }
   if (e.button === 1) { gest = { type: 'pan', x: p.x, y: p.y }; return; }
   const hit = pick(p.x, p.y), o = hit ? hit.object.userData.obj : null;
-  if (mode === 'play') { gest = { type: 'orbit', x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false, flick: o }; return; }
+  if (mode === 'play') {
+    const e2 = o && bodies.find((x) => x.o === o && x.dyn);
+    if (e2) {
+      const n = new V3(); camera.getWorldDirection(n);
+      gest = { type: 'grab', e: e2, x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false,
+        plane: new THREE.Plane().setFromNormalAndCoplanarPoint(n, hit.point),
+        off: hit.point.clone().sub(new V3(e2.b.position.x, e2.b.position.y, e2.b.position.z)) };
+    }
+    else gest = { type: 'orbit', x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false };
+    return;
+  }
   if (o) { select(o); gest = { type: 'pending', o, x: p.x, y: p.y }; }
   else if (e.shiftKey) gest = { type: 'pan', x: p.x, y: p.y };
   else gest = { type: 'orbit', x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false, empty: true };
@@ -759,6 +862,7 @@ canvas.addEventListener('pointermove', (e) => {
     setGhost(o, true); app.classList.add('dragging');
   }
   if (gest.type === 'drag') { if (placeAt(gest.o, p.x + gest.ox, p.y + gest.oy)) gest.movedOnce = true; return; }
+  if (gest.type === 'grab') { gest.x = p.x; gest.y = p.y; if (Math.hypot(p.x - gest.sx, p.y - gest.sy) > 6) gest.moved = true; return; }
   if (gest.type === 'orbit') {
     if (!gest.moved && Math.hypot(p.x - gest.sx, p.y - gest.sy) < 6) return;
     if (!gest.moved) { gest.moved = true; gest.x = p.x; gest.y = p.y; return; }
@@ -785,10 +889,8 @@ function endPointer(e, cancelled) {
     else lastTap = { id: g.o.id, t: now };
     return;
   }
-  if (g.type === 'orbit' && !g.moved) {
-    if (g.flick) flick(g.flick);
-    else if (g.empty) select(null);
-  }
+  if (g.type === 'grab') { if (!g.moved && mode === 'play') flick(g.e.o); return; }
+  if (g.type === 'orbit' && !g.moved && g.empty) select(null);
 }
 canvas.addEventListener('pointerup', (e) => endPointer(e, false));
 canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
@@ -804,6 +906,7 @@ function mkHandle(cls, label, text) {
 const hSize = [mkHandle('size', 'Drag to resize'), mkHandle('size', 'Drag to resize'), mkHandle('size', 'Drag to resize')];
 const hLift = mkHandle('lift', 'Drag up or down to lift', '↕');
 const hRot = mkHandle('rot', 'Drag to turn', '⟳');
+const hRow = mkHandle('row', 'Drag out a row of copies', '+');
 let hDrag = null;
 const AX = [new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1)];
 function axisDir(o, i) {
@@ -812,11 +915,11 @@ function axisDir(o, i) {
   const sign = Math.abs(d.y) > 0.7 ? Math.sign(d.y) : (d.dot(toCam) >= 0 ? 1 : -1);
   return d.multiplyScalar(sign || 1);
 }
-function activeAxes(o) { const sh = PARTS[o.type].shape; return sh === 'sphere' ? [0] : sh === 'cyl' ? [0, 1] : [0, 1, 2]; }
+function activeAxes(o) { const sh = PARTS[o.type].shape; return sh === 'sphere' ? [0] : isRound(sh) ? [0, 1] : [0, 1, 2]; }
 function put(el, x, y) { el.style.transform = 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)'; }
 function updateHandles() {
   const o = selected, show = !!o && mode === 'build' && !(gest && gest.type === 'drag');
-  if (!show) { hSize.forEach((h) => { h.hidden = true; }); hLift.hidden = hRot.hidden = true; return; }
+  if (!show) { hSize.forEach((h) => { h.hidden = true; }); hLift.hidden = hRot.hidden = hRow.hidden = true; return; }
   const c = toScreen(o.pos), axes = activeAxes(o), sh = PARTS[o.type].shape;
   hSize.forEach((h, i) => {
     if (!axes.includes(i) || c.behind) { h.hidden = true; return; }
@@ -833,8 +936,9 @@ function updateHandles() {
     const s = toScreen(new V3(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z));
     x0 = Math.min(x0, s.x); x1 = Math.max(x1, s.x); y1 = Math.max(y1, s.y);
   }
-  hLift.hidden = hRot.hidden = c.behind;
+  hLift.hidden = hRot.hidden = hRow.hidden = c.behind;
   put(hLift, x0 - 30, c.y); put(hRot, (x0 + x1) / 2, y1 + 32);
+  if (hDrag && hDrag.kind === 'row') put(hRow, hDrag.px, hDrag.py); else put(hRow, x1 + 30, c.y);
 }
 function startHandle(e, el, kind) {
   const o = selected; if (!o || mode !== 'build') return;
@@ -843,6 +947,31 @@ function startHandle(e, el, kind) {
   hDrag = { el, kind, id: e.pointerId, x: e.clientX, y: e.clientY, before: ser(o), pos: o.pos.clone(), quat: o.quat.clone(), size: o.size.clone(), changed: false };
   if (kind === 'size') { hDrag.axis = el._axis; hDrag.dir = axisDir(o, el._axis); }
   if (kind === 'rot') hDrag.a0 = angleAt(e, o);
+  if (kind === 'row') { hDrag.axes = rowAxes(o); hDrag.copies = []; const p = local(e); hDrag.px = p.x; hDrag.py = p.y; }
+}
+// Dragging the + handle lays copies in a line from the piece toward the pointer, all facing the same way.
+function moveRow(e, d, o) {
+  const p = local(e); d.px = p.x; d.py = p.y; setRay(p.x, p.y);
+  const pt = new V3(); if (!ray.ray.intersectPlane(new THREE.Plane(UP, -o.pos.y), pt)) return;
+  pt.sub(o.pos);
+  let best = null, along = 0;
+  for (const a of d.axes) { const t = pt.dot(a.d); if (Math.abs(t) > Math.abs(along)) { along = t; best = a; } }
+  if (!best) return;
+  const sign = along < 0 ? -1 : 1, h = halfExt(o);
+  let n = Math.min(60, Math.round(Math.abs(along) / best.step));
+  const at = (k) => o.pos.clone().addScaledVector(best.d, sign * best.step * k);
+  while (n > 0) { const q = at(n); if (Math.abs(q.x) <= BOUND - h.x + 0.01 && Math.abs(q.z) <= BOUND - h.z + 0.01) break; n--; }
+  while (d.copies.length > n) dropMesh(d.copies.pop());
+  while (d.copies.length < n) { const c = cloneOf(o); setGhost(c, true); d.copies.push(c); }
+  d.copies.forEach((c, k) => { c.pos.copy(at(k + 1)); syncMesh(c); });
+}
+function endRow(d, o, cancelled) {
+  if (cancelled) { d.copies.forEach(dropMesh); return; }
+  if (!d.copies.length) { if (Math.hypot(d.px - (d.x - rect.left), d.py - (d.y - rect.top)) < 8) duplicate(); return; }
+  let prev = o;
+  for (const c of d.copies) { setGhost(c, false); c.dupFrom = prev.id; c.lift = Math.max(0, c.pos.y - halfExt(c).y); objects.push(c); raise(c); syncMesh(c); prev = c; }
+  select(prev); commit();
+  status(d.copies.length + (d.copies.length === 1 ? ' copy added' : ' copies added'), true);
 }
 function angleAt(e, o) {
   const p = local(e); setRay(p.x, p.y);
@@ -857,14 +986,15 @@ function alongAxis(e, origin, dir) {   // how far the pointer moved along a worl
 }
 function moveHandle(e) {
   const d = hDrag, o = selected; if (!d || e.pointerId !== d.id || !o) return;
+  if (d.kind === 'row') { moveRow(e, d, o); return; }
   const step = snap === 'off' ? 0.05 : 0.25;
   if (d.kind === 'size') {
     const sh = PARTS[o.type].shape, i = d.axis, start = d.size.getComponent(i);
-    const grow = alongAxis(e, d.pos, d.dir) * (sh === 'sphere' || (sh === 'cyl' && i === 0) ? 2 : 1);
+    const grow = alongAxis(e, d.pos, d.dir) * (sh === 'sphere' || (isRound(sh) && i === 0) ? 2 : 1);
     const v = Math.min(MAX_SIZE, Math.max(MIN_SIZE, snapTo(start + grow, step)));
     o.size.copy(d.size); o.pos.copy(d.pos);
     if (sh === 'sphere') { o.size.set(v, v, v); o.pos.y += (v - start) / 2; }
-    else if (sh === 'cyl' && i === 0) { o.size.x = o.size.z = v; }
+    else if (isRound(sh) && i === 0) { o.size.x = o.size.z = v; }
     else { o.size.setComponent(i, v); o.pos.addScaledVector(d.dir, (v - start) / 2); }
     const low = box(o).min.y; if (low < 0) o.pos.y -= low;
   } else if (d.kind === 'lift') {
@@ -881,11 +1011,12 @@ function moveHandle(e) {
 function endHandle(e, cancelled) {
   const d = hDrag; if (!d || e.pointerId !== d.id) return;
   hDrag = null;
+  if (d.kind === 'row') { if (selected) endRow(d, selected, cancelled); else d.copies.forEach(dropMesh); return; }
   if (!selected) return;
   if (cancelled) { applySer(selected, d.before); syncMesh(selected); }
   else if (d.changed) { keepInBounds(selected); syncMesh(selected); commit(); }
 }
-[[hLift, 'lift'], [hRot, 'rot'], ...hSize.map((h) => [h, 'size'])].forEach(([el, kind]) => {
+[[hLift, 'lift'], [hRot, 'rot'], [hRow, 'row'], ...hSize.map((h) => [h, 'size'])].forEach(([el, kind]) => {
   el.addEventListener('pointerdown', (e) => startHandle(e, el, kind));
   el.addEventListener('pointermove', moveHandle);
   el.addEventListener('pointerup', (e) => endHandle(e, false));
@@ -905,7 +1036,7 @@ function thumbnails() {
     const cm = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
     for (const type in PARTS) {
       const d = PARTS[type];
-      const m = new THREE.Mesh(GEO[d.shape], new THREE.MeshStandardMaterial({ color: d.color, roughness: d.shape === 'sphere' ? 0.35 : 0.7, metalness: type === 'heavy' ? 0.5 : 0 }));
+      const m = new THREE.Mesh(geoOf(type), new THREE.MeshStandardMaterial({ color: d.color, roughness: d.shape === 'sphere' ? 0.35 : 0.7, metalness: type === 'heavy' ? 0.5 : 0 }));
       m.scale.fromArray(d.size); if (d.tip) m.rotation.x = Math.PI / 2;
       sc.add(m);
       const rad = Math.max(0.75, Math.hypot(d.size[0], d.size[1], d.size[2]) / 2), dist = rad / Math.sin(15 * Math.PI / 180) * 1.05;
@@ -999,7 +1130,7 @@ function refreshUI() {
   document.querySelectorAll('#segPhys button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === preset)));
   $('#cAnchor').checked = anchorAll;
   $('#anchorHint').textContent = anchorAll
-    ? 'Building pieces stay put in Play. Balls, dominoes, crates and barrels move.'
+    ? 'Building pieces stay put in Play. Everything under Moving pieces moves.'
     : 'Every piece is loose in Play, so towers can topple.';
 }
 COLORS.forEach((c, i) => {
@@ -1026,6 +1157,7 @@ $('#pDel').addEventListener('click', () => deleteObj(selected, true));
 $('#segSnap').addEventListener('click', (e) => { const v = e.target.dataset.v; if (v) { snap = v; refreshUI(); } });
 $('#segPhys').addEventListener('click', (e) => { const v = e.target.dataset.v; if (v) { preset = v; refreshUI(); restartIfPlaying(); } });
 $('#segView').addEventListener('click', (e) => { const v = e.target.dataset.v; if (v) setView(v); });
+$('#cSlow').addEventListener('change', (e) => { slowMo = e.target.checked; });
 $('#cAnchor').addEventListener('change', (e) => { anchorAll = e.target.checked; refreshUI(); restartIfPlaying(); });
 
 window.addEventListener('keydown', (e) => {
