@@ -307,6 +307,15 @@ table.meta td,table.meta th{white-space:normal;vertical-align:top}
 .cg ul{margin:0;padding-left:18px;font-size:13.4px}
 .cg .ev{font-size:13.6px;color:var(--ink-2)}
 body.no-dl .dl-only{display:none}
+/* lock screen */
+body.locked nav.tabs,body.locked .status,body.locked .lockbtn,body.locked #banner{display:none}
+.lockbtn{margin-left:4px}
+.lockcard{max-width:380px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px 24px;display:flex;flex-direction:column;gap:14px}
+.lockcard h1{font-size:26px;font-weight:800}
+.lockcard .btn{padding:10px;font-size:15px}
+.mark.big{width:48px;height:48px;font-size:19px;border-radius:12px}
+.lockerr{color:var(--bad);font-size:13.5px;font-weight:600}
+.lockcard .f{flex:0 0 auto}
 /* control deck: every timer and tally on screen at once */
 :root{--hh:56px;--dh:0px}
 .deck{position:sticky;top:calc(var(--hh) + env(safe-area-inset-top,0px));z-index:25;margin:-20px 0 18px;padding:10px 0;background:var(--bg);
@@ -506,6 +515,7 @@ kbd.big{font-size:18px;padding:6px 12px;border-bottom-width:3px;min-width:44px;t
       <a href="#peer-guide" data-nav="peer-guide">Peer guide</a>
     </nav>
     <div class="status" id="status"><i></i><span>Connecting</span></div>
+    <button class="btn sm ghost lockbtn" data-act="lock" title="Lock the app">Lock</button>
   </div>
 </header>
 <div class="gut"><div class="banner" id="banner" hidden></div></div>
@@ -731,7 +741,7 @@ function dbStore(db){
 }
 function setStatus(kind,text){const s=$('#status');s.className='status '+kind;s.querySelector('span').textContent=text;}
 function banner(t){const b=$('#banner');if(t){b.textContent=t;b.hidden=false;}else b.hidden=true;}
-async function initStore(){
+async function initStore(){STORE_STARTED=true;
   const inClaude=!!(window.claude&&window.claude.use);
   let db=null;try{if(window.claude&&window.claude.use)db=await window.claude.use('db');}catch(e){db=null;}
   try{if(window.claude&&window.claude.use)window.claude.use('downloads').then(d=>{DL=d;document.body.classList.toggle('no-dl',!d);}).catch(()=>{});}catch(e){}
@@ -1674,18 +1684,39 @@ function scPreview(e){
 }
 let SC_SPACE=false;
 
+/* ================= PASSWORD LOCK ================= */
+/* A screen lock to keep casual viewers out. It is not encryption: anyone with the file's source can read it. */
+const PW_HASH='5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8';
+const ssGet=k=>{try{return sessionStorage.getItem(k);}catch(e){return null;}};
+const ssSet=(k,v)=>{try{if(v==null)sessionStorage.removeItem(k);else sessionStorage.setItem(k,v);}catch(e){}};
+let UNLOCKED=ssGet('obs-unlocked')==='1',STORE_STARTED=false;
+function isUnlocked(){return UNLOCKED;}
+async function sha256(t){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}catch(e){return t==='password'?PW_HASH:'';}}
+function showLock(){
+  VIEW='lock';document.body.classList.add('locked');
+  $('#view').innerHTML=`<form class="lockcard" id="lockform" autocomplete="off"><div class="mark big">7C</div><h1>Lesson Observer</h1><p class="hint">Enter the password to open the app.</p>
+    <label class="f"><span>Password</span><input type="password" id="pw" autocomplete="current-password" required></label>
+    <p class="lockerr" id="lockerr" hidden>That password is not right. Try again.</p>
+    <button class="btn pri" type="submit">Unlock</button></form>`;
+  const i=$('#pw');if(i)setTimeout(()=>i.focus(),30);
+}
+document.addEventListener('submit',async e=>{if(e.target.id!=='lockform')return;e.preventDefault();
+  const h=await sha256($('#pw').value);
+  if(h===PW_HASH){UNLOCKED=true;ssSet('obs-unlocked','1');document.body.classList.remove('locked');route();if(!STORE_STARTED)initStore();}
+  else{const er=$('#lockerr');er.hidden=false;const i=$('#pw');i.value='';i.focus();}});
 /* ================= RENDER ================= */
 function measure(){const h=document.querySelector('header.top'),d=$('#deck');const r=document.documentElement;
   if(h)r.style.setProperty('--hh',h.offsetHeight+'px');r.style.setProperty('--dh',(d&&VIEW==='observe'?d.offsetHeight:0)+'px');}
 window.addEventListener('resize',()=>measure());
 function flash(b){if(!b||!b.classList)return;b.classList.remove('hit');void b.offsetWidth;b.classList.add('hit');}
 function render(){
+  if(!UNLOCKED){showLock();return;}
   const v=$('#view');
   v.innerHTML=VIEW==='records'?vRecords():VIEW==='report'?vReport():VIEW==='lookfors'?vLookfors():VIEW==='shortcuts'?vShortcuts():VIEW==='peer-guide'?vPeerGuide():vObserve();
   document.querySelectorAll('[data-nav]').forEach(a=>a.setAttribute('aria-current',a.dataset.nav===VIEW?'page':'false'));
   measure();
 }
-function route(){const h=(location.hash||'').slice(1);VIEW=['observe','records','report','lookfors','shortcuts','peer-guide'].includes(h)?h:(lsGet('obs-current')?'observe':'records');DEL=null;render();window.scrollTo(0,0);}
+function route(){if(!isUnlocked()){showLock();return;}const h=(location.hash||'').slice(1);VIEW=['observe','records','report','lookfors','shortcuts','peer-guide'].includes(h)?h:(lsGet('obs-current')?'observe':'records');DEL=null;render();window.scrollTo(0,0);}
 window.addEventListener('hashchange',route);
 
 /* ================= EVENTS ================= */
@@ -1695,6 +1726,7 @@ document.addEventListener('click',e=>{
   const a=b.dataset.act,ds=b.dataset;
   switch(a){
     case 'jump':{const s=$('#sec-'+ds.to);if(s)s.scrollIntoView({behavior:'smooth',block:'start'});return;}
+    case 'lock':UNLOCKED=false;ssSet('obs-unlocked',null);WAIT_START=null;showKeys(false);showLock();return;
     case 'keys':showKeys(!KEYS_OPEN);return;
     case 'wtap':{WALK_SNAP=null;CLEAR_ASK=false;const W=O.walk;W.log=W.log||[];const r=curRoom();W.log.push({i:ds.id,r,t:nowHM()});W.rooms=Math.max(W.rooms||1,r);touch();refreshWalk();
       const t=document.querySelector('.tile[data-id="'+ds.id+'"]');if(t){t.classList.add('pop');t.focus({preventScroll:true});}return;}
@@ -1832,8 +1864,7 @@ setInterval(()=>{
 /* boot */
 (function(){
   DECK_FOLD=lsGet('obs-deck-fold')==='1';
-  route();
-  initStore();
+  if(isUnlocked()){route();initStore();}else showLock();
 })();
 </script>
 </body>
