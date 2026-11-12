@@ -364,7 +364,7 @@ kbd{font-family:var(--font-mono);font-size:9.5px;font-weight:700;padding:0 4px;b
   .deck.folded .dk-q,.deck.folded .dk-r,.deck.folded .dk-sw{display:none}
   .dk-l kbd{display:none}
 }
-@media (hover:none){.dk-l kbd,.tb kbd,.lp-h kbd,.dk-undo kbd,.keys-btn{display:none}}
+@media (hover:none){.dk-l kbd,.tb kbd,.lp-h kbd,.dk-undo kbd{display:none}}
 .tb kbd{margin-right:3px}
 .keys{position:fixed;inset:0;z-index:70;background:color-mix(in srgb,var(--ink) 40%,transparent);display:grid;place-items:center;
   padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
@@ -373,6 +373,24 @@ kbd{font-family:var(--font-mono);font-size:9.5px;font-weight:700;padding:0 4px;b
 .keys dl{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:0;align-items:baseline}
 .keys dt{white-space:nowrap}.keys dd{margin:0;font-size:14px;color:var(--ink-2)}
 .keys kbd{font-size:11.5px;padding:1px 6px}
+/* shortcuts guide */
+.kb{display:flex;flex-direction:column;gap:5px;align-items:flex-start;overflow-x:auto;padding-bottom:2px}
+.kb-r{display:flex;gap:5px}
+.kb-r:nth-child(2){margin-left:18px}.kb-r:nth-child(3){margin-left:30px}.kb-r:nth-child(4){margin-left:46px}
+.kk{width:38px;height:38px;border-radius:7px;border:1px solid var(--line);border-bottom-width:3px;display:grid;place-items:center;font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--muted);background:var(--surface);flex:0 0 auto}
+.kk.on{color:var(--ink);border-color:var(--kc);background:color-mix(in srgb,var(--kc) 16%,var(--surface))}
+.kk.press{transform:translateY(2px);border-bottom-width:1px;background:var(--kc);color:var(--surface)}
+.kk.wide{width:58px}.kk.space{width:260px}
+@media (max-width:520px){.kk{width:27px;height:32px;font-size:11.5px}.kk.space{width:170px}.kk.wide{width:44px}.kb-r:nth-child(n){margin-left:0}}
+.sc-out{display:flex;gap:14px;align-items:center;min-height:64px;padding:12px 14px;border-radius:10px;background:var(--surface-2)}
+.sc-out b{font-family:var(--font-display);font-size:18px}
+kbd.big{font-size:18px;padding:6px 12px;border-bottom-width:3px;min-width:44px;text-align:center}
+.legend .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:0}
+.sc-dl{display:grid;grid-template-columns:auto 1fr;gap:9px 12px;margin:0;align-items:baseline}
+.sc-dl dt kbd{font-size:12px;padding:2px 7px;border-bottom-width:2px}
+.sc-dl dd{margin:0;display:flex;flex-direction:column;gap:1px;font-size:14px}
+.sc-dl dd span{font-size:13px;color:var(--muted)}
+
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:600;z-index:60}
 </style>
 </head>
@@ -386,6 +404,7 @@ kbd{font-family:var(--font-mono);font-size:9.5px;font-weight:700;padding:0 4px;b
       <a href="#observe" data-nav="observe">Observe</a>
       <a href="#report" data-nav="report">Report</a>
       <a href="#lookfors" data-nav="lookfors">Look-fors</a>
+      <a href="#shortcuts" data-nav="shortcuts">Shortcuts</a>
     </nav>
     <div class="status" id="status"><i></i><span>Connecting</span></div>
   </div>
@@ -550,7 +569,7 @@ const KEY_HELP=[['Space','Question asked, then answer taken (wait time)'],['Esc'
 let KEYS_OPEN=false;
 function showKeys(on){KEYS_OPEN=on;let el=$('#keys');if(!el){el=document.createElement('div');el.id='keys';el.className='keys';el.setAttribute('role','dialog');el.setAttribute('aria-label','Keyboard shortcuts');document.body.appendChild(el);}
   el.hidden=!on;if(on)el.innerHTML=`<div class="keys-in"><div class="row" style="justify-content:space-between"><h3>Keyboard shortcuts</h3><button class="btn sm" data-act="keys">Close</button></div>
-    <p class="hint">They work anywhere on the Observe page while you are not typing in a box.</p>
+    <p class="hint">They work anywhere on the Observe page while you are not typing in a box. <a href="#shortcuts" data-act="keys-full">Open the full guide with a practice keyboard</a>.</p>
     <dl>${KEY_HELP.map(k=>`<dt>${k[0].split('  ').map(x=>`<kbd>${x}</kbd>`).join(' ')}</dt><dd>${k[1]}</dd>`).join('')}</dl></div>`;}
 let WAIT_START=null, UNDO=[], DECK_FOLD=false;
 const $=s=>document.querySelector(s);
@@ -1245,6 +1264,74 @@ function vLookfors(){
   <div class="ref">${TEMPLATES.scaffold.segs.map(s=>`<div class="refc"><h3>${esc(s.name)}</h3><div class="row" style="gap:5px">${Object.keys(s.cs).map(c=>`<span class="chip c">${CS[c].name}</span>`).join('')}</div><ul class="tidy">${Object.keys(s.cs).map(c=>`<li><b>${CS[c].name}:</b> ${esc(s.cs[c])}</li>`).join('')}<li><b>Thinking time:</b> ${esc(s.think)}</li></ul></div>`).join('')}</div>`;
 }
 
+/* ================= SHORTCUTS VIEW ================= */
+const SC_GROUPS=[
+  {id:'wait',name:'Wait time',color:'var(--think)',why:'Measures the thinking time students get after a question.',keys:[
+    ['Space','Question asked','Press as the teacher finishes asking a thinking question. The timer starts.'],
+    ['Space','Answer taken','Press again the moment the teacher calls on someone or accepts an answer. The wait is recorded and turns green at 3 seconds or more.'],
+    ['Esc','Cancel','The question was admin or was withdrawn. Nothing is recorded.'],
+    ['P','Paused after an answer','The teacher waited after a student answered, before responding (wait time 2).']]},
+  {id:'talk',name:'Who is talking',color:'var(--accent)',why:'Runs one clock all lesson, so you can see how much time students spent talking or thinking.',keys:[
+    ['1','Teacher talk','The teacher is explaining, instructing or questioning the class.'],
+    ['2','Student talk','Students are speaking: answering, discussing, presenting.'],
+    ['3','Thinking or work time','Students are thinking, writing, building or practising.'],
+    ['4','Transition','Moving, handing out materials, settling.'],
+    ['0','Stop the clock','Pauses the talk clock, for example during an interruption.']]},
+  {id:'q',name:'Questions',color:'var(--warn)',why:'Counts the kind of questions asked. Press once per question.',keys:[
+    ['Q','Recall or closed','One right answer, remembered or looked up.'],
+    ['W','Open or thinking','More than one possible answer, or needs reasoning.'],
+    ['E','"What makes you say that?"','A follow-up that asks a student to explain or justify.']]},
+  {id:'r',name:'How answers are taken',color:'var(--bad)',why:'Shows whether a few students or all students do the thinking. Press once per answer.',keys:[
+    ['A','Hands up','The teacher chose from volunteers.'],
+    ['S','No hands or cold call','The teacher chose the student.'],
+    ['D','All respond','Every student answered at once: mini whiteboards, X/O arms, thumbs.'],
+    ['F','Partner talk first','Students talked with a partner before anyone answered.']]},
+  {id:'sw',name:'Engagement sweep',color:'#7a5bb5',why:'About every five minutes, scan the room and count students visibly on task.',keys:[
+    ['+','One more on task','Starts at the class size. Adjust while you count.'],
+    ['−','One fewer on task',''],
+    ['L','Log the sweep','Saves the count with the lesson time.']]},
+  {id:'gen',name:'Lesson and notes',color:'var(--muted)',why:'Clock, notes and moving around the page.',keys:[
+    ['G','Start or pause the lesson clock','The other clocks start it for you if you forget.'],
+    ['N','Write a note','Jumps to the running record. Type, then Enter adds it with the time.'],
+    ['J','Jump to the next section','Lesson, lesson flow, thinking guide, 7 Cs, feedback.'],
+    ['U','Undo','Reverses the last tally, wait time or sweep.'],
+    ['?','Shortcut list','Shows a quick list over the Observe page.']]}
+];
+const SC_MAP={};SC_GROUPS.forEach(g=>g.keys.forEach(k=>{const id=k[0]==='Space'?' ':k[0]==='Esc'?'Escape':k[0]==='−'?'-':k[0].toLowerCase();if(!SC_MAP[id])SC_MAP[id]={g,k};}));
+const KB_ROWS=[['1','2','3','4','5','6','7','8','9','0','-','+'],['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['Z','X','C','V','B','N','M','?']];
+function kbKey(lbl){const id=lbl==='+'?'+':lbl==='-'?'-':lbl.toLowerCase(),hit=SC_MAP[id];
+  return `<span class="kk ${hit?'on':''}" data-k="${esc(id)}" ${hit?`style="--kc:${hit.g.color}"`:''}>${esc(lbl==='-'?'−':lbl)}</span>`;}
+function vShortcuts(){
+  return `<div class="lede"><h1>Keyboard shortcuts</h1>
+    <p>Record a whole lesson without taking your eyes off the class. Each key adds to the control bar on the Observe page. They work whenever you are not typing in a box; press <kbd>Esc</kbd> to leave a box.</p></div>
+  <div class="sc-try sec"><header><div><div class="k">Try it</div><h2>Press any key</h2><p>Nothing is recorded on this page. Press a key to see what it does.</p></div></header>
+    <div class="sec-b"><div class="kb" aria-hidden="true">${KB_ROWS.map(r=>`<div class="kb-r">${r.map(kbKey).join('')}</div>`).join('')}
+      <div class="kb-r"><span class="kk on wide" data-k="Escape" style="--kc:var(--think)">Esc</span><span class="kk on space" data-k=" " style="--kc:var(--think)">Space</span></div></div>
+      <div class="sc-out" id="sc-out" aria-live="polite"><span class="hint">Waiting for a key…</span></div>
+      <div class="legend">${SC_GROUPS.map(g=>`<span><i class="dot" style="background:${g.color}"></i>${g.name}</span>`).join('')}</div></div></div>
+  <div class="ref" style="margin-top:16px">${SC_GROUPS.map(g=>`<div class="refc" style="border-top:3px solid ${g.color}"><h3>${g.name}</h3><p class="hint">${g.why}</p>
+    <dl class="sc-dl">${g.keys.map(k=>`<dt><kbd>${esc(k[0])}</kbd></dt><dd><b>${esc(k[1])}</b>${k[2]?`<span>${esc(k[2])}</span>`:''}</dd>`).join('')}</dl></div>`).join('')}
+    <div class="refc"><h3>Tips</h3><ul class="tidy">
+      <li>Start the talk clock with <kbd>1</kbd> as soon as the lesson begins and keep one mode running throughout.</li>
+      <li>Time thinking questions only. Skip “Have you got your books?”</li>
+      <li>Pressed the wrong key? <kbd>U</kbd> undoes it.</li>
+      <li>On an iPad without a keyboard, tap the same buttons in the control bar instead.</li>
+      <li>The keys sit together on the left of the keyboard so one hand can stay there.</li></ul>
+      <a class="btn pri" href="#observe" style="text-decoration:none;align-self:flex-start">Go to Observe</a></div>
+  </div>`;
+}
+function scPreview(e){
+  const id=e.key===' '?' ':e.key==='Escape'?'Escape':e.key==='='?'+':e.key==='_'?'-':e.key.length===1?e.key.toLowerCase():e.key;
+  const hit=SC_MAP[id],out=$('#sc-out');if(!out)return;
+  if(e.key===' '||hit)e.preventDefault();
+  document.querySelectorAll('.kk.press').forEach(x=>x.classList.remove('press'));
+  const kel=document.querySelector('.kk[data-k="'+(id==='"'?'':id.replace(/"/g,''))+'"]');if(kel){kel.classList.add('press');}
+  if(!hit){out.innerHTML=`<span class="hint">${esc(e.key.length===1?e.key.toUpperCase():e.key)} has no shortcut.</span>`;return;}
+  let k=hit.k;if(id===' '){SC_SPACE=!SC_SPACE;k=hit.g.keys[SC_SPACE?0:1];}
+  out.innerHTML=`<kbd class="big">${esc(k[0])}</kbd><div><div class="k" style="color:${hit.g.color}">${hit.g.name}</div><b>${esc(k[1])}</b>${k[2]?`<p class="hint">${esc(k[2])}</p>`:''}</div>`;
+}
+let SC_SPACE=false;
+
 /* ================= RENDER ================= */
 function measure(){const h=document.querySelector('header.top'),d=$('#deck');const r=document.documentElement;
   if(h)r.style.setProperty('--hh',h.offsetHeight+'px');r.style.setProperty('--dh',(d&&VIEW==='observe'?d.offsetHeight:0)+'px');}
@@ -1252,11 +1339,11 @@ window.addEventListener('resize',()=>measure());
 function flash(b){if(!b||!b.classList)return;b.classList.remove('hit');void b.offsetWidth;b.classList.add('hit');}
 function render(){
   const v=$('#view');
-  v.innerHTML=VIEW==='records'?vRecords():VIEW==='report'?vReport():VIEW==='lookfors'?vLookfors():vObserve();
+  v.innerHTML=VIEW==='records'?vRecords():VIEW==='report'?vReport():VIEW==='lookfors'?vLookfors():VIEW==='shortcuts'?vShortcuts():vObserve();
   document.querySelectorAll('[data-nav]').forEach(a=>a.setAttribute('aria-current',a.dataset.nav===VIEW?'page':'false'));
   measure();
 }
-function route(){const h=(location.hash||'').slice(1);VIEW=['observe','records','report','lookfors'].includes(h)?h:(lsGet('obs-current')?'observe':'records');DEL=null;render();window.scrollTo(0,0);}
+function route(){const h=(location.hash||'').slice(1);VIEW=['observe','records','report','lookfors','shortcuts'].includes(h)?h:(lsGet('obs-current')?'observe':'records');DEL=null;render();window.scrollTo(0,0);}
 window.addEventListener('hashchange',route);
 
 /* ================= EVENTS ================= */
@@ -1267,6 +1354,7 @@ document.addEventListener('click',e=>{
   switch(a){
     case 'jump':{const s=$('#sec-'+ds.to);if(s)s.scrollIntoView({behavior:'smooth',block:'start'});return;}
     case 'keys':showKeys(!KEYS_OPEN);return;
+    case 'keys-full':showKeys(false);return;
     case 'undo':{const u=UNDO.pop();if(!u)return;if(u.k==='tally')setPath(O,u.p,Math.max(0,(getPath(O,u.p)||0)-u.d));if(u.k==='wait')O.wait.samples.pop();if(u.k==='sweep')O.sweeps.pop();
       touch();refreshLive();refreshFeedbackSugg();toast('Undone');return;}
     case 'fold':DECK_FOLD=!DECK_FOLD;lsSet('obs-deck-fold',DECK_FOLD?'1':'0');refreshLive();measure();return;
@@ -1338,6 +1426,8 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&e.target.id==='f-lognote'){e.preventDefault();document.querySelector('[data-act="addlog"]').click();return;}
   if(e.key==='Enter'&&e.target.id==='f-newseg'){e.preventDefault();document.querySelector('[data-act="addseg"]').click();return;}
   if(e.key==='Escape'&&KEYS_OPEN){showKeys(false);return;}
+  if(VIEW==='shortcuts'&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))){scPreview(e);return;}
+  if(e.key==='?'&&VIEW!=='observe'&&!(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))){location.hash='#shortcuts';return;}
   if(VIEW==='observe'&&!e.metaKey&&!e.ctrlKey&&!e.altKey){const t=e.target,typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
     if(typing){if(e.key==='Escape'){t.blur();e.preventDefault();}return;}
     const click=sel=>{const b=document.querySelector(sel);if(b){e.preventDefault();b.click();}};
