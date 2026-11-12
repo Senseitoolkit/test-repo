@@ -155,6 +155,8 @@
     transition: opacity 0.15s;
   }
   .seg.off { opacity: 0.3; pointer-events: none; }
+  #speedToggle { grid-template-columns: repeat(4, 1fr); }
+  #speedToggle .seg-btn { padding-left: 2px; padding-right: 2px; }
   .seg-btn {
     background: transparent;
     border: none;
@@ -691,8 +693,8 @@
       <div class="section-title">mode</div>
       <div class="seg" id="modeToggle">
         <button class="seg-btn" data-mode="classic">CLASSIC<span class="secs">streak</span></button>
-        <button class="seg-btn" data-mode="race">RACE<span class="secs">vs clock</span></button>
-        <button class="seg-btn" data-mode="check">CHECK<span class="secs">10 q test</span></button>
+        <button class="seg-btn" data-mode="race">RACE<span class="secs">timed</span></button>
+        <button class="seg-btn" data-mode="check">CHECK<span class="secs">10 qs</span></button>
       </div>
     </div>
     <div class="opt">
@@ -709,6 +711,7 @@
         <button class="seg-btn" data-speed="slow">SLOW<span class="secs">15s</span></button>
         <button class="seg-btn" data-speed="medium">MEDIUM<span class="secs">8s</span></button>
         <button class="seg-btn" data-speed="fast">FAST<span class="secs">4s</span></button>
+        <button class="seg-btn" data-speed="off" title="no timer">NONE<span class="secs">∞</span></button>
       </div>
     </div>
   </div>
@@ -816,8 +819,9 @@
   function pickValid(v, allowed, d) { return allowed.includes(v) ? v : d; }
 
   // ===== CONFIG =====
-  const SPEED_SECS = { slow: 15, medium: 8, fast: 4 };   // classic: time limit per problem
-  const SLOW_AT    = { slow: 8,  medium: 5, fast: 3 };   // check: "slow" threshold
+  const SPEED_SECS = { slow: 15, medium: 8, fast: 4, off: null };   // classic: time limit per problem
+  const SLOW_AT    = { slow: 8,  medium: 5, fast: 3, off: null };   // check: "slow" threshold
+  const noTimer = () => state.speed === 'off' && state.mode !== 'race';
   const RACE_COUNT = 20;
   const CHECK_COUNT = 10;
   const PENALTY = 2;                                     // race: seconds added per miss
@@ -831,7 +835,7 @@
   const state = {
     mode:   pickValid(load('mode', 'classic'), ['classic', 'race', 'check'], 'classic'),
     ops:    pickValid(load('ops', 'mul'), ['mul', 'div', 'mix'], 'mul'),
-    speed:  pickValid(load('speed', 'medium'), ['slow', 'medium', 'fast'], 'medium'),
+    speed:  pickValid(load('speed', 'medium'), ['slow', 'medium', 'fast', 'off'], 'medium'),
     device: pickValid(load('device', defaultDevice), ['computer', 'phone'], defaultDevice),
     selectedTables: new Set(savedTables),
     streak: 0,
@@ -937,11 +941,12 @@
     // speed section means different things per mode
     const secs = state.mode === 'check' ? SLOW_AT : SPEED_SECS;
     el.speedToggle.querySelectorAll('.seg-btn').forEach(b => {
-      b.querySelector('.secs').textContent = (state.mode === 'check' ? '>' : '') + secs[b.dataset.speed] + 's';
+      const s = secs[b.dataset.speed];
+      b.querySelector('.secs').textContent = s == null ? '∞' : (state.mode === 'check' ? '>' : '') + s + 's';
     });
     el.speedTitle.textContent =
-      state.mode === 'classic' ? 'time limit' :
-      state.mode === 'check'   ? 'slow if over' : 'speed · n/a';
+      state.mode === 'classic' ? 'timer' :
+      state.mode === 'check'   ? 'slow if over' : 'timer · n/a';
     el.speedToggle.classList.toggle('off', state.mode === 'race');
 
     if (state.mode === 'classic') {
@@ -950,7 +955,9 @@
       const b = state.raceBest[raceKey()];
       el.menuBest.innerHTML = `${RACE_COUNT} problems · best time <b>${b != null ? fmt(b) : '--'}</b>`;
     } else {
-      el.menuBest.innerHTML = `${CHECK_COUNT} questions · slow over <b>${SLOW_AT[state.speed]}s</b>`;
+      el.menuBest.innerHTML = state.speed === 'off'
+        ? `${CHECK_COUNT} questions · <b>no timer</b>`
+        : `${CHECK_COUNT} questions · slow over <b>${SLOW_AT[state.speed]}s</b>`;
     }
   }
 
@@ -1021,20 +1028,21 @@
 
   function setupHud() {
     const n = state.selectedTables.size;
-    const tablesTxt = `${n} table${n === 1 ? '' : 's'}`;
+    const tablesTxt = `${n} table${n === 1 ? '' : 's'}` + (noTimer() ? ' · no timer' : '');
     el.streakVal.classList.remove('fire');
     el.timeVal.classList.remove('low');
     el.timerBar.classList.remove('low');
     if (state.mode === 'classic') {
       el.l1.textContent = 'streak'; el.l2.textContent = 'best'; el.l3.textContent = 'time';
       el.resetBtn.textContent = '↺ RESET';
-      el.gameInfo.textContent = `classic · ${OPS_NAME[state.ops]} · ${state.speed} · ${tablesTxt}`;
+      el.gameInfo.textContent = `classic · ${OPS_NAME[state.ops]} · ${noTimer() ? '' : state.speed + ' · '}${tablesTxt}`;
     } else if (state.mode === 'race') {
       el.l1.textContent = 'done'; el.l2.textContent = 'best'; el.l3.textContent = 'time';
       el.resetBtn.textContent = '↺ RESTART';
       el.gameInfo.textContent = `race · ${OPS_NAME[state.ops]} · ${RACE_COUNT} problems · ${tablesTxt}`;
     } else {
       el.l1.textContent = 'question'; el.l2.textContent = 'slow at'; el.l3.textContent = 'time';
+      el.timerBar.style.width = '0%';
       el.resetBtn.textContent = '↺ RESTART';
       el.gameInfo.textContent = `check · ${OPS_NAME[state.ops]} · ${CHECK_COUNT} questions · ${tablesTxt}`;
     }
@@ -1158,6 +1166,13 @@
   // ===== CLASSIC TIMER =====
   function startTimer() {
     stopTimer();
+    if (noTimer()) {
+      el.timerBar.style.width = '100%';
+      el.timerBar.classList.remove('low');
+      el.timeVal.textContent = '∞';
+      el.timeVal.classList.remove('low');
+      return;
+    }
     state.timeTotal = SPEED_SECS[state.speed];
     state.timeLeft = state.timeTotal;
     updateTimerUI();
@@ -1206,7 +1221,7 @@
   function updateRunHud() {
     const r = state.run;
     if (!r || state.mode === 'classic') return;
-    el.timeVal.textContent = fmt(elapsed() + r.penalty);
+    el.timeVal.textContent = noTimer() ? '∞' : fmt(elapsed() + r.penalty);
     el.timerBar.style.width = (r.index / r.total * 100) + '%';
     if (state.mode === 'race') {
       el.streakVal.textContent = `${r.index}/${r.total}`;
@@ -1214,7 +1229,7 @@
       el.bestVal.textContent = b != null ? fmt(b) : '--';
     } else {
       el.streakVal.textContent = `${Math.min(r.index + 1, r.total)}/${r.total}`;
-      el.bestVal.textContent = SLOW_AT[state.speed] + 's';
+      el.bestVal.textContent = noTimer() ? 'off' : SLOW_AT[state.speed] + 's';
     }
   }
 
@@ -1384,10 +1399,11 @@
     } else {
       const slowAt = SLOW_AT[state.speed];
       const wrong = r.log.map((p, i) => ({ p, i })).filter(x => x.p.given !== x.p.answer);
-      const slow = r.log.map((p, i) => ({ p, i })).filter(x => x.p.time > slowAt);
+      const slow = slowAt == null ? [] : r.log.map((p, i) => ({ p, i })).filter(x => x.p.time > slowAt);
       const score = r.total - wrong.length;
       const avg = r.log.reduce((s, p) => s + p.time, 0) / r.log.length;
       const msg =
+        score === r.total && slowAt == null ? 'flawless · every answer correct' :
         score === r.total && slow.length === 0 ? 'flawless · fast and correct' :
         score === r.total ? 'all correct · work on speed' :
         score >= r.total - 2 ? 'nearly there' : 'keep practicing these';
@@ -1397,17 +1413,17 @@
         <div class="res-sub${score === r.total ? ' record' : ''}">${msg}</div>
         <div class="chips">
           <div class="chip ${wrong.length ? 'bad' : 'good'}">wrong <b>${wrong.length}</b></div>
-          <div class="chip ${slow.length ? 'slow' : 'good'}">slow <b>${slow.length}</b> (over ${slowAt}s)</div>
+          ${slowAt == null ? '' : `<div class="chip ${slow.length ? 'slow' : 'good'}">slow <b>${slow.length}</b> (over ${slowAt}s)</div>`}
           <div class="chip">avg <b>${avg.toFixed(1)}s</b></div>
         </div>
         <div class="section-title">got wrong</div>
         <div class="res-list">${wrong.length
           ? wrong.map(({ p, i }) => rowHTML(p, i, slowAt)).join('')
           : '<div class="res-empty good">none · every answer correct</div>'}</div>
-        <div class="section-title">too slow · over ${slowAt}s</div>
+        ${slowAt == null ? '' : `<div class="section-title">too slow · over ${slowAt}s</div>
         <div class="res-list">${slow.length
           ? slow.map(({ p, i }) => rowHTML(p, i, slowAt)).join('')
-          : '<div class="res-empty good">none · all under ' + slowAt + 's</div>'}</div>
+          : '<div class="res-empty good">none · all under ' + slowAt + 's</div>'}</div>`}
         <div class="section-title">all ${r.total}</div>
         <div class="res-list">${r.log.map((p, i) => rowHTML(p, i, slowAt)).join('')}</div>`;
     }
