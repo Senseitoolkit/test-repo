@@ -352,23 +352,6 @@
       <div class="sbox"><b id="stLearned">0</b><span>learned · 習得</span></div>
     </div>
 
-    <section class="panel" id="talkPanel">
-      <div class="row">
-        <h2 class="talk-h">会話 · Talk with a local</h2>
-        <p class="talk-p">A live role-play in Japanese. Listen, answer by typing or by voice, and get a correction after each line you say.</p>
-      </div>
-      <div class="row"><span class="lbl">Scene · 場面</span><div id="sceneRow" style="display:contents"></div></div>
-      <div class="row">
-        <span class="lbl">Their speech · 話し方</span>
-        <div class="seg" id="lvlSeg">
-          <button data-v="gentle">やさしい Gentle</button>
-          <button data-v="natural">ふつう Natural</button>
-        </div>
-      </div>
-      <div class="row"><button class="start-btn" id="talkBtn">話す — Start talking</button></div>
-      <div class="row hidden" id="talkNoteRow"><span class="note-line" id="talkNote"></span></div>
-    </section>
-
     <section class="panel" id="settings">
       <div class="row">
         <span class="lbl">Games · ゲーム (tap to mix &amp; match)</span>
@@ -425,31 +408,15 @@
       <span id="resetConfirm" class="hidden">Erase XP, streak and mastery?
         <button class="mini-btn danger" id="resetYes">Erase</button><button class="mini-btn" id="resetNo">Keep</button></span>
     </div>
+    <div class="reset-row">
+      <button class="link-btn" id="impOpen">Import phrases saved in Edagawa Talk</button>
+      <div id="impBox" class="hidden">
+        <textarea class="type-in" id="impIn" rows="3" placeholder="Paste the text copied from Edagawa Talk" aria-label="Phrases to import"></textarea>
+        <div class="row" style="margin-top:8px"><button class="ghost-btn" id="impAdd">Add phrases</button></div>
+        <div id="impMsg" style="margin-top:6px"></div>
+      </div>
+    </div>
   </div>
-
-  <!-- LIVE CONVERSATION -->
-  <section id="talk" class="hidden">
-    <div class="talk-top">
-      <button class="quit-x" id="talkQuit" aria-label="End conversation">✕</button>
-      <div class="talk-title" id="talkTitle"></div>
-      <button class="chip" id="lfChip">👂 Listen first</button>
-    </div>
-    <div id="thread" aria-live="polite"></div>
-    <div class="hint-box hidden" id="hintBox"></div>
-    <form class="composer" id="composer">
-      <input class="type-in" id="talkIn" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-        placeholder="日本語 or rōmaji" aria-label="Your reply">
-      <button type="button" class="spk hidden" id="micBtn" aria-label="Speak your reply">🎤</button>
-      <button class="send-btn" id="sendBtn">送る</button>
-    </form>
-    <div class="mic-live" id="micLive"></div>
-    <div class="quick">
-      <button type="button" class="bb" id="hintTalk">💡 Hint</button>
-      <button type="button" class="bb" data-s="すみません、もう一度お願いします。">もう一度 Again?</button>
-      <button type="button" class="bb" data-s="もう少しゆっくりお願いします。">ゆっくり Slower?</button>
-      <button type="button" class="bb" data-s="すみません、どういう意味ですか？">意味 Meaning?</button>
-    </div>
-  </section>
 
   <!-- STUDY LIST -->
   <section id="study" class="hidden">
@@ -1247,7 +1214,7 @@ function renderHome(){
   renderFocusHint();
 }
 function show(id){
-  ['home','study','quiz','results','talk'].forEach(s=>$(s).classList.toggle('hidden',s!==id));
+  ['home','study','quiz','results'].forEach(s=>$(s).classList.toggle('hidden',s!==id));
   if(id==='home') renderHome();
   window.scrollTo(0,0);
 }
@@ -1893,206 +1860,17 @@ function renderReply(ex,area){
   });
 }
 
-/* ================= LIVE CONVERSATION with Claude as a local ================= */
-const SCENES={
-  fest:{jp:'祭りの準備',en:'Festival prep',who:'a man in his 60s from the Edagawa neighbourhood association who has carried the mikoshi for forty years',where:'the neighbourhood meeting spot on the evening before the local festival; the learner is joining the mikoshi crew for the first time'},
-  uchiage:{jp:'打ち上げ',en:'After-party',who:'a cheerful woman in her 40s from the mikoshi crew',where:'the after-party (uchiage), with beer and yakisoba, right after carrying the mikoshi together'},
-  neighbor:{jp:'ご近所',en:'Neighbour',who:'an elderly neighbour who has lived in the same apartment building for decades',where:'the entrance of the apartment building on a weekday morning'},
-  parent:{jp:'公園',en:'Parent at the park',who:'a Japanese parent of about the same age whose child is playing with the learner\'s kids',where:'the local park on a weekend afternoon while the children play'},
-  shop:{jp:'商店街',en:'Shopkeeper',who:'the chatty owner of a small shop on the local shopping street',where:'the shop counter; the learner is a customer the owner has seen a few times'},
-  free:{jp:'フリー',en:'Free chat',who:'a friendly Edagawa local of about the learner\'s age',where:'a relaxed chat with no fixed topic; follow whatever the learner wants to talk about'}
-};
-if(!SCENES[settings.scene]) settings.scene='fest';
-function rules(){
-  const s=SCENES[settings.scene];
-  const lvl=settings.tlevel==='natural'
-    ?'Speak the way such a person really talks to a friendly foreign neighbour: natural spoken Japanese with ～んですか, sentence-final ね and よ, natural aizuchi, and some casual forms. Keep vocabulary everyday. One or two sentences per turn.'
-    :'Speak in simple です/ます Japanese with basic everyday vocabulary (about JLPT N5). One short sentence, then one simple question or comment. If the learner seems lost, rephrase more simply.';
-  return `You are playing a Japanese local in a spoken-conversation practice app for a learner of Japanese.
 
-Your character: ${s.who}.
-The setting: ${s.where}.
-The place is Edagawa, Koto-ku, Tokyo.
-
-The learner (do not recite these facts; let the learner tell you): an American man from California, near San Francisco, who grew up on a farm. He lives in Edagawa, his Japanese wife's hometown. He has a 9-year-old son and a 7-year-old daughter, teaches English at an international school, and likes cycling, science-fiction novels, board games and One Piece. He is a beginner and is practising for real small talk with neighbours.
-
-How to play:
-- Stay in character and speak only Japanese in "jp". ${lvl}
-- Ask the things locals really ask (where he is from, how long in Japan, family, work, food, the festival), one at a time, and react to his answer before moving on.
-- He may type in rōmaji, in kana, or by voice dictation, so ignore spelling, spacing, punctuation and missing macrons. Read his message charitably.
-- If he says he did not understand or asks you to repeat, say the same thing again in simpler words.
-
-Answer with ONLY one JSON object and nothing else:
-{"jp":"your line","furi":"the same line with a hiragana reading in parentheses after every kanji word, like 枝川(えだがわ)に住(す)んでいるんですか？","ro":"Hepburn rōmaji with macrons","en":"English translation",
-"fix":null,
-"hints":[{"jp":"...","furi":"...","ro":"...","en":"..."},{...},{...}]}
-- "fix" is about the learner's LAST message. Use null when it was understandable and natural enough, and always null on your opening line. When there is a real mistake in grammar, particle, word choice or politeness, use {"jp":"what he should have said, in natural polite Japanese","furi":"same with readings","ro":"rōmaji","en":"English meaning","note":"one short English sentence explaining the fix"}.
-- "hints" are three short beginner-level things the learner could say next: one direct answer, one follow-up question back to you, one reaction.`;
-}
-
-let sampleFn=null, dict=null, capsReady=false;
-const T={turns:[], busy:false, ctl:null, hints:[], lastUserEl:null};
-
-/* home panel */
-(function(){
-  const row=$('sceneRow');
-  Object.keys(SCENES).forEach(k=>{
-    const b=document.createElement('button'); b.className='chip'; b.dataset.k=k;
-    b.textContent=`${SCENES[k].jp} ${SCENES[k].en}`;
-    b.onclick=()=>{ settings.scene=k; save(); paint(); };
-    row.appendChild(b);
-  });
-  function paint(){ [...row.children].forEach(b=>{ const on=b.dataset.k===settings.scene; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); }); }
-  paint();
-})();
-segInit('lvlSeg','tlevel');
-chipInit('lfChip','listenFirst',on=>$('thread').classList.toggle('veiled',on));
-function talkNote(msg){ $('talkNote').textContent=msg; $('talkNoteRow').classList.toggle('hidden',!msg); }
-
-(function initCaps(){
-  const c=window.claude;
-  if(!c||typeof c.use!=='function'){ capsReady=true; talkNote('Live conversation only works when this page is opened in Claude. The drills below work everywhere.'); return; }
-  const get=n=>c.use(n).catch(()=>null);
-  get('tts').then(t=>{ tts=t; if(t) canSpeak=true; });
-  get('dictation').then(d=>{
-    dict=d; if(!d) return;
-    $('micBtn').classList.remove('hidden');
-    d.onFinal(({text})=>{ const i=$('talkIn'); i.value=(i.value+text).replace(/^\s+/,''); $('micLive').textContent=''; });
-    d.onPartial(({text})=>{ $('micLive').textContent=text; });
-    d.onState(({state})=>{ $('micBtn').classList.toggle('talking',state!=='idle'); if(state==='idle') $('micLive').textContent=''; });
-  });
-  get('sample').then(s=>{ sampleFn=s; capsReady=true;
-    if(!s) talkNote('Live conversation is not available in this view. The drills below work everywhere.'); });
-})();
-
-$('talkBtn').addEventListener('click',()=>{
-  if(!sampleFn){ if(!capsReady) talkNote('Still connecting. Try again in a moment.'); return; }
-  talkNote('');
-  const s=SCENES[settings.scene];
-  $('talkTitle').textContent=`${s.jp} · ${s.en}`;
-  $('thread').innerHTML=''; $('hintBox').classList.add('hidden'); $('talkIn').value='';
-  T.turns=[{role:'user',content:rules()+'\n\nStart now: greet the learner and open the conversation in character.'}];
-  T.hints=[]; T.lastUserEl=null; T.busy=false;
-  show('talk');
-  ask();
-});
-$('talkQuit').addEventListener('click',()=>{
-  if(T.ctl) T.ctl.abort();
-  if(dict&&dict.active()) dict.stop().catch(()=>{});
-  try{ speechSynthesis.cancel(); }catch(e){}
-  if(tts) try{ tts.stop(); }catch(e){}
-  show('home');
-});
-
-function bubble(cls,html){
-  const el=document.createElement('div'); el.className='bub '+cls; el.innerHTML=html;
-  $('thread').appendChild(el); return el;
-}
-function toBottom(){ $('composer').scrollIntoView({block:'nearest',behavior:'smooth'}); }
-function setComposer(on){ $('sendBtn').disabled=!on; document.querySelectorAll('#talk .quick .bb').forEach(b=>b.disabled=!on); }
-function mkBtn(label,fn,aria){ const b=document.createElement('button'); b.type='button'; b.className='bb'; b.textContent=label; if(aria) b.setAttribute('aria-label',aria); b.onclick=()=>fn(b); return b; }
-function saveBtn(furi,ro,en){
-  return mkBtn('＋ Save to drills',b=>{ addMine(String(furi||''),String(ro||''),String(en||'')); b.textContent='Saved ✓'; b.disabled=true; });
-}
-function addXP(gain){
-  const before=levelOf(store.xp), k=dayKey(new Date());
-  store.xp+=gain; store.days[k]=(store.days[k]||0)+gain;
-  if(levelOf(store.xp)>before) sfx.levelup();
-  save(); renderLevel();
-}
-
-async function ask(){
-  if(T.busy||!sampleFn) return;
-  T.busy=true; setComposer(false);
-  const wait=bubble('wait','考え中… thinking');
-  toBottom();
-  T.ctl=new AbortController();
-  try{
-    const res=await sampleFn(T.turns,{cache:false,modelTier:'quick',signal:T.ctl.signal});
-    const m=String(res.text||'').match(/\{[\s\S]*\}/);
-    const d=JSON.parse(m?m[0]:'');
-    if(!d||typeof d.jp!=='string'||!d.jp) throw new Error('bad reply');
-    T.turns.push({role:'assistant',content:m[0]});
-    wait.remove();
-    if(T.lastUserEl){ showFix(T.lastUserEl,d.fix); T.lastUserEl=null; }
-    themBubble(d);
-    T.hints=Array.isArray(d.hints)?d.hints.filter(h=>h&&typeof h.jp==='string').slice(0,3):[];
-    $('hintBox').classList.add('hidden');
-  }catch(e){
-    wait.remove();
-    const code=e&&e.code;
-    if(code!=='cancelled'){
-      const msg=code==='not_granted'?'Claude was not allowed for this page, so live conversation is off for this visit.'
-        :code==='rate_limited'?'Too many requests right now. Wait a moment, then try again.'
-        :'No reply came back. Try again.';
-      const el=bubble('err',esc(msg));
-      if(code!=='not_granted'){ const bx=document.createElement('div'); bx.className='bub-btns';
-        bx.appendChild(mkBtn('Try again',()=>{ el.remove(); ask(); })); el.appendChild(bx); }
-    }
-  }
-  T.busy=false; setComposer(true); toBottom();
-}
-
-function themBubble(d){
-  const f=String(d.furi||d.jp), rate=settings.tlevel==='natural'?1:0.8;
-  const el=bubble('them',`<div class="veilable"><div class="jp">${rubyHTML(furiSegs(f))}</div><div class="romaji">${esc(d.ro||'')}</div></div>
-    <div class="veil-tip">Listen first. Tap to show the text.</div><div class="en hidden">${esc(d.en||'')}</div><div class="bub-btns"></div>`);
-  el.querySelector('.veilable').onclick=()=>el.classList.add('shown');
-  const bx=el.querySelector('.bub-btns');
-  const play=mkBtn('🔊',b=>speak(d.jp,b,rate),'Play again');
-  bx.appendChild(play);
-  bx.appendChild(mkBtn('🐢',b=>speak(d.jp,b,0.55),'Play slowly'));
-  bx.appendChild(mkBtn('訳 English',()=>{ el.classList.add('shown'); el.querySelector('.en').classList.toggle('hidden'); }));
-  bx.appendChild(saveBtn(f,d.ro,d.en));
-  if(canSpeak) speak(d.jp,play,rate); else el.classList.add('shown');
-}
-function showFix(userEl,fix){
-  const gain=fix&&fix.jp?8:12;
-  addXP(gain);
-  const f=document.createElement('div'); f.className='fix';
-  if(fix&&fix.jp){
-    const fu=String(fix.furi||fix.jp);
-    f.innerHTML=`<span class="fx-lbl">More natural</span><span class="xpt">+${gain} XP</span>
-      <div class="jp">${rubyHTML(furiSegs(fu))}</div><div class="romaji">${esc(fix.ro||'')}</div><div>${esc(fix.note||'')}</div><div class="bub-btns"></div>`;
-    const bx=f.querySelector('.bub-btns');
-    bx.appendChild(mkBtn('🔊',b=>speak(String(fix.jp),b),'Play'));
-    bx.appendChild(saveBtn(fu,fix.ro,fix.en||fix.note));
-  } else f.innerHTML=`<span class="fx-lbl">○ Natural</span><span class="xpt">+${gain} XP</span>`;
-  userEl.appendChild(f);
-}
-function sendTalk(text){
-  text=String(text||'').trim();
-  if(!text||T.busy||!sampleFn) return;
-  if(dict&&dict.active()) dict.stop().catch(()=>{});
-  T.lastUserEl=bubble('me',esc(text));
-  T.turns.push({role:'user',content:text});
-  $('talkIn').value=''; $('hintBox').classList.add('hidden');
-  ask();
-}
-$('composer').addEventListener('submit',e=>{ e.preventDefault(); sendTalk($('talkIn').value); });
-document.querySelectorAll('#talk .quick .bb[data-s]').forEach(b=>b.addEventListener('click',()=>sendTalk(b.dataset.s)));
-$('hintTalk').addEventListener('click',()=>{
-  const box=$('hintBox');
-  if(!box.classList.contains('hidden')){ box.classList.add('hidden'); return; }
-  box.innerHTML='';
-  if(!T.hints.length){ box.innerHTML='<div class="note-line">No hints for this line. Try もう一度 to hear it again.</div>'; }
-  T.hints.forEach(h=>{
-    const b=document.createElement('button'); b.type='button'; b.className='hint-item';
-    b.innerHTML=`<div class="jp">${rubyHTML(furiSegs(String(h.furi||h.jp)))}</div><div class="romaji">${esc(h.ro||'')}</div><div class="en">${esc(h.en||'')}</div>`;
-    b.onclick=()=>{ $('talkIn').value=h.jp; speak(h.jp); };
-    box.appendChild(b);
-  });
-  box.classList.remove('hidden'); toBottom();
-});
-$('micBtn').addEventListener('click',()=>{
-  if(!dict) return;
-  if(dict.active()){ dict.stop().catch(()=>{}); return; }
-  try{ speechSynthesis.cancel(); }catch(e){}
-  dict.start({language:'ja'}).catch(e=>{
-    const c=e&&e.code;
-    if(c==='not_granted'||c==='unavailable'){ $('micBtn').classList.add('hidden'); $('micLive').textContent='Voice input is off here. Type your reply instead.'; }
-    else if(c!=='stopped'&&c!=='dismissed') $('micLive').textContent='The microphone did not start. Try again.';
-  });
+/* ================= IMPORT phrases saved in Edagawa Talk ================= */
+$('impOpen').addEventListener('click',()=>$('impBox').classList.toggle('hidden'));
+$('impAdd').addEventListener('click',()=>{
+  let arr=null; try{ arr=JSON.parse($('impIn').value.trim()); }catch(e){}
+  if(!Array.isArray(arr)){ $('impMsg').textContent='That text could not be read. In Edagawa Talk, press "Copy for Edagawa Drill" and paste the result here unchanged.'; return; }
+  const before=store.mine.length;
+  arr.slice(0,500).forEach(m=>{ if(m&&typeof m.f==='string'&&m.f.length<300) addMine(m.f,String(m.ro||'').slice(0,400),String(m.en||'').slice(0,400)); });
+  const n=store.mine.length-before;
+  $('impMsg').textContent=n?`Added ${n} phrase${n>1?'s':''}. Pick the "My phrases" topic to drill them.`:'Nothing new to add. Those phrases are already here.';
+  if(n){ $('impIn').value=''; renderHome(); }
 });
 </script>
 </body>
