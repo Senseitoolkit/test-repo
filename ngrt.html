@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NGRT Practice Test</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap">
+<style>
+/* Layout: one app shell; a persistent top bar carries the two test modes as tabs,
+   a status strip carries progress + timer during a test, and the work area switches
+   between home / test / results. Passage tests go two-column on wide screens. */
+:root {
+  --paper: #f4efe6;
+  --paper-2: #fbf7ef;
+  --card: #fffdf8;
+  --ink: #1d2433;
+  --ink-2: #4a5160;
+  --ink-3: #8a8f9a;
+  --line: rgba(29,36,51,.14);
+  --line-soft: rgba(29,36,51,.08);
+  --accent: #c8553d;
+  --accent-soft: rgba(200,85,61,.12);
+  --good: #2e5e4e;
+  --good-soft: rgba(46,94,78,.12);
+  --bar-bg: #1d2433;
+  --bar-fg: #f4efe6;
+  --shadow: 0 24px 60px -30px rgba(29,36,51,.35);
+  --display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --body: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #15181f; --paper-2: #1a1e27; --card: #1f2430;
+    --ink: #ece7dc; --ink-2: #b8b3a8; --ink-3: #7f7b73;
+    --line: rgba(236,231,220,.16); --line-soft: rgba(236,231,220,.08);
+    --accent: #e3806a; --accent-soft: rgba(227,128,106,.16);
+    --good: #6fb597; --good-soft: rgba(111,181,151,.16);
+    --bar-bg: #0f1116; --bar-fg: #ece7dc;
+    --shadow: 0 24px 60px -30px rgba(0,0,0,.7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #15181f; --paper-2: #1a1e27; --card: #1f2430;
+  --ink: #ece7dc; --ink-2: #b8b3a8; --ink-3: #7f7b73;
+  --line: rgba(236,231,220,.16); --line-soft: rgba(236,231,220,.08);
+  --accent: #e3806a; --accent-soft: rgba(227,128,106,.16);
+  --good: #6fb597; --good-soft: rgba(111,181,151,.16);
+  --bar-bg: #0f1116; --bar-fg: #ece7dc;
+  --shadow: 0 24px 60px -30px rgba(0,0,0,.7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: radial-gradient(circle at 20% 0%, var(--paper-2), var(--paper) 60%);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bar-bg); }
+button { font-family: inherit; font-size: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+button:disabled { opacity: .4; cursor: default; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+.eyebrow { font-family: var(--display); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; font-weight: 600; color: var(--accent); }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bar-bg); color: var(--bar-fg);
+}
+.topbar-in {
+  max-width: 1120px; margin: 0 auto;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand button { font-family: var(--display); font-size: 19px; font-weight: 600; letter-spacing: -.01em; color: var(--bar-fg); }
+.brand .year-pill { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--bar-fg); opacity: .65; }
+.tabs { display: flex; gap: 2px; background: rgba(255,255,255,.08); padding: 3px; border-radius: 10px; margin-left: auto; }
+.tab { padding: 7px 14px; border-radius: 8px; font-family: var(--display); font-size: 14px; color: var(--bar-fg); opacity: .7; }
+.tab:hover { opacity: 1; }
+.tab[aria-selected="true"] { background: var(--bar-fg); color: var(--bar-bg); opacity: 1; }
+.tab.link { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+.tab.link svg { width: 11px; height: 11px; opacity: .8; }
+.other { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; border: 1.5px dashed var(--line); border-radius: 16px; padding: 18px 22px; margin-top: 16px; color: var(--ink-2); font-size: 15px; }
+.other .t { font-family: var(--display); font-weight: 600; color: var(--ink); font-size: 18px; }
+.other a.btn { margin-left: auto; text-decoration: none; }
+.notice a.btn { text-decoration: none; }
+.tab .cnt { font-size: 11px; opacity: .7; margin-left: 6px; }
+
+/* status strip during a test */
+.status {
+  background: var(--card); border-bottom: 1px solid var(--line);
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 4;
+}
+.status-in {
+  max-width: 1120px; margin: 0 auto;
+  padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; grid-template-columns: 1fr auto; gap: 6px 18px; align-items: center;
+}
+.status .meta { font-size: 13px; color: var(--ink-2); display: flex; gap: 14px; flex-wrap: wrap; }
+.status .meta strong { color: var(--ink); font-weight: 500; }
+.timer { display: flex; align-items: baseline; gap: 8px; font-family: var(--display); }
+.timer .lbl { font-size: 10px; letter-spacing: .18em; color: var(--ink-3); }
+.timer .val { font-size: 22px; font-weight: 600; min-width: 3.2ch; text-align: right; }
+.timer.low .val { color: var(--accent); }
+.timer.untimed .val { color: var(--ink-3); font-weight: 500; }
+.toggle-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; background: var(--paper); }
+.seg button { padding: 6px 13px; border-radius: 7px; font-family: var(--display); font-size: 14px; color: var(--ink-2); }
+.seg button[aria-checked="true"] { background: var(--ink); color: var(--card); }
+.toggle-note { font-size: 13px; color: var(--ink-3); flex-basis: 100%; }
+@media (min-width: 640px) { .toggle-note { flex-basis: auto; } }
+.track { grid-column: 1 / -1; height: 4px; background: var(--line-soft); border-radius: 99px; overflow: hidden; }
+.track > div { height: 100%; background: var(--good); border-radius: 99px; transition: width .3s ease; }
+
+/* ---------- Work area ---------- */
+.work {
+  max-width: var(--w, 760px); margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.sheet { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 28px; }
+@media (max-width: 560px) { .sheet { padding: 20px 16px; } }
+
+/* confirm strip (leave test / finish with gaps) */
+.notice {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  background: var(--accent-soft); border: 1px solid var(--accent); color: var(--ink);
+  border-radius: 12px; padding: 12px 16px; margin-bottom: 18px; font-size: 15px;
+}
+.notice .spacer { flex: 1; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 8px; border-radius: 12px; padding: 12px 20px; font-family: var(--display); font-size: 16px; font-weight: 500; border: 1.5px solid transparent; transition: transform .12s ease, background .15s ease; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-primary { background: var(--ink); color: var(--card); }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-ghost { border-color: var(--line); color: var(--ink); }
+.btn-ghost:hover:not(:disabled) { background: var(--line-soft); }
+.btn-sm { padding: 8px 14px; font-size: 14px; border-radius: 10px; }
+.btn-link { font-family: var(--display); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; color: var(--ink-2); }
+.btn-link:hover { color: var(--ink); }
+
+/* ---------- Home ---------- */
+.home-head { margin-bottom: 26px; }
+.home-head h1 { font-size: clamp(30px, 5vw, 40px); margin-top: 4px; }
+.home-head p { color: var(--ink-2); max-width: 60ch; margin-top: 8px; font-size: 18px; }
+.year-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 10px 0 26px; }
+.year { border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 0 9px; font-family: var(--display); font-size: 22px; font-weight: 600; display: flex; flex-direction: column; align-items: center; line-height: 1; transition: all .15s ease; }
+.year small { font-family: var(--body); font-size: 10px; font-weight: 400; margin-top: 6px; opacity: .6; letter-spacing: .04em; }
+.year[aria-pressed="true"] { background: var(--good); border-color: var(--good); color: #fff; transform: translateY(-2px); }
+.year[aria-pressed="true"] small { opacity: .85; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) { .modes { grid-template-columns: 1fr; } }
+.mode { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--shadow); min-width: 0; }
+.mode h2 { font-size: 24px; }
+.mode p { color: var(--ink-2); font-size: 15px; }
+.mode .facts { display: grid; grid-template-columns: repeat(3, auto); gap: 4px 16px; font-size: 12px; color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; font-family: var(--display); margin-top: 2px; }
+.mode .facts b { display: block; font-family: var(--body); font-size: 17px; color: var(--ink); text-transform: none; letter-spacing: 0; font-weight: 500; }
+.mode .sample { background: var(--paper); border-radius: 10px; padding: 12px 14px; font-size: 15px; color: var(--ink-2); line-height: 1.55; }
+.mode .sample .blank { display: inline-block; width: 52px; border-bottom: 2px solid var(--accent); height: 2px; vertical-align: middle; margin: 0 3px; }
+.mode .btn { margin-top: auto; align-self: flex-start; }
+.history { margin-top: 28px; }
+.history h3 { font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; margin-bottom: 10px; }
+.history table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.history td, .history th { padding: 8px 6px; border-bottom: 1px solid var(--line-soft); text-align: left; }
+.history th { font-family: var(--display); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.history td.r { text-align: right; }
+.history .pct { font-family: var(--display); font-weight: 600; color: var(--good); }
+.history .empty { color: var(--ink-3); font-size: 15px; }
+
+/* ---------- Question navigator ---------- */
+.qnav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+.qdot { width: 34px; height: 34px; border-radius: 9px; border: 1.5px solid var(--line); font-family: var(--display); font-size: 13px; font-weight: 600; color: var(--ink-2); display: grid; place-items: center; transition: all .12s ease; }
+.qdot[data-done="1"] { background: var(--good-soft); border-color: var(--good); color: var(--good); }
+.qdot[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: var(--card); }
+.qnav-key { font-size: 12px; color: var(--ink-3); margin: -8px 0 16px; display: flex; gap: 14px; flex-wrap: wrap; }
+.qnav-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; border: 1.5px solid var(--line); }
+.qnav-key i.d { background: var(--good-soft); border-color: var(--good); }
+.qnav-key i.c { background: var(--ink); border-color: var(--ink); }
+
+/* ---------- Sentence test ---------- */
+.qcard { background: var(--paper); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 26px 24px; margin-bottom: 20px; }
+.qcard .qn { font-family: var(--display); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px; }
+.sentence { font-size: clamp(21px, 3.2vw, 25px); line-height: 1.6; }
+.blank { display: inline-block; min-width: 76px; border-bottom: 3px solid var(--accent); margin: 0 4px; vertical-align: baseline; height: 1em; text-align: center; color: var(--good); font-style: italic; font-weight: 500; padding: 0 6px; }
+.blank.filled { border-bottom-style: dotted; border-bottom-width: 2px; border-color: var(--good); }
+.opts { display: grid; gap: 9px; margin-bottom: 22px; }
+.opt { display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 12px; text-align: left; background: var(--card); border: 1.5px solid var(--line); border-radius: 12px; padding: 13px 16px; font-size: 18px; transition: all .12s ease; }
+.opt:hover { border-color: var(--ink-3); }
+.opt .k { font-family: var(--display); font-size: 12px; font-weight: 600; color: var(--ink-3); border: 1px solid var(--line); border-radius: 6px; width: 24px; height: 24px; display: grid; place-items: center; }
+.opt[aria-checked="true"] { border-color: var(--good); background: var(--good-soft); box-shadow: inset 0 0 0 1px var(--good); }
+.opt[aria-checked="true"] .k { background: var(--good); color: #fff; border-color: var(--good); }
+.navrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.navrow .mid { font-size: 13px; color: var(--ink-3); }
+.hint { font-size: 13px; color: var(--ink-3); margin-top: 14px; }
+.hint kbd { font-family: var(--display); font-size: 11px; border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+
+/* ---------- Passage test ---------- */
+.ptabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.ptab { border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 14px; font-family: var(--display); font-size: 14px; display: flex; gap: 10px; align-items: baseline; }
+.ptab .c { font-size: 12px; color: var(--ink-3); }
+.ptab[aria-selected="true"] { background: var(--ink); color: var(--card); border-color: var(--ink); }
+.ptab[aria-selected="true"] .c { color: var(--card); opacity: .7; }
+.ptab[data-done="1"]:not([aria-selected="true"]) { border-color: var(--good); color: var(--good); }
+.twocol { display: grid; grid-template-columns: 1fr; gap: 22px; margin-bottom: 24px; }
+@media (min-width: 900px) {
+  .twocol { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .twocol > .left { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 52px + 64px + 16px); }
+}
+.twocol > * { min-width: 0; }
+.pbanner { background: var(--ink); color: var(--card); padding: 12px 18px; border-radius: 12px 12px 0 0; }
+.pbanner .eyebrow { margin-bottom: 2px; }
+.pbanner h2 { font-size: 21px; }
+.pbody { background: var(--paper); border: 1px solid var(--line-soft); border-top: 0; border-radius: 0 0 12px 12px; padding: 20px 22px; }
+.pbody p { font-size: 17.5px; line-height: 1.75; }
+.pbody p + p { margin-top: 14px; }
+.gap { display: inline-flex; align-items: baseline; gap: 4px; margin: 0 2px; white-space: nowrap; border-radius: 6px; padding: 0 3px; cursor: pointer; }
+.gap:hover, .gap.hot { background: var(--accent-soft); }
+.gap .n { font-family: var(--display); font-size: 13px; color: var(--accent); font-weight: 600; }
+.gap .w { color: var(--good); font-weight: 500; font-style: italic; border-bottom: 1.5px dotted var(--good); }
+.gap .e { display: inline-block; width: 64px; height: 2px; border-bottom: 2.5px solid var(--accent); vertical-align: middle; transform: translateY(-3px); }
+.choose-head { font-family: var(--display); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 10px; }
+.gaprow { display: grid; grid-template-columns: 36px 1fr; gap: 10px; align-items: center; padding: 8px 4px; border-bottom: 1px dashed var(--line); border-radius: 8px; scroll-margin-top: 150px; transition: background .25s ease; }
+.gaprow.hot { background: var(--accent-soft); }
+.gaprow .n { font-family: var(--display); font-size: 16px; font-weight: 600; color: var(--accent); text-align: right; padding-right: 4px; }
+.gaprow .o { display: flex; flex-wrap: wrap; gap: 6px; }
+.gopt { background: var(--card); border: 1.5px solid var(--line); border-radius: 9px; padding: 7px 13px; font-size: 15px; min-width: 68px; text-align: center; transition: all .12s ease; }
+.gopt:hover { border-color: var(--ink-3); }
+.gopt[aria-checked="true"] { border-color: var(--good); background: var(--good-soft); color: var(--good); font-weight: 500; box-shadow: inset 0 0 0 1px var(--good); }
+
+/* ---------- Results ---------- */
+.score { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; margin-bottom: 24px; }
+@media (max-width: 520px) { .score { grid-template-columns: 1fr; text-align: center; justify-items: center; } }
+.ring { width: 130px; height: 130px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--good) var(--p, 0%), var(--line-soft) 0); }
+.ring span { width: 102px; height: 102px; border-radius: 50%; background: var(--card); display: grid; place-items: center; font-family: var(--display); font-size: 36px; font-weight: 600; }
+.score h2 { font-size: 26px; }
+.score p { color: var(--ink-2); margin-top: 4px; }
+.score .warn { color: var(--accent); font-style: italic; font-size: 15px; }
+.score .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.chip { font-family: var(--display); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--line); border-radius: 99px; padding: 4px 10px; color: var(--ink-2); }
+.review { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
+details.rv { background: var(--paper); border: 1px solid var(--line-soft); border-radius: 12px; overflow: hidden; }
+details.rv summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; }
+details.rv summary::-webkit-details-marker { display: none; }
+details.rv summary .t { font-family: var(--display); font-weight: 500; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+details.rv summary .t small { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+details.rv summary .s { font-family: var(--display); font-weight: 600; color: var(--good); white-space: nowrap; }
+details.rv summary .s.bad { color: var(--accent); }
+.rvgrid { border-top: 1px solid var(--line-soft); background: var(--card); padding: 8px 16px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-size: 15px; }
+@media (max-width: 560px) { .rvgrid { grid-template-columns: 1fr; } }
+.rvgrid > div { display: flex; align-items: baseline; gap: 6px; padding-top: 4px; min-width: 0; }
+.rvgrid .n { font-family: var(--display); font-size: 13px; color: var(--ink-3); font-weight: 600; min-width: 26px; }
+.rvgrid .ok { color: var(--good); font-weight: 500; }
+.rvgrid .bad { color: var(--accent); text-decoration: line-through; }
+.rvgrid .arrow { color: var(--ink-3); font-size: 12px; }
+.rvlist { border-top: 1px solid var(--line-soft); background: var(--card); padding: 6px 16px 10px; }
+.rvq { padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 15.5px; line-height: 1.5; display: grid; grid-template-columns: 26px 1fr; gap: 8px; }
+.rvq:last-child { border-bottom: 0; }
+.rvq .n { font-family: var(--display); font-size: 13px; color: var(--ink-3); font-weight: 600; padding-top: 2px; }
+.rvq .ok { color: var(--good); font-weight: 500; font-style: italic; }
+.rvq .bad { color: var(--accent); text-decoration: line-through; }
+.rvq .ans { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+.rvq .ans b { font-weight: 500; color: var(--good); }
+
+.foot { font-size: 12px; color: var(--ink-3); text-align: center; margin-top: 22px; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* combined app additions */
+.year-row { grid-template-columns: repeat(3, 1fr); }
+.year { font-size: 20px; padding: 14px 0 11px; }
+.mode .facts { grid-template-columns: repeat(2, auto); justify-content: start; }
+.startbox { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px 22px; margin-top: 16px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--shadow); }
+.startbox .btn { align-self: flex-start; }
+.tab { white-space: nowrap; }
+@media (max-width: 560px) { .tabs { margin-left: 0; width: 100%; } .tab { flex: 1; padding: 7px 8px; font-size: 13px; } .status { top: calc(env(safe-area-inset-top, 0px) + 92px); } }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-in" id="topbar"></div></header>
+<div id="status"></div>
+<main class="work" id="work"></main>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Data & configuration ---------- */
+  var BANK = {"sentences":{"3":[{"id":"y3-1","sentence":"The explorer felt ____ as he entered the dark cave.","answer":"nervous","distractors":["cheerful","sleepy","hungry","polite"]},{"id":"y3-2","sentence":"He spoke in a ____ voice so as not to wake the baby.","answer":"hushed","distractors":["furious","enormous","rusty","spotty"]},{"id":"y3-3","sentence":"The knight was ____ and refused to give up.","answer":"determined","distractors":["delicious","transparent","circular","frozen"]},{"id":"y3-4","sentence":"Grandma was ____ when I forgot her birthday.","answer":"disappointed","distractors":["delighted","decorated","discovered","delivered"]},{"id":"y3-5","sentence":"The abandoned house looked ____ in the moonlight.","answer":"spooky","distractors":["sporty","sandy","sunny","sticky"]},{"id":"y3-6","sentence":"She gave a ____ smile when she heard the news.","answer":"grateful","distractors":["graceful","growing","grumpy","greedy"]},{"id":"y3-7","sentence":"The tired traveller was ____ to find a warm bed.","answer":"relieved","distractors":["reviewed","removed","repeated","received"]},{"id":"y3-8","sentence":"The garden was ____ with colourful flowers.","answer":"bursting","distractors":["leaking","freezing","yawning","sinking"]},{"id":"y3-9","sentence":"The hungry wolf ____ the meat.","answer":"devoured","distractors":["delivered","deserved","designed","denied"]},{"id":"y3-10","sentence":"The shy boy ____ his answer to the teacher.","answer":"mumbled","distractors":["marched","managed","melted","mended"]},{"id":"y3-11","sentence":"The puppy ____ excitedly when its owner came home.","answer":"bounded","distractors":["balanced","boiled","borrowed","blamed"]},{"id":"y3-12","sentence":"Rain ____ against the classroom window all morning.","answer":"lashed","distractors":["leaned","lifted","linked","listed"]},{"id":"y3-13","sentence":"The crowd ____ when the team scored a goal.","answer":"cheered","distractors":["chewed","checked","changed","chopped"]},{"id":"y3-14","sentence":"He ____ the heavy bag onto his back.","answer":"hoisted","distractors":["hopped","hated","healed","hummed"]},{"id":"y3-15","sentence":"The old map showed a ____ to the hidden treasure.","answer":"route","distractors":["meal","crowd","voice","stamp"]},{"id":"y3-16","sentence":"We visited the ____ to learn about ancient Egypt.","answer":"museum","distractors":["meadow","machine","magnet","mountain"]},{"id":"y3-17","sentence":"A loud ____ shook the windows during the storm.","answer":"rumble","distractors":["ribbon","riddle","ripple","rocket"]},{"id":"y3-18","sentence":"The princess lived in a grand ____ on the hill.","answer":"palace","distractors":["puddle","parcel","pebble","pocket"]},{"id":"y3-19","sentence":"The detective looked for ____ at the scene of the crime.","answer":"clues","distractors":["clubs","claws","cliffs","clocks"]},{"id":"y3-20","sentence":"We could see our ____ in the still water of the lake.","answer":"reflection","distractors":["collection","direction","selection","decoration"]},{"id":"y3-21","sentence":"The cat crept ____ towards the unsuspecting mouse.","answer":"silently","distractors":["loudly","happily","rudely","kindly"]},{"id":"y3-22","sentence":"She ____ tidied her room before her friend arrived.","answer":"quickly","distractors":["sweetly","loudly","softly","darkly"]},{"id":"y3-23","sentence":"The teacher ____ explained the problem again.","answer":"patiently","distractors":["angrily","wildly","noisily","lazily"]},{"id":"y3-24","sentence":"The thief ____ opened the door so no one would hear.","answer":"carefully","distractors":["cheerfully","carelessly","clumsily","constantly"]},{"id":"y3-25","sentence":"It was ____ to climb the tree without permission.","answer":"unwise","distractors":["unkind","unsure","unable","unfair"]},{"id":"y3-26","sentence":"I had to ____ my homework because I made a mistake.","answer":"redo","distractors":["undo","remove","react","refill"]},{"id":"y3-27","sentence":"They ____ about who should go first.","answer":"disagreed","distractors":["discovered","displayed","disturbed","dismissed"]},{"id":"y3-28","sentence":"I ____ my sister's name and she laughed.","answer":"misspelled","distractors":["mistreated","misplaced","misled","misheard"]},{"id":"y3-29","sentence":"The old bridge was ____ and no one used it.","answer":"useless","distractors":["useful","user","using","users"]},{"id":"y3-30","sentence":"She felt great ____ when she finished the race.","answer":"enjoyment","distractors":["enjoyable","enjoying","enjoyed","enjoys"]},{"id":"y3-31","sentence":"The little girl was ____ in the busy shop.","answer":"fearful","distractors":["fearless","fearing","feared","fears"]},{"id":"y3-32","sentence":"He spoke ____ during the school play.","answer":"clearly","distractors":["clearer","clearing","cleared","clears"]},{"id":"y3-33","sentence":"I can hear the music ____ the wall.","answer":"through","distractors":["threw","though","thought","thorough"]},{"id":"y3-34","sentence":"The horse swished its ____ at the flies.","answer":"tail","distractors":["tale","tile","toil","tall"]},{"id":"y3-35","sentence":"The shop sells ____ kinds of cheese.","answer":"many","distractors":["money","merry","meant","messy"]},{"id":"y3-36","sentence":"We sat ____ the campfire telling stories.","answer":"around","distractors":["arose","aloud","allow","abroad"]},{"id":"y3-37","sentence":"The cake was ____ because no one had taken a slice.","answer":"untouched","distractors":["unfolded","unaware","unhappy","unsteady"]},{"id":"y3-38","sentence":"Her bedroom was ____ — clothes and books were everywhere.","answer":"messy","distractors":["empty","tidy","windy","cosy"]},{"id":"y3-39","sentence":"The puddle was so ____ it covered my whole boot.","answer":"deep","distractors":["thin","calm","dry","soft"]},{"id":"y3-40","sentence":"The library was ____ so we whispered to each other.","answer":"silent","distractors":["distant","modern","ancient","crowded"]},{"id":"y3-41","sentence":"After running for an hour, his face was ____ and red.","answer":"sweaty","distractors":["sleepy","speedy","sturdy","steady"]},{"id":"y3-42","sentence":"The ice cream had melted into a sticky ____.","answer":"puddle","distractors":["bundle","muddle","saddle","candle"]},{"id":"y3-43","sentence":"We had to take umbrellas ____ it was raining hard.","answer":"because","distractors":["before","between","beyond","behind"]},{"id":"y3-44","sentence":"I ate my lunch ____ I finished my work.","answer":"after","distractors":["above","again","alone","among"]},{"id":"y3-45","sentence":"He was tired, ____ he kept on running.","answer":"but","distractors":["so","or","if","and"]},{"id":"y3-46","sentence":"The ____ animals slept in the cold winter months.","answer":"hibernating","distractors":["hesitating","celebrating","decorating","investigating"]},{"id":"y3-47","sentence":"The food at the party was absolutely ____.","answer":"delicious","distractors":["dangerous","decorated","delivered","different"]},{"id":"y3-48","sentence":"The teacher gave us clear ____ for the experiment.","answer":"instructions","distractors":["interruptions","introductions","inventions","impressions"]},{"id":"y3-49","sentence":"The ancient castle was ____ but still standing.","answer":"crumbling","distractors":["crowding","crawling","crashing","creaking"]},{"id":"y3-50","sentence":"The magician's trick left the audience ____.","answer":"amazed","distractors":["aged","armed","aimed","asked"]}],"4":[{"id":"y4-1","sentence":"The volcano had been ____ for hundreds of years.","answer":"dormant","distractors":["delighted","generous","fragile","punctual"]},{"id":"y4-2","sentence":"Her ____ argument convinced the whole class.","answer":"persuasive","distractors":["edible","horizontal","muddy","feathered"]},{"id":"y4-3","sentence":"The empty old house felt ____ at night.","answer":"eerie","distractors":["eager","early","easy","edgy"]},{"id":"y4-4","sentence":"The audience gave a ____ round of applause.","answer":"tremendous","distractors":["transparent","triangular","tropical","treacherous"]},{"id":"y4-5","sentence":"She kept her diary in a ____ place no one could find.","answer":"secret","distractors":["sudden","second","select","severe"]},{"id":"y4-6","sentence":"The lost dog looked ____ and refused to eat.","answer":"miserable","distractors":["magnificent","marvellous","memorable","muscular"]},{"id":"y4-7","sentence":"The ____ explorer travelled deep into the jungle.","answer":"courageous","distractors":["curious","creative","comfortable","convenient"]},{"id":"y4-8","sentence":"The river ____ gently through the valley.","answer":"meandered","distractors":["exploded","shattered","demanded","applauded"]},{"id":"y4-9","sentence":"The detective ____ the suspect for over an hour.","answer":"questioned","distractors":["queued","quivered","quoted","quarrelled"]},{"id":"y4-10","sentence":"The thieves ____ into the museum after dark.","answer":"sneaked","distractors":["snapped","snorted","sneezed","snatched"]},{"id":"y4-11","sentence":"She ____ over the meaning of the strange message.","answer":"puzzled","distractors":["polished","punished","published","punctured"]},{"id":"y4-12","sentence":"The crowd ____ in horror as the building collapsed.","answer":"gasped","distractors":["grasped","groaned","gathered","guarded"]},{"id":"y4-13","sentence":"Lightning ____ across the night sky.","answer":"flashed","distractors":["flooded","floated","flapped","fluttered"]},{"id":"y4-14","sentence":"The doctor put ____ cream on the cut.","answer":"antiseptic","distractors":["antifreeze","antiwar","antisocial","antiviral"]},{"id":"y4-15","sentence":"Astronauts must wear a ____ in space.","answer":"spacesuit","distractors":["superstar","supermarket","superpower","superhero"]},{"id":"y4-16","sentence":"The two countries signed an ____ agreement.","answer":"international","distractors":["interactive","interrupted","interesting","intermediate"]},{"id":"y4-17","sentence":"A ____ travels deep beneath the ocean.","answer":"submarine","distractors":["subtitle","subtotal","suburb","subzero"]},{"id":"y4-18","sentence":"The author wrote her own life story called an ____.","answer":"autobiography","distractors":["automobile","autopilot","autograph","automatic"]},{"id":"y4-19","sentence":"The teacher gave a clear ____ of how to solve the sum.","answer":"explanation","distractors":["explorer","explainer","explained","explaining"]},{"id":"y4-20","sentence":"The lion is a ____ and powerful animal.","answer":"dangerous","distractors":["danger","dangering","dangerful","dangerless"]},{"id":"y4-21","sentence":"She made a difficult ____ to move to a new school.","answer":"decision","distractors":["decide","decider","deciding","decided"]},{"id":"y4-22","sentence":"The class went on an ____ to the local farm.","answer":"expedition","distractors":["expose","exposure","experience","experiment"]},{"id":"y4-23","sentence":"He waited ____ for the bus to arrive.","answer":"patiently","distractors":["patience","patient","patiented","patienting"]},{"id":"y4-24","sentence":"The cup was light and very ____.","answer":"breakable","distractors":["breaking","breaker","breaks","broke"]},{"id":"y4-25","sentence":"We blew out the candles on the ____ cake.","answer":"birthday","distractors":["bicycle","bottle","battle","bubble"]},{"id":"y4-26","sentence":"The angry king lived in a tall ____.","answer":"castle","distractors":["camel","cancel","carnival","council"]},{"id":"y4-27","sentence":"The doctor wrote in the patient's ____.","answer":"journal","distractors":["journey","juggle","jungle","jumble"]},{"id":"y4-28","sentence":"A snail moves with the help of a slimy ____.","answer":"trail","distractors":["travel","tunnel","trifle","trouble"]},{"id":"y4-29","sentence":"I have a stomach ____ from eating too quickly.","answer":"ache","distractors":["ace","age","ape","ask"]},{"id":"y4-30","sentence":"Please don't ____ the secret to anyone.","answer":"reveal","distractors":["repeal","revere","revel","review"]},{"id":"y4-31","sentence":"The runner won the gold ____ at the championships.","answer":"medal","distractors":["meddle","metal","model","modal"]},{"id":"y4-32","sentence":"We should ____ the rules of the game.","answer":"accept","distractors":["except","expect","exempt","extract"]},{"id":"y4-33","sentence":"The shop has a special ____ on toys this week.","answer":"offer","distractors":["officer","office","often","offering"]},{"id":"y4-34","sentence":"The dentist examined her ____ carefully.","answer":"teeth","distractors":["tooths","toothes","teeths","toothies"]},{"id":"y4-35","sentence":"The shepherd counted his ____ at the end of the day.","answer":"sheep","distractors":["sheeps","shepe","sheepies","shept"]},{"id":"y4-36","sentence":"Many small ____ scurried out from under the rock.","answer":"mice","distractors":["mouses","mices","mousies","micies"]},{"id":"y4-37","sentence":"Even though it was raining, she refused to take an ____.","answer":"umbrella","distractors":["umbrage","urgency","uniform","utensil"]},{"id":"y4-38","sentence":"The library was so ____ that you could hear a pin drop.","answer":"silent","distractors":["solid","simple","similar","single"]},{"id":"y4-39","sentence":"The thirsty traveller drank ____ from the cool stream.","answer":"eagerly","distractors":["easily","early","elegantly","evenly"]},{"id":"y4-40","sentence":"Although she was nervous, her speech sounded ____.","answer":"confident","distractors":["confused","constant","continued","convinced"]},{"id":"y4-41","sentence":"The team had practised for weeks and felt fully ____.","answer":"prepared","distractors":["pretended","presented","preferred","presumed"]},{"id":"y4-42","sentence":"The food at the restaurant was so ____ it earned a top award.","answer":"exquisite","distractors":["exhausting","expensive","extensive","exploring"]},{"id":"y4-43","sentence":"I checked the answers ____ I handed in my work.","answer":"before","distractors":["beyond","behind","beside","between"]},{"id":"y4-44","sentence":"____ the sun was shining, we played in the garden.","answer":"Since","distractors":["Until","Unless","Whether","Whenever"]},{"id":"y4-45","sentence":"We waited inside ____ the rain finally stopped.","answer":"until","distractors":["unless","under","upon","using"]},{"id":"y4-46","sentence":"The fire spread ____ through the dry forest.","answer":"rapidly","distractors":["regularly","recently","reasonably","remotely"]},{"id":"y4-47","sentence":"The actor remembered his lines without any ____.","answer":"difficulty","distractors":["different","difference","differently","differ"]},{"id":"y4-48","sentence":"The ____ ship sank to the bottom of the sea.","answer":"ancient","distractors":["anxious","appear","answer","accident"]},{"id":"y4-49","sentence":"The detective was ____ that the suspect was lying.","answer":"certain","distractors":["centre","century","certify","ceremony"]},{"id":"y4-50","sentence":"The astronaut described his journey through ____.","answer":"space","distractors":["spare","spade","spear","speak"]}],"5":[{"id":"y5-1","sentence":"The scientist's discovery was truly ____ and changed the field.","answer":"remarkable","distractors":["edible","punctual","horizontal","reluctant"]},{"id":"y5-2","sentence":"He gave an ____ apology that nobody believed.","answer":"insincere","distractors":["fragrant","spherical","nocturnal","metallic"]},{"id":"y5-3","sentence":"The lawyer presented a ____ case to the jury.","answer":"compelling","distractors":["edible","buoyant","fractured","dormant"]},{"id":"y5-4","sentence":"The mountaineer made a ____ climb to the summit.","answer":"perilous","distractors":["punctual","portable","previous","peculiar"]},{"id":"y5-5","sentence":"Her ____ memory allowed her to recall every detail.","answer":"phenomenal","distractors":["philosophical","photographic","physical","phonetic"]},{"id":"y5-6","sentence":"The judge gave an ____ verdict that satisfied no one.","answer":"ambiguous","distractors":["amphibious","ambitious","amateur","amicable"]},{"id":"y5-7","sentence":"The traveller's stories were so ____ that everyone listened.","answer":"captivating","distractors":["calculating","celebrating","cultivating","communicating"]},{"id":"y5-8","sentence":"The ancient ruins were ____ by tourists every summer.","answer":"frequented","distractors":["evaporated","fossilised","whispered","demolished"]},{"id":"y5-9","sentence":"The witness ____ that he had seen the suspect that night.","answer":"confirmed","distractors":["conformed","confined","confronted","confessed"]},{"id":"y5-10","sentence":"The negotiator tried to ____ the two warring sides.","answer":"reconcile","distractors":["reclaim","recognise","recommend","reconstruct"]},{"id":"y5-11","sentence":"Her sharp criticism ____ him to make changes.","answer":"prompted","distractors":["promoted","promised","pronounced","prospered"]},{"id":"y5-12","sentence":"The protesters ____ outside the town hall for hours.","answer":"assembled","distractors":["ascended","assumed","assigned","assisted"]},{"id":"y5-13","sentence":"The general ordered his troops to ____ at dawn.","answer":"advance","distractors":["abandon","achieve","approve","announce"]},{"id":"y5-14","sentence":"Her ____ for music was obvious from a young age.","answer":"aptitude","distractors":["reluctance","boundary","fragment","interval"]},{"id":"y5-15","sentence":"The teacher praised the student's ____ and hard work.","answer":"perseverance","distractors":["performance","permission","personality","persuasion"]},{"id":"y5-16","sentence":"There was a strange ____ in the sky just before dawn.","answer":"phenomenon","distractors":["philosopher","photograph","phantom","phrase"]},{"id":"y5-17","sentence":"The two leaders signed a ____ to end the war.","answer":"treaty","distractors":["theory","thesis","thread","throne"]},{"id":"y5-18","sentence":"The detective searched the room for any ____ of the crime.","answer":"evidence","distractors":["essence","absence","audience","experience"]},{"id":"y5-19","sentence":"The lion was ____ when defending its territory.","answer":"ferocious","distractors":["fortunate","fearless","frequent","feasible"]},{"id":"y5-20","sentence":"The hotel chef cooked a ____ three-course meal.","answer":"delicious","distractors":["different","difficult","delicate","deliberate"]},{"id":"y5-21","sentence":"She was ____ in everything she set out to do.","answer":"ambitious","distractors":["anxious","obvious","envious","various"]},{"id":"y5-22","sentence":"Reading is an ____ skill for learning other subjects.","answer":"essential","distractors":["eventual","external","emotional","exceptional"]},{"id":"y5-23","sentence":"The mayor made an ____ announcement on the news.","answer":"official","distractors":["optional","occasional","original","objectional"]},{"id":"y5-24","sentence":"The plan had the ____ to change the whole school.","answer":"potential","distractors":["practical","personal","particular","patriotic"]},{"id":"y5-25","sentence":"The teacher's ____ helped me improve my writing.","answer":"guidance","distractors":["guarantee","grievance","gracious","gratitude"]},{"id":"y5-26","sentence":"There was a long period of ____ before he replied.","answer":"hesitance","distractors":["heritage","hindrance","hierarchy","hibernation"]},{"id":"y5-27","sentence":"The candle flickered, casting a ____ glow on the wall.","answer":"radiant","distractors":["rampant","redundant","reluctant","resistant"]},{"id":"y5-28","sentence":"The witness gave a clear and ____ account of events.","answer":"coherent","distractors":["competent","convenient","continent","contingent"]},{"id":"y5-29","sentence":"The room fell silent in the ____ of the head teacher.","answer":"presence","distractors":["patience","preference","performance","persistence"]},{"id":"y5-30","sentence":"She had to act with great ____ in front of the camera.","answer":"confidence","distractors":["conference","consequence","convergence","coincidence"]},{"id":"y5-31","sentence":"The handwriting was so faded it was barely ____.","answer":"legible","distractors":["likable","liable","logical","lateral"]},{"id":"y5-32","sentence":"His ____ behaviour at parties made him popular.","answer":"sociable","distractors":["sensible","suitable","sizeable","syllable"]},{"id":"y5-33","sentence":"The conclusion was ____ from the evidence presented.","answer":"inevitable","distractors":["incredible","invisible","infallible","inflexible"]},{"id":"y5-34","sentence":"The detective spotted a ____ in the suspect's story.","answer":"knot","distractors":["not","note","knit","neat"]},{"id":"y5-35","sentence":"She raised her ____ to ask a question.","answer":"hand","distractors":["wand","band","land","sand"]},{"id":"y5-36","sentence":"The knight wielded a heavy ____ in battle.","answer":"sword","distractors":["soared","sward","shroud","stride"]},{"id":"y5-37","sentence":"We could see the ____ in the dough rising as it baked.","answer":"yeast","distractors":["yield","yarn","year","youth"]},{"id":"y5-38","sentence":"Her voice was as ____ as a nightingale's song.","answer":"melodious","distractors":["mechanical","monotonous","miserable","metallic"]},{"id":"y5-39","sentence":"The icy wind ____ through the empty streets.","answer":"howled","distractors":["healed","hauled","halted","hovered"]},{"id":"y5-40","sentence":"His face turned ____ red when he was caught lying.","answer":"beetroot","distractors":["beautiful","beneath","beforehand","beside"]},{"id":"y5-41","sentence":"Visitors ____ keep dogs on a lead in the park.","answer":"must","distractors":["may","might","mostly","merely"]},{"id":"y5-42","sentence":"I ____ go to the cinema if I finish my homework.","answer":"could","distractors":["cold","cured","called","carved"]},{"id":"y5-43","sentence":"It ____ rain later, so take an umbrella.","answer":"might","distractors":["must","make","mean","mend"]},{"id":"y5-44","sentence":"Despite his cheerful manner, the headmaster was secretly ____ about the inspection.","answer":"anxious","distractors":["amused","ancient","annoying","amazing"]},{"id":"y5-45","sentence":"The detective remained ____ even when the evidence seemed to contradict him.","answer":"convinced","distractors":["conceited","concerned","convicted","concealed"]},{"id":"y5-46","sentence":"Although it looked easy, the puzzle was actually ____ to solve.","answer":"intricate","distractors":["intimate","internal","intentional","intensive"]},{"id":"y5-47","sentence":"The pupils had to ____ their work to the teacher by Friday.","answer":"submit","distractors":["subtract","subdue","submerge","substitute"]},{"id":"y5-48","sentence":"The new museum exhibit was a great ____ for the town.","answer":"achievement","distractors":["acknowledgement","advertisement","appointment","amusement"]},{"id":"y5-49","sentence":"The vegetables in the soup are home-grown and very ____.","answer":"nutritious","distractors":["notorious","noticeable","necessary","neighbourly"]},{"id":"y5-50","sentence":"She gave a ____ speech that moved the entire audience.","answer":"sincere","distractors":["severe","secure","serene","separate"]}]},"passages":{"3":[{"title":"The Treehouse","kind":"Narrative","text":"Last summer, my older brother Sam and I decided to @1@ a treehouse in the apple tree at the bottom of the garden. We had no @2@ what we were doing. Dad gave us some old planks of wood, a hammer and a small box of nails. He smiled and said, 'Good luck — try not to @3@ any fingers.'\n\nIt took us two whole weeks. On the first day, we @4@ a plan on a sheet of paper. The plan was very @5@ — it even included a balcony and a rope ladder. By the end of week one, we had only managed to @6@ four planks together. Sam said the plan was probably 'a bit too @7@ for us'.\n\nIn the end, our treehouse was much @8@ than we had hoped, and the floor was a little wobbly. But when we @9@ up and sat inside on the very first night, watching the stars through the leaves, it felt like the best @10@ in the whole world.","gaps":[{"options":["build","find","climb","paint"],"answer":"build"},{"options":["idea","time","friend","book"],"answer":"idea"},{"options":["lose","break","cut","wash"],"answer":"lose"},{"options":["drew","wrote","read","threw"],"answer":"drew"},{"options":["ambitious","quick","heavy","silent"],"answer":"ambitious"},{"options":["nail","kick","wash","cook"],"answer":"nail"},{"options":["clever","cheap","loud","small"],"answer":"clever"},{"options":["smaller","better","faster","older"],"answer":"smaller"},{"options":["climbed","fell","swam","drove"],"answer":"climbed"},{"options":["place","time","friend","dream"],"answer":"place"}]},{"title":"All About Owls","kind":"Information text","text":"Owls are @1@ birds of prey that live on every continent except Antarctica. There are around 200 different @2@ of owl, ranging from the tiny elf owl, which is only 13 centimetres tall, to the huge Eurasian eagle owl, which has a wingspan of nearly two metres.\n\nMost owls are @3@, which means they are awake at night and sleep during the day. Their large, round eyes are perfectly designed for seeing in the @4@. However, owls cannot move their eyes from side to side like humans can. @5@, they turn their whole head — sometimes almost all the way round!\n\nOwls have another remarkable skill: silent flight. Special soft edges on their feathers stop the air from making a @6@ as they fly. This means a mouse or a vole on the ground below has very little @7@ before the owl swoops down to catch it.\n\nA @8@ owl is called an owlet. Owlets are usually born @9@ in soft, fluffy white feathers @10@ down.","gaps":[{"options":["fascinating","clean","loud","boring"],"answer":"fascinating"},{"options":["species","colours","sizes","songs"],"answer":"species"},{"options":["nocturnal","friendly","wild","wet"],"answer":"nocturnal"},{"options":["dark","sky","grass","water"],"answer":"dark"},{"options":["Instead","Above","Before","Quickly"],"answer":"Instead"},{"options":["noise","hole","mess","nest"],"answer":"noise"},{"options":["warning","food","time","hope"],"answer":"warning"},{"options":["baby","wild","sleepy","clever"],"answer":"baby"},{"options":["covered","cooked","lost","painted"],"answer":"covered"},{"options":["called","before","under","with"],"answer":"called"}]},{"title":"My First Sleepover","kind":"First-person narrative","text":"I had been looking @1@ to my first sleepover for weeks. My best friend, Priya, had invited four of us to her house for the night. I @2@ my bag two days early, just to make sure I had everything.\n\nWhen the day finally came, my stomach felt @3@ — a mix of excited and nervous. Mum hugged me at the front door of Priya's house. 'You'll have a wonderful time,' she said. But as soon as she @4@ away, I suddenly wanted to run after her car.\n\nThe evening was fine. We ate pizza and watched a film about a magical bakery. But at @5@, lying on my camping mat in Priya's room, I started to feel very @6@. The room was dark and full of strange @7@. I missed my own bed. I missed Mum. I almost @8@.\n\nThen Priya whispered, 'Are you OK?' I told her the truth. To my @9@, she said she had felt exactly the same at her first sleepover. After that, I felt much better, and soon I @10@ asleep.","gaps":[{"options":["forward","down","up","over"],"answer":"forward"},{"options":["packed","sold","lost","cleaned"],"answer":"packed"},{"options":["strange","hungry","heavy","cold"],"answer":"strange"},{"options":["drove","walked","ran","sang"],"answer":"drove"},{"options":["bedtime","breakfast","school","lunchtime"],"answer":"bedtime"},{"options":["small","tall","loud","hungry"],"answer":"small"},{"options":["shadows","friends","pets","toys"],"answer":"shadows"},{"options":["cried","smiled","laughed","shouted"],"answer":"cried"},{"options":["surprise","sadness","anger","luck"],"answer":"surprise"},{"options":["fell","went","stayed","kept"],"answer":"fell"}]},{"title":"Banana Bread","kind":"Recipe / instructional","text":"Banana bread is a sweet, soft cake that tastes @1@ with butter on top. It is also a clever way to use up bananas that have gone a bit too soft to eat. Always ask an adult to help you, @2@ when using the oven.\n\n<b>Ingredients:<\/b> 3 very @3@ bananas, 100g of soft butter, 150g of sugar, 2 eggs, 200g of plain flour, 1 teaspoon of baking powder.\n\n<b>Method:<\/b> First, @4@ the oven to 180°C. Grease a loaf tin with a little butter. Next, mash the bananas in a large bowl until they are @5@. Add the butter and sugar, and @6@ well. Then crack in the eggs, one at a time, and stir. Finally, add the flour and baking powder. Mix until you have a thick, @7@ batter. @8@ the mixture into the tin and bake for about 50 minutes.\n\nYour banana bread is ready when a skewer pushed into the @9@ comes out clean. Let it @10@ before slicing.","gaps":[{"options":["amazing","strange","wet","tiny"],"answer":"amazing"},{"options":["especially","quickly","sadly","above"],"answer":"especially"},{"options":["ripe","cold","clean","large"],"answer":"ripe"},{"options":["heat","freeze","open","clean"],"answer":"heat"},{"options":["smooth","hard","yellow","sharp"],"answer":"smooth"},{"options":["mix","drink","weigh","cool"],"answer":"mix"},{"options":["sticky","dry","thin","cold"],"answer":"sticky"},{"options":["Pour","Throw","Cut","Eat"],"answer":"Pour"},{"options":["middle","colour","smell","weight"],"answer":"middle"},{"options":["cool","shake","wash","bake"],"answer":"cool"}]},{"title":"A Letter from Camp","kind":"Letter","text":"Dear Mum and Dad,\n\nI have been at Camp Pinewood for three days now and I want to tell you @1@. Our cabin is called Squirrel Lodge. There are six of us in the cabin and our @2@ leader is called Mia. She is from Canada and very funny.\n\nOn the first day, it @3@ from morning until evening, so we played board games and made friendship bracelets in the hall. I @4@ a blue and yellow one for my sister. I hope she likes it.\n\nYesterday was much better. We went canoeing on the lake! I was @5@ at first because I had never been in a canoe before, but my partner was a girl called Sara and she had done it lots of times. She @6@ me how to hold the paddle properly. Now I love it.\n\n@7@ we are going to have a campfire and toast marshmallows. Mia says some children always burn theirs because they don't have any @8@.\n\nPlease write back soon. @9@ Buster I miss him.\n\n@10@,\nTheo","gaps":[{"options":["everything","something","nothing","anything"],"answer":"everything"},{"options":["group","school","family","sports"],"answer":"group"},{"options":["rained","shone","snowed","blew"],"answer":"rained"},{"options":["made","ate","sold","broke"],"answer":"made"},{"options":["nervous","hungry","cold","lazy"],"answer":"nervous"},{"options":["taught","fed","hit","bought"],"answer":"taught"},{"options":["Tonight","Yesterday","Last week","Forever"],"answer":"Tonight"},{"options":["patience","money","shoes","sugar"],"answer":"patience"},{"options":["Tell","Sell","Forget","Drop"],"answer":"Tell"},{"options":["Love","Hello","Sorry","Quickly"],"answer":"Love"}]},{"title":"The Old Lighthouse","kind":"Descriptive","text":"At the very end of the cliffs @1@ the old lighthouse. It had been painted red and white once, but the salty wind and the lashing rain had @2@ away most of the colour. Now it looked grey and tired, like an old man @3@ against the rocks.\n\nNo one had lived in the lighthouse for many years. The door was locked with a heavy iron @4@. The windows were dark and dusty. Sometimes, on stormy nights, the villagers said you could still hear footsteps @5@, climbing slowly up the spiral staircase. Most people thought it was just the @6@ of the wind in the empty tower.\n\nA little girl called Eliza did not @7@ them. Every Saturday, she walked up the cliff path with her grandfather, and they sat on a bench and watched the lighthouse together. 'One day,' she would say, 'someone will @8@ that lamp again, and ships will see it from the sea.' Her grandfather would smile and @9@ her hand, but he would never say a @10@.","gaps":[{"options":["stood","ran","sang","hid"],"answer":"stood"},{"options":["stripped","added","pulled","painted"],"answer":"stripped"},{"options":["leaning","running","sitting","laughing"],"answer":"leaning"},{"options":["padlock","nail","wheel","pole"],"answer":"padlock"},{"options":["inside","outside","above","behind"],"answer":"inside"},{"options":["sound","colour","smell","size"],"answer":"sound"},{"options":["believe","hear","find","leave"],"answer":"believe"},{"options":["light","open","sell","paint"],"answer":"light"},{"options":["squeeze","sell","drop","kick"],"answer":"squeeze"},{"options":["word","song","poem","book"],"answer":"word"}]},{"title":"How to Look After a Goldfish","kind":"Care guide","text":"Goldfish are popular pets, but they need more @1@ than many people think. A goldfish can live for over ten years if it is looked after properly.\n\nFirst, @2@ the right tank. A goldfish needs at least 75 litres of water — small round bowls are not @3@, even though shops still sell them. Goldfish produce a lot of @4@, so a bowl quickly becomes dirty and unhealthy.\n\nSecond, feed your fish a small @5@ of food twice a day. Many goldfish die because their owners feed them too @6@. If there is uneaten food at the bottom of the tank after a few minutes, you have given them too much.\n\nThird, change about a @7@ of the water every week. Use a clean bucket and add water that is the same @8@ as the water in the tank. If the new water is too cold or too warm, it can @9@ the fish.\n\nFinally, keep the tank away from direct sunlight and noisy areas. Goldfish @10@ a calm, quiet environment, just like many of us.","gaps":[{"options":["care","time","money","luck"],"answer":"care"},{"options":["choose","break","wash","sell"],"answer":"choose"},{"options":["suitable","quick","cold","cheap"],"answer":"suitable"},{"options":["waste","noise","colour","oil"],"answer":"waste"},{"options":["pinch","bag","pound","bucket"],"answer":"pinch"},{"options":["much","little","fast","sweet"],"answer":"much"},{"options":["third","half","week","metre"],"answer":"third"},{"options":["temperature","colour","smell","weight"],"answer":"temperature"},{"options":["shock","clean","feed","hide"],"answer":"shock"},{"options":["prefer","hate","fear","catch"],"answer":"prefer"}]},{"title":"The Mystery of the Missing Lunch","kind":"Mystery / narrative","text":"Every Tuesday, Mr Park's class went outside for an hour of forest school. They would leave their lunch boxes neatly @1@ in the cloakroom and head out into the school woods.\n\nOne Tuesday in April, Lily came back @2@ after running around all morning. But when she opened her lunch box, her cheese sandwich and her apple were @3@. In their place was a single crumb and a strange muddy paw @4@.\n\nThe same thing happened the next week to Daniel — and the week after that, to two more children. Mr Park said it must be 'a @5@ fox'. The school caretaker, Mr Roy, was not so sure. 'A fox would knock over the bin,' he said, scratching his head, 'not @6@ a lunch box neatly.'\n\nThe @7@ was solved on the fourth Tuesday. Lily went back inside early because she had hurt her @8@. She @9@ to the cloakroom and there, sitting in the middle of the floor with a sandwich in his paws, was the caretaker's small ginger @10@, Biscuit. He had crept in through the open window.","gaps":[{"options":["stacked","cooked","sold","hidden"],"answer":"stacked"},{"options":["ravenous","sleepy","clean","wet"],"answer":"ravenous"},{"options":["gone","hot","yellow","new"],"answer":"gone"},{"options":["print","box","animal","bowl"],"answer":"print"},{"options":["thieving","dancing","sleepy","tiny"],"answer":"thieving"},{"options":["open","cook","freeze","draw"],"answer":"open"},{"options":["mystery","sandwich","wood","classroom"],"answer":"mystery"},{"options":["knee","book","sister","paint"],"answer":"knee"},{"options":["tiptoed","shouted","drove","swam"],"answer":"tiptoed"},{"options":["cat","dog","bird","boy"],"answer":"cat"}]},{"title":"Volcanoes","kind":"Information / science","text":"A volcano is an @1@ in the Earth's surface through which hot, melted rock — called magma — can escape. When magma reaches the surface and flows out, it is called @2@. Lava can be @3@ than 1,000°C, which is hot enough to set wood on fire just by being near it.\n\nThere are more than 1,500 @4@ volcanoes on Earth. 'Active' means a volcano that has erupted recently or might @5@ again soon. Many of them are found around the edges of the Pacific Ocean, in a curved area known as the Ring of Fire.\n\nNot all eruptions are the same. Some volcanoes @6@ suddenly with huge clouds of ash and rock. Others ooze lava more gently, @7@ thick honey running down a hill. Scientists who study volcanoes are called volcanologists. They use special equipment to listen to the ground and try to @8@ when an eruption might happen, but it is not always easy.\n\nAlthough volcanoes can be @9@, the ash they release makes the surrounding soil very rich, and farmers often grow @10@ crops nearby.","gaps":[{"options":["opening","animal","colour","village"],"answer":"opening"},{"options":["lava","water","smoke","fire"],"answer":"lava"},{"options":["hotter","colder","lighter","quieter"],"answer":"hotter"},{"options":["active","dead","new","large"],"answer":"active"},{"options":["erupt","sleep","move","sing"],"answer":"erupt"},{"options":["explode","freeze","float","sing"],"answer":"explode"},{"options":["like","under","before","since"],"answer":"like"},{"options":["predict","cook","sell","hide"],"answer":"predict"},{"options":["dangerous","cheap","quiet","friendly"],"answer":"dangerous"},{"options":["excellent","dead","strange","cold"],"answer":"excellent"}]},{"title":"The Best Day of the Holiday","kind":"Descriptive personal narrative","text":"If you asked me to @1@ the best day of our whole summer holiday, I would not even have to think about it. It was the day we went to the floating market.\n\nWe took a tiny wooden boat down a brown, slow river. The sun was so @2@ that I had to keep one hand over my eyes. All around us, other boats @3@ past — hundreds of them, all painted in different colours. Some were piled high with @4@ of fruit: scarlet dragon fruit, golden mangoes, and bunches of green bananas tied with string. Others sold steaming bowls of noodles, which the seller passed across the water on a long bamboo @5@.\n\nA woman in a wide straw @6@ smiled at my little brother and gave him a slice of pineapple. He grinned with juice all down his @7@. I bought a pink lotus @8@ for fifty pence to give to Grandma when we got home.\n\nThat night, falling @9@, I could still hear the river, the splashing paddles, and the bright, happy @10@ of the sellers in my head.","gaps":[{"options":["choose","cook","wash","drop"],"answer":"choose"},{"options":["bright","dark","cold","wet"],"answer":"bright"},{"options":["glided","crashed","sank","barked"],"answer":"glided"},{"options":["mountains","drops","pieces","pictures"],"answer":"mountains"},{"options":["pole","bowl","hat","song"],"answer":"pole"},{"options":["hat","shop","boat","cup"],"answer":"hat"},{"options":["chin","book","ear","shoe"],"answer":"chin"},{"options":["flower","cake","shoe","book"],"answer":"flower"},{"options":["asleep","down","awake","over"],"answer":"asleep"},{"options":["voices","colours","smells","clouds"],"answer":"voices"}]}],"4":[{"title":"The Magic Telescope","kind":"Narrative","text":"My grandfather's attic was always @1@ off-limits. So when Mum gave me the key on my tenth birthday, I climbed the wooden ladder with a feeling somewhere @2@ excitement and fear. Dust danced in the slanting light from the single round window.\n\nIn the far corner, @3@ behind a tattered curtain, stood a brass telescope on three slender legs. It was almost as tall as me. I @4@ it carefully towards the window, breathed on the lens, and looked up at the afternoon sky.\n\nWhat I saw made me @5@ in disbelief. The sun was not where it should have been. Strange ringed planets hung where, only seconds before, there had been @6@ cloud. Through the eyepiece I could see oceans, mountains, and tiny lights that might have been cities.\n\nI lowered the telescope slowly. Through the window, the sky was perfectly @7@: blue, with a few harmless clouds. I raised it again. The strange world @8@.\n\nFor an hour I stood there, looking from one impossible sky to another, my breath @9@. I knew, somehow, that I must not tell anyone — not yet. Some discoveries are too @10@ to share.","gaps":[{"options":["strictly","quickly","sadly","loudly"],"answer":"strictly"},{"options":["between","under","before","inside"],"answer":"between"},{"options":["half-hidden","coloured","shouted","opened"],"answer":"half-hidden"},{"options":["turned","threw","drank","forgot"],"answer":"turned"},{"options":["gasp","sing","sleep","smile"],"answer":"gasp"},{"options":["only","never","heavy","loud"],"answer":"only"},{"options":["ordinary","strange","golden","windy"],"answer":"ordinary"},{"options":["returned","disappeared","sang","melted"],"answer":"returned"},{"options":["quickening","sleeping","boiling","falling"],"answer":"quickening"},{"options":["precious","boring","wet","loud"],"answer":"precious"}]},{"title":"Honey Bees","kind":"Information text","text":"Honey bees are @1@ social insects that live in large groups called colonies. A single colony can @2@ tens of thousands of bees, and every member has a particular job to do.\n\nAt the heart of every colony is the queen, the only bee in the hive who lays eggs. She can produce up to two thousand eggs in a single day. Worker bees, all female, do almost everything else: they collect nectar, look after the young, and @3@ the hive. Male bees, called drones, have just one @4@ — to mate with a new queen.\n\nWhen a worker bee finds a good source of flowers, she returns home and @5@ a special 'waggle dance'. The angle and speed of the dance tell the other bees the @6@ and distance of the food. It is one of the most remarkable communication systems in the animal kingdom.\n\nBees are not only fascinating; they are @7@ to our world. About one in every three mouthfuls of food we eat @8@ on a bee for pollination. @9@, bee populations have been falling for years, partly because of pesticides and lost habitats. Many scientists are now trying to find ways to @10@ them.","gaps":[{"options":["highly","quietly","never","loudly"],"answer":"highly"},{"options":["contain","cook","break","drink"],"answer":"contain"},{"options":["defend","sell","paint","forget"],"answer":"defend"},{"options":["role","cake","song","arm"],"answer":"role"},{"options":["performs","breaks","eats","sells"],"answer":"performs"},{"options":["direction","weight","colour","age"],"answer":"direction"},{"options":["essential","cheap","strange","loud"],"answer":"essential"},{"options":["depends","sleeps","sings","cooks"],"answer":"depends"},{"options":["Unfortunately","Quickly","Above","Below"],"answer":"Unfortunately"},{"options":["protect","sell","break","forget"],"answer":"protect"}]},{"title":"Moving House","kind":"First-person","text":"On the morning we left our old house, I stood for a long time in my empty bedroom, trying to @1@ every detail. The little scratch on the door where I had once dragged a chair. The patch on the carpet where my paint pot had @2@. The view from the window: the same cherry tree I had watched bloom every year for as long as I could @3@.\n\nDad's voice called up the stairs. 'Sasha, we have to go!' His tone was kind, but I could hear the edge of @4@ in it. We had a long drive ahead.\n\nIn the car, I @5@ my forehead against the cool window. Houses I had passed every day slid by for the last time: the corner shop, my old primary school, the funny green house with the @6@ gate. None of them noticed I was leaving.\n\nThe new house, when we arrived, was @7@ to be honest. The garden was huge and there was a tiny wood at the end of it. My room was bigger than my old one. But I could not @8@ smiling, not yet. I needed time.\n\nThat night, I sat by the new window and watched a moon I did not @9@. It rose over rooftops I had never seen. Slowly, I started to feel that, perhaps, one day, this place might also feel like a @10@.","gaps":[{"options":["remember","cook","break","lose"],"answer":"remember"},{"options":["spilled","sung","drunk","cooked"],"answer":"spilled"},{"options":["recall","cook","break","sell"],"answer":"recall"},{"options":["impatience","laughter","colour","sound"],"answer":"impatience"},{"options":["pressed","sang","cooked","sold"],"answer":"pressed"},{"options":["crooked","quiet","blue","new"],"answer":"crooked"},{"options":["lovely","boring","wet","loud"],"answer":"lovely"},{"options":["manage","hide","sell","break"],"answer":"manage"},{"options":["recognise","sell","break","forget"],"answer":"recognise"},{"options":["home","shop","road","hat"],"answer":"home"}]},{"title":"How to Make a Paper Aeroplane","kind":"Instructional","text":"With @1@ and practice, you can make a paper aeroplane that flies surprisingly far. All you need is a single sheet of A4 paper.\n\nFirst, place the paper on a flat @2@ in front of you, with the short edge nearest. Fold it exactly in half lengthways, then @3@ it again so you can see a clear crease running down the middle.\n\nNext, take the two top corners and fold them inwards, so that they meet neatly at the centre line. You should now have a @4@ point at the top of the paper. This will become the nose of your aeroplane.\n\nNow fold the slanted edges in towards the middle once more. The nose should become @5@, narrower and sharper. @6@ the whole shape in half, with the points pointing outwards.\n\nFinally, create the wings by folding each side down so that the lower edge of the wing is parallel to the bottom of the aeroplane's body. Make sure both wings are exactly the same @7@; otherwise, your plane will spin or @8@ to one side.\n\nTo throw, hold the body firmly between your thumb and forefinger. Aim slightly upwards and release with a @9@, smooth flick. With a little adjustment, you should soon be able to make your aeroplane glide gracefully across the @10@.","gaps":[{"options":["patience","mud","paint","wood"],"answer":"patience"},{"options":["surface","fish","song","cup"],"answer":"surface"},{"options":["open","sell","break","sing"],"answer":"open"},{"options":["triangular","round","red","hot"],"answer":"triangular"},{"options":["longer","shorter","yellow","wet"],"answer":"longer"},{"options":["Fold","Sell","Break","Sing"],"answer":"Fold"},{"options":["size","colour","smell","song"],"answer":"size"},{"options":["tilt","sing","sleep","cook"],"answer":"tilt"},{"options":["gentle","loud","cold","sweet"],"answer":"gentle"},{"options":["room","sea","kitchen","forest"],"answer":"room"}]},{"title":"Letter to a Penpal","kind":"Letter","text":"Dear Yuki,\n\nThank you so much for your last letter and the beautiful @1@ of cherry blossoms. They are now stuck above my desk where I can see them every day. It is hard to believe we have been writing to each other for nearly a @2@ already!\n\nI am pleased to hear that you are still enjoying the violin. Six lessons a week sounds @3@, but I can tell you really love it. I have started learning the guitar this term, but I am afraid I am not as @4@ as you. My fingers keep getting @5@ on the strings.\n\nThings are going well at school. Last week our class went on a trip to a Roman @6@, where we saw real mosaics that were almost two thousand years old. It is strange to think that the people who lived there ate, laughed and @7@ over their homework, just like we do.\n\nYou asked about my summer plans. My family and I are going to visit my grandmother in Scotland. I will try to @8@ some photos of the lochs and @9@ them in my next letter.\n\nPlease write soon and tell me all about your school festival. I cannot wait to hear what @10@ your class is performing.\n\nYour friend,\nOlivia","gaps":[{"options":["photograph","song","cake","shoe"],"answer":"photograph"},{"options":["year","minute","hour","second"],"answer":"year"},{"options":["exhausting","boring","wet","silent"],"answer":"exhausting"},{"options":["talented","wet","sad","loud"],"answer":"talented"},{"options":["tangled","cooked","sung","sold"],"answer":"tangled"},{"options":["villa","shop","song","boat"],"answer":"villa"},{"options":["argued","sang","cooked","sold"],"answer":"argued"},{"options":["take","sell","break","forget"],"answer":"take"},{"options":["include","sell","forget","drop"],"answer":"include"},{"options":["play","cake","road","shoe"],"answer":"play"}]},{"title":"The Abandoned Garden","kind":"Descriptive","text":"At the end of our road stood a tall iron gate, half-eaten by rust. Beyond it lay a garden no one had touched for @1@. The path that had once led to the house was now @2@ in moss and brambles, so thick that I could only just make out the shape of the front door beneath the @3@ ivy.\n\nI had walked past this garden hundreds of times, but I had never @4@ to look inside properly. That afternoon, with the long summer @5@ before me and no one waiting for me at home, curiosity got the better of me.\n\nThe gate gave way with a @6@ creak. Inside, the air was somehow cooler and stranger, as if I had stepped through a curtain into a different world. A stone fountain stood in the middle, its bowl filled not with water but with @7@ leaves and a single, perfect spider's web. To one side, a wooden bench had been @8@ painted blue, but the colour had now faded to a soft greyish-white.\n\nI sat down very @9@ on the bench. A robin landed on the rim of the fountain, watched me for a moment with its black, beadlike eye, and then flew away. The whole garden seemed to be @10@ its breath, waiting to see what I would do next.","gaps":[{"options":["decades","minutes","seconds","cars"],"answer":"decades"},{"options":["buried","sold","sung","cooked"],"answer":"buried"},{"options":["tangled","yellow","quiet","sweet"],"answer":"tangled"},{"options":["dared","cooked","sung","sold"],"answer":"dared"},{"options":["holiday","shop","minute","song"],"answer":"holiday"},{"options":["mournful","loud","sweet","fast"],"answer":"mournful"},{"options":["dead","boiling","golden","strange"],"answer":"dead"},{"options":["once","never","quickly","sweetly"],"answer":"once"},{"options":["carefully","loudly","sweetly","coldly"],"answer":"carefully"},{"options":["holding","selling","breaking","cooking"],"answer":"holding"}]},{"title":"Why We Should Recycle More","kind":"Persuasive","text":"Every day, the average British family throws away enough rubbish to fill a wheelie bin, and @1@ of that rubbish could have been recycled. This matters more than many people realise. @2@ we change our habits, mountains of plastic, paper and metal will continue to fill up our landfill sites and poison our oceans.\n\nRecycling is not @3@ as some claim. Most councils now provide separate bins for paper, plastic, glass and food waste. Sorting your rubbish takes only a few extra @4@ a day, yet the impact is enormous.\n\n@5@, consider plastic. A plastic bottle thrown into a normal bin may take up to 450 years to break down. The same bottle, placed in the recycling, can be turned into clothing, garden furniture or even a new bottle within a few weeks. That is a @6@ difference.\n\nThere are those who argue that recycling does not matter because the problem is too big for one person to @7@. This is simply not true. If every household in the country recycled just one extra item per day, the savings would be @8@.\n\nThe real question is not whether recycling helps. The real question is why we @9@ choose to do less when doing more is so easy. The Earth is the only home we have, and it is high time we started treating it with the @10@ it deserves.","gaps":[{"options":["most","few","none","parts"],"answer":"most"},{"options":["Unless","Because","Although","Since"],"answer":"Unless"},{"options":["difficult","cheap","quiet","silver"],"answer":"difficult"},{"options":["seconds","hours","weeks","years"],"answer":"seconds"},{"options":["Firstly","Lastly","Never","Yesterday"],"answer":"Firstly"},{"options":["remarkable","boring","wet","quiet"],"answer":"remarkable"},{"options":["solve","cook","sing","sell"],"answer":"solve"},{"options":["enormous","tiny","boring","wet"],"answer":"enormous"},{"options":["would","never","cannot","must"],"answer":"would"},{"options":["respect","fear","hatred","colour"],"answer":"respect"}]},{"title":"The Strange Footprints in the Snow","kind":"Mystery","text":"It had snowed all night. When I @1@ back the curtains at seven o'clock, the world had been @2@ in a perfect white blanket. My little sister, Clara, ran into my room in her pyjamas, half-crying with excitement.\n\n'Look! Sledging!' she shouted. But I was already looking at something else.\n\nThere, in our front garden, was a single line of footprints. They came from the road, walked straight up to our front door, and then — and this is the part that I still do not @3@ — they stopped. They did not turn around. They did not go back. They simply @4@, as if whoever had made them had been @5@ up into the sky.\n\nI checked the snow on the doorstep itself. It was @6@ — no one had stood on it. I went outside in my slippers and walked all around the house. There were no other prints anywhere. Not a single @7@.\n\nDad came down and laughed, of course. 'A bird,' he said. 'Or a cat. The wind has covered the rest.' But there had been no @8@ in the night, and these prints were clearly made by something on two feet. Something that had walked up to our door, paused, and then @9@.\n\nFor weeks afterwards, I would wake up in the middle of the night and listen, half-expecting to hear a knock that never came. To this day, I do not know what walked up to our house that morning. But I do know one thing: I am certain that I will @10@ forget those footprints in the snow.","gaps":[{"options":["drew","cooked","sang","sold"],"answer":"drew"},{"options":["wrapped","cooked","sold","sung"],"answer":"wrapped"},{"options":["understand","sell","sing","cook"],"answer":"understand"},{"options":["ended","began","shouted","opened"],"answer":"ended"},{"options":["lifted","cooked","sold","sung"],"answer":"lifted"},{"options":["untouched","sold","sweet","boiling"],"answer":"untouched"},{"options":["mark","song","shoe","cup"],"answer":"mark"},{"options":["wind","cake","song","shoe"],"answer":"wind"},{"options":["vanished","cooked","sold","sung"],"answer":"vanished"},{"options":["never","always","often","sometimes"],"answer":"never"}]},{"title":"Inside a Tornado","kind":"Science","text":"A tornado is one of the most @1@ phenomena in nature: a violent, spinning column of air that reaches from a thundercloud all the way down to the ground. The wind speeds inside the worst tornadoes can @2@ 300 miles per hour — more than three times faster than a Formula 1 car at top speed.\n\nTornadoes form when warm, moist air near the ground meets cold, dry air from above. The two layers begin to @3@, and the spinning motion creates a funnel. If this funnel reaches the surface, it becomes a tornado. The whole @4@ can take less than half an hour, which is why tornadoes are so hard to predict.\n\nThe damage a tornado can cause is @5@. Roofs are ripped from houses, cars are tossed like toys, and entire forests are flattened in @6@. Yet, in the centre of every tornado, there is a strange area called the 'eye' where the wind drops and the air becomes @7@ calm. People who have survived being in the eye have described an eerie silence and even, in some cases, a @8@ of blue sky visible directly overhead.\n\nScientists called storm chasers @9@ tornadoes deliberately, driving towards them in specially built vehicles in order to take measurements. Thanks to their bravery, we now know far more about how tornadoes work than we did even twenty years @10@.","gaps":[{"options":["dramatic","boring","wet","quiet"],"answer":"dramatic"},{"options":["exceed","sleep","sing","cook"],"answer":"exceed"},{"options":["rotate","freeze","sing","sell"],"answer":"rotate"},{"options":["process","song","cake","hat"],"answer":"process"},{"options":["devastating","cheap","sweet","quiet"],"answer":"devastating"},{"options":["seconds","hours","years","decades"],"answer":"seconds"},{"options":["strangely","loudly","sweetly","coldly"],"answer":"strangely"},{"options":["patch","cake","song","shoe"],"answer":"patch"},{"options":["pursue","sell","cook","sing"],"answer":"pursue"},{"options":["ago","now","soon","quickly"],"answer":"ago"}]},{"title":"Sports Day","kind":"Recount","text":"Sports Day is, without a doubt, the @1@ event of the school year — at least, it is for me. I had been training for the long-distance race for months, getting up early in the @2@ to run laps of the local park before school.\n\nThe morning of the race was @3@ and warm. As I lined up at the start, butterflies were @4@ in my stomach. To my right was Maya, last year's winner; to my left, Daniel, who had been @5@ across the field that I would 'lose by a mile'. I tried to ignore him.\n\nThe whistle blew. Maya shot off like a @6@, with Daniel close behind. For the first lap, I forced myself to stay calm and keep my @7@ steady. I could hear my parents shouting somewhere on the sidelines, but I did not dare look up. By the third lap, Daniel had fallen behind, his face red and his breathing @8@. Maya was still ahead, but only just.\n\nOn the final straight, with the finish line in sight, I @9@ deep and pushed harder than I ever had in my life. My lungs were burning. My legs felt like jelly. But somehow, in the last few metres, I overtook Maya by a single step.\n\nWhen the medal was placed around my neck, I could barely @10@. All those early mornings had been worth it.","gaps":[{"options":["greatest","dullest","wettest","quietest"],"answer":"greatest"},{"options":["dark","song","cake","hat"],"answer":"dark"},{"options":["bright","cold","wet","quiet"],"answer":"bright"},{"options":["fluttering","cooking","singing","selling"],"answer":"fluttering"},{"options":["boasting","cooking","sleeping","paying"],"answer":"boasting"},{"options":["rocket","cake","shoe","fish"],"answer":"rocket"},{"options":["pace","cake","song","shoe"],"answer":"pace"},{"options":["ragged","sweet","golden","cold"],"answer":"ragged"},{"options":["breathed","cooked","sang","sold"],"answer":"breathed"},{"options":["speak","cook","drive","sell"],"answer":"speak"}]}],"5":[{"title":"The Mountain Hike","kind":"Narrative","text":"By the time we reached the halfway point, my legs were @1@ and my water bottle was almost empty. Dad, ten metres ahead of me on the rocky path, turned round and grinned. 'Still alive back there?' he called. I forced myself to nod, although I had been @2@ to suggest turning back for the past hour.\n\nWe had set off from the village at dawn, climbing through silent pine forests on a path that grew steeper with every step. Now, above the tree line, the wind was sharper and the view was @3@. To one side, the valley dropped away into a sea of mist; to the other, the mountain itself rose like an enormous, jagged tooth.\n\nAfter a brief rest, we pressed on. Dad's pace was, as ever, @4@. Mine was less so. Twice I slipped on loose stones, and once I had to @5@ on a small boulder to recover my breath. Dad did not @6@ me. He simply waited, patient as the mountain itself.\n\nThe last hour was the hardest. The path almost vanished, and we had to @7@ our way upwards using both hands. My fingers grew numb. My nose ran. I started to wonder, @8@, whether the summit would ever actually arrive.\n\nAnd then, suddenly, it did. One moment I was scrambling over a rock; the next, there was nothing above me but sky. I stood, panting, while Dad clapped me on the shoulder. He did not say a word. He did not need to. From up there, the world looked @9@, fragile and beautiful, and I felt that I could see it @10@ for the first time in my life.","gaps":[{"options":["trembling","cooking","singing","selling"],"answer":"trembling"},{"options":["tempted","sold","sung","cooked"],"answer":"tempted"},{"options":["spectacular","boring","wet","quiet"],"answer":"spectacular"},{"options":["relentless","sweet","golden","quiet"],"answer":"relentless"},{"options":["perch","sell","cook","sing"],"answer":"perch"},{"options":["rush","sell","sing","cook"],"answer":"rush"},{"options":["haul","sell","sing","cook"],"answer":"haul"},{"options":["seriously","sweetly","coldly","loudly"],"answer":"seriously"},{"options":["enormous","tiny","cheap","quiet"],"answer":"enormous"},{"options":["properly","sweetly","coldly","loudly"],"answer":"properly"}]},{"title":"The Coral Reef","kind":"Information","text":"Coral reefs are sometimes called the rainforests of the sea — and with good reason. Although they cover less than one per cent of the @1@ floor, they are home to nearly a quarter of all marine species. From clownfish hiding among waving sea anemones to giant turtles cruising lazily overhead, the @2@ of life on a coral reef is breathtaking.\n\nCoral itself is not a plant, though it might @3@ one. It is, in fact, made up of thousands of tiny creatures called polyps. Each polyp is barely the size of a pinhead, but together they can build @4@ that stretch for hundreds of miles. The Great Barrier Reef off the coast of Australia, the largest reef on Earth, is so vast it can be seen from @5@.\n\nThe bright colours of healthy coral come from a special kind of algae that lives inside the polyps. The two are partners: the algae make food using sunlight, and the polyps provide shelter. @6@, this delicate balance is now under serious threat. When the sea becomes too warm, the corals get rid of their algae and lose their colour — a process called 'bleaching'. @7@ the algae do not return quickly, the coral will die.\n\nRising sea temperatures, pollution and overfishing have already @8@ huge sections of reef around the world. Some scientists fear that, without urgent action, most coral reefs may @9@ from the planet within a single generation. Saving them will require enormous international @10@ — but the cost of failing to act, both for marine life and for the millions of people who depend on the reefs, would be even higher.","gaps":[{"options":["ocean","cake","song","shoe"],"answer":"ocean"},{"options":["variety","cake","song","shoe"],"answer":"variety"},{"options":["resemble","sell","sing","cook"],"answer":"resemble"},{"options":["structures","cakes","songs","hats"],"answer":"structures"},{"options":["space","cake","song","shoe"],"answer":"space"},{"options":["Unfortunately","Quickly","Above","Sweetly"],"answer":"Unfortunately"},{"options":["If","But","Because","However"],"answer":"If"},{"options":["damaged","sold","sung","cooked"],"answer":"damaged"},{"options":["disappear","sell","sing","cook"],"answer":"disappear"},{"options":["cooperation","coldness","silence","paint"],"answer":"cooperation"}]},{"title":"Starting at a New School","kind":"First-person","text":"For the first three days at my new school, I did not say a single word. Not to the boy with the freckles who sat next to me in maths, not to the friendly girl who tried to @1@ me at break, not even to the teachers. I think people must have decided I was rude, or very @2@, but the truth was that I simply could not @3@ myself to speak.\n\nIt was not that I was shy. At my old school, I had been the loud one, the one who made everyone laugh. But everything here was different. The corridors were longer. The lessons were harder. Even the way the other children spoke seemed faster and somehow @4@ than I was used to.\n\nOn the fourth day, something small but important happened. We had been told to find a partner for a science experiment. While everyone else @5@ a friend, I stood alone, my heart sinking. Then a girl I had not noticed before — small, dark-haired, with a quiet smile — walked over to me and said, simply, 'Want to work together?'\n\nHer name was Hana. She was new too. Within an hour, we were laughing about the strange smell coming from another group's beaker. By the end of the lesson, I had spoken more words than in the @6@ of the week @7@.\n\nI think back to that moment often. Hana could @8@ have asked anyone else. She did not have to choose me. But that one small act of @9@ — of crossing the room and saying hello — completely changed the way I felt about my new school. Now, two years @10@, we are still best friends, and I try, whenever I can, to do the same thing for someone else.","gaps":[{"options":["include","cook","sell","sing"],"answer":"include"},{"options":["unfriendly","sweet","golden","loud"],"answer":"unfriendly"},{"options":["bring","cook","sell","sing"],"answer":"bring"},{"options":["sharper","sweeter","softer","colder"],"answer":"sharper"},{"options":["claimed","cooked","sang","sold"],"answer":"claimed"},{"options":["rest","cake","song","shoe"],"answer":"rest"},{"options":["combined","sold","sung","cooked"],"answer":"combined"},{"options":["easily","coldly","sweetly","quietly"],"answer":"easily"},{"options":["kindness","coldness","silence","paint"],"answer":"kindness"},{"options":["later","sooner","quickly","sweetly"],"answer":"later"}]},{"title":"Looking After a Bonsai Tree","kind":"Instructional","text":"A bonsai tree is not a @1@ of plant. It is, in fact, an ordinary tree — most often a juniper, pine or maple — that has been kept small through years, sometimes decades, of careful pruning and shaping. Owning one is a long-term commitment, and it requires @2@ as much as enthusiasm.\n\nPosition your bonsai where it will receive plenty of indirect light, but not the harsh sunlight of a south-facing windowsill, which can scorch the @3@ leaves. Most varieties do well in a cool, well-ventilated room. Avoid radiators and draughts.\n\nWatering is perhaps the most @4@ part of bonsai care. Because the pot is so small, the soil can dry out quickly — especially in summer — but it can also @5@ waterlogged with surprising ease. A simple test is to push your finger about a centimetre into the soil. If it feels dry, water generously, allowing the excess to drain away through the holes in the base. If it feels damp, @6@ a day or two.\n\nPruning is what gives a bonsai its @7@ shape. Using a small, sharp pair of scissors, snip away any new shoots that grow longer than the surrounding ones. Aim for a balanced silhouette: many beginners prune too much and weaken the tree.\n\nFinally, be patient. A bonsai cannot be @8@. Its beauty develops gradually, over many years, as the trunk thickens, the bark roughens, and the branches take on the natural-looking curves of a tree in @9@. Treated well, your bonsai may @10@ you, becoming a treasured object that passes from one generation to the next.","gaps":[{"options":["species","cake","song","shoe"],"answer":"species"},{"options":["patience","coldness","silence","paint"],"answer":"patience"},{"options":["delicate","sweet","loud","golden"],"answer":"delicate"},{"options":["crucial","sweet","silent","boring"],"answer":"crucial"},{"options":["become","sell","sing","cook"],"answer":"become"},{"options":["wait","sell","sing","cook"],"answer":"wait"},{"options":["distinctive","sweet","boring","loud"],"answer":"distinctive"},{"options":["rushed","sold","sung","cooked"],"answer":"rushed"},{"options":["miniature","sweet","loud","golden"],"answer":"miniature"},{"options":["outlive","sell","cook","sing"],"answer":"outlive"}]},{"title":"A Letter from 1912","kind":"Historical letter","text":"My dearest Edith,\n\nI write to you from on board the great ship, where the @1@ excitement of our passengers is matched only by my own. We sailed from Southampton at noon on Wednesday, and although it is now Friday, I still cannot quite believe that I am crossing the ocean towards a new life in @2@.\n\nThis ship is unlike anything I have ever seen. The dining room would not look out of place in a London hotel: chandeliers, white linen, silverware polished until it @3@. The library, where I am writing to you now, is panelled in dark oak and almost @4@ — perhaps because most of the other passengers are out on deck, taking advantage of the surprisingly @5@ weather.\n\nFather has been busy, as usual. He speaks of nothing but business, business, business. Mother, I am pleased to say, seems @6@ herself again. The fresh sea air has done her good. She has even been heard to laugh once or twice.\n\nI must tell you about the band, who play in the lounge every evening after dinner. Last night, they played a waltz so beautiful that I quite @7@ that I had once promised myself not to dance. I should add that the young gentleman with whom I @8@ was perfectly respectable — a Mr H., from Manchester, travelling alone to take up a post in Boston.\n\nI shall post this letter when we reach New York on Wednesday morning. @9@ luck, you should receive it before the end of the month. Until then, I remain, as always,\n\nYour loving cousin,\nCharlotte\n\nP.S. The captain says we are making excellent @10@. We may even arrive a few hours early!","gaps":[{"options":["visible","sweet","boring","loud"],"answer":"visible"},{"options":["America","Africa","Antarctica","Australia"],"answer":"America"},{"options":["gleams","sells","sings","cooks"],"answer":"gleams"},{"options":["deserted","sweet","loud","golden"],"answer":"deserted"},{"options":["mild","sweet","boring","loud"],"answer":"mild"},{"options":["quite","cooked","sold","sung"],"answer":"quite"},{"options":["forgot","sold","sang","cooked"],"answer":"forgot"},{"options":["danced","sold","sang","cooked"],"answer":"danced"},{"options":["With","Under","Beside","Without"],"answer":"With"},{"options":["progress","cake","song","shoe"],"answer":"progress"}]},{"title":"The City at Night","kind":"Descriptive","text":"After midnight, the city becomes a different @1@. The crowds of office workers, tourists and shoppers who fill its streets during the day have all gone home, and a strange, expectant quietness settles in their place. The traffic lights continue to change — red, amber, green, red — but they instruct no one. They flicker on and off like @2@ of silent conversations no one is listening to.\n\nI love walking through the city at this hour. The shops, which by day are full of noise and movement, now stand still behind their dark windows. A single mannequin in a dress shop stares out at the empty pavement with a @3@ expression on her painted face. Outside the bakery, a thin line of warm light leaks from beneath the door, and the smell of @4@ bread already drifts out into the air — a @5@ of the day to come.\n\nAbove me, most of the offices are dark, but here and there a single window glows. I always wonder, when I see one of these solitary lights, who is up there, working so late, and what @6@ keeps them at their desk while the rest of the city sleeps.\n\nAt the corner of an empty square, a black cat slips silently across the @7@, glances once in my direction, and disappears into a doorway. From somewhere far away comes the @8@ wail of a siren, soon swallowed up again by the silence.\n\nI sometimes feel, walking like this, that I have been @9@ the privilege of seeing the city as it really is — not the busy stage where everyone performs their daily roles, but the quiet, patient @10@ behind, where the next day waits to begin.","gaps":[{"options":["place","cake","song","shoe"],"answer":"place"},{"options":["fragments","cakes","songs","shoes"],"answer":"fragments"},{"options":["blank","sweet","loud","golden"],"answer":"blank"},{"options":["baking","sweet","golden","loud"],"answer":"baking"},{"options":["promise","cake","song","shoe"],"answer":"promise"},{"options":["urgency","silence","paint","coldness"],"answer":"urgency"},{"options":["cobbles","cakes","songs","shoes"],"answer":"cobbles"},{"options":["distant","sweet","golden","loud"],"answer":"distant"},{"options":["granted","sold","sung","cooked"],"answer":"granted"},{"options":["backstage","sweet","golden","loud"],"answer":"backstage"}]},{"title":"Should Children Have Smartphones?","kind":"Persuasive","text":"Walk into any classroom today, peek into any bedroom, glance around any restaurant, and you will see the same @1@ image: a child, head bowed, eyes fixed on the glowing screen of a smartphone. Many parents have come to accept this as normal — perhaps even inevitable. @2@, we should think much more carefully before placing one of these powerful devices in the hands of a young child.\n\nThe arguments in favour of children having smartphones are well known. They allow parents to keep in @3@, to track where their children are, and to call for help in an emergency. They give access to educational tools, dictionaries, calculators and translation apps. Used wisely, a smartphone can be a @4@ to learning.\n\n@5@, the case against is becoming impossible to ignore. Study after study has shown that heavy smartphone use is linked with lower attention spans, poorer sleep and, most worryingly, rising rates of anxiety in young people. Social media in particular exposes children to comparison, bullying and content far beyond what they are @6@ prepared for. A child of nine or ten is not yet equipped to deal with the relentless judgements of strangers online.\n\nOf course, we cannot — and should not — ban smartphones @7@. Children need to learn to live in a digital world. But there is a vast difference between a basic phone that allows calls and texts, and a smartphone that gives unlimited access to everything the internet has to offer.\n\n@8@ we hand a child a smartphone, we should pause and ask ourselves a @9@ question: are we doing this because it is genuinely the best thing for the child? Or are we doing it because it is easier than the alternative? The @10@ matters.","gaps":[{"options":["familiar","sweet","golden","loud"],"answer":"familiar"},{"options":["However","Therefore","Because","Although"],"answer":"However"},{"options":["touch","cake","song","shoe"],"answer":"touch"},{"options":["boost","cake","song","shoe"],"answer":"boost"},{"options":["Nevertheless","Quickly","Below","Beside"],"answer":"Nevertheless"},{"options":["emotionally","coldly","sweetly","loudly"],"answer":"emotionally"},{"options":["outright","sweetly","coldly","quietly"],"answer":"outright"},{"options":["Before","After","Because","However"],"answer":"Before"},{"options":["simple","sweet","golden","loud"],"answer":"simple"},{"options":["answer","cake","song","shoe"],"answer":"answer"}]},{"title":"The Missing Manuscript","kind":"Mystery","text":"The manuscript had been in the locked glass case in the centre of the library for as long as anyone could @1@. It was the prize of the entire collection: a 600-year-old book of poems, copied out by hand in @2@ red and gold ink, on parchment so thin you could almost see through it.\n\nI had worked at the library for nine years, and like everyone on the staff, I checked the case at the start of every shift. The manuscript was always there, lying open at whichever page our @3@, Dr Morley, had selected for that week's display.\n\nOn the morning of October the third, the case was @4@.\n\nI will never forget the moment I noticed. I was halfway through my usual tour of the reading rooms, mug of tea in hand, when something seemed @5@. I walked back, slowly. The glass was intact. The lock had not been forced. And yet, where the manuscript should have been, there was nothing but an undisturbed velvet cushion.\n\nDr Morley arrived twenty minutes later, his face the @6@ of thunder. The police were called. Detectives interviewed every member of staff. Cameras were checked. Visitor logs were examined. Nothing.\n\nFor three months, the case in the centre of the library stood empty, the velvet cushion strangely @7@ in its emptiness. The newspapers stopped reporting on the story. Most of us, I think, began to @8@ that we would ever see the manuscript again.\n\n@9@, on a cold morning in January, I unlocked the library doors as usual and walked through to the centre. There, lying neatly in the case, was the manuscript — exactly as it had always been, exactly as it had been @10@. The glass case was still locked. There was no note, no explanation. To this day, no one knows where it had been, or how it returned.","gaps":[{"options":["remember","cook","sell","sing"],"answer":"remember"},{"options":["faded","sweet","golden","loud"],"answer":"faded"},{"options":["director","cake","song","shoe"],"answer":"director"},{"options":["empty","sweet","golden","loud"],"answer":"empty"},{"options":["wrong","sweet","golden","loud"],"answer":"wrong"},{"options":["colour","cake","song","shoe"],"answer":"colour"},{"options":["accusing","sweet","golden","loud"],"answer":"accusing"},{"options":["doubt","sell","sing","cook"],"answer":"doubt"},{"options":["Then","Because","Although","Quickly"],"answer":"Then"},{"options":["taken","sold","sung","cooked"],"answer":"taken"}]},{"title":"The Solar System","kind":"Science","text":"For most of human history, people believed that the Earth lay at the @1@ of the universe and that the Sun, Moon and stars all moved around it. It is, perhaps, an understandable mistake. Stand outside on a clear evening and watch the sky: the Sun does indeed appear to rise, cross the heavens, and set, while the Earth beneath our feet feels @2@ still.\n\nWe now know, of course, that the reverse is true. It is the Earth — together with the seven other planets of the Solar System — that orbits the Sun. The Sun itself is a @3@, an enormous ball of hot, glowing gas, around four-and-a-half billion years old. It is by far the largest object in the Solar System: you could fit more than a million Earths inside it.\n\nThe eight planets vary @4@ in size and character. The four nearest the Sun — Mercury, Venus, Earth and Mars — are small, rocky worlds. The four @5@ planets — Jupiter, Saturn, Uranus and Neptune — are gigantic balls of gas and ice. Jupiter alone is so massive that it @6@ more than twice as much as all the other planets combined.\n\nBetween the rocky planets and the gas giants lies the asteroid belt: a @7@ of rocky debris left over from the formation of the Solar System. Beyond Neptune, in a vast region called the Kuiper Belt, lie countless smaller bodies, including the @8@ planet Pluto, which was once considered a full planet itself.\n\n@9@, our knowledge of the Solar System is constantly expanding. Telescopes, satellites and robotic missions are sending back astonishing images and data from worlds that, only a generation ago, were no more than points of light. Each new discovery @10@ us that, however much we already know, the universe still has plenty of surprises in store.","gaps":[{"options":["centre","cake","song","shoe"],"answer":"centre"},{"options":["perfectly","sweetly","coldly","loudly"],"answer":"perfectly"},{"options":["star","cake","song","shoe"],"answer":"star"},{"options":["enormously","sweetly","coldly","loudly"],"answer":"enormously"},{"options":["outer","sweet","golden","loud"],"answer":"outer"},{"options":["weighs","sells","sings","cooks"],"answer":"weighs"},{"options":["ring","cake","song","shoe"],"answer":"ring"},{"options":["dwarf","sweet","golden","loud"],"answer":"dwarf"},{"options":["Fortunately","Sweetly","Below","Beside"],"answer":"Fortunately"},{"options":["reminds","sells","sings","cooks"],"answer":"reminds"}]},{"title":"My Grandfather's War","kind":"Memoir","text":"My grandfather rarely spoke about the war. For most of his @1@, the war was something other men talked about — the men in pubs, the men on television documentaries — but never him. He would change the subject the moment it was mentioned, with a quiet @2@ that none of us dared to challenge.\n\nIt was only in the final year of his life, when he was already very ill, that he began, @3@ and at unexpected moments, to share fragments of what he had seen.\n\nHe had been nineteen when he was called up in 1944. A farm boy from Yorkshire, he had never travelled further than the nearest market town. Within weeks, he found himself on a @4@ bound for Italy, where he served in the Royal Engineers. His job, he told me one quiet afternoon, was to find and @5@ landmines.\n\n'You learned not to think about it,' he said, looking past me at the wall. 'You thought about the next mine, and the one after that, and the one after that. You did not think about your hands. You did not think about your friends.'\n\nHe paused for a long moment. I did not @6@ him.\n\n'Some men,' he went on at last, 'did not come home. We had a lad called Robert. From Leeds. Bright @7@ hair. He was twenty-one. Three days before the end of the war, I lost him.'\n\nThat was the only time, in fifty years, that I ever heard my grandfather speak Robert's name aloud.\n\nHe died the following spring, on a quiet Wednesday morning, with my grandmother @8@ his hand. At his funeral, the church was packed with people I had never met — old men, mostly, who had travelled long distances. One of them, a tall man with a polished walking stick, came up to me afterwards.\n\n'Your grandfather,' he said, 'was the @9@ man I ever knew.'\n\nI have never forgotten those words. I never will. They are the @10@ thing I have of his that he himself could never have given me.","gaps":[{"options":["life","cake","song","shoe"],"answer":"life"},{"options":["firmness","sweetness","coldness","paint"],"answer":"firmness"},{"options":["reluctantly","sweetly","coldly","loudly"],"answer":"reluctantly"},{"options":["troopship","aeroplane","lorry","bicycle"],"answer":"troopship"},{"options":["defuse","cook","sing","sell"],"answer":"defuse"},{"options":["interrupt","sell","cook","sing"],"answer":"interrupt"},{"options":["ginger","sweet","silent","golden"],"answer":"ginger"},{"options":["holding","selling","singing","cooking"],"answer":"holding"},{"options":["bravest","sweetest","coldest","loudest"],"answer":"bravest"},{"options":["greatest","sweetest","coldest","loudest"],"answer":"greatest"}]}]}};
+
+  // Length follows NGRT Digital: 15 sentence-completion questions, then up to three passages, about 30 minutes.
+  var PLAN = { sentences: 15, passages: 3, seconds: 1800, lowAt: 120 };
+  var YEARS = [3, 4, 5];
+  var HIST_KEY = 'ngrt-practice-history';
+  var YEAR_KEY = 'ngrt-practice-year';
+  var TIMED_KEY = 'ngrt-practice-timed';
+
+  /* ---------- State ---------- */
+  var S = { view: 'home', year: 3, timed: false, test: null, answers: {}, idx: 0, timeLeft: 0, elapsed: 0, timer: null, result: null, timedOut: false, confirmFinish: false, confirmHome: false };
+
+  var hy = /^#y([345])$/.exec(location.hash || '');
+  if (hy) S.year = parseInt(hy[1], 10);
+  else { try { var y = parseInt(localStorage.getItem(YEAR_KEY), 10); if (YEARS.indexOf(y) >= 0) S.year = y; } catch (e) {} }
+  try { if (localStorage.getItem(TIMED_KEY) === 'on') S.timed = true; } catch (e) {}
+
+  /* ---------- Helpers ---------- */
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function shuffle(a) { a = a.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function fmt(sec) { var m = Math.floor(sec / 60), s = sec % 60; return m + ':' + (s < 10 ? '0' : '') + s; }
+  function loadHist() { try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) { return []; } }
+  function saveHist(h) { try { localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 12))); } catch (e) {} }
+  function setHash() { try { if (location.hash !== '#y' + S.year) history.replaceState(null, '', '#y' + S.year); } catch (e) {} }
+
+  /* ---------- Test builders ---------- */
+  function buildSentences(year) {
+    return shuffle(BANK.sentences[year] || []).slice(0, PLAN.sentences).map(function (q) {
+      return { id: q.id, sentence: q.sentence, answer: q.answer, options: shuffle([q.answer].concat(q.distractors)) };
+    });
+  }
+  function buildPassages(year) {
+    return shuffle(BANK.passages[year] || []).slice(0, PLAN.passages).map(function (p, i) {
+      return { id: 'y' + year + '-p' + i + '-' + p.title.replace(/[^A-Za-z0-9]/g, ''), title: p.title, kind: p.kind, text: p.text,
+        gaps: p.gaps.map(function (g, k) { return { n: k + 1, options: shuffle(g.options), answer: g.answer }; }) };
+    });
+  }
+  // A test is a run of steps: one per sentence, then one per passage.
+  function nSent() { return S.test.sents.length; }
+  function nSteps() { return S.test.sents.length + S.test.pass.length; }
+  function inSent(i) { return (i === undefined ? S.idx : i) < nSent(); }
+  function curSent() { return S.test.sents[S.idx]; }
+  function curPass() { return S.test.pass[S.idx - nSent()]; }
+  function passTotal() { return S.test.pass.reduce(function (n, p) { return n + p.gaps.length; }, 0); }
+  function totalBlanks() { return nSent() + passTotal(); }
+  function sentAnswered() { return S.test.sents.filter(function (q) { return S.answers[q.id]; }).length; }
+  function passageDone(p) { return p.gaps.filter(function (g) { return S.answers[p.id + '-' + g.n]; }).length; }
+  function answeredCount() { return sentAnswered() + S.test.pass.reduce(function (n, p) { return n + passageDone(p); }, 0); }
+  function score() {
+    var sc = 0, pc = 0;
+    S.test.sents.forEach(function (q) { if (S.answers[q.id] === q.answer) sc++; });
+    S.test.pass.forEach(function (p) { p.gaps.forEach(function (g) { if (S.answers[p.id + '-' + g.n] === g.answer) pc++; }); });
+    var total = totalBlanks();
+    return { sc: sc, sn: nSent(), pc: pc, pn: passTotal(), correct: sc + pc, total: total, pct: total ? Math.round((sc + pc) / total * 100) : 0 };
+  }
+
+  /* ---------- Flow ---------- */
+  function startTest() {
+    stopTimer();
+    S.answers = {}; S.idx = 0; S.result = null; S.timedOut = false; S.confirmFinish = false; S.confirmHome = false;
+    S.test = { sents: buildSentences(S.year), pass: buildPassages(S.year) };
+    S.timeLeft = PLAN.seconds; S.elapsed = 0;
+    S.view = 'test';
+    S.timer = setInterval(tick, 1000);
+    render(); window.scrollTo(0, 0);
+  }
+  function tick() {
+    S.elapsed++;
+    if (!S.timed) { var u = $('#timerVal'); if (u) u.textContent = fmt(S.elapsed); return; }
+    S.timeLeft--;
+    if (S.timeLeft <= 0) { S.timeLeft = 0; S.timedOut = true; finishTest(); return; }
+    var t = $('#timerVal'); if (t) { t.textContent = fmt(S.timeLeft); if (S.timeLeft <= PLAN.lowAt) t.parentNode.classList.add('low'); }
+  }
+  function stopTimer() { if (S.timer) { clearInterval(S.timer); S.timer = null; } }
+  function finishTest() {
+    stopTimer();
+    S.result = score(); S.view = 'results'; S.confirmFinish = false; S.confirmHome = false;
+    var r = S.result, h = loadHist();
+    h.unshift({ t: Date.now(), year: S.year, c: r.correct, n: r.total, p: r.pct, sc: r.sc, sn: r.sn, pc: r.pc, pn: r.pn, out: S.timedOut, un: !S.timed }); saveHist(h);
+    render(); window.scrollTo(0, 0);
+  }
+  function goHome() { stopTimer(); S.view = 'home'; S.test = null; S.confirmFinish = false; S.confirmHome = false; render(); window.scrollTo(0, 0); }
+  function setYear(y) { S.year = y; try { localStorage.setItem(YEAR_KEY, y); } catch (x) {} if (S.view === 'results') goHome(); else render(); }
+
+  /* ---------- Render ---------- */
+  function render() { renderTopbar(); renderStatus(); renderWork(); setHash(); }
+
+  function renderTopbar() {
+    var tabs;
+    if (S.view === 'test') {
+      tabs = '<button class="tab" role="tab" aria-selected="' + inSent() + '" data-act="goto" data-i="0">Part 1 · Sentences<span class="cnt num">' + sentAnswered() + '/' + nSent() + '</span></button>' +
+             '<button class="tab" role="tab" aria-selected="' + !inSent() + '" data-act="goto" data-i="' + nSent() + '">Part 2 · Passages<span class="cnt num">' + (answeredCount() - sentAnswered()) + '/' + passTotal() + '</span></button>';
+    } else {
+      tabs = YEARS.map(function (y) { return '<button class="tab" role="tab" aria-selected="' + (S.year === y) + '" data-act="year" data-year="' + y + '">Year ' + y + '</button>'; }).join('');
+    }
+    $('#topbar').innerHTML =
+      '<div class="brand"><button data-act="home" title="Back to start">NGRT Practice</button>' + (S.view === 'test' ? '<span class="year-pill">Year ' + S.year + '</span>' : '') + '</div>' +
+      '<div class="tabs" role="tablist" aria-label="' + (S.view === 'test' ? 'Test parts' : 'Year group') + '">' + tabs + '</div>';
+  }
+
+  function renderStatus() {
+    var el = $('#status');
+    if (S.view !== 'test') { el.innerHTML = ''; return; }
+    var done = answeredCount(), total = totalBlanks();
+    var where = inSent() ? 'Question ' + (S.idx + 1) + ' of ' + nSent() : 'Passage ' + (S.idx - nSent() + 1) + ' of ' + S.test.pass.length;
+    el.innerHTML =
+      '<div class="status"><div class="status-in">' +
+      '<div class="meta"><strong>' + (inSent() ? 'Part 1 · Sentence completion' : 'Part 2 · Passage completion') + '</strong><span>' + where + '</span><span class="num">' + done + ' / ' + total + ' answered</span></div>' +
+      (S.timed
+        ? '<div class="timer' + (S.timeLeft <= PLAN.lowAt ? ' low' : '') + '"><span class="lbl">LEFT</span><span class="val num" id="timerVal">' + fmt(S.timeLeft) + '</span></div>'
+        : '<div class="timer untimed"><span class="lbl">UNTIMED</span><span class="val num" id="timerVal">' + fmt(S.elapsed) + '</span></div>') +
+      '<div class="track"><div style="width:' + (total ? done / total * 100 : 0) + '%"></div></div>' +
+      '</div></div>';
+  }
+
+  function renderWork() {
+    var el = $('#work');
+    el.style.setProperty('--w', S.view === 'test' && !inSent() ? '1120px' : S.view === 'home' ? '820px' : '760px');
+    if (S.view === 'home') el.innerHTML = viewHome();
+    else if (S.view === 'test') el.innerHTML = inSent() ? viewSentences() : viewPassages();
+    else el.innerHTML = viewResults();
+  }
+
+  function homeNotice() {
+    if (!S.confirmHome) return '';
+    return '<div class="notice" role="alert"><span>Leave this test? Your answers so far will be lost.</span><span class="spacer"></span>' +
+      '<button class="btn btn-accent btn-sm" data-act="home-yes">Leave test</button><button class="btn btn-ghost btn-sm" data-act="home-no">Keep going</button></div>';
+  }
+  function finishNotice() {
+    if (!S.confirmFinish) return '';
+    var left = totalBlanks() - answeredCount();
+    return '<div class="notice" role="alert"><span>' + left + ' blank' + (left === 1 ? '' : 's') + ' still unanswered. Finish now, or go back and fill ' + (left === 1 ? 'it' : 'them') + ' in?</span><span class="spacer"></span>' +
+      '<button class="btn btn-accent btn-sm" data-act="finish-yes">Finish anyway</button><button class="btn btn-ghost btn-sm" data-act="finish-no">Go back</button></div>';
+  }
+
+  /* --- Home --- */
+  function viewHome() {
+    var hist = loadHist();
+    var sSample = S.year === 3 ? 'The explorer felt <span class="blank"></span> as he entered the dark cave.' : S.year === 4 ? 'The river <span class="blank"></span> gently through the valley.' : 'Despite the setback, she remained <span class="blank"></span> about the outcome.';
+    var first = (BANK.passages[S.year] || [])[0];
+    var pSample = first ? esc(first.text.split(/\s+/).slice(0, 24).join(' ')).replace(/@\d+@/g, '<span class="blank"></span>') + '…' : '';
+    return '' +
+      '<div class="home-head"><div class="eyebrow">Reading practice · Years 3–5</div><h1>NGRT practice test</h1>' +
+      '<p>One test in two parts, the same length as NGRT Digital: fifteen sentences, then three passages. Each test draws a fresh random set, so you can repeat it.</p></div>' +
+      '<div class="eyebrow" style="color:var(--ink-3)">Year group</div>' +
+      '<div class="year-row">' + YEARS.map(function (y) {
+        return '<button class="year" aria-pressed="' + (S.year === y) + '" data-act="year" data-year="' + y + '">Year ' + y + '<small>ages ' + (y + 4) + '–' + (y + 5) + '</small></button>';
+      }).join('') + '</div>' +
+      '<div class="modes">' +
+        '<section class="mode"><div class="eyebrow">Part 1</div><h2>Sentence completion</h2><div class="sample">' + sSample + '</div>' +
+          '<div class="facts"><span>Length<b>' + PLAN.sentences + ' questions</b></span><span>Choices<b>5 words</b></span></div>' +
+          '<p>One word is missing from each sentence. Pick the word that fits the grammar and the meaning.</p></section>' +
+        '<section class="mode"><div class="eyebrow">Part 2</div><h2>Passage completion</h2><div class="sample">' + pSample + '</div>' +
+          '<div class="facts"><span>Length<b>' + PLAN.passages + ' passages</b></span><span>Blanks<b>10 each</b></span></div>' +
+          '<p>The right word depends on the whole passage, not just the sentence it sits in.</p></section>' +
+      '</div>' +
+      '<section class="startbox"><div class="toggle-row"><span class="eyebrow" style="color:var(--ink-3)">Timer</span>' +
+          '<div class="seg" role="radiogroup" aria-label="Timer"><button role="radio" aria-checked="' + !S.timed + '" data-act="timed" data-v="off">Off · like the real test</button><button role="radio" aria-checked="' + S.timed + '" data-act="timed" data-v="on">On · 30 min</button></div>' +
+          '<span class="toggle-note">' + (S.timed ? 'The test submits itself when time runs out.' : 'Take as long as you need; the clock just counts up.') + '</span></div>' +
+        '<button class="btn btn-primary" data-act="start">Start · Year ' + S.year + ' · ' + (PLAN.sentences + PLAN.passages * 10) + ' questions →</button></section>' +
+      '<div class="history"><h3>Recent results</h3>' + (hist.length ? historyTable(hist) : '<p class="empty">Nothing yet. Results appear here after your first test, on this device only.</p>') + '</div>' +
+      '<p class="foot">Practice material modelled on the NGRT format; these are not real NGRT questions. The real passage section asks comprehension questions rather than filling blanks.</p>';
+  }
+  function historyTable(h) {
+    return '<table><thead><tr><th>When</th><th>Year</th><th class="r">Sentences</th><th class="r">Passages</th><th class="r">%</th></tr></thead><tbody>' +
+      h.slice(0, 8).map(function (r) {
+        var d = new Date(r.t), when = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        return '<tr><td>' + when + (r.out ? ' <span style="color:var(--accent)" title="Time ran out">⏱</span>' : '') + '</td><td>' + r.year + '</td><td class="r num">' + r.sc + ' / ' + r.sn + '</td><td class="r num">' + r.pc + ' / ' + r.pn + '</td><td class="r pct num">' + r.p + '%</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  /* --- Part 1: sentences --- */
+  function viewSentences() {
+    var items = S.test.sents, q = curSent(), chosen = S.answers[q.id];
+    var parts = q.sentence.split('____');
+    var sent = parts.map(function (t, i) { return esc(t) + (i < parts.length - 1 ? '<span class="blank' + (chosen ? ' filled' : '') + '">' + (chosen ? esc(chosen) : '') + '</span>' : ''); }).join('');
+    return homeNotice() + finishNotice() +
+      '<div class="sheet">' +
+      '<div class="qnav" role="navigation" aria-label="Questions">' + items.map(function (it, i) {
+        return '<button class="qdot num" data-act="goto" data-i="' + i + '" data-done="' + (S.answers[it.id] ? 1 : 0) + '" aria-current="' + (i === S.idx) + '" title="Question ' + (i + 1) + '">' + (i + 1) + '</button>';
+      }).join('') + '</div>' +
+      '<div class="qnav-key"><span><i class="d"></i>Answered</span><span><i class="c"></i>Current</span><span><i></i>Not yet</span></div>' +
+      '<div class="qcard"><div class="qn">Question ' + (S.idx + 1) + '</div><p class="sentence">' + sent + '</p></div>' +
+      '<div class="opts" role="radiogroup" aria-label="Choices">' + q.options.map(function (o, i) {
+        return '<button class="opt" role="radio" aria-checked="' + (chosen === o) + '" data-act="pick" data-opt="' + esc(o) + '"><span class="k">' + (i + 1) + '</span><span>' + esc(o) + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="navrow"><button class="btn btn-ghost" data-act="prev"' + (S.idx === 0 ? ' disabled' : '') + '>← Back</button>' +
+      '<span class="mid num">' + sentAnswered() + ' of ' + items.length + ' answered</span>' +
+      '<button class="btn btn-primary" data-act="next">' + (S.idx < items.length - 1 ? 'Next →' : 'Part 2: Passages →') + '</button></div>' +
+      '<p class="hint">Keys <kbd>1</kbd>–<kbd>5</kbd> choose an answer and move on; <kbd>←</kbd> <kbd>→</kbd> move between questions.</p>' +
+      '</div>';
+  }
+
+  /* --- Part 2: passages --- */
+  function passageHtml(p) {
+    return p.text.split(/\n\n+/).map(function (para) {
+      var html = esc(para).replace(/&lt;b&gt;/g, '<b>').replace(/&lt;\/b&gt;/g, '</b>').replace(/\n/g, '<br>');
+      html = html.replace(/@(\d+)@/g, function (_, n) {
+        var w = S.answers[p.id + '-' + n];
+        return '<span class="gap" data-act="jump" data-n="' + n + '" title="Blank ' + n + '"><span class="n">(' + n + ')</span>' + (w ? '<span class="w">' + esc(w) + '</span>' : '<span class="e"></span>') + '</span>';
+      });
+      return '<p>' + html + '</p>';
+    }).join('');
+  }
+  function viewPassages() {
+    var items = S.test.pass, p = curPass(), pi = S.idx - nSent();
+    return homeNotice() + finishNotice() +
+      '<div class="sheet">' +
+      '<div class="ptabs" role="tablist">' + items.map(function (it, i) {
+        var d = passageDone(it);
+        return '<button class="ptab" role="tab" aria-selected="' + (i === pi) + '" data-done="' + (d === it.gaps.length ? 1 : 0) + '" data-act="goto" data-i="' + (nSent() + i) + '">Passage ' + (i + 1) + ' <span class="c num">' + d + '/' + it.gaps.length + '</span></button>';
+      }).join('') + '</div>' +
+      '<div class="twocol"><div class="left">' +
+        '<div class="pbanner"><div class="eyebrow">' + esc(p.kind) + '</div><h2>' + esc(p.title) + '</h2></div>' +
+        '<div class="pbody" id="pbody">' + passageHtml(p) + '</div>' +
+      '</div><div class="right">' +
+        '<div class="choose-head">Choose the best word for each blank · tap a blank in the text to find it here</div>' +
+        '<div id="gaps">' + p.gaps.map(function (g) {
+          var chosen = S.answers[p.id + '-' + g.n];
+          return '<div class="gaprow" id="gap-' + g.n + '"><div class="n">(' + g.n + ')</div><div class="o" role="radiogroup" aria-label="Blank ' + g.n + '">' +
+            g.options.map(function (o) { return '<button class="gopt" role="radio" aria-checked="' + (chosen === o) + '" data-act="pickgap" data-n="' + g.n + '" data-opt="' + esc(o) + '">' + esc(o) + '</button>'; }).join('') +
+            '</div></div>';
+        }).join('') + '</div>' +
+      '</div></div>' +
+      '<div class="navrow"><button class="btn btn-ghost" data-act="prev">' + (pi === 0 ? '← Part 1: Sentences' : '← Previous passage') + '</button>' +
+      '<span class="mid num">' + answeredCount() + ' of ' + totalBlanks() + ' answered</span>' +
+      (pi < items.length - 1 ? '<button class="btn btn-primary" data-act="next">Next passage →</button>' : '<button class="btn btn-accent" data-act="finish">Finish test</button>') + '</div>' +
+      '</div>';
+  }
+
+  /* --- Results --- */
+  function viewResults() {
+    var r = S.result;
+    var verdict = r.pct >= 90 ? 'Excellent.' : r.pct >= 70 ? 'Good work.' : r.pct >= 50 ? 'A solid start.' : 'Keep practising.';
+    return '<div class="sheet">' +
+      '<div class="score"><div class="ring" style="--p:' + r.pct + '%"><span class="num">' + r.pct + '%</span></div>' +
+      '<div><div class="eyebrow">NGRT practice · Year ' + S.year + '</div><h2>' + verdict + ' <span class="num">' + r.correct + ' of ' + r.total + '</span> correct.</h2>' +
+      '<p>' + (S.timedOut ? '<span class="warn">Time ran out, so the test was submitted automatically.</span>' : S.timed ? 'Finished with ' + fmt(S.timeLeft) + ' to spare.' : 'Untimed. Took ' + fmt(S.elapsed) + '.') + '</p>' +
+      '<div class="chips"><span class="chip">Sentences ' + r.sc + ' / ' + r.sn + '</span><span class="chip">Passages ' + r.pc + ' / ' + r.pn + '</span><span class="chip">' + (r.total - r.correct) + ' to review</span></div></div></div>' +
+      '<div class="eyebrow" style="margin-bottom:10px">Part 1 · Sentences</div>' +
+      '<div class="review">' + reviewSentences() + '</div>' +
+      '<div class="eyebrow" style="margin-bottom:10px">Part 2 · Passages</div>' +
+      '<div class="review">' + reviewPassages() + '</div>' +
+      '<div class="navrow"><button class="btn btn-primary" data-act="start">Try again · Year ' + S.year + '</button>' +
+      '<button class="btn-link" data-act="home">Change year</button></div>' +
+      '</div>';
+  }
+  function reviewSentences() {
+    var items = S.test.sents, wrong = items.filter(function (q) { return S.answers[q.id] !== q.answer; });
+    function row(q, i) {
+      var a = S.answers[q.id], ok = a === q.answer;
+      var filled = esc(q.sentence).split('____').join('<span class="' + (ok ? 'ok' : 'bad') + '">' + esc(a || '—') + '</span>');
+      return '<div class="rvq"><span class="n">' + (i + 1) + '</span><div>' + filled + (ok ? '' : '<div class="ans">Answer: <b>' + esc(q.answer) + '</b></div>') + '</div></div>';
+    }
+    var sec = function (title, list, open) {
+      return '<details class="rv"' + (open ? ' open' : '') + '><summary><span class="t">' + title + '</span><span class="s num' + (list === wrong ? ' bad' : '') + '">' + list.length + '</span></summary><div class="rvlist">' +
+        (list.length ? items.map(function (q, i) { return list.indexOf(q) >= 0 ? row(q, i) : ''; }).join('') : '<p class="rvq" style="color:var(--ink-3);display:block">None.</p>') + '</div></details>';
+    };
+    return sec('To review', wrong, wrong.length > 0) + sec('Correct', items.filter(function (q) { return wrong.indexOf(q) < 0; }), false);
+  }
+  function reviewPassages() {
+    return S.test.pass.map(function (p, i) {
+      var c = p.gaps.filter(function (g) { return S.answers[p.id + '-' + g.n] === g.answer; }).length;
+      return '<details class="rv"' + (c < p.gaps.length ? ' open' : '') + '><summary><span class="t"><small>Passage ' + (i + 1) + ' · ' + esc(p.kind) + '</small>' + esc(p.title) + '</span><span class="s num' + (c < p.gaps.length ? ' bad' : '') + '">' + c + '/' + p.gaps.length + '</span></summary><div class="rvgrid">' +
+        p.gaps.map(function (g) {
+          var a = S.answers[p.id + '-' + g.n], ok = a === g.answer;
+          return '<div><span class="n">(' + g.n + ')</span>' + (ok ? '<span class="ok">✓ ' + esc(a) + '</span>' : '<span><span class="bad">' + esc(a || '—') + '</span><span class="arrow"> → </span><span class="ok">' + esc(g.answer) + '</span></span>') + '</div>';
+        }).join('') + '</div></details>';
+    }).join('');
+  }
+
+  /* ---------- Events ---------- */
+  function go(i) { var wasSent = inSent(); S.idx = i; S.confirmFinish = false; render(); if (wasSent !== inSent() || !inSent()) window.scrollTo(0, 0); }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]'); if (!b) return;
+    switch (b.getAttribute('data-act')) {
+      case 'home': if (S.view === 'test' && answeredCount() > 0) { S.confirmHome = true; S.confirmFinish = false; render(); window.scrollTo(0, 0); } else goHome(); break;
+      case 'home-yes': goHome(); break;
+      case 'home-no': S.confirmHome = false; render(); break;
+      case 'year': setYear(parseInt(b.getAttribute('data-year'), 10)); break;
+      case 'start': startTest(); break;
+      case 'timed': S.timed = b.getAttribute('data-v') === 'on'; try { localStorage.setItem(TIMED_KEY, S.timed ? 'on' : 'off'); } catch (x) {} render(); break;
+      case 'goto': go(parseInt(b.getAttribute('data-i'), 10)); break;
+      case 'prev': if (S.idx > 0) go(S.idx - 1); break;
+      case 'next': if (S.idx < nSteps() - 1) go(S.idx + 1); break;
+      case 'pick': pickSentence(b.getAttribute('data-opt')); break;
+      case 'pickgap': pickGap(parseInt(b.getAttribute('data-n'), 10), b.getAttribute('data-opt')); break;
+      case 'jump': jumpToGap(parseInt(b.getAttribute('data-n'), 10)); break;
+      case 'finish': if (answeredCount() < totalBlanks()) { S.confirmFinish = true; render(); window.scrollTo(0, 0); } else finishTest(); break;
+      case 'finish-yes': finishTest(); break;
+      case 'finish-no': S.confirmFinish = false; render(); break;
+    }
+  });
+
+  function pickSentence(opt) {
+    var q = curSent(); S.answers[q.id] = opt;
+    if (S.idx < nSent() - 1) S.idx++;      // stay on the last sentence so the move to Part 2 is deliberate
+    render();
+  }
+  function pickGap(n, opt) {
+    var p = curPass(); S.answers[p.id + '-' + n] = opt;
+    $('#pbody').innerHTML = passageHtml(p);
+    var row = $('#gap-' + n); if (row) row.querySelectorAll('.gopt').forEach(function (g) { g.setAttribute('aria-checked', g.getAttribute('data-opt') === opt); });
+    renderStatus(); renderTopbar();
+    var mid = $('.navrow .mid'); if (mid) mid.textContent = answeredCount() + ' of ' + totalBlanks() + ' answered';
+    var tab = document.querySelectorAll('.ptab')[S.idx - nSent()]; if (tab) { var d = passageDone(p); tab.querySelector('.c').textContent = d + '/' + p.gaps.length; tab.setAttribute('data-done', d === p.gaps.length ? 1 : 0); }
+  }
+  function jumpToGap(n) {
+    var row = $('#gap-' + n); if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.querySelectorAll('.gaprow.hot, .gap.hot').forEach(function (x) { x.classList.remove('hot'); });
+    row.classList.add('hot');
+    var g = $('#pbody .gap[data-n="' + n + '"]'); if (g) g.classList.add('hot');
+    setTimeout(function () { row.classList.remove('hot'); if (g) g.classList.remove('hot'); }, 1400);
+    var first = row.querySelector('.gopt'); if (first) first.focus({ preventScroll: true });
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (S.view !== 'test' || e.metaKey || e.ctrlKey || e.altKey) return;
+    var tag = (e.target.tagName || '').toLowerCase(); if (tag === 'input' || tag === 'textarea') return;
+    if (inSent() && /^[1-5]$/.test(e.key)) {
+      var o = curSent().options[parseInt(e.key, 10) - 1]; if (o) { e.preventDefault(); pickSentence(o); }
+    } else if (e.key === 'ArrowLeft' && S.idx > 0) go(S.idx - 1);
+    else if (e.key === 'ArrowRight' && S.idx < nSteps() - 1) go(S.idx + 1);
+  });
+
+  window.addEventListener('hashchange', function () {
+    var m = /^#y([345])$/.exec(location.hash || '');
+    if (m && S.view !== 'test' && parseInt(m[1], 10) !== S.year) setYear(parseInt(m[1], 10));
+  });
+
+  render();
+})();
+
+</script>
+</body>
+</html>
