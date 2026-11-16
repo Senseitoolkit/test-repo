@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Dodger - Enhanced</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c0c1e 0%, #1a1a2e 100%);
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border: 3px solid #4a5568;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 0 50px rgba(74, 85, 104, 0.5);
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: transparent;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        #score {
+            color: #ffd700;
+            font-weight: bold;
+            font-size: 22px;
+        }
+        
+        #lives {
+            color: #ff6b6b;
+            margin-top: 5px;
+            font-size: 20px;
+        }
+        
+        #level {
+            color: #4fd1c5;
+            margin-top: 5px;
+            font-size: 18px;
+        }
+        
+        #weapon {
+            color: #a78bfa;
+            margin-top: 5px;
+            font-size: 16px;
+        }
+        
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+            z-index: 20;
+            background: rgba(0,0,0,0.95);
+            padding: 40px;
+            border-radius: 20px;
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+        }
+        
+        #gameOver h1 {
+            color: #ffd700;
+            margin-bottom: 20px;
+            font-size: 48px;
+        }
+        
+        #finalScore {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        
+        #finalLevel {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #4fd1c5;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+        }
+        
+        #startScreen h1 {
+            font-size: 64px;
+            color: #ffd700;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+        
+        #startScreen p {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #cbd5e0;
+        }
+        
+        #startScreen .instructions {
+            font-size: 16px;
+            color: #a0aec0;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #718096;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .upgrade-notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 20px 40px;
+            border-radius: 15px;
+            border: 2px solid #ffd700;
+            font-size: 24px;
+            color: #ffd700;
+            z-index: 15;
+            animation: pulse 0.5s ease-in-out;
+            pointer-events: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div id="ui">
+            <div id="score">Score: 0</div>
+            <div id="lives">Lives: ❤️❤️❤️</div>
+            <div id="level">Level: 1</div>
+            <div id="weapon">Weapon: Single Shot</div>
+        </div>
+        
+        <div id="gameOver">
+            <h1>GAME OVER</h1>
+            <div id="finalScore">Final Score: 0</div>
+            <div id="finalLevel">Level Reached: 1</div>
+            <button onclick="restartGame()">Play Again</button>
+        </div>
+        
+        <div id="startScreen">
+            <h1>SPACE DODGER</h1>
+            <p>Enhanced Edition</p>
+            <div class="instructions">
+                🚀 Move with Arrow Keys or WASD<br>
+                🔫 Shoot with SPACE or Click<br>
+                ⭐ Collect upgrades from destroyed asteroids<br>
+                📈 Survive as difficulty increases!
+            </div>
+            <button onclick="startGame()">Start Game</button>
+            <div class="controls">Shoot asteroids to earn points and upgrades!</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let animationId;
+        let lastShotTime = 0;
+        let shootCooldown = 250; // milliseconds
+        
+        // Weapon upgrades
+        let weaponLevel = 1;
+        let weaponNames = ['Single Shot', 'Double Shot', 'Triple Shot', 'Rapid Fire', 'Laser Beam'];
+        
+        // Player
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 100,
+            width: 40,
+            height: 40,
+            speed: 5,
+            dx: 0,
+            dy: 0,
+            color: '#4fd1c5'
+        };
+        
+        // Arrays
+        let asteroids = [];
+        let bullets = [];
+        let particles = [];
+        let stars = [];
+        let upgrades = [];
+        
+        // Initialize stars
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: Math.random() * 2,
+                speed: Math.random() * 0.5 + 0.1
+            });
+        }
+        
+        // Controls
+        const keys = {};
+        
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            
+            if (e.key === ' ') {
+                e.preventDefault();
+                shoot();
+            }
+            
+            if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                e.preventDefault();
+            }
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+        
+        canvas.addEventListener('click', () => {
+            if (gameRunning) shoot();
+        });
+        
+        // Game functions
+        function startGame() {
+            document.getElementById('startScreen').style.display = 'none';
+            gameRunning = true;
+            score = 0;
+            lives = 3;
+            level = 1;
+            weaponLevel = 1;
+            shootCooldown = 250;
+            asteroids = [];
+            bullets = [];
+            particles = [];
+            upgrades = [];
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 100;
+            updateUI();
+            gameLoop();
+        }
+        
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            startGame();
+        }
+        
+        function updateUI() {
+            document.getElementById('score').textContent = `Score: ${score}`;
+            document.getElementById('lives').textContent = `Lives: ${'❤️'.repeat(lives)}`;
+            document.getElementById('level').textContent = `Level: ${level}`;
+            document.getElementById('weapon').textContent = `Weapon: ${weaponNames[weaponLevel - 1] || 'Max Level'}`;
+        }
+        
+        function shoot() {
+            if (!gameRunning) return;
+            
+            const now = Date.now();
+            if (now - lastShotTime < shootCooldown) return;
+            lastShotTime = now;
+            
+            const bulletSpeed = 8;
+            const centerX = player.x + player.width / 2;
+            const topY = player.y;
+            
+            switch(weaponLevel) {
+                case 1: // Single shot
+                    bullets.push({
+                        x: centerX - 2,
+                        y: topY,
+                        width: 4,
+                        height: 15,
+                        speed: bulletSpeed,
+                        color: '#ffd700'
+                    });
+                    break;
+                case 2: // Double shot
+                    bullets.push({
+                        x: centerX - 8,
+                        y: topY,
+                        width: 4,
+                        height: 15,
+                        speed: bulletSpeed,
+                        color: '#ffd700'
+                    });
+                    bullets.push({
+                        x: centerX + 4,
+                        y: topY,
+                        width: 4,
+                        height: 15,
+                        speed: bulletSpeed,
+                        color: '#ffd700'
+                    });
+                    break;
+                case 3: // Triple shot
+                    bullets.push({
+                        x: centerX - 2,
+                        y: topY,
+                        width: 4,
+                        height: 15,
+                        speed: bulletSpeed,
+                        color: '#ffd700'
+                    });
+                    bullets.push({
+                        x: centerX - 12,
+                        y: topY + 5,
+                        width: 4,
+                        height: 15,
+                        speed: bulletSpeed,
+                        color: '#ffd700',
+                        dx: -1
+                    });
+                    bullets.push({
+                        x: centerX + 8,
+                        y: topY + 5,
+                        width: 4,
+                        height: 15,
+                        speed: bulletSpeed,
+                        color: '#ffd700',
+                        dx: 1
+                    });
+                    break;
+                case 4: // Rapid fire
+                    shootCooldown = 100;
+                    bullets.push({
+                        x: centerX - 2,
+                        y: topY,
+                        width: 4,
+                        height: 15,
+                        speed: bulletSpeed + 2,
+                        color: '#ff6b6b'
+                    });
+                    break;
+                case 5: // Laser beam
+                    bullets.push({
+                        x: centerX - 3,
+                        y: 0,
+                        width: 6,
+                        height: topY,
+                        speed: 0,
+                        color: '#ff00ff',
+                        laser: true,
+                        life: 10
+                    });
+                    break;
+            }
+        }
+        
+        function createAsteroid() {
+            const baseSize = 20 + (level * 5);
+            const size = Math.random() * baseSize + baseSize;
+            const speedMultiplier = 1 + (level * 0.2);
+            
+            return {
+                x: Math.random() * (canvas.width - size),
+                y: -size,
+                width: size,
+                height: size,
+                speed: (Math.random() * 2 + 1) * speedMultiplier,
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 5,
+                color: `hsl(${Math.random() * 60 + 20}, 70%, 60%)`,
+                health: Math.floor(size / 20) + Math.floor(level / 2),
+                maxHealth: Math.floor(size / 20) + Math.floor(level / 2)
+            };
+        }
+        
+        function createUpgrade(x, y) {
+            const types = [
+                { type: 'weapon', color: '#a78bfa', symbol: '⬆️', chance: 0.4 },
+                { type: 'life', color: '#ff6b6b', symbol: '❤️', chance: 0.2 },
+                { type: 'points', color: '#ffd700', symbol: '⭐', chance: 0.4 }
+            ];
+            
+            const rand = Math.random();
+            let selected;
+            let cumulative = 0;
+            
+            for (const t of types) {
+                cumulative
