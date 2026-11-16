@@ -192,6 +192,14 @@
   .mini.solid { background:var(--rust); color:#fff; }
   .mini.solid:hover { background:var(--rust-deep); }
   .report-head .area-name { margin-right:auto; }
+  .modal-card { max-height:90vh; overflow:auto; width:min(640px,100%); }
+  .ideas { margin-top:14px; padding-top:10px; border-top:1px dashed var(--line); }
+  .ideas[hidden] { display:none; }
+  .ideas .ihead { font-style:italic; font-size:0.86rem; color:var(--ink-soft); margin-bottom:6px; }
+  .ideas h5 { font-family:'Fraunces',serif; font-size:0.64rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); margin:8px 0 5px; }
+  .ideas .chip { white-space:normal; text-align:left; font-size:0.88rem; border-radius:10px; }
+  .ideas .chip.picked { border-color:var(--teal); background:#eef3ef; }
+  .chip.menu::after { content:" ▾"; color:var(--rust); }
   .tab.over .count { background:var(--rust); }
 
   .checks { margin-top:10px; padding:10px 14px; border:1px solid var(--line); border-radius:3px; background:var(--card); font-size:0.88rem; }
@@ -306,13 +314,14 @@
         <div class="toolbar">
           <button class="btn" id="copyBtn">Copy Comment</button>
           <button class="btn ghost" id="copyAllBtn">Copy Both Comments</button>
+          <button class="btn ghost" id="rewordBtn" title="Try different openings and linking words">↻ Reword</button>
           <button class="btn ghost" id="undoBtn">Undo</button>
           <button class="btn ghost" id="clearBtn">Clear Section</button>
           <button class="btn ghost" id="nextBtn">Next Student →</button>
         </div>
 
         <div class="hint">
-          <strong>How to use:</strong> In <em>Academic &amp; Next Steps</em>, set each domain to <strong>M</strong>, <strong>A</strong> or <strong>S</strong> from your tracker; S is treated as red and always asks for a next step. Elsewhere, tap phrases — ones tapped from the same group join into one sentence, and phrases with <strong>…</strong> ask for a detail. Click an underlined pill to change its detail; remove a phrase with ×. Hover a phrase to preview it. <em>Sample student</em> loads a high, medium or low example into both comments; <em>✕ Clear all</em> beside the Comment heading empties both comments for the student in one click (or press Ctrl/⌘ + Shift + Backspace), <em>✕ Clear this comment</em> empties just the one showing, and <em>Undo</em> brings the text back. <strong>Report rules:</strong> Personal and Social is 580 characters with no academic content; Academic Progress and Next Steps is 780 characters, specific to reading, writing and maths, and now includes how to help at home. Your work is saved in this browser on this device — use <em>Save backup</em> to keep a copy or move it to another computer.
+          <strong>How to use:</strong> In <em>Academic &amp; Next Steps</em>, set each domain to <strong>M</strong>, <strong>A</strong> or <strong>S</strong> from your tracker; S is treated as red and always asks for a next step. Elsewhere, tap phrases — ones tapped from the same group join into one sentence, and phrases with <strong>…</strong> ask for a detail. Click an underlined pill to change its detail; remove a phrase with ×. Phrases with <strong>▾</strong> open a menu of ideas to pick from. Openings and linking words vary automatically from student to student; press <em>↻ Reword</em> to try another version. Hover a phrase to preview it. <em>Sample student</em> loads a high, medium or low example into both comments; <em>✕ Clear all</em> beside the Comment heading empties both comments for the student in one click (or press Ctrl/⌘ + Shift + Backspace), <em>✕ Clear this comment</em> empties just the one showing, and <em>Undo</em> brings the text back. <strong>Report rules:</strong> Personal and Social is 580 characters with no academic content; Academic Progress and Next Steps is 780 characters, specific to reading, writing and maths, and now includes how to help at home. Your work is saved in this browser on this device — use <em>Save backup</em> to keep a copy or move it to another computer.
         </div>
       </div>
     </section>
@@ -327,6 +336,7 @@
         <button class="btn ghost" id="askCancel" type="button">Cancel</button>
         <button class="btn" id="askOk" type="button">Add sentence</button>
       </div>
+      <div class="ideas" id="askIdeas" hidden></div>
     </div>
   </div>
 
@@ -366,12 +376,12 @@ const BANK = {
         {l:"developing skills", t:"{S} {is} developing well, and support at home will help consolidate {his} skills."},
         {l:"ready to extend", t:"{S} {is} ready to be extended and challenged at home."}
       ]},
-      { title:"Foundational — routines", f:"At home, {s} would benefit from {list}.", chips:[
+      { title:"Foundational — routines", f:"<<At home, {s} would benefit from||Outside school, {s} would benefit from||{S} would be helped at home by>> {list}.", chips:[
         ["consistent daily routine","a consistent daily routine"],["consistent bedtime","a consistent bedtime"],
         "specific encouragement",["model each task","having each task modelled first"],
         ["awareness of classroom expectations","a clear awareness of classroom expectations"],"one-on-one focused time"
       ]},
-      { title:"Foundational — practice", f:"You could help by {list}.", chips:[
+      { title:"Foundational — practice", f:"<<You could help by||Families can help by||It would help to keep>> {list}.", chips:[
         ["master simple tasks first","helping {him} master simple tasks first"],
         ["practise phonics & letter formation","practising phonics and letter formation"],
         ["practise in interesting ways","making practice fun and interesting"],
@@ -379,7 +389,7 @@ const BANK = {
         ["praise small improvements","praising small improvements"],
         ["work at or just below ability","working at or just below {his} level to build confidence"]
       ]},
-      { title:"Developing — environment", f:"{S} will thrive with {list}.", chips:[
+      { title:"Developing — environment", f:"<<{S} will thrive with||At home, {s} will do best with||{S} responds well to>> {list}.", chips:[
         "a literacy-rich environment","time to interact with peers",
         ["model good adult habits","good habits modelled by adults"],
         ["engage enthusiastically","enthusiastic engagement with {his} interests"],
@@ -392,13 +402,13 @@ const BANK = {
         ["a sport","a team sport to build cooperation"],["music","music to build stamina and pattern recognition"],
         "clubs","play dates",["exploring","exploring outdoors"],["projects","hands-on projects"],"responsibilities at home"
       ]},
-      { title:"Developing — focus", f:"Please encourage {N} to {list}.", chips:[
+      { title:"Developing — focus", f:"<<Please encourage {N} to||At home, please remind {N} to||It would help if {N} could>> {list}.", chips:[
         ["complete work to their best","complete work to the best of {his} ability"],
         "reflect on mistakes",["don't give up when not perfect","keep going when things are not perfect"],
         "stay positive","build everyday stamina",
         ["find interests and read about them","find {his} interests and read about them"]
       ]},
-      { title:"Extending — challenge", f:"To extend {him}, you could offer {list}.", chips:[
+      { title:"Extending — challenge", f:"<<To extend {him}, you could offer||For extra challenge, you could offer||{S} {is} ready for>> {list}.", chips:[
         ["abundant reading (books & comics)","plenty of reading, including books and comics"],
         ["daily writing","daily writing opportunities"],"increased responsibilities",
         ["sports for leadership","sports that build leadership"],["music for commitment","music to develop commitment"],
@@ -411,13 +421,13 @@ const BANK = {
         ["expand knowledge independently","expanding {his} knowledge independently"],
         ["a variety of activities to adapt","a variety of activities that require {him} to adapt"]
       ]},
-      { title:"Reading & writing", f:"For literacy, you could {list}.", chips:[
+      { title:"Reading & writing", f:"<<For literacy, you could||To support reading and writing at home, you could||At home, you could>> {list}.", chips:[
         "read together daily",["predict & question while reading","ask {him} to predict and question while reading"],
         "discuss new words",["retell stories","have {him} retell stories"],
         ["keep a journal","encourage {him} to keep a journal"],
         ["write lists, cards & notes","write lists, cards and notes together"]
       ]},
-      { title:"Maths", f:"For maths, you could {list}.", chips:[
+      { title:"Maths", f:"<<For maths, you could||To support maths at home, you could||In everyday life, you could>> {list}.", chips:[
         "practise number facts",["cook & measure","cook and measure together"],
         "talk about money","spot patterns",["tell the time","practise telling the time"]
       ]},
@@ -435,11 +445,18 @@ const BANK = {
     intro: "580 characters. Personal and social development only — no academic content. Refer to the Learner Profile and ATL skills, and finish with one next step. Concerns are worded factually and constructively.",
     groups: [
       { title:"Opening", chips:[
-        {l:"valued member of class", t:"{S} {is} a valued member of our class."},
-        {l:"settled in well", t:"{S} {has} settled well into the class this semester."},
-        {l:"positive semester", t:"{S} {has} had a positive semester."}
+        {l:"valued member of class", t:"<<{S} {is} a valued member of our class.||Our class is better for having {N} in it.||{S} {is} an important part of our class community.>>"},
+        {l:"settled in well", t:"<<{S} {has} settled well into the class this semester.||This semester, {s} {has} settled happily into class life.||{S} {has} found {his} place in the class this semester.>>"},
+        {l:"positive semester", t:"<<{S} {has} had a positive semester.||It has been a positive semester for {N}.||This has been a happy and positive semester for {N}.>>"},
+        {l:"kind and caring", t:"<<{S} {is} a kind and caring member of the class.||{N's} kindness makes a real difference in our classroom.>>"},
+        {l:"positive attitude", t:"<<{S} [comes|come] to school each day with a positive attitude.||{S} [brings|bring] a positive attitude to everything {he} [does|do].>>"},
+        {l:"grown in confidence", t:"<<{S} {has} grown in confidence this semester.||This semester, {s} {has} become noticeably more confident.>>"},
+        {l:"quiet and thoughtful", t:"<<{S} {is} a quiet and thoughtful member of the class.||{S} [brings|bring] a calm, thoughtful presence to the classroom.>>"},
+        {l:"lively and enthusiastic", t:"<<{S} [brings|bring] energy and enthusiasm to the classroom.||{S} {is} a lively and enthusiastic member of the class.>>"},
+        {l:"new this semester", t:"<<{S} joined us this semester and {has} settled in quickly.||Since joining us this semester, {s} {has} made a confident start.>>"},
+        {l:"mixed semester", t:"<<{S} {has} had some successes and some challenges this semester.||This semester has brought both successes and challenges for {N}.>>"}
       ]},
-      { title:"Learner Profile", f:"{S} [shows|show] {himself} to be {list}.", chips:[
+      { title:"Learner Profile", f:"<<{S} [shows|show] {himself} to be||As a learner, {s} {is}||Day to day, {s} [proves|prove] to be>> {list}.", chips:[
         ["inquirer","an inquirer"],["thinker","a thinker"],["communicator","a communicator"],"principled",
         "open-minded","caring",["risk-taker","a risk-taker"],"balanced","reflective"
       ]},
@@ -454,7 +471,7 @@ const BANK = {
         "hardworking","conscientious","observant","mindful","self-controlled",
         ["well mannered","well-mannered"],"capable","diligent",["works quickly","an efficient worker"]
       ]},
-      { title:"Personal — concern", f:"At times, {s} can be {list}.", chips:[
+      { title:"Personal — concern", f:"<<At times, {s} can be||Occasionally, {s} can be||{S} can sometimes be||Now and then, {s} can be>> {list}.", chips:[
         "stubborn","forgetful","impulsive","inattentive","careless","clumsy",
         ["perfectionist","a perfectionist"],"easily distracted",["slow worker","slow to complete work"],
         {l:"poor time management", t:"{S} [finds|find] it difficult to manage {his} time effectively."},
@@ -465,14 +482,14 @@ const BANK = {
         {l:"needs frequent reminders", t:"{S} [needs|need] frequent reminders to stay on task."},
         {l:"rarely finishes work", t:"{S} rarely [finishes|finish] {his} work in the time given."}
       ]},
-      { title:"Social — positive", f:"With others, {s} {is} {list}.", chips:[
+      { title:"Social — positive", f:"<<With others, {s} {is}||Socially, {s} {is}||Among {his} peers, {s} {is}||In a group, {s} {is}>> {list}.", chips:[
         ["cooperative in class","cooperative"],"thoughtful",["well spoken","well-spoken"],
         ["helpful to peers","helpful to {his} peers"],"helpful to teachers","supportive","understanding",
         "honest","courteous","friendly","polite","respectful","likeable","caring","sociable",
         {l:"shares well", t:"{S} [shares|share] well with others."},
         {l:"shows appreciation", t:"{S} [shows|show] appreciation for others."}
       ]},
-      { title:"Social — concern", f:"At times, {s} can be {list}.", chips:[
+      { title:"Social — concern", f:"<<At times, {s} can be||Occasionally, {s} can be||{S} can sometimes be||Now and then, {s} can be>> {list}.", chips:[
         "aggressive","selfish","uncooperative","disruptive",["attention seeking","attention-seeking"],
         "overly chatty","unhelpful",["awkward","awkward with peers"],"overly silly",
         {l:"makes excessive demands", t:"{S} sometimes [makes|make] excessive demands of others."},
@@ -491,7 +508,7 @@ const BANK = {
         {l:"receives correction well", t:"{S} [receives|receive] correction well."},
         {l:"thrives on encouragement", t:"{S} [thrives|thrive] on encouragement."}
       ]},
-      { title:"Emotional — concern", f:"At times, {s} can be {list}.", chips:[
+      { title:"Emotional — concern", f:"<<At times, {s} can be||Occasionally, {s} can be||{S} can sometimes be||Now and then, {s} can be>> {list}.", chips:[
         "fussy","apathetic","timid","quiet","shy","anxious","nervous","defensive","defiant","boastful","rude","insensitive",
         {l:"occasional outbursts", t:"{S} occasionally {has} emotional outbursts."},
         {l:"tantrums", t:"{S} sometimes {has} tantrums when things do not go {his} way."},
@@ -526,17 +543,19 @@ const BANK = {
         {l:"shown significant growth", t:"{S} {has} shown significant growth."}
       ]},
       { title:"Next steps", chips:[
-        {l:"would benefit greatly from", t:"{S} would benefit greatly from {x}.", ask:"next step"},
-        {l:"it is important that they", t:"It is important that {s} {x}.", ask:"e.g. continues to ask for help"},
-        {l:"they will need to", t:"{S} will need to {x}.", ask:"next step"},
-        {l:"keep working on", t:"{S} should keep working on {x}.", ask:"next step"},
-        {l:"to improve further", t:"To improve further, {s} could {x}.", ask:"next step"}
+        {l:"would benefit greatly from", t:"<<{S} would benefit greatly from||Going forward, {s} would benefit from||A real help for {N} would be>> {x}.", ask:"next step"},
+        {l:"it is important that they", t:"<<It is important that {s}||Next semester, it will be important that {s}>> {x}.", ask:"e.g. continues to ask for help"},
+        {l:"they will need to", t:"<<{S} will need to||Moving forward, {s} will need to||As a next step, {s} will need to>> {x}.", ask:"next step"},
+        {l:"keep working on", t:"<<{S} should keep working on||Going forward, {s} should keep working on||A focus for next semester is>> {x}.", ask:"next step"},
+        {l:"to improve further", t:"<<To improve further, {s} could||As a next step, {s} could||Looking ahead, {s} could>> {x}.", ask:"next step"}
       ]},
       { title:"Closing", chips:[
-        {l:"a joy to teach", t:"{S} {is} a joy to teach."},
+        {l:"a joy to teach", t:"<<{S} {is} a joy to teach.||It is a joy to teach {N}.||Teaching {N} is a real pleasure.>>"},
         {l:"well-rounded", t:"{S} {is} a well-rounded student."},
-        {l:"a delight to have in class", t:"{S} {is} a delight to have in class."},
-        {l:"look forward to growth", t:"I look forward to seeing {N} continue to grow."}
+        {l:"a delight to have in class", t:"<<{S} {is} a delight to have in class.||{N} is a delight to have in our class.>>"},
+        {l:"look forward to growth", t:"<<I look forward to seeing {N} continue to grow.||I look forward to seeing what {N} achieves next semester.||I am excited to see {N's} continued growth.>>"},
+        {l:"proud of progress", t:"<<{S} should be proud of the progress {he} {has} made.||{N} has much to be proud of this semester.>>"},
+        {l:"keep it up", t:"<<Keep up the great effort, {N}!||Well done on a great semester, {N}!>>"}
       ]}
     ]
   }
@@ -576,9 +595,9 @@ function subjectGroups(subj, label, doms){
     { title:label + " A", hidden:true },
     { title:label + " S", hidden:true },
     { title:label + " — tracker detail", chips:[
-        {l:"can now", t:"In " + subj + ", {s} can now {x}.", ask:"evidence from the tracker"},
-        {l:"is beginning to", t:"In " + subj + ", {s} {is} beginning to {x}.", ask:"evidence from the tracker"},
-        {l:"next step", t:"{His} next step in " + subj + " is to {x}.", ask:"next step"}
+        {l:"can now", t:"<<In " + subj + ", {s} can now||{S} can now||This semester, {s} learned to>> {x}.", ask:"evidence from the tracker"},
+        {l:"is beginning to", t:"<<In " + subj + ", {s} {is} beginning to||{S} {is} starting to||{S} {is} now beginning to>> {x}.", ask:"evidence from the tracker"},
+        {l:"next step", t:"<<{His} next step in " + subj + " is to||Next in " + subj + ", {s} should||Moving forward in " + subj + ", {s} will need to>> {x}.", ask:"next step", ideas:"next:" + subj}
     ]}
   ];
 }
@@ -587,9 +606,14 @@ function acadGroups(grade){
   const g = GRADE[grade];
   return [
     { title:"Opening", chips:[
-      {l:"strong progress", t:"{S} {has} made strong academic progress this semester."},
-      {l:"steady progress", t:"{S} {has} made steady academic progress this semester."},
-      {l:"some progress", t:"{S} {has} made some academic progress this semester and needs continued support."}
+      {l:"excellent progress", t:"<<{S} {has} made excellent academic progress this semester.||This has been an excellent semester academically for {N}.||{S} {has} excelled academically this semester.>>"},
+      {l:"strong progress", t:"<<{S} {has} made strong academic progress this semester.||This semester, {s} {has} made strong academic progress.||It has been a strong semester academically for {N}.>>"},
+      {l:"steady progress", t:"<<{S} {has} made steady academic progress this semester.||This semester, {s} {has} made steady academic progress.||{S} {has} continued to make steady academic progress.>>"},
+      {l:"good progress, some gaps", t:"<<{S} {has} made good progress in some areas this semester, while others need more attention.||{N's} progress this semester has been good in some areas and slower in others.>>"},
+      {l:"some progress", t:"<<{S} {has} made some academic progress this semester and needs continued support.||This semester, {s} {has} made some academic progress and will need continued support.||{S} {is} making gradual academic progress and needs continued support.>>"},
+      {l:"worked hard", t:"<<{S} {has} worked hard this semester, and it shows in {his} progress.||{N's} hard work this semester shows in {his} progress.>>"},
+      {l:"growing confidence", t:"<<{S} {has} grown in confidence across reading, writing and mathematics this semester.||This semester, {s} {has} become a more confident reader, writer and mathematician.>>"},
+      {l:"progress since last report", t:"<<Since the last report, {s} {has} made clear academic progress.||{S} {has} built well on the progress noted in the last report.>>"}
     ]},
     { title:"Oral language", hidden:!g.oral, f:"In oral language, {s} {list}.", chips:[
       ["speaks in full sentences","[speaks|speak] in full sentences"],
@@ -603,7 +627,7 @@ function acadGroups(grade){
     ...subjectGroups("writing","Writing",g.writing),
     ...subjectGroups("mathematics","Mathematics",g.mathematics),
     { title:"At home — quick next steps", chips:[
-      {l:"practising … at home", t:"Practising {x} at home will help.", ask:"what to practise"},
+      {l:"practising … at home", t:"<<Practising {x} at home will help.||At home, practising {x} would make a real difference.||Regular practice of {x} at home will support this.>>", ask:"what to practise", ideas:"home"},
       {l:"reading every night", t:"Reading aloud every night at home will support {his} progress."},
       {l:"number facts", t:"Regular practice of number facts at home will build {his} fluency."}
     ]},
@@ -641,8 +665,23 @@ function joinList(a){
 const nameOf = stu => stu.name.trim() || '[Name]';
 function possessive(n){ return /s$/i.test(n) ? n + "'" : n + "'s"; }
 
+/* Wording variants: <<a||b||c>> inside a template. The choice is steady for a given student and
+   sentence (so text does not jump about while you work), differs between students, changes when
+   "Reword" is pressed, and never repeats the wording used in the sentence just before. */
+function hashStr(str){ let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) >>> 0; return h; }
+function resolveVariants(tpl, salt, prevUsed, nowUsed){
+  return tpl.replace(/<<(.*?)>>/g, (m, body) => {
+    const opts = body.split('||');
+    let n = hashStr(salt + '|' + tpl) % opts.length;
+    if (prevUsed && prevUsed.has(opts[n])) n = (n + 1) % opts.length;
+    if (nowUsed) nowUsed.add(opts[n]);
+    return opts[n];
+  });
+}
+
 /* Render one sentence template. useName decides whether {S}/{s} becomes the name or the pronoun. */
 function renderSentence(tpl, useName, stu){
+  tpl = tpl.replace(/<<(.*?)>>/g, (m, body) => body.split('||')[0]);   // previews use the first wording
   const P = PRON[stu.pronoun], name = nameOf(stu);
   const hasS = /\{[Ss]\}/.test(tpl);
   const plural = stu.pronoun === 'they' && !(hasS && useName);
@@ -666,17 +705,21 @@ function subjectTemplates(subj, arr){
   const A = arr.filter(i => i.lvl === 'A').map(i => i.dom);
   const S = arr.filter(i => i.lvl === 'S');
   const out = [], parts = [];
-  if (M.length) parts.push("{is} secure in " + joinList(M));
-  if (A.length) parts.push("{is} approaching expectations in " + joinList(A));
-  if (parts.length) out.push("In " + subj + ", {s} " + parts.join(" and ") + ".");
+  const leads = { reading:"<<In reading,||As a reader,||When reading,>>", writing:"<<In writing,||As a writer,||When writing,>>",
+                  mathematics:"<<In mathematics,||In maths,||As a mathematician,>>" };
+  const leadIn = leads[subj] || "In " + subj + ",";
+  if (M.length) parts.push("<<{is} secure in||{is} confident in||{is} meeting expectations in>> " + joinList(M));
+  if (A.length) parts.push("<<{is} approaching expectations in||{is} working towards expectations in||{is} close to meeting expectations in>> " + joinList(A));
+  if (parts.length) out.push(leadIn + " {s} " + parts.join(" and ") + ".");
   if (S.length){
-    const lead = parts.length ? "{S}" : "In " + subj + ", {s}";
+    const lead = parts.length ? "{S}" : leadIn + " {s}";
+    const need = "<<[needs|need] further support with||[needs|need] more help with||would benefit from extra support with>>";
     const steps = S.map(i => i.x || '[…]');
     if (S.length === 1){
-      out.push(lead + " [needs|need] further support with " + S[0].dom + "; {his} next step is to " + steps[0] + ".");
+      out.push(lead + " " + need + " " + S[0].dom + "<<; {his} next step is to||; the next step is to||. {His} next goal is to>> " + steps[0] + ".");
     } else {
-      out.push(lead + " [needs|need] further support with " + joinList(S.map(i => i.dom)) + ".");
-      out.push("{His} next steps are to " + joinList(steps) + ".");
+      out.push(lead + " " + need + " " + joinList(S.map(i => i.dom)) + ".");
+      out.push("<<{His} next steps are to||{His} targets are to||Next, {s} should>> " + joinList(steps) + ".");
     }
   }
   return out;
@@ -711,9 +754,12 @@ function buildTemplates(items){
 }
 
 /* Name on the first sentence, then pronoun, with the name returning every third sentence. */
-function renderTemplates(tpls, startCount, stu){
-  let k = startCount || 0;
+function renderTemplates(tpls, startCount, stu, seed){
+  let k = startCount || 0, prev = new Set();
   return tpls.map(t => {
+    const now = new Set();
+    t = resolveVariants(t, stu.id + '|' + (seed || 0), prev, now);
+    prev = now;
     let useName = false;
     if (/\{[Ss]\}/.test(t)){ useName = (k === 0 || k % 3 === 0); k++; }
     return renderSentence(t, useName, stu);
@@ -721,7 +767,7 @@ function renderTemplates(tpls, startCount, stu){
 }
 function areaText(stu, area){
   const a = stu.areas[area];
-  return a.edited ? a.text : renderTemplates(buildTemplates(a.items), 0, stu);
+  return a.edited ? a.text : renderTemplates(buildTemplates(a.items), 0, stu, a.seed);
 }
 
 /* ───────────────────────── Checks ───────────────────────── */
@@ -791,6 +837,7 @@ function cleanStore(s){
         return it;
       }).filter(i => i.lvl || i.t !== undefined || i.v !== undefined);
       stu.areas[a].edited = !!src.edited;
+      stu.areas[a].seed = Number.isInteger(src.seed) && src.seed > 0 ? src.seed % 100000 : 0;
       stu.areas[a].text = typeof src.text === 'string' ? src.text.slice(0,5000) : '';
     });
     return stu;
@@ -829,7 +876,7 @@ const nameField = $('studentName'), searchField = $('search');
 
 function snapshot(){
   const a = st();
-  undoStack.push({area:currentArea, items:a.items.map(i => Object.assign({}, i)), edited:a.edited, text:a.text});
+  undoStack.push({area:currentArea, items:a.items.map(i => Object.assign({}, i)), edited:a.edited, text:a.text, seed:a.seed || 0});
   if (undoStack.length > 100) undoStack.shift();
 }
 /* Report order: by group, and tracker domains in the order they appear on the report. */
@@ -843,7 +890,7 @@ function pushItem(item){
   a.items.push(item);
   if (a.edited){
     const curText = a.text.replace(/\s+$/, '');
-    const sentence = renderTemplates(buildTemplates([item]), curText.length ? 1 : 0, cur());
+    const sentence = renderTemplates(buildTemplates([item]), curText.length ? 1 : 0, cur(), a.seed);
     a.text = curText.length ? curText + ' ' + sentence : sentence;
   } else if (store.autoOrder){
     sortItems(a);
@@ -887,8 +934,11 @@ function renderChecks(){
 }
 
 function askSpecFor(it){
-  if (it.lvl === 'S') return {t:"{S} [needs|need] further support with " + it.dom + " in " + it.subj + "; {his} next step is to {x}.", ask:"next step, from the tracker"};
-  return {t:it.t, ask:'detail'};
+  if (it.lvl === 'S') return {t:"{S} [needs|need] further support with " + it.dom + " in " + it.subj + "; {his} next step is to {x}.", ask:"next step, from the tracker",
+    ideaList: NEXT[it.dom] ? [{title:'Idea for ' + it.dom, items:[NEXT[it.dom]]}] : null};
+  const g = DATA[it.area].groups[it.gi];
+  const def = g && (g.chips || []).map(normaliseChip).find(c => c.l === it.label);
+  return {t:it.t, ask:(def && def.ask) || 'detail', ideas:def && def.ideas};
 }
 function renderPills(){
   const a = st();
@@ -1026,7 +1076,7 @@ function renderBank(){
         const chip = normaliseChip(raw);
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'chip' + (chip.ask ? ' ask' : '') + (chip.red ? ' red' : '');
+        b.className = 'chip' + (chip.ideas ? ' menu' : chip.ask ? ' ask' : '') + (chip.red ? ' red' : '');
         b.textContent = chip.l;
         b.dataset.key = gi + '|' + chip.l;
         b.title = previewFor(gi, chip);
@@ -1124,6 +1174,65 @@ const NEXT = {
   "ratio":"solve simple ratio problems",
   "statistics":"read and interpret tables and graphs"
 };
+/* Ideas for "Practising … at home will help." — offered as a menu, by area. */
+const HOME = {
+  "fluency and accuracy":["reading aloud for ten minutes each night","rereading favourite books to build pace and expression"],
+  "comprehension":["retelling stories after reading them","answering who, what, where and why questions about a book"],
+  "author’s intent and text analysis":["talking about why an author chose certain words","finding evidence in a text to back up an opinion"],
+  "recognizing letter sounds":["letter sounds with flashcards","spotting letters and sounds on signs and labels"],
+  "blending sounds to read words":["blending sounds to read short words"],
+  "reading high-frequency words":["high-frequency words with quick daily games"],
+  "retelling stories":["retelling bedtime stories in order"],
+  "ideas":["planning a story aloud before writing it"],
+  "sentence fluency":["writing sentences that start in different ways"],
+  "organization":["writing short paragraphs with a clear beginning, middle and end"],
+  "word choice":["collecting interesting new words in a notebook"],
+  "voice":["writing letters, cards or a diary for a real reader"],
+  "grammar":["reading written sentences aloud to check they make sense"],
+  "punctuation":["capital letters and full stops in short daily sentences"],
+  "spelling":["weekly spelling words using look, cover, write, check"],
+  "presentation":["neat handwriting for a few minutes each day"],
+  "forming letters correctly":["letter formation with pencils, chalk or paint"],
+  "writing simple words":["writing short words by sounding them out"],
+  "writing simple sentences":["writing one sentence a day about something that happened"],
+  "using finger spaces":["leaving finger spaces when writing short sentences"],
+  "number":["counting objects and counting on during play"],
+  "geometry":["naming and describing shapes around the house"],
+  "measurement":["measuring and weighing while cooking"],
+  "place value":["reading, writing and ordering large numbers"],
+  "addition and subtraction":["addition and subtraction facts with quick mental games"],
+  "multiplication and division":["times tables for five minutes each day"],
+  "fractions":["fractions by sharing food into equal parts"],
+  "fractions and decimals":["fractions and decimals using money and measuring"],
+  "fractions, decimals and percentages":["fractions, decimals and percentages using prices and discounts"],
+  "addition, subtraction, multiplication and division":["mental calculation with all four operations"],
+  "algebra":["missing-number puzzles"],
+  "ratio":["ratio by scaling recipes up and down"],
+  "statistics":["reading graphs and tables in books and the news"]
+};
+const HOME_ORAL = ["speaking in full sentences at mealtimes","retelling the day in order","asking and answering questions about a story"];
+const HOME_EVERYDAY = ["telling the time","handling money when shopping","number facts on the way to school"];
+const uniq = a => [...new Set(a.filter(Boolean))];
+/* Returns [{title, items[]}] for a chip's ideas key. Domains this student has at S (red) or A come first. */
+function ideasFor(key){
+  const D = GRADE[store.grade], acad = cur().areas.acad.items;
+  const flagged = subj => acad.filter(i => i.lvl === 'S' && (!subj || i.subj === subj))
+                    .concat(acad.filter(i => i.lvl === 'A' && (!subj || i.subj === subj))).map(i => i.dom);
+  const groups = [];
+  if (key === 'home'){
+    const f = uniq(flagged().flatMap(d => HOME[d] || []));
+    if (f.length) groups.push({title:"From this student’s tracker (red first)", items:f.slice(0,8)});
+    SUBJECTS.forEach(s => groups.push({title:s === 'mathematics' ? 'Maths' : cap(s), items:uniq(D[s].flatMap(d => HOME[d] || []))}));
+    if (D.oral) groups.push({title:'Oral language', items:HOME_ORAL});
+    groups.push({title:'Everyday', items:HOME_EVERYDAY});
+  } else if (key.indexOf('next:') === 0){
+    const subj = key.slice(5), f = uniq(flagged(subj).map(d => NEXT[d]));
+    if (f.length) groups.push({title:"From this student’s tracker (red first)", items:f});
+    groups.push({title:'All ' + (subj === 'mathematics' ? 'maths' : subj) + ' domains', items:uniq((D[subj] || []).map(d => NEXT[d]))});
+  }
+  return groups.filter(g => g.items.length);
+}
+
 function chipItem(area, title, label, x){
   const gi = DATA[area].groups.findIndex(g => g.title === title);
   if (gi < 0) return null;
@@ -1157,8 +1266,7 @@ function sampleItems(area, level){
       medium: [ A("Opening","steady progress"),
         L('reading',0,'M'), L('reading',1,'A'), A("Reading — tracker detail","next step", nx('reading',1)),
         L('writing',0,'M'), L('writing',1,'A'), L('writing',2,'A'), A("Writing — tracker detail","next step", nx('writing',2)),
-        L('mathematics',0,'M'), L('mathematics',1,'M'), L('mathematics',2,'A'), A("Mathematics — tracker detail","next step", nx('mathematics',2)),
-        A("At home — reading & writing","read together daily") ],
+        L('mathematics',0,'M'), L('mathematics',1,'M'), L('mathematics',2,'A'), A("Mathematics — tracker detail","next step", nx('mathematics',2)) ],
       low: [ A("Opening","some progress"),
         L('reading',0,'A'), L('reading',1,'S'),
         L('writing',0,'A'), L('writing', early ? 1 : 6,'S'), L('writing', early ? 2 : 7,'S'),
@@ -1181,7 +1289,7 @@ function sampleItems(area, level){
         P("Classroom behaviour","difficulty following routines"),
         P("Progress phrases","communicating better with peers"),
         P("Next steps","would benefit greatly from","clear routines and regular check-ins"),
-        P("Next steps","it is important that they","continues to ask for help when unsure") ]
+        P("Next steps","they will need to","ask for help when unsure") ]
     }
   };
   const seen = new Set();
@@ -1191,6 +1299,14 @@ function sampleItems(area, level){
     const k = it.subj + '|' + it.dom; if (seen.has(k)) return false; seen.add(k); return true;
   });
 }
+/* If this wording runs over the character limit, look for a shorter wording of the same sentences. */
+function fitSeed(stu, area){
+  const a = stu.areas[area], lim = LIMITS[area];
+  if (!lim || a.edited) return;
+  const start = a.seed || 0;
+  for (let n = 0; n < 40 && areaText(stu, area).length > lim; n++) a.seed = start + n + 1;
+  if (areaText(stu, area).length > lim) a.seed = start;
+}
 function snapshotAll(){
   undoStack.push({area:'*', areas:JSON.parse(JSON.stringify(cur().areas))});
   if (undoStack.length > 100) undoStack.shift();
@@ -1199,8 +1315,9 @@ function applySample(level){
   snapshotAll();
   AREAS.forEach(area => {
     const a = cur().areas[area];
-    a.items = sampleItems(area, level); a.edited = false; a.text = '';
+    a.items = sampleItems(area, level); a.edited = false; a.text = ''; a.seed = 0;
     sortItems(a);
+    fitSeed(cur(), area);
   });
   refreshOutput();
   showToast(cap(level) + ' sample loaded into both comments — Undo to go back');
@@ -1219,6 +1336,27 @@ function openAsk(chip, cb, initial, suggestion){
   askPreview.append(parts[1] || '');
   askInput.value = initial || '';
   askInput.placeholder = suggestion ? 'e.g. ' + suggestion : 'Type here…';
+  const box = $('askIdeas'), groups = chip.ideaList || (chip.ideas ? ideasFor(chip.ideas) : []);
+  box.innerHTML = ''; box.hidden = !groups.length;
+  if (groups.length){
+    const head = document.createElement('p'); head.className = 'ihead';
+    head.textContent = 'Ideas — tap one to fill it in, then edit it or press Add.';
+    box.appendChild(head);
+    groups.forEach(g => {
+      const h = document.createElement('h5'); h.textContent = g.title; box.appendChild(h);
+      const row = document.createElement('div'); row.className = 'chips';
+      g.items.forEach(text => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = text;
+        b.addEventListener('click', () => {
+          askInput.value = text;
+          box.querySelectorAll('.chip').forEach(c => c.classList.toggle('picked', c === b));
+          askInput.focus();
+        });
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+    });
+  }
   askModal.hidden = false;
   setTimeout(() => { askInput.focus(); askInput.select(); }, 20);
 }
@@ -1317,7 +1455,7 @@ $('undoBtn').addEventListener('click', () => {
     }
     if (undoStack[i].area === currentArea){
       const s = undoStack.splice(i, 1)[0], a = st();
-      a.items = s.items; a.edited = s.edited; a.text = s.text;
+      a.items = s.items; a.edited = s.edited; a.text = s.text; a.seed = s.seed || 0;
       refreshOutput();
       return;
     }
@@ -1340,6 +1478,28 @@ $('clearStuBtn').addEventListener('click', () => {
   cur().areas = blankAreas();
   refreshOutput();
   showToast('Both comments cleared — Undo to bring them back');
+});
+
+$('rewordBtn').addEventListener('click', () => {
+  const a = st();
+  if (!a.items.length){ showToast('Nothing to reword yet'); return; }
+  if (a.edited && !confirm('Rewording rebuilds the comment from your phrases and discards your hand edits. Continue?')) return;
+  const before = areaText(cur(), currentArea);
+  snapshot();
+  a.edited = false;
+  // step the seed until the wording actually changes (a few phrases have only one wording)
+  const lim = LIMITS[currentArea], wasOver = before.length > lim, start = a.seed || 0;
+  let fallback = null;
+  for (let n = 1; n <= 40; n++){
+    a.seed = start + n;
+    const t = areaText(cur(), currentArea);
+    if (t === before) continue;
+    if (fallback === null) fallback = a.seed;
+    if (t.length <= lim || wasOver) { fallback = a.seed; break; }   // prefer a version that still fits
+  }
+  a.seed = fallback === null ? start : fallback;
+  refreshOutput();
+  showToast(areaText(cur(), currentArea) !== before ? 'Reworded — press again for another version' : 'These phrases have only one wording');
 });
 
 $('clearBtnTop').addEventListener('click', () => $('clearBtn').click());
