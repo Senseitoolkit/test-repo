@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Generator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,400&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap');
+
+  :root {
+    --paper:#f5f0e6; --ink:#2b2620; --ink-soft:#5a5145;
+    --rust:#b5532a; --rust-deep:#8f3e1c; --olive:#6b7245;
+    --teal:#3d6b6b; --gold:#c08a2d;
+    --line:#d8cdb8; --card:#fbf8f1; --shadow:rgba(43,38,32,0.12);
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; }
+  body {
+    font-family:'Newsreader',Georgia,serif; background:var(--paper);
+    background-image:
+      radial-gradient(circle at 12% 20%, rgba(192,138,45,0.05), transparent 40%),
+      radial-gradient(circle at 88% 80%, rgba(61,107,107,0.05), transparent 40%);
+    color:var(--ink); line-height:1.5; min-height:100vh;
+  }
+
+  header {
+    padding:22px 38px 14px; border-bottom:2px solid var(--ink); display:flex;
+    align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px;
+  }
+  .masthead h1 { font-family:'Fraunces',serif; font-weight:700; font-size:clamp(1.6rem,4vw,2.6rem); letter-spacing:-0.02em; line-height:0.95; }
+  .masthead h1 em { font-style:italic; color:var(--rust); }
+  .masthead .sub { font-style:italic; color:var(--ink-soft); font-size:0.9rem; margin-top:6px; max-width:60ch; }
+
+  .student { display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; }
+  .field label { display:block; font-family:'Fraunces',serif; font-size:0.64rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); margin-bottom:4px; }
+  .field input { font-family:'Newsreader',serif; font-size:1.05rem; padding:7px 11px; border:1.5px solid var(--ink); background:var(--card); color:var(--ink); border-radius:2px; width:200px; }
+  .field input:focus { outline:2px solid var(--gold); }
+  .field select { font-family:'Newsreader',serif; font-size:1.05rem; padding:7px 11px; border:1.5px solid var(--ink); background:var(--card); color:var(--ink); border-radius:2px; }
+  .field select:focus { outline:2px solid var(--gold); }
+  .seg { display:flex; border:1.5px solid var(--ink); border-radius:2px; overflow:hidden; }
+  .seg button { font-family:'Fraunces',serif; font-weight:600; font-size:0.85rem; padding:8px 14px; background:transparent; border:none; cursor:pointer; color:var(--ink); }
+  .seg button + button { border-left:1.5px solid var(--ink); }
+  .seg button.on { background:var(--ink); color:var(--paper); }
+
+  .layout { display:grid; grid-template-columns:1fr 1fr; max-width:1600px; margin:0 auto; min-height:calc(100vh - 100px); }
+  .bank { padding:20px 38px 60px; border-right:1px dashed var(--line); }
+  .report-side { padding:20px 38px 60px; }
+  .sticky { position:sticky; top:16px; }
+
+  .tabs { display:flex; gap:5px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab {
+    font-family:'Fraunces',serif; font-weight:600; font-size:0.82rem; padding:9px 15px;
+    background:transparent; border:1.5px solid var(--ink); color:var(--ink);
+    cursor:pointer; border-radius:2px; transition:all 0.18s ease; line-height:1.1;
+  }
+  .tab:hover { background:rgba(43,38,32,0.06); }
+  .tab.active { color:var(--paper); }
+  .tab[data-area="acad"].active{ background:var(--ink); border-color:var(--ink);}
+  .tab[data-area="tdi"].active{ background:var(--teal); border-color:var(--teal);}
+  .tab[data-area="home"].active{ background:var(--olive); border-color:var(--olive);}
+  .tab[data-area="pse"].active{ background:var(--rust); border-color:var(--rust);}
+  .tab .count { display:inline-block; min-width:18px; margin-left:6px; padding:0 5px; border-radius:9px; font-size:0.7rem; background:var(--gold); color:#fff; }
+  .tab .count:empty { display:none; }
+
+  .area-intro { font-style:italic; color:var(--ink-soft); margin-bottom:14px; font-size:0.9rem; padding-left:12px; border-left:3px solid var(--gold); }
+
+  .group { margin-bottom:18px; }
+  .group h3 {
+    font-family:'Fraunces',serif; font-weight:600; font-size:0.72rem; text-transform:uppercase;
+    letter-spacing:0.15em; color:var(--ink); margin-bottom:9px; display:flex; align-items:center; gap:9px;
+  }
+  .group h3 .num { color:var(--rust); font-size:0.78rem; }
+  .group h3::after { content:""; flex:1; height:1px; background:var(--line); }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip {
+    font-family:'Newsreader',serif; font-size:0.92rem; padding:5px 12px; background:var(--card);
+    border:1px solid var(--line); border-radius:15px; cursor:pointer; transition:all 0.14s ease;
+    color:var(--ink); box-shadow:0 1px 2px var(--shadow); user-select:none; white-space:nowrap;
+  }
+  .chip:hover { transform:translateY(-1px); border-color:var(--ink-soft); box-shadow:0 3px 6px var(--shadow); }
+  .chip.ask::after { content:" …"; color:var(--rust); }
+  .chip.used { border-color:var(--teal); background:#eef3ef; }
+  .chip.red { border-color:var(--rust); color:var(--rust-deep); background:#fbeee8; }
+  .chip.flash { background:var(--gold); color:#fff; border-color:var(--gold); }
+
+  .report-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; gap:10px; flex-wrap:wrap; }
+  .report-head h2 { font-family:'Fraunces',serif; font-weight:700; font-size:1.35rem; }
+  .report-head .area-name { font-style:italic; color:var(--ink-soft); font-size:0.9rem; }
+
+  .pills { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; min-height:8px; }
+  .pill { font-size:0.8rem; padding:2px 4px 2px 10px; border-radius:12px; background:rgba(61,107,107,0.12); color:var(--teal); display:flex; align-items:center; gap:4px; }
+  .pill button { border:none; background:transparent; cursor:pointer; color:var(--ink-soft); font-size:0.95rem; line-height:1; padding:0 4px; }
+  .pill button:hover { color:var(--rust); }
+
+  #report {
+    width:100%; min-height:340px; resize:vertical; font-family:'Newsreader',serif; font-size:1.06rem;
+    line-height:1.8; padding:18px 20px; background:var(--card); border:1px solid var(--line);
+    border-radius:3px; color:var(--ink); box-shadow:inset 0 1px 4px rgba(43,38,32,0.06);
+  }
+  #report:focus { outline:2px solid var(--gold); }
+
+  .counter { margin-top:8px; font-family:'Fraunces',serif; font-size:0.8rem; color:var(--ink-soft); display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .counter.over { color:var(--rust-deep); font-weight:600; }
+  .edited-bar { margin-bottom:8px; font-size:0.86rem; padding:8px 12px; background:rgba(181,83,42,0.08); border:1px dashed var(--rust); border-radius:3px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .edited-bar[hidden] { display:none; }
+  .edited-bar button { font-family:'Fraunces',serif; font-size:0.75rem; padding:4px 10px; border:1px solid var(--rust); background:transparent; color:var(--rust-deep); cursor:pointer; border-radius:2px; }
+
+  .toolbar { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .btn {
+    font-family:'Fraunces',serif; font-weight:600; font-size:0.8rem; letter-spacing:0.04em;
+    padding:10px 18px; border:1.5px solid var(--ink); background:var(--ink); color:var(--paper);
+    cursor:pointer; border-radius:2px; transition:all 0.16s ease;
+  }
+  .btn:hover { background:var(--rust); border-color:var(--rust); }
+  .btn.ghost { background:transparent; color:var(--ink); }
+  .btn.ghost:hover { background:rgba(43,38,32,0.06); }
+
+  .hint { margin-top:16px; font-style:italic; font-size:0.84rem; color:var(--ink-soft); padding:12px 15px; background:rgba(192,138,45,0.08); border-radius:3px; border:1px dashed var(--line); }
+  .hint strong { font-style:normal; color:var(--rust-deep); }
+
+  .modal { position:fixed; inset:0; background:rgba(43,38,32,0.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:16px; }
+  .modal[hidden] { display:none; }
+  .modal-card { background:var(--paper); border:2px solid var(--ink); border-radius:3px; padding:20px; width:min(520px,100%); box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+  .modal-card .label { font-family:'Fraunces',serif; font-size:0.66rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); margin-bottom:6px; }
+  .modal-card .preview { font-size:1.05rem; margin-bottom:12px; }
+  .modal-card .preview mark { background:rgba(192,138,45,0.25); padding:0 4px; border-radius:2px; }
+  .modal-card input { width:100%; font-family:'Newsreader',serif; font-size:1.05rem; padding:8px 11px; border:1.5px solid var(--ink); background:var(--card); border-radius:2px; margin-bottom:12px; }
+  .modal-card input:focus { outline:2px solid var(--gold); }
+  .modal-card .row { display:flex; gap:8px; justify-content:flex-end; }
+
+  .toast {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:var(--paper); font-family:'Fraunces',serif; font-size:0.84rem;
+    letter-spacing:0.06em; padding:11px 22px; border-radius:3px; opacity:0; pointer-events:none;
+    transition:all 0.3s ease; z-index:70; box-shadow:0 6px 18px rgba(0,0,0,0.25);
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:920px){
+    .layout { grid-template-columns:1fr; }
+    .bank { border-right:none; border-bottom:1px dashed var(--line); }
+    header { padding:18px 16px 12px; }
+    .bank, .report-side { padding:18px 16px 48px; }
+    .sticky { position:static; }
+    .field input { width:100%; }
+  }
+
+  /* ── v2 additions ── */
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px solid var(--gold); outline-offset:1px; }
+  .savestate { font-family:'Fraunces',serif; font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); align-self:center; }
+  .savestate.bad { color:var(--rust-deep); }
+
+  .classbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:10px 38px; border-bottom:1px solid var(--line); background:rgba(251,248,241,0.6); }
+  .classbar .lbl { font-family:'Fraunces',serif; font-size:0.64rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); margin-right:4px; }
+  .students { display:flex; gap:6px; flex-wrap:wrap; flex:1; min-width:200px; }
+  .stu { font-family:'Newsreader',serif; font-size:0.92rem; padding:4px 11px 4px 9px; border:1px solid var(--line); background:var(--card); border-radius:3px; cursor:pointer; color:var(--ink); display:flex; align-items:center; gap:6px; }
+  .stu::before { content:""; width:8px; height:8px; border-radius:50%; background:transparent; border:1.5px solid var(--ink-soft); }
+  .stu.progress::before { background:var(--gold); border-color:var(--gold); }
+  .stu.ready::before { background:var(--olive); border-color:var(--olive); }
+  .stu.issue::before { background:var(--rust); border-color:var(--rust); }
+  .stu.current { border:1.5px solid var(--ink); font-weight:500; box-shadow:0 2px 5px var(--shadow); }
+  .mini { font-family:'Fraunces',serif; font-weight:600; font-size:0.72rem; padding:6px 10px; border:1px solid var(--ink); background:transparent; color:var(--ink); cursor:pointer; border-radius:2px; white-space:nowrap; }
+  .mini:hover { background:rgba(43,38,32,0.06); }
+  .mini.danger { border-color:var(--rust); color:var(--rust-deep); }
+  .legend-dots { font-size:0.74rem; color:var(--ink-soft); font-style:italic; width:100%; }
+
+  .search { width:100%; font-family:'Newsreader',serif; font-size:0.98rem; padding:7px 11px; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:2px; margin-bottom:12px; }
+
+  .matrix { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:5px 14px; }
+  .mrow { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px dotted var(--line); }
+  .mrow .dom { font-size:0.94rem; }
+  .lv { display:flex; border:1px solid var(--ink-soft); border-radius:2px; overflow:hidden; flex-shrink:0; }
+  .lvbtn { font-family:'Fraunces',serif; font-weight:600; font-size:0.74rem; width:28px; padding:4px 0; background:var(--card); border:none; cursor:pointer; color:var(--ink-soft); }
+  .lvbtn + .lvbtn { border-left:1px solid var(--ink-soft); }
+  .lvbtn:hover { background:rgba(43,38,32,0.08); }
+  .lvbtn.on[data-lvl="M"] { background:var(--olive); color:#fff; }
+  .lvbtn.on[data-lvl="A"] { background:var(--gold); color:#fff; }
+  .lvbtn.on[data-lvl="S"] { background:var(--rust); color:#fff; }
+  .mlegend { font-size:0.8rem; font-style:italic; color:var(--ink-soft); margin-bottom:7px; }
+  .mlegend b { font-style:normal; font-family:'Fraunces',serif; }
+
+  .pill.red { background:rgba(181,83,42,0.12); color:var(--rust-deep); }
+  .pill .ptext { border:none; background:transparent; font:inherit; color:inherit; padding:0; cursor:default; text-align:left; }
+  .pill .ptext.editable { cursor:pointer; text-decoration:underline dotted; }
+  .order { font-size:0.82rem; color:var(--ink-soft); display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+
+  .samples { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-bottom:12px; padding:8px 10px; border:1px dashed var(--line); border-radius:3px; background:rgba(192,138,45,0.06); }
+  .samples .lbl { font-family:'Fraunces',serif; font-size:0.64rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); }
+  .samples .note { font-size:0.8rem; font-style:italic; color:var(--ink-soft); }
+  .quick { display:flex; gap:6px; margin-left:auto; }
+  .mini.solid { background:var(--rust); color:#fff; }
+  .mini.solid:hover { background:var(--rust-deep); }
+  .report-head .area-name { margin-right:auto; }
+  .tab.over .count { background:var(--rust); }
+
+  .checks { margin-top:10px; padding:10px 14px; border:1px solid var(--line); border-radius:3px; background:var(--card); font-size:0.88rem; }
+  .checks h4 { font-family:'Fraunces',serif; font-size:0.66rem; text-transform:uppercase; letter-spacing:0.14em; color:var(--ink-soft); margin-bottom:5px; }
+  .checks ul { list-style:none; }
+  .checks li { padding:2px 0 2px 20px; position:relative; }
+  .checks li::before { position:absolute; left:0; font-family:'Fraunces',serif; font-weight:700; }
+  .checks li.error { color:var(--rust-deep); } .checks li.error::before { content:"!"; }
+  .checks li.warn { color:#8a6417; } .checks li.warn::before { content:"?"; }
+  .checks li.info { color:var(--ink-soft); } .checks li.info::before { content:"·"; }
+  .checks li.ok { color:var(--olive); } .checks li.ok::before { content:"✓"; }
+
+  .modal-card textarea { width:100%; min-height:180px; font-family:'Newsreader',serif; font-size:1rem; padding:8px 11px; border:1.5px solid var(--ink); background:var(--card); border-radius:2px; margin-bottom:12px; }
+  .modal-card .help { font-size:0.86rem; font-style:italic; color:var(--ink-soft); margin-bottom:10px; }
+
+  @media (max-width:920px){ .classbar { padding:10px 16px; } }
+  @media print { .bank, .classbar, .toolbar, .hint, .tabs, .order, .pills, header .student { display:none !important; } .layout { display:block; } }
+</style>
+</head>
+<body>
+  <header>
+    <div class="masthead">
+      <h1>Report <em>Generator</em></h1>
+      <p class="sub">Mark tracker levels and tap phrases — the comment writes itself, is checked against the reporting handbook, and is saved for every student in your class.</p>
+    </div>
+    <div class="student">
+      <div class="field">
+        <label for="studentName">Student name</label>
+        <input type="text" id="studentName" placeholder="First name…" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Pronoun</label>
+        <div class="seg" id="pronounSeg">
+          <button type="button" data-p="he" class="on">He</button>
+          <button type="button" data-p="she">She</button>
+          <button type="button" data-p="they">They</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="gradeSel">Class grade</label>
+        <select id="gradeSel">
+          <option value="k12">K1–K2</option>
+          <option value="k3">K3</option>
+          <option value="g12">Grades 1–2</option>
+          <option value="g3">Grade 3</option>
+          <option value="g4">Grade 4</option>
+          <option value="g5">Grade 5</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <div class="classbar">
+    <span class="lbl">Class</span>
+    <div class="students" id="students"></div>
+    <button class="mini" id="addStuBtn" type="button">+ Add student</button>
+    <button class="mini" id="pasteBtn" type="button">Paste class list</button>
+    <button class="mini" id="copyClassBtn" type="button">Copy whole class</button>
+    <button class="mini" id="csvBtn" type="button">Download spreadsheet (CSV)</button>
+    <button class="mini" id="backupBtn" type="button">Save backup</button>
+    <button class="mini" id="restoreBtn" type="button">Load backup</button>
+    <button class="mini danger" id="removeStuBtn" type="button">Remove student</button>
+    <button class="mini danger" id="clearClassBtn" type="button">Clear all comments</button>
+    <span class="savestate" id="saveState"></span>
+    <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    <span class="legend-dots">Dots: empty = not started · gold = in progress · red = something to fix · green = both report comments ready.</span>
+  </div>
+
+  <div class="layout">
+    <section class="bank">
+      <div class="tabs">
+        <button class="tab active" data-area="acad">Academic &amp; Next Steps<span class="count"></span></button>
+        <button class="tab" data-area="pse">Personal &amp; Social<span class="count"></span></button>
+      </div>
+      <div class="samples">
+        <span class="lbl">Sample student</span>
+        <button class="mini" type="button" data-sample="high">High</button>
+        <button class="mini" type="button" data-sample="medium">Medium</button>
+        <button class="mini" type="button" data-sample="low">Low</button>
+        <span class="note">Fills both comments for this student as a starting point — then adjust to your tracker.</span>
+      </div>
+      <input type="search" class="search" id="search" placeholder="Search phrases in this section…" autocomplete="off">
+      <p class="area-intro" id="areaIntro"></p>
+      <div id="bankContent"></div>
+    </section>
+
+    <section class="report-side">
+      <div class="sticky">
+        <div class="report-head">
+          <h2>Comment</h2>
+          <span class="area-name" id="areaName"></span>
+          <span class="quick">
+            <button class="mini danger" id="clearBtnTop" type="button" title="Clear the comment showing now">✕ Clear this comment</button>
+            <button class="mini danger solid" id="clearStuBtn" type="button" title="Clear both comments for this student (Ctrl/⌘ + Shift + Backspace)">✕ Clear all</button>
+          </span>
+        </div>
+
+        <label class="order"><input type="checkbox" id="autoOrder"> Keep sentences in report order (opening → reading → writing → maths → help at home)</label>
+        <div class="pills" id="pills"></div>
+
+        <div class="edited-bar" id="editedBar" hidden>
+          <span>You've edited the text by hand — new phrases will be added to the end.</span>
+          <button type="button" id="rebuildBtn">Rebuild from phrases</button>
+        </div>
+
+        <textarea id="report" placeholder="Mark tracker levels or tap phrases on the left and the comment writes itself here. You can type into it to polish the wording."></textarea>
+
+        <div class="counter" id="counter"><span id="counterNum"></span><span id="counterNote"></span></div>
+
+        <div class="checks" id="checks"></div>
+
+        <div class="toolbar">
+          <button class="btn" id="copyBtn">Copy Comment</button>
+          <button class="btn ghost" id="copyAllBtn">Copy Both Comments</button>
+          <button class="btn ghost" id="undoBtn">Undo</button>
+          <button class="btn ghost" id="clearBtn">Clear Section</button>
+          <button class="btn ghost" id="nextBtn">Next Student →</button>
+        </div>
+
+        <div class="hint">
+          <strong>How to use:</strong> In <em>Academic &amp; Next Steps</em>, set each domain to <strong>M</strong>, <strong>A</strong> or <strong>S</strong> from your tracker; S is treated as red and always asks for a next step. Elsewhere, tap phrases — ones tapped from the same group join into one sentence, and phrases with <strong>…</strong> ask for a detail. Click an underlined pill to change its detail; remove a phrase with ×. Hover a phrase to preview it. <em>Sample student</em> loads a high, medium or low example into both comments; <em>✕ Clear all</em> beside the Comment heading empties both comments for the student in one click (or press Ctrl/⌘ + Shift + Backspace), <em>✕ Clear this comment</em> empties just the one showing, and <em>Undo</em> brings the text back. <strong>Report rules:</strong> Personal and Social is 580 characters with no academic content; Academic Progress and Next Steps is 780 characters, specific to reading, writing and maths, and now includes how to help at home. Your work is saved in this browser on this device — use <em>Save backup</em> to keep a copy or move it to another computer.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal" id="askModal" hidden>
+    <div class="modal-card">
+      <div class="label">Fill in the detail</div>
+      <p class="preview" id="askPreview"></p>
+      <input type="text" id="askInput" autocomplete="off" placeholder="Type here…">
+      <div class="row">
+        <button class="btn ghost" id="askCancel" type="button">Cancel</button>
+        <button class="btn" id="askOk" type="button">Add sentence</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="listModal" hidden>
+    <div class="modal-card">
+      <div class="label">Paste class list</div>
+      <p class="help">One student per line. Add the pronoun after a comma if it isn't "he" — for example <em>Aiko, she</em> or <em>Sam, they</em>.</p>
+      <textarea id="listInput" placeholder="Aiko, she&#10;Ben&#10;Sam, they"></textarea>
+      <div class="row">
+        <button class="btn ghost" id="listCancel" type="button">Cancel</button>
+        <button class="btn" id="listOk" type="button">Add students</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied to clipboard</div>
+
+<script>
+/* ───────────────────────── Phrase data ─────────────────────────
+   Tokens:
+     {S} / {s}   subject – the student's name or pronoun (chosen automatically)
+     {N} {N's}   always the name / possessive name
+     {he} {He} {him} {his} {His} {himself}   pronoun forms
+     {is} {has} {was}   verb agreement
+     [verbs|verb]   singular|plural form (plural used for "they")
+     {x}         the detail you type in (for chips with an "ask")
+   Groups with an "f" frame merge consecutive taps into one list sentence.
+   A chip is either "label", ["label","value"], or {l, t, ask}.          */
+
+const BANK = {
+  home: {
+    title: "How to Help at Home",
+    intro: "Pick the support level, then specific suggestions families can use. Sentences are written to parents.",
+    groups: [
+      { title:"Support level", chips:[
+        {l:"foundational support", t:"{S} would benefit from some foundational support at home to build {his} confidence."},
+        {l:"developing skills", t:"{S} {is} developing well, and support at home will help consolidate {his} skills."},
+        {l:"ready to extend", t:"{S} {is} ready to be extended and challenged at home."}
+      ]},
+      { title:"Foundational — routines", f:"At home, {s} would benefit from {list}.", chips:[
+        ["consistent daily routine","a consistent daily routine"],["consistent bedtime","a consistent bedtime"],
+        "specific encouragement",["model each task","having each task modelled first"],
+        ["awareness of classroom expectations","a clear awareness of classroom expectations"],"one-on-one focused time"
+      ]},
+      { title:"Foundational — practice", f:"You could help by {list}.", chips:[
+        ["master simple tasks first","helping {him} master simple tasks first"],
+        ["practise phonics & letter formation","practising phonics and letter formation"],
+        ["practise in interesting ways","making practice fun and interesting"],
+        ["lots of exposure & repetition","providing lots of exposure and repetition"],
+        ["praise small improvements","praising small improvements"],
+        ["work at or just below ability","working at or just below {his} level to build confidence"]
+      ]},
+      { title:"Developing — environment", f:"{S} will thrive with {list}.", chips:[
+        "a literacy-rich environment","time to interact with peers",
+        ["model good adult habits","good habits modelled by adults"],
+        ["engage enthusiastically","enthusiastic engagement with {his} interests"],
+        ["intrinsic & extrinsic incentives","a mix of intrinsic and extrinsic incentives"],
+        ["room to be creative & make mistakes","room to be creative and make mistakes"],
+        ["specific encouraging feedback","specific, encouraging feedback"],
+        ["balanced opportunities","a balance of opportunities"]
+      ]},
+      { title:"Developing — activities", f:"Activities such as {list} would support {his} growth.", chips:[
+        ["a sport","a team sport to build cooperation"],["music","music to build stamina and pattern recognition"],
+        "clubs","play dates",["exploring","exploring outdoors"],["projects","hands-on projects"],"responsibilities at home"
+      ]},
+      { title:"Developing — focus", f:"Please encourage {N} to {list}.", chips:[
+        ["complete work to their best","complete work to the best of {his} ability"],
+        "reflect on mistakes",["don't give up when not perfect","keep going when things are not perfect"],
+        "stay positive","build everyday stamina",
+        ["find interests and read about them","find {his} interests and read about them"]
+      ]},
+      { title:"Extending — challenge", f:"To extend {him}, you could offer {list}.", chips:[
+        ["abundant reading (books & comics)","plenty of reading, including books and comics"],
+        ["daily writing","daily writing opportunities"],"increased responsibilities",
+        ["sports for leadership","sports that build leadership"],["music for commitment","music to develop commitment"],
+        ["independent learning","independent learning through clubs, books and programs"]
+      ]},
+      { title:"Extending — perspective", f:"{S} would also benefit from {list}.", chips:[
+        ["gain perspective from others","gaining perspective from others"],
+        ["travel & new experiences","travel and new experiences"],
+        ["embrace creativity","embracing creativity beyond expectations"],
+        ["expand knowledge independently","expanding {his} knowledge independently"],
+        ["a variety of activities to adapt","a variety of activities that require {him} to adapt"]
+      ]},
+      { title:"Reading & writing", f:"For literacy, you could {list}.", chips:[
+        "read together daily",["predict & question while reading","ask {him} to predict and question while reading"],
+        "discuss new words",["retell stories","have {him} retell stories"],
+        ["keep a journal","encourage {him} to keep a journal"],
+        ["write lists, cards & notes","write lists, cards and notes together"]
+      ]},
+      { title:"Maths", f:"For maths, you could {list}.", chips:[
+        "practise number facts",["cook & measure","cook and measure together"],
+        "talk about money","spot patterns",["tell the time","practise telling the time"]
+      ]},
+      { title:"Partnership", chips:[
+        {l:"reach out anytime", t:"Please reach out anytime if you have any questions."},
+        {l:"share home interests", t:"Please share {N's} interests at home with me so I can build on them in class."},
+        {l:"valued learning partner", t:"Thank you for being a valued partner in {N's} learning."},
+        {l:"attend conferences", t:"I look forward to seeing you at our upcoming conference."}
+      ]}
+    ]
+  },
+
+  pse: {
+    title: "Personal and Social Comment",
+    intro: "580 characters. Personal and social development only — no academic content. Refer to the Learner Profile and ATL skills, and finish with one next step. Concerns are worded factually and constructively.",
+    groups: [
+      { title:"Opening", chips:[
+        {l:"valued member of class", t:"{S} {is} a valued member of our class."},
+        {l:"settled in well", t:"{S} {has} settled well into the class this semester."},
+        {l:"positive semester", t:"{S} {has} had a positive semester."}
+      ]},
+      { title:"Learner Profile", f:"{S} [shows|show] {himself} to be {list}.", chips:[
+        ["inquirer","an inquirer"],["thinker","a thinker"],["communicator","a communicator"],"principled",
+        "open-minded","caring",["risk-taker","a risk-taker"],"balanced","reflective"
+      ]},
+      { title:"ATL skills", f:"{S} [uses|use] {his} {list} well.", chips:[
+        "social skills",["self-management","self-management skills"],"communication skills",
+        {l:"collaborates well", t:"{S} [collaborates|collaborate] well with a range of peers."},
+        {l:"manages belongings & routines", t:"{S} [manages|manage] {his} belongings and classroom routines independently."}
+      ]},
+      { title:"Personal — positive", f:"{S} {is} {list}.", chips:[
+        "independent","responsible",["participates eagerly","eager to participate"],
+        ["enthusiastic learner","an enthusiastic learner"],"attentive during instruction",
+        "hardworking","conscientious","observant","mindful","self-controlled",
+        ["well mannered","well-mannered"],"capable","diligent",["works quickly","an efficient worker"]
+      ]},
+      { title:"Personal — concern", f:"At times, {s} can be {list}.", chips:[
+        "stubborn","forgetful","impulsive","inattentive","careless","clumsy",
+        ["perfectionist","a perfectionist"],"easily distracted",["slow worker","slow to complete work"],
+        {l:"poor time management", t:"{S} [finds|find] it difficult to manage {his} time effectively."},
+        {l:"poor retention", t:"{S} sometimes [finds|find] it difficult to retain new information."},
+        {l:"lacks self-control", t:"{S} {is} still developing self-control."},
+        {l:"makes poor decisions", t:"{S} sometimes [makes|make] choices that do not help {his} learning."},
+        {l:"often absent", t:"{N's} learning has been affected by frequent absences."},
+        {l:"needs frequent reminders", t:"{S} [needs|need] frequent reminders to stay on task."},
+        {l:"rarely finishes work", t:"{S} rarely [finishes|finish] {his} work in the time given."}
+      ]},
+      { title:"Social — positive", f:"With others, {s} {is} {list}.", chips:[
+        ["cooperative in class","cooperative"],"thoughtful",["well spoken","well-spoken"],
+        ["helpful to peers","helpful to {his} peers"],"helpful to teachers","supportive","understanding",
+        "honest","courteous","friendly","polite","respectful","likeable","caring","sociable",
+        {l:"shares well", t:"{S} [shares|share] well with others."},
+        {l:"shows appreciation", t:"{S} [shows|show] appreciation for others."}
+      ]},
+      { title:"Social — concern", f:"At times, {s} can be {list}.", chips:[
+        "aggressive","selfish","uncooperative","disruptive",["attention seeking","attention-seeking"],
+        "overly chatty","unhelpful",["awkward","awkward with peers"],"overly silly",
+        {l:"makes excessive demands", t:"{S} sometimes [makes|make] excessive demands of others."},
+        {l:"prone to peer pressure", t:"{S} can be easily influenced by {his} peers."},
+        {l:"rarely interacts with peers", t:"{S} rarely [interacts|interact] with {his} peers."},
+        {l:"plays alone", t:"{S} often [chooses|choose] to play alone."},
+        {l:"rejects offers to play", t:"{S} sometimes [declines|decline] offers to play from classmates."},
+        {l:"chats in line", t:"{S} [tends|tend] to chat while lining up."},
+        {l:"easily distracts others", t:"{S} can distract others from their learning."},
+        {l:"interrupts peers", t:"{S} sometimes [interrupts|interrupt] {his} peers."}
+      ]},
+      { title:"Emotional — positive", f:"{S} {is} {list}.", chips:[
+        "happy",["good natured","good-natured"],["confident in their work","confident in {his} work"],
+        ["very well behaved","very well-behaved"],["sweet natured","sweet-natured"],
+        {l:"enjoys learning", t:"{S} clearly [enjoys|enjoy] learning."},
+        {l:"receives correction well", t:"{S} [receives|receive] correction well."},
+        {l:"thrives on encouragement", t:"{S} [thrives|thrive] on encouragement."}
+      ]},
+      { title:"Emotional — concern", f:"At times, {s} can be {list}.", chips:[
+        "fussy","apathetic","timid","quiet","shy","anxious","nervous","defensive","defiant","boastful","rude","insensitive",
+        {l:"occasional outbursts", t:"{S} occasionally {has} emotional outbursts."},
+        {l:"tantrums", t:"{S} sometimes {has} tantrums when things do not go {his} way."},
+        {l:"complains", t:"{S} [tends|tend] to complain when faced with challenges."},
+        {l:"sulks", t:"{S} sometimes [sulks|sulk] when things do not go {his} way."},
+        {l:"negative self-talk", t:"{S} sometimes [uses|use] negative self-talk."},
+        {l:"struggles to control emotions", t:"{S} [finds|find] it difficult to manage {his} emotions at times."},
+        {l:"likes getting their own way", t:"{S} [likes|like] to get {his} own way."}
+      ]},
+      { title:"Classroom behaviour", chips:[
+        {l:"makes noise disruptions", t:"{S} sometimes [makes|make] noises that disrupt the class."},
+        {l:"shouts out during instruction", t:"{S} sometimes [calls|call] out during instruction."},
+        {l:"gets up during instruction", t:"{S} sometimes [gets|get] up during instruction."},
+        {l:"talks during quiet work", t:"{S} sometimes [talks|talk] during quiet work time."},
+        {l:"struggles to work independently", t:"{S} [needs|need] reminders to work independently."},
+        {l:"off-task without supervision", t:"{S} can drift off-task without supervision."},
+        {l:"leaves seat without permission", t:"{S} sometimes [leaves|leave] {his} seat without permission."},
+        {l:"difficulty following routines", t:"{S} {is} still learning to follow class routines."},
+        {l:"rushes work", t:"{S} [tends|tend] to rush {his} work."},
+        {l:"struggles to settle after breaks", t:"{S} [finds|find] it difficult to settle after breaks."},
+        {l:"struggles with self-control", t:"{S} {is} working on {his} self-control."}
+      ]},
+      { title:"Progress phrases", chips:[
+        {l:"made significant progress", t:"{S} {has} made significant progress this semester."},
+        {l:"communicating better with peers", t:"{S} {is} beginning to communicate better with {his} peers."},
+        {l:"sharing interests", t:"{S} {is} finding ways to share {his} interests with others."},
+        {l:"initiating play in healthier ways", t:"{S} {is} initiating play in healthier ways."},
+        {l:"increasingly confident", t:"{S} {is} becoming increasingly confident."},
+        {l:"attitude has greatly improved", t:"{N's} attitude has greatly improved."},
+        {l:"much happier with", t:"{S} {is} much happier with {x}.", ask:"what has improved"},
+        {l:"efforts have improved", t:"{N's} efforts have improved."},
+        {l:"shown significant growth", t:"{S} {has} shown significant growth."}
+      ]},
+      { title:"Next steps", chips:[
+        {l:"would benefit greatly from", t:"{S} would benefit greatly from {x}.", ask:"next step"},
+        {l:"it is important that they", t:"It is important that {s} {x}.", ask:"e.g. continues to ask for help"},
+        {l:"they will need to", t:"{S} will need to {x}.", ask:"next step"},
+        {l:"keep working on", t:"{S} should keep working on {x}.", ask:"next step"},
+        {l:"to improve further", t:"To improve further, {s} could {x}.", ask:"next step"}
+      ]},
+      { title:"Closing", chips:[
+        {l:"a joy to teach", t:"{S} {is} a joy to teach."},
+        {l:"well-rounded", t:"{S} {is} a well-rounded student."},
+        {l:"a delight to have in class", t:"{S} {is} a delight to have in class."},
+        {l:"look forward to growth", t:"I look forward to seeing {N} continue to grow."}
+      ]}
+    ]
+  }
+};
+
+
+/* ─────────────── Report rules (from the reporting handbook) ─────────────── */
+const LIMITS = { acad:780, pse:580 };
+const AREAS = ['acad','pse'];
+
+/* Domain names match the report templates for each grade. */
+const READ_DOM = ["fluency and accuracy","comprehension","author’s intent and text analysis"];
+const WRITE_DOM = ["ideas","sentence fluency","organization","word choice","voice","grammar","punctuation","spelling","presentation"];
+const GRADE = {
+  k12:{ oral:true,
+        reading:["recognizing letter sounds","blending sounds to read words","reading high-frequency words","retelling stories"],
+        writing:["forming letters correctly","writing simple words","writing simple sentences","using finger spaces"],
+        mathematics:["number","geometry","measurement"] },
+  k3: { reading:READ_DOM, writing:WRITE_DOM, mathematics:["place value","addition and subtraction","multiplication and division","fractions","measurement","geometry"] },
+  g12:{ reading:READ_DOM, writing:WRITE_DOM, mathematics:["place value","addition and subtraction","multiplication and division","fractions","measurement","geometry","statistics"] },
+  g3: { reading:READ_DOM, writing:WRITE_DOM, mathematics:["place value","addition and subtraction","multiplication and division","fractions and decimals","measurement","geometry","statistics"] },
+  g4: { reading:READ_DOM, writing:WRITE_DOM, mathematics:["place value","addition and subtraction","multiplication and division","fractions, decimals and percentages","measurement","geometry","statistics"] },
+  g5: { reading:READ_DOM, writing:WRITE_DOM, mathematics:["place value","addition, subtraction, multiplication and division","fractions, decimals and percentages","algebra","ratio","measurement","geometry","statistics"] }
+};
+const SUBJECTS = ['reading','writing','mathematics'];
+const LVL_OFFSET = { M:0, A:1, S:2 };
+
+const OWN_GROUP = () => ({ title:"Your own sentence", chips:[
+  {l:"write your own", t:"{x}.", ask:"a full sentence — {S} gives the name or pronoun; {his} and {him} also work"}
+]});
+
+/* Each subject = a tracker grid (M / A / S per domain) + free tracker detail.
+   The grid uses three consecutive group slots (M, A, S) so sentences sort in that order. */
+function subjectGroups(subj, label, doms){
+  return [
+    { title:label + " — levels from your tracker", matrix:true, subj, doms:doms.slice() },
+    { title:label + " A", hidden:true },
+    { title:label + " S", hidden:true },
+    { title:label + " — tracker detail", chips:[
+        {l:"can now", t:"In " + subj + ", {s} can now {x}.", ask:"evidence from the tracker"},
+        {l:"is beginning to", t:"In " + subj + ", {s} {is} beginning to {x}.", ask:"evidence from the tracker"},
+        {l:"next step", t:"{His} next step in " + subj + " is to {x}.", ask:"next step"}
+    ]}
+  ];
+}
+/* The group count and order are the same for every grade, so saved phrases stay valid when the grade changes. */
+function acadGroups(grade){
+  const g = GRADE[grade];
+  return [
+    { title:"Opening", chips:[
+      {l:"strong progress", t:"{S} {has} made strong academic progress this semester."},
+      {l:"steady progress", t:"{S} {has} made steady academic progress this semester."},
+      {l:"some progress", t:"{S} {has} made some academic progress this semester and needs continued support."}
+    ]},
+    { title:"Oral language", hidden:!g.oral, f:"In oral language, {s} {list}.", chips:[
+      ["speaks in full sentences","[speaks|speak] in full sentences"],
+      ["retells familiar stories","[retells|retell] familiar stories in order"],
+      ["listens and responds","[listens|listen] and [responds|respond] to others"],
+      ["asks questions","[asks|ask] questions to find out more"],
+      {l:"needs support with", red:true, t:"In oral language, {s} [needs|need] further support with {x}.", ask:"what, from the tracker"},
+      {l:"next step", t:"{His} next step in oral language is to {x}.", ask:"next step"}
+    ]},
+    ...subjectGroups("reading","Reading",g.reading),
+    ...subjectGroups("writing","Writing",g.writing),
+    ...subjectGroups("mathematics","Mathematics",g.mathematics),
+    { title:"At home — quick next steps", chips:[
+      {l:"practising … at home", t:"Practising {x} at home will help.", ask:"what to practise"},
+      {l:"reading every night", t:"Reading aloud every night at home will support {his} progress."},
+      {l:"number facts", t:"Regular practice of number facts at home will build {his} fluency."}
+    ]},
+    /* "How to help at home" phrases, now part of this comment (they count towards the 780). */
+    ...BANK.home.groups.map(g => Object.assign({}, g, {title:"At home — " + g.title.charAt(0).toLowerCase() + g.title.slice(1)})),
+    OWN_GROUP()
+  ];
+}
+
+const DATA = {
+  acad: {
+    title: "Academic Progress and Next Steps",
+    intro: "780 characters. Set each domain to M, A or S straight from your tracker — the names match the report for your grade. S is treated as red: it always asks for a next step, and the checks will not pass until every red item is covered. The “At home” groups add how families can help; they count towards the 780, so pick one or two.",
+    groups: acadGroups('g3')
+  },
+  pse: BANK.pse
+};
+DATA.pse.groups.push(OWN_GROUP());
+
+/* ───────────────────────── Grammar engine ───────────────────────── */
+const PRON = {
+  he:   {he:"he",   him:"him",  his:"his",   self:"himself"},
+  she:  {he:"she",  him:"her",  his:"her",   self:"herself"},
+  they: {he:"they", him:"them", his:"their", self:"themselves"}
+};
+const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+/* "a, b and c" — but if an item already contains "and" or a comma, separate more clearly. */
+function joinList(a){
+  if (a.length < 2) return a[0] || '';
+  const complex = a.some(x => / and |,/.test(x));
+  const sep = a.some(x => /,/.test(x)) ? '; ' : ', ';
+  if (!complex) return a.slice(0,-1).join(', ') + ' and ' + a[a.length-1];
+  return a.slice(0,-1).join(sep) + sep.trim() + ' and ' + a[a.length-1];
+}
+const nameOf = stu => stu.name.trim() || '[Name]';
+function possessive(n){ return /s$/i.test(n) ? n + "'" : n + "'s"; }
+
+/* Render one sentence template. useName decides whether {S}/{s} becomes the name or the pronoun. */
+function renderSentence(tpl, useName, stu){
+  const P = PRON[stu.pronoun], name = nameOf(stu);
+  const hasS = /\{[Ss]\}/.test(tpl);
+  const plural = stu.pronoun === 'they' && !(hasS && useName);
+  const subj = useName ? name : P.he;
+  let s = tpl
+    .replace(/\{S\}/g, cap(subj)).replace(/\{s\}/g, subj)
+    .replace(/\{N's\}/g, possessive(name)).replace(/\{N\}/g, name)
+    .replace(/\{He\}/g, cap(P.he)).replace(/\{he\}/g, P.he)
+    .replace(/\{him\}/g, P.him).replace(/\{His\}/g, cap(P.his)).replace(/\{his\}/g, P.his)
+    .replace(/\{himself\}/g, P.self)
+    .replace(/\{is\}/g, plural ? 'are' : 'is')
+    .replace(/\{has\}/g, plural ? 'have' : 'has')
+    .replace(/\{was\}/g, plural ? 'were' : 'was')
+    .replace(/\[([^\]|]+)\|([^\]]+)\]/g, (m, a, b) => plural ? b : a);
+  return cap(s);
+}
+
+/* One subject's tracker levels → one or two compact sentences. */
+function subjectTemplates(subj, arr){
+  const M = arr.filter(i => i.lvl === 'M').map(i => i.dom);
+  const A = arr.filter(i => i.lvl === 'A').map(i => i.dom);
+  const S = arr.filter(i => i.lvl === 'S');
+  const out = [], parts = [];
+  if (M.length) parts.push("{is} secure in " + joinList(M));
+  if (A.length) parts.push("{is} approaching expectations in " + joinList(A));
+  if (parts.length) out.push("In " + subj + ", {s} " + parts.join(" and ") + ".");
+  if (S.length){
+    const lead = parts.length ? "{S}" : "In " + subj + ", {s}";
+    const steps = S.map(i => i.x || '[…]');
+    if (S.length === 1){
+      out.push(lead + " [needs|need] further support with " + S[0].dom + "; {his} next step is to " + steps[0] + ".");
+    } else {
+      out.push(lead + " [needs|need] further support with " + joinList(S.map(i => i.dom)) + ".");
+      out.push("{His} next steps are to " + joinList(steps) + ".");
+    }
+  }
+  return out;
+}
+
+/* Tapped items → sentence templates. Consecutive list-chips from one group merge; tracker levels merge per subject. */
+function buildTemplates(items){
+  const out = [];
+  let i = 0;
+  while (i < items.length){
+    const it = items[i];
+    const g = DATA[it.area].groups[it.gi];
+    if (it.lvl){
+      let j = i + 1;
+      while (j < items.length && items[j].lvl && items[j].subj === it.subj) j++;
+      out.push(...subjectTemplates(it.subj, items.slice(i, j)));
+      i = j;
+    } else if (it.v !== undefined && g && g.f){
+      const vals = [it.v];
+      let j = i + 1;
+      while (j < items.length && items[j].v !== undefined && !items[j].lvl && items[j].gi === it.gi && items[j].area === it.area){
+        vals.push(items[j].v); j++;
+      }
+      out.push(g.f.replace('{list}', joinList(vals)));
+      i = j;
+    } else {
+      out.push(String(it.t || '').replace('{x}', it.x || '[…]'));
+      i++;
+    }
+  }
+  return out;
+}
+
+/* Name on the first sentence, then pronoun, with the name returning every third sentence. */
+function renderTemplates(tpls, startCount, stu){
+  let k = startCount || 0;
+  return tpls.map(t => {
+    let useName = false;
+    if (/\{[Ss]\}/.test(t)){ useName = (k === 0 || k % 3 === 0); k++; }
+    return renderSentence(t, useName, stu);
+  }).join(' ');
+}
+function areaText(stu, area){
+  const a = stu.areas[area];
+  return a.edited ? a.text : renderTemplates(buildTemplates(a.items), 0, stu);
+}
+
+/* ───────────────────────── Checks ───────────────────────── */
+const ACADEMIC_WORDS = /\b(reading|reads?|reader|writing|writes?|writer|spelling|phonics|maths?|mathematics|number facts|fractions?|multiplication|division|addition|subtraction|times tables?|grammar|punctuation|comprehension|unit of inquiry|central idea)\b/gi;
+function issuesFor(stu, area){
+  const a = stu.areas[area], text = areaText(stu, area), out = [];
+  if (!text.trim()) return out;
+  const lim = LIMITS[area];
+  if (lim && text.length > lim) out.push({level:'error', msg:'Over the limit by ' + (text.length - lim) + ' characters (' + lim + ' allowed).'});
+  if (text.includes('[…]')) out.push({level:'error', msg:'A detail is still blank — look for […] in the comment.'});
+  if (text.includes('[Name]')) out.push({level:'error', msg:"Add the student's name."});
+  const wrong = stu.pronoun === 'he' ? /\b(she|her|hers|herself)\b/i : stu.pronoun === 'she' ? /\b(he|him|his|himself)\b/i : null;
+  const m = wrong && text.match(wrong);
+  if (m) out.push({level:'warn', msg:'Check pronouns — found “' + m[0] + '” but this student is set to “' + stu.pronoun + '”.'});
+  if (/ {2,}/.test(text.trim())) out.push({level:'info', msg:'There is a double space in the text.'});
+
+  if (!a.edited && a.items.some(i => i.sample)) out.push({level:'info', msg:'Includes sample wording — check it against this student’s tracker before copying.'});
+  if (area === 'pse'){
+    const found = [...new Set((text.match(ACADEMIC_WORDS) || []).map(w => w.toLowerCase()))];
+    if (found.length) out.push({level:'warn', msg:'Possible academic content (' + found.join(', ') + '). The Personal and Social comment should have none.'});
+  }
+  if (area === 'acad'){
+    const lower = text.toLowerCase();
+    a.items.filter(i => i.lvl === 'S').forEach(i => {
+      if (!i.x) out.push({level:'error', msg:'Red item needs a next step: ' + i.dom + '.'});
+      else if (a.edited && !lower.includes(i.dom.toLowerCase())) out.push({level:'error', msg:'Red item is no longer mentioned in your edited text: ' + i.dom + '.'});
+    });
+    const missing = SUBJECTS.filter(s => !a.items.some(i => i.subj === s || (DATA.acad.groups[i.gi] && DATA.acad.groups[i.gi].title.toLowerCase().startsWith(s))) && !lower.includes(s === 'mathematics' ? 'math' : s));
+    if (missing.length) out.push({level:'warn', msg:'Nothing yet about ' + joinList(missing) + '. The comment should cover reading, writing and maths.'});
+  }
+  return out;
+}
+function statusOf(stu){
+  const texts = AREAS.map(a => areaText(stu, a).trim());
+  if (!texts.some(Boolean)) return 'empty';
+  const errs = ['acad','pse'].some(a => issuesFor(stu, a).some(i => i.level === 'error'));
+  if (errs) return 'issue';
+  return (texts[0] && texts[1]) ? 'ready' : 'progress';
+}
+
+/* ───────────────────────── Storage ───────────────────────── */
+const STORE_KEY = 'reportGenerator.v2';
+function blankAreas(){ const o = {}; AREAS.forEach(a => o[a] = {items:[], edited:false, text:''}); return o; }
+function newStudent(name, pronoun){
+  return { id:Date.now().toString(36) + Math.random().toString(36).slice(2,7), name:name || '', pronoun:PRON[pronoun] ? pronoun : 'he', areas:blankAreas() };
+}
+function freshStore(){ return { v:2, grade:'g3', autoOrder:true, current:0, students:[newStudent()] }; }
+/* Accept only the shape we wrote; drop anything unexpected. */
+function cleanStore(s){
+  if (!s || typeof s !== 'object' || !Array.isArray(s.students) || !s.students.length) return null;
+  const grade = GRADE[s.grade] ? s.grade : 'g3';
+  const groupsFor = a => a === 'acad' ? acadGroups(grade) : DATA[a].groups;
+  const students = s.students.filter(x => x && typeof x === 'object').map(x => {
+    const stu = newStudent(typeof x.name === 'string' ? x.name.slice(0,80) : '', x.pronoun);
+    AREAS.forEach(a => {
+      const src = x.areas && x.areas[a]; if (!src || !Array.isArray(src.items)) return;
+      const groups = groupsFor(a);
+      stu.areas[a].items = src.items.filter(i => i && typeof i === 'object' && Number.isInteger(i.gi) && groups[i.gi]).map(i => {
+        const it = { area:a, gi:i.gi, label:String(i.label || '').slice(0,200) };
+        if (typeof i.t === 'string') it.t = i.t.slice(0,600);
+        if (typeof i.v === 'string') it.v = i.v.slice(0,300);
+        if (typeof i.x === 'string') it.x = i.x.slice(0,400);
+        if (i.sample === true) it.sample = true;
+        if (a === 'acad' && SUBJECTS.includes(i.subj) && LVL_OFFSET[i.lvl] !== undefined && typeof i.dom === 'string'){
+          it.subj = i.subj; it.lvl = i.lvl; it.dom = i.dom.slice(0,120);
+        }
+        return it;
+      }).filter(i => i.lvl || i.t !== undefined || i.v !== undefined);
+      stu.areas[a].edited = !!src.edited;
+      stu.areas[a].text = typeof src.text === 'string' ? src.text.slice(0,5000) : '';
+    });
+    return stu;
+  });
+  if (!students.length) return null;
+  const current = Number.isInteger(s.current) && s.current >= 0 && s.current < students.length ? s.current : 0;
+  return { v:2, grade, autoOrder:s.autoOrder !== false, current, students };
+}
+function loadStore(){
+  try { return cleanStore(JSON.parse(localStorage.getItem(STORE_KEY))); } catch(e){ return null; }
+}
+let store = loadStore() || freshStore();
+DATA.acad.groups = acadGroups(store.grade);
+
+let saveTimer = null, saveOK = true;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); saveOK = true; }
+    catch(e){ saveOK = false; }
+    const el = document.getElementById('saveState');
+    el.textContent = saveOK ? 'Saved on this device' : 'Not saved — use Save backup';
+    el.classList.toggle('bad', !saveOK);
+  }, 200);
+}
+
+/* ───────────────────────── State helpers ───────────────────────── */
+let currentArea = 'acad';
+let undoStack = [];
+const cur = () => store.students[store.current];
+const st = () => cur().areas[currentArea];
+
+const $ = id => document.getElementById(id);
+const report = $('report'), bankContent = $('bankContent'), pillsEl = $('pills'), editedBar = $('editedBar');
+const nameField = $('studentName'), searchField = $('search');
+
+function snapshot(){
+  const a = st();
+  undoStack.push({area:currentArea, items:a.items.map(i => Object.assign({}, i)), edited:a.edited, text:a.text});
+  if (undoStack.length > 100) undoStack.shift();
+}
+/* Report order: by group, and tracker domains in the order they appear on the report. */
+function sortItems(a){
+  const rank = it => { if (!it.lvl) return -1; const d = GRADE[store.grade][it.subj] || []; const n = d.indexOf(it.dom); return n < 0 ? 999 : n; };
+  a.items = a.items.map((it, n) => [it, n]).sort((p, q) => (p[0].gi - q[0].gi) || (rank(p[0]) - rank(q[0])) || (p[1] - q[1])).map(p => p[0]);
+}
+
+function pushItem(item){
+  const a = st();
+  a.items.push(item);
+  if (a.edited){
+    const curText = a.text.replace(/\s+$/, '');
+    const sentence = renderTemplates(buildTemplates([item]), curText.length ? 1 : 0, cur());
+    a.text = curText.length ? curText + ' ' + sentence : sentence;
+  } else if (store.autoOrder){
+    sortItems(a);
+  }
+}
+
+/* ───────────────────────── Rendering ───────────────────────── */
+function refreshOutput(){
+  const a = st();
+  report.value = areaText(cur(), currentArea);
+  editedBar.hidden = !a.edited;
+  updateCounter(); renderChecks(); renderPills(); markUsed(); updateCounts(); renderStudents();
+  save();
+}
+
+function updateCounter(){
+  const n = report.value.length, lim = LIMITS[currentArea];
+  const box = $('counter');
+  if (lim){
+    $('counterNum').textContent = n + ' / ' + lim + ' characters (including spaces)';
+    box.classList.toggle('over', n > lim);
+    $('counterNote').textContent = n > lim ? (n - lim) + ' over the limit' : (lim - n) + ' left';
+  } else {
+    $('counterNum').textContent = n + ' characters (including spaces)';
+    box.classList.remove('over');
+    $('counterNote').textContent = 'Not a report box. If pasted into Academic Progress and Next Steps, it counts towards the 780.';
+  }
+}
+
+function renderChecks(){
+  const box = $('checks');
+  box.innerHTML = '';
+  const h = document.createElement('h4'); h.textContent = 'Checks'; box.appendChild(h);
+  const ul = document.createElement('ul');
+  const text = areaText(cur(), currentArea).trim();
+  let list = issuesFor(cur(), currentArea);
+  if (!text) list = [{level:'info', msg:'Nothing written yet.'}];
+  else if (!list.length) list = [{level:'ok', msg: LIMITS[currentArea] ? 'Within the limit and nothing to fix.' : 'Nothing to fix.'}];
+  list.forEach(i => { const li = document.createElement('li'); li.className = i.level; li.textContent = i.msg; ul.appendChild(li); });
+  box.appendChild(ul);
+}
+
+function askSpecFor(it){
+  if (it.lvl === 'S') return {t:"{S} [needs|need] further support with " + it.dom + " in " + it.subj + "; {his} next step is to {x}.", ask:"next step, from the tracker"};
+  return {t:it.t, ask:'detail'};
+}
+function renderPills(){
+  const a = st();
+  pillsEl.innerHTML = '';
+  a.items.forEach((it, idx) => {
+    const p = document.createElement('span');
+    p.className = 'pill' + (it.lvl === 'S' ? ' red' : '');
+    const label = document.createElement('button');
+    label.type = 'button'; label.className = 'ptext';
+    label.textContent = (it.lvl ? it.dom + ' · ' + it.lvl : it.label) + (it.x ? ': ' + it.x : '');
+    const hasDetail = it.lvl === 'S' || (it.t && it.t.includes('{x}'));
+    if (hasDetail){
+      label.classList.add('editable'); label.title = 'Click to change the detail';
+      label.addEventListener('click', () => {
+        openAsk(askSpecFor(it), x => {
+          if (a.edited && !confirm('Changing a detail rebuilds the comment and discards your hand edits. Continue?')) return;
+          snapshot(); it.x = x; a.edited = false; refreshOutput();
+        }, it.x || '');
+      });
+    }
+    const x = document.createElement('button');
+    x.type = 'button'; x.title = 'Remove'; x.setAttribute('aria-label', 'Remove ' + label.textContent); x.textContent = '×';
+    x.addEventListener('click', () => {
+      if (a.edited && !confirm('Removing a phrase rebuilds the comment and discards your hand edits. Continue?')) return;
+      snapshot();
+      a.items.splice(idx, 1);
+      a.edited = false;
+      refreshOutput();
+    });
+    p.appendChild(label); p.appendChild(x);
+    pillsEl.appendChild(p);
+  });
+}
+
+function markUsed(){
+  const a = st();
+  const used = new Set(a.items.filter(i => !i.lvl).map(it => it.gi + '|' + it.label));
+  bankContent.querySelectorAll('.chip').forEach(c => c.classList.toggle('used', used.has(c.dataset.key)));
+  const levels = {};
+  a.items.filter(i => i.lvl).forEach(i => levels[i.subj + '|' + i.dom] = i.lvl);
+  bankContent.querySelectorAll('.lvbtn').forEach(b => {
+    const on = levels[b.dataset.subj + '|' + b.dataset.dom] === b.dataset.lvl;
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
+function updateCounts(){
+  document.querySelectorAll('.tab').forEach(tab => {
+    const area = tab.dataset.area, n = cur().areas[area].items.length;
+    tab.querySelector('.count').textContent = n ? n : '';
+    const lim = LIMITS[area];
+    tab.classList.toggle('over', !!lim && areaText(cur(), area).length > lim);
+  });
+}
+
+function renderStudents(){
+  const box = $('students');
+  box.innerHTML = '';
+  store.students.forEach((stu, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    const status = statusOf(stu);
+    b.className = 'stu ' + status + (i === store.current ? ' current' : '');
+    b.textContent = stu.name.trim() || 'Student ' + (i + 1);
+    b.title = {empty:'Not started', progress:'In progress', issue:'Something to fix', ready:'Both report comments ready'}[status];
+    b.addEventListener('click', () => switchStudent(i));
+    box.appendChild(b);
+  });
+}
+
+function loadStudentUI(){
+  nameField.value = cur().name;
+  document.querySelectorAll('#pronounSeg button').forEach(x => x.classList.toggle('on', x.dataset.p === cur().pronoun));
+  undoStack = [];
+  renderBank(); refreshOutput();
+}
+function switchStudent(i){
+  if (i < 0 || i >= store.students.length) return;
+  store.current = i;
+  loadStudentUI();
+}
+
+/* ───────────────────────── Bank ───────────────────────── */
+function normaliseChip(c){
+  if (typeof c === 'string') return {l:c, v:c};
+  if (Array.isArray(c)) return {l:c[0], v:c[1]};
+  return c;
+}
+function previewFor(gi, chip){
+  const g = DATA[currentArea].groups[gi];
+  const tpl = chip.t ? chip.t.replace('{x}', '…') : g.f.replace('{list}', chip.v);
+  return renderSentence(tpl, true, cur());
+}
+
+function renderBank(){
+  const data = DATA[currentArea];
+  $('areaIntro').textContent = data.intro;
+  $('areaName').textContent = data.title;
+  bankContent.innerHTML = '';
+  let shown = 0;
+  data.groups.forEach((group, gi) => {
+    if (group.hidden) return;
+    shown++;
+    const wrap = document.createElement('div');
+    wrap.className = 'group';
+    const h3 = document.createElement('h3');
+    const num = document.createElement('span'); num.className = 'num'; num.textContent = shown;
+    h3.appendChild(num); h3.appendChild(document.createTextNode(group.title));
+    wrap.appendChild(h3);
+
+    if (group.matrix){
+      const lg = document.createElement('p'); lg.className = 'mlegend';
+      lg.innerHTML = '<b>M</b> meeting · <b>A</b> approaching · <b>S</b> starting to develop (red — asks for a next step)';
+      wrap.appendChild(lg);
+      const grid = document.createElement('div'); grid.className = 'matrix';
+      group.doms.forEach(dom => {
+        const row = document.createElement('div'); row.className = 'mrow'; row.dataset.text = dom.toLowerCase();
+        const name = document.createElement('span'); name.className = 'dom'; name.textContent = dom;
+        const lv = document.createElement('div'); lv.className = 'lv';
+        ['M','A','S'].forEach(l => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'lvbtn'; b.textContent = l;
+          b.dataset.subj = group.subj; b.dataset.dom = dom; b.dataset.lvl = l;
+          b.title = dom + ': ' + {M:'meeting expectations (secure)', A:'approaching expectations', S:'starting to develop — red, needs a next step'}[l];
+          b.addEventListener('click', () => onLevel(gi, group.subj, dom, l));
+          lv.appendChild(b);
+        });
+        row.appendChild(name); row.appendChild(lv); grid.appendChild(row);
+      });
+      wrap.appendChild(grid);
+    } else {
+      const chips = document.createElement('div');
+      chips.className = 'chips';
+      group.chips.forEach(raw => {
+        const chip = normaliseChip(raw);
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip' + (chip.ask ? ' ask' : '') + (chip.red ? ' red' : '');
+        b.textContent = chip.l;
+        b.dataset.key = gi + '|' + chip.l;
+        b.title = previewFor(gi, chip);
+        b.dataset.text = (chip.l + ' ' + b.title).toLowerCase();
+        b.addEventListener('click', () => onChip(gi, chip, b));
+        chips.appendChild(b);
+      });
+      wrap.appendChild(chips);
+    }
+    bankContent.appendChild(wrap);
+  });
+  applyFilter(); markUsed();
+}
+
+function applyFilter(){
+  const q = searchField.value.trim().toLowerCase();
+  bankContent.querySelectorAll('.group').forEach(g => {
+    let any = false;
+    g.querySelectorAll('.chip, .mrow').forEach(el => {
+      const hit = !q || el.dataset.text.includes(q);
+      el.style.display = hit ? '' : 'none';
+      if (hit) any = true;
+    });
+    g.style.display = any ? '' : 'none';
+  });
+}
+searchField.addEventListener('input', applyFilter);
+
+function flash(el){ if (el){ el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 250); } }
+function addItem(item, el){
+  snapshot();
+  pushItem(item);
+  refreshOutput();
+  flash(el);
+  report.scrollTop = report.scrollHeight;
+}
+function onChip(gi, chip, el){
+  if (chip.ask) openAsk(chip, x => addItem({area:currentArea, gi, label:chip.l, t:chip.t, x}, el));
+  else if (chip.t) addItem({area:currentArea, gi, label:chip.l, t:chip.t}, el);
+  else addItem({area:currentArea, gi, label:chip.l, v:chip.v}, el);
+}
+
+/* Tracker level for one domain: tap to set, tap again to clear. One level per domain. */
+function onLevel(gi0, subj, dom, lvl){
+  const a = st();
+  const find = () => a.items.findIndex(it => it.subj === subj && it.dom === dom);
+  const existing = find();
+  const same = existing >= 0 && a.items[existing].lvl === lvl;
+  const apply = x => {
+    const idx = find();
+    if (idx >= 0 && a.edited && !confirm('Changing a level rebuilds the comment and discards your hand edits. Continue?')) return;
+    snapshot();
+    if (idx >= 0){ a.items.splice(idx, 1); a.edited = false; }
+    if (!same) pushItem({area:'acad', gi:gi0 + LVL_OFFSET[lvl], label:dom, subj, dom, lvl, x});
+    refreshOutput();
+  };
+  if (!same && lvl === 'S') openAsk(askSpecFor({lvl:'S', dom, subj}), apply, '', NEXT[dom]);
+  else apply();
+}
+
+/* ───────────────────────── Sample templates ─────────────────────────
+   Example next steps per domain. They are also shown as a suggestion when you mark a domain S. */
+const NEXT = {
+  "fluency and accuracy":"reread familiar texts aloud to build pace and expression",
+  "comprehension":"retell the main events and answer questions about the text",
+  "author’s intent and text analysis":"explain the author’s choices using evidence from the text",
+  "recognizing letter sounds":"secure the remaining letter sounds",
+  "blending sounds to read words":"blend three-letter words independently",
+  "reading high-frequency words":"read the first set of high-frequency words on sight",
+  "retelling stories":"retell a story in order using first, next and last",
+  "ideas":"plan ideas before writing and add detail",
+  "sentence fluency":"vary sentence openers and lengths",
+  "organization":"group ideas into clear paragraphs",
+  "word choice":"choose more precise vocabulary",
+  "voice":"write with the reader in mind",
+  "grammar":"keep verb tenses consistent",
+  "punctuation":"use capital letters and full stops in every sentence",
+  "spelling":"apply taught spelling patterns in independent writing",
+  "presentation":"form letters consistently and keep work neat",
+  "forming letters correctly":"form all lower-case letters correctly",
+  "writing simple words":"write three-letter words using the sounds heard",
+  "writing simple sentences":"write a simple sentence independently",
+  "using finger spaces":"leave finger spaces between words",
+  "number":"count on from a given number",
+  "geometry":"name and describe the properties of shapes",
+  "measurement":"measure and compare using the correct units",
+  "place value":"read, write and order numbers using place value",
+  "addition and subtraction":"add and subtract accurately using a written method",
+  "multiplication and division":"recall multiplication facts fluently",
+  "fractions":"find fractions of shapes and amounts",
+  "fractions and decimals":"compare and order fractions and decimals",
+  "fractions, decimals and percentages":"convert between fractions, decimals and percentages",
+  "addition, subtraction, multiplication and division":"choose the correct operation for multi-step problems",
+  "algebra":"find missing numbers in simple equations",
+  "ratio":"solve simple ratio problems",
+  "statistics":"read and interpret tables and graphs"
+};
+function chipItem(area, title, label, x){
+  const gi = DATA[area].groups.findIndex(g => g.title === title);
+  if (gi < 0) return null;
+  const c = (DATA[area].groups[gi].chips || []).map(normaliseChip).find(c => c.l === label);
+  if (!c) return null;
+  const it = {area, gi, label:c.l, sample:true};
+  if (c.t){ it.t = c.t; if (c.ask) it.x = x || ''; } else it.v = c.v;
+  return it;
+}
+function levelItem(subj, n, lvl){
+  const doms = GRADE[store.grade][subj], dom = doms[Math.min(n, doms.length - 1)];
+  const gi0 = DATA.acad.groups.findIndex(g => g.matrix && g.subj === subj);
+  const it = {area:'acad', gi:gi0 + LVL_OFFSET[lvl], label:dom, subj, dom, lvl, sample:true};
+  if (lvl === 'S') it.x = NEXT[dom] || '';
+  return it;
+}
+function sampleItems(area, level){
+  const D = GRADE[store.grade], early = !!D.oral;
+  const nx = (subj, n) => NEXT[D[subj][Math.min(n, D[subj].length - 1)]] || '';
+  const A = (t, l, x) => chipItem('acad', t, l, x), L = levelItem, P = (t, l, x) => chipItem('pse', t, l, x);
+  const sets = {
+    acad: {
+      high: [ A("Opening","strong progress"),
+        L('reading',0,'M'), L('reading',1,'M'), L('reading',2,'M'),
+        L('writing',0,'M'), L('writing',1,'M'), L('writing',2,'M'),
+        A("Writing — tracker detail","next step", early ? "write two or three sentences independently" : "use more ambitious vocabulary in independent writing"),
+        L('mathematics',0,'M'), L('mathematics',1,'M'), L('mathematics',2,'M'),
+        A("Mathematics — tracker detail","next step","explain reasoning when solving problems"),
+        A("At home — support level","ready to extend"),
+        A("At home — extending — challenge","abundant reading (books & comics)") ],
+      medium: [ A("Opening","steady progress"),
+        L('reading',0,'M'), L('reading',1,'A'), A("Reading — tracker detail","next step", nx('reading',1)),
+        L('writing',0,'M'), L('writing',1,'A'), L('writing',2,'A'), A("Writing — tracker detail","next step", nx('writing',2)),
+        L('mathematics',0,'M'), L('mathematics',1,'M'), L('mathematics',2,'A'), A("Mathematics — tracker detail","next step", nx('mathematics',2)),
+        A("At home — reading & writing","read together daily") ],
+      low: [ A("Opening","some progress"),
+        L('reading',0,'A'), L('reading',1,'S'),
+        L('writing',0,'A'), L('writing', early ? 1 : 6,'S'), L('writing', early ? 2 : 7,'S'),
+        L('mathematics',0,'A'), L('mathematics',1,'S') ]   // no home phrase: three red items already use most of the 780
+    },
+    pse: {
+      high: [ P("Opening","valued member of class"), P("Learner Profile","caring"), P("Learner Profile","principled"),
+        P("Personal — positive","independent"), P("Personal — positive","responsible"),
+        P("Social — positive","cooperative in class"), P("Social — positive","respectful"),
+        P("ATL skills","collaborates well"),
+        P("Next steps","to improve further","take on leadership roles during group work"),
+        P("Closing","a joy to teach") ],
+      medium: [ P("Opening","settled in well"), P("Learner Profile","communicator"),
+        P("Personal — positive","hardworking"), P("Social — positive","friendly"), P("Social — positive","helpful to peers"),
+        P("Personal — concern","easily distracted"),
+        P("Next steps","keep working on","staying focused during independent tasks"),
+        P("Closing","look forward to growth") ],
+      low: [ P("Opening","valued member of class"), P("Social — positive","friendly"),
+        P("Personal — concern","easily distracted"), P("Personal — concern","needs frequent reminders"),
+        P("Classroom behaviour","difficulty following routines"),
+        P("Progress phrases","communicating better with peers"),
+        P("Next steps","would benefit greatly from","clear routines and regular check-ins"),
+        P("Next steps","it is important that they","continues to ask for help when unsure") ]
+    }
+  };
+  const seen = new Set();
+  return sets[area][level].filter(it => {
+    if (!it) return false;
+    if (!it.lvl) return true;
+    const k = it.subj + '|' + it.dom; if (seen.has(k)) return false; seen.add(k); return true;
+  });
+}
+function snapshotAll(){
+  undoStack.push({area:'*', areas:JSON.parse(JSON.stringify(cur().areas))});
+  if (undoStack.length > 100) undoStack.shift();
+}
+function applySample(level){
+  snapshotAll();
+  AREAS.forEach(area => {
+    const a = cur().areas[area];
+    a.items = sampleItems(area, level); a.edited = false; a.text = '';
+    sortItems(a);
+  });
+  refreshOutput();
+  showToast(cap(level) + ' sample loaded into both comments — Undo to go back');
+}
+document.querySelectorAll('[data-sample]').forEach(b => b.addEventListener('click', () => applySample(b.dataset.sample)));
+
+/* ───────────────────────── Modals ───────────────────────── */
+const askModal = $('askModal'), askInput = $('askInput'), askPreview = $('askPreview');
+let askCallback = null;
+function openAsk(chip, cb, initial, suggestion){
+  askCallback = cb;
+  const parts = renderSentence(chip.t.replace('{x}', '\u0000'), true, cur()).split('\u0000');
+  askPreview.innerHTML = '';
+  askPreview.append(parts[0] || '');
+  const m = document.createElement('mark'); m.textContent = chip.ask; askPreview.append(m);
+  askPreview.append(parts[1] || '');
+  askInput.value = initial || '';
+  askInput.placeholder = suggestion ? 'e.g. ' + suggestion : 'Type here…';
+  askModal.hidden = false;
+  setTimeout(() => { askInput.focus(); askInput.select(); }, 20);
+}
+function closeAsk(ok){
+  askModal.hidden = true;
+  const cb = askCallback; askCallback = null;
+  if (ok && cb) cb(askInput.value.trim().replace(/[.\s]+$/, ''));
+}
+$('askOk').addEventListener('click', () => closeAsk(true));
+$('askCancel').addEventListener('click', () => closeAsk(false));
+askInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') closeAsk(true);
+  if (e.key === 'Escape') closeAsk(false);
+});
+askModal.addEventListener('click', e => { if (e.target === askModal) closeAsk(false); });
+
+const listModal = $('listModal'), listInput = $('listInput');
+$('pasteBtn').addEventListener('click', () => { listInput.value = ''; listModal.hidden = false; setTimeout(() => listInput.focus(), 20); });
+$('listCancel').addEventListener('click', () => listModal.hidden = true);
+listModal.addEventListener('click', e => { if (e.target === listModal) listModal.hidden = true; });
+$('listOk').addEventListener('click', () => {
+  const added = [];
+  listInput.value.split(/\r?\n/).forEach(line => {
+    const m = line.trim().match(/^(.*?)(?:[,\t(]\s*(he|she|they)\)?\s*)?$/i);
+    const name = m ? m[1].trim() : '';
+    if (name) added.push(newStudent(name.slice(0,80), m[2] ? m[2].toLowerCase() : 'he'));
+  });
+  listModal.hidden = true;
+  if (!added.length) return;
+  // Replace the single untouched blank student, otherwise append.
+  const onlyBlank = store.students.length === 1 && !cur().name.trim() && statusOf(cur()) === 'empty';
+  const first = onlyBlank ? 0 : store.students.length;
+  store.students = onlyBlank ? added : store.students.concat(added);
+  switchStudent(first);
+  showToast(added.length + ' student' + (added.length > 1 ? 's' : '') + ' added');
+});
+
+/* ───────────────────────── Controls ───────────────────────── */
+report.addEventListener('input', () => {
+  const a = st();
+  a.edited = true; a.text = report.value;
+  editedBar.hidden = false;
+  updateCounter(); renderChecks(); updateCounts(); renderStudents(); save();
+});
+
+$('rebuildBtn').addEventListener('click', () => {
+  if (!confirm('Rebuild the comment from the phrases? Your hand edits will be lost.')) return;
+  snapshot();
+  const a = st(); a.edited = false;
+  if (store.autoOrder) sortItems(a);
+  refreshOutput();
+});
+
+nameField.addEventListener('input', () => { cur().name = nameField.value; refreshOutput(); renderBank(); });
+
+document.querySelectorAll('#pronounSeg button').forEach(b => {
+  b.addEventListener('click', () => {
+    cur().pronoun = b.dataset.p;
+    document.querySelectorAll('#pronounSeg button').forEach(x => x.classList.toggle('on', x === b));
+    refreshOutput(); renderBank();
+  });
+});
+
+$('gradeSel').value = store.grade;
+$('gradeSel').addEventListener('change', e => {
+  // Phrases already chosen keep their wording; the bank switches to the new grade's domain names.
+  store.grade = e.target.value;
+  DATA.acad.groups = acadGroups(store.grade);
+  renderBank(); refreshOutput();
+});
+
+$('autoOrder').checked = store.autoOrder;
+$('autoOrder').addEventListener('change', e => {
+  store.autoOrder = e.target.checked;
+  const a = st();
+  if (store.autoOrder && !a.edited){ snapshot(); sortItems(a); }
+  refreshOutput();
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentArea = tab.dataset.area;
+    searchField.value = '';
+    renderBank(); refreshOutput();
+  });
+});
+
+$('undoBtn').addEventListener('click', () => {
+  for (let i = undoStack.length - 1; i >= 0; i--){
+    if (undoStack[i].area === '*'){
+      cur().areas = undoStack.splice(i, 1)[0].areas;
+      refreshOutput();
+      return;
+    }
+    if (undoStack[i].area === currentArea){
+      const s = undoStack.splice(i, 1)[0], a = st();
+      a.items = s.items; a.edited = s.edited; a.text = s.text;
+      refreshOutput();
+      return;
+    }
+  }
+  showToast('Nothing to undo in this section');
+});
+
+$('clearBtn').addEventListener('click', () => {
+  const a = st();
+  if (!a.items.length && !a.text.trim()) return;
+  snapshot();
+  a.items = []; a.edited = false; a.text = '';
+  refreshOutput();
+  showToast('Section cleared — Undo to bring it back');
+});
+
+$('clearStuBtn').addEventListener('click', () => {
+  if (statusOf(cur()) === 'empty' && !AREAS.some(a => cur().areas[a].items.length)) return;
+  snapshotAll();
+  cur().areas = blankAreas();
+  refreshOutput();
+  showToast('Both comments cleared — Undo to bring them back');
+});
+
+$('clearBtnTop').addEventListener('click', () => $('clearBtn').click());
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Backspace'){ e.preventDefault(); $('clearStuBtn').click(); }
+});
+
+$('clearClassBtn').addEventListener('click', () => {
+  const n = store.students.length;
+  if (!confirm('Clear every comment for ' + (n > 1 ? 'all ' + n + ' students' : 'this student') + '? Names and pronouns are kept. This cannot be undone — save a backup first if unsure.')) return;
+  store.students.forEach(stu => stu.areas = blankAreas());
+  undoStack = [];
+  refreshOutput();
+  showToast('All comments cleared');
+});
+
+$('nextBtn').addEventListener('click', () => {
+  if (store.current < store.students.length - 1) switchStudent(store.current + 1);
+  else showToast('That was the last student — use “+ Add student” for more');
+});
+
+$('addStuBtn').addEventListener('click', () => {
+  store.students.push(newStudent('', 'he'));
+  switchStudent(store.students.length - 1);
+  nameField.focus();
+});
+
+$('removeStuBtn').addEventListener('click', () => {
+  const label = cur().name.trim() || 'this student';
+  if (!confirm('Remove ' + label + ' and all of their comments? This cannot be undone.')) return;
+  store.students.splice(store.current, 1);
+  if (!store.students.length) store.students.push(newStudent());
+  switchStudent(Math.min(store.current, store.students.length - 1));
+});
+
+/* ───────────────────────── Copy / export ───────────────────────── */
+const toast = $('toast');
+function showToast(msg){
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1900);
+}
+async function copyText(text, msg){
+  try { await navigator.clipboard.writeText(text); }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  showToast(msg);
+}
+function sectionsText(stu){
+  return AREAS.filter(a => areaText(stu, a).trim()).map(a => {
+    const t = areaText(stu, a).trim(), lim = LIMITS[a];
+    return DATA[a].title + (lim ? ' (' + t.length + '/' + lim + ')' : '') + '\n' + t;
+  }).join('\n\n');
+}
+$('copyBtn').addEventListener('click', () => copyText(report.value, 'Comment copied'));
+$('copyAllBtn').addEventListener('click', () => {
+  const t = sectionsText(cur());
+  copyText(t, t ? 'All sections copied' : 'Nothing to copy yet');
+});
+$('copyClassBtn').addEventListener('click', () => {
+  const parts = store.students.map((stu, i) => {
+    const t = sectionsText(stu);
+    return t ? '=== ' + (stu.name.trim() || 'Student ' + (i + 1)) + ' ===\n' + t : '';
+  }).filter(Boolean);
+  copyText(parts.join('\n\n\n'), parts.length ? 'Whole class copied' : 'Nothing to copy yet');
+});
+
+function download(name, text, type){
+  const url = URL.createObjectURL(new Blob([text], {type}));
+  const a = document.createElement('a'); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function csvCell(v){
+  v = String(v);
+  if (/^[=+\-@\t\r]/.test(v)) v = "'" + v;   // keep spreadsheets from treating text as a formula
+  return '"' + v.replace(/"/g, '""') + '"';
+}
+$('csvBtn').addEventListener('click', () => {
+  const head = ['Student','Academic Progress and Next Steps','Academic characters (max 780)','Personal and Social Comment','Personal and Social characters (max 580)','Status'];
+  const rows = store.students.map((stu, i) => {
+    const t = a => areaText(stu, a).trim();
+    return [stu.name.trim() || 'Student ' + (i + 1), t('acad'), t('acad').length, t('pse'), t('pse').length,
+      {empty:'Not started', progress:'In progress', issue:'Needs fixing', ready:'Ready'}[statusOf(stu)]];
+  });
+  download('report-comments.csv', '﻿' + [head].concat(rows).map(r => r.map(csvCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+  showToast('Spreadsheet downloaded');
+});
+$('backupBtn').addEventListener('click', () => {
+  download('report-generator-backup.json', JSON.stringify(store, null, 1), 'application/json');
+  showToast('Backup downloaded');
+});
+$('restoreBtn').addEventListener('click', () => $('restoreFile').click());
+$('restoreFile').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    let s = null;
+    try { s = cleanStore(JSON.parse(r.result)); } catch(err){}
+    if (!s){ showToast('That file is not a Report Generator backup'); return; }
+    if (!confirm('Replace everything here with the backup (' + s.students.length + ' student' + (s.students.length > 1 ? 's' : '') + ')?')) return;
+    store = s;
+    $('gradeSel').value = store.grade; $('autoOrder').checked = store.autoOrder;
+    DATA.acad.groups = acadGroups(store.grade);
+    loadStudentUI();
+    showToast('Backup loaded');
+  };
+  r.readAsText(f);
+});
+
+loadStudentUI();
+
+</script>
+</body>
+</html>
