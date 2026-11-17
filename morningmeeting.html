@@ -705,6 +705,11 @@
     color:var(--leaf);margin-top:.6vh;flex:0 0 auto;
   }
   .talk.vtr-mode .vname{display:block;}
+  .talk.vtr-mode .vname:empty{display:none;}
+  /* Book Talk: the listener's question is set apart from the reader's stems */
+  .vsteps li .who{font-family:'Space Mono',monospace;font-weight:700;font-size:.72em;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--rust);margin-right:.5em;}
+  .set-btns.wrap3{flex-wrap:wrap;justify-content:flex-end;}
   /* the pivot in a Tug of War prompt, so the two sides read as two sides */
   .vvs{font-family:'Space Mono',monospace;font-size:.62em;font-weight:700;
     color:var(--rust);letter-spacing:.08em;text-transform:uppercase;padding:0 .45em;}
@@ -903,11 +908,10 @@
         <div>
           <h2><span id="stepshead">This Morning</span> <button class="edit-toggle" id="editbtn2" onclick="toggleEditSteps()">✎ Edit</button></h2>
           <ol class="steps" id="steps">
-            <li onclick="this.classList.toggle('done')">Put your water bottle in the basket</li>
-            <li onclick="this.classList.toggle('done')">Take down your chair</li>
-            <li onclick="this.classList.toggle('done')">Turn in any homework</li>
-            <li onclick="this.classList.toggle('done')">Solve the maths problem on a whiteboard &rarr;</li>
-            <li onclick="this.classList.toggle('done')">Talk about the question with your table group</li>
+            <li onclick="this.classList.toggle('done')">Take down chairs</li>
+            <li onclick="this.classList.toggle('done')">Put things away</li>
+            <li onclick="this.classList.toggle('done')">Turn in HW</li>
+            <li onclick="this.classList.toggle('done')">Complete challenges</li>
           </ol>
         </div>
         <p style="font-family:'Space Mono',monospace;font-size:.75rem;color:var(--leaf);margin-top:1vh;flex-shrink:0;">tap a step to check it off</p>
@@ -993,9 +997,10 @@
     </div>
     <div class="set-row">
       <span class="set-lab">Talk type</span>
-      <div class="set-btns">
+      <div class="set-btns wrap3">
         <button class="toggle" id="tg-question" onclick="setTalkMode('q')">Question</button>
         <button class="toggle" id="tg-vtr" onclick="setTalkMode('vtr')">Thinking</button>
+        <button class="toggle" id="tg-book" onclick="setTalkMode('book')">Book</button>
       </div>
     </div>
     <div class="set-row">
@@ -1973,7 +1978,40 @@
   ];
 
   /* =========================================================
-     Table talk controller  (questions ⇄ thinking routines)
+     BOOK TALK
+     A quick partner recall of last night's reading. Every roll
+     shows the same opener, then one recall stem (proves they
+     read), one thinking stem, and one question for the listener
+     to ask. L = Years 1–3, U = Years 4–6.
+     any = fits every book · story = fiction · fact = non-fiction
+  ========================================================= */
+  const BOOK = {
+    open:'Last night I read… by…',
+    types:[['*','Any book'],['story','Story book'],['fact','Fact book']],
+    L:{time:'1 min each',
+      recall:{
+        any:['It is about…','I read up to the part where…','First… then…','The best picture shows…'],
+        story:['The main character is… and they…','The story takes place…','At the start… and then…','The problem in the story is…'],
+        fact:['One fact I learned is…','The book is all about…','Now I know that…']},
+      think:{
+        any:['I like it because…','My favourite part was… because…','A new word I found was…','It made me feel… because…','It reminds me of…'],
+        story:['I think … will happen next.','My favourite character is… because…'],
+        fact:['The most interesting thing was… because…','I still wonder…']},
+      ask:['What happened just before that?','Can you show me the page?','Who else is in the book?','Would you read it again? Why?','What was the best bit?']},
+    U:{time:'90 sec each',
+      recall:{
+        any:['I read … pages, up to the part where…','So far, … has happened.','In three sentences: first… then… finally…','The most important thing in this part was…'],
+        story:['The main character is… and their problem is…','The setting is… I know because…','The biggest event was… and it happened because…'],
+        fact:['Two facts I learned are… and…','The main idea of this part is…','The author explains that…']},
+      think:{
+        any:["I like it / don't like it because…",'One part that surprised me was… because…','A new word I found was… I think it means…','It reminds me of… because…','I would give it … out of 5 because…'],
+        story:['I predict that… because…','If I were the main character, I would…','The character changed when…'],
+        fact:['I used to think… but now I know…','A question I still have is…']},
+      ask:['What happened just before that?','Can you show me the page that proves it?','Would you recommend it? Who to?','How do you know? What in the book tells you?','What do you think the author wants us to learn?']}
+  };
+
+  /* =========================================================
+     Table talk controller  (questions ⇄ thinking routines ⇄ book talk)
   ========================================================= */
   const wprompt   = document.getElementById('wprompt'),
         wstarter  = document.getElementById('wstarter'),
@@ -1985,13 +2023,17 @@
         talkCardEl= document.getElementById('talkcard'),
         wgenreSel = document.getElementById('wgenre');
   let wLastKey = null, vLastKey = null, vLastPrompt = null;
-  let talkMode = load('mm_talkmode','q');   /* 'q' | 'vtr' */
+  let talkMode = load('mm_talkmode','q');   /* 'q' | 'vtr' | 'book' */
+  if(!['q','vtr','book'].includes(talkMode))talkMode='q';
+  const bLast = {};
 
   function buildTalkTypes(){
     const prev=wgenreSel.value;
     if(talkMode==='vtr'){
       wgenreSel.innerHTML='<option value="*">Any routine</option>'+
         VTR.map((r,i)=>`<option value="${i}">${r.n}</option>`).join('');
+    }else if(talkMode==='book'){
+      wgenreSel.innerHTML=BOOK.types.map(t=>`<option value="${t[0]}">${t[1]}</option>`).join('');
     }else{
       if(!DDATA[year])return;
       const types=[...new Set(DDATA[year].items.map(i=>i.g))].sort();
@@ -2039,23 +2081,48 @@
   }
   /* genTalk keeps its old name — the select, the Year picker and the
      D/W shortcut all call it, and it routes to whichever mode is on. */
-  function genTalk(){ talkMode==='vtr' ? genRoutine() : genQuestion(); }
+  /* one stem from a pool, never the same one twice running */
+  function bPick(key,pool){
+    let i=Math.floor(Math.random()*pool.length),guard=0;
+    while(pool[i]===bLast[key]&&pool.length>1&&guard++<20)i=Math.floor(Math.random()*pool.length);
+    bLast[key]=pool[i];
+    return pool[i];
+  }
+  function genBook(){
+    const B=year<=3?BOOK.L:BOOK.U;
+    const f=wgenreSel.value;                       /* '*' | 'story' | 'fact' */
+    const pool=k=>(f==='story'||f==='fact') ? B[k].any.concat(B[k][f]) : B[k].any;
+    wgenretag.textContent='Partners · '+B.time;
+    vname.textContent='';
+    wprompt.textContent=BOOK.open;
+    vsteps.innerHTML=
+      `<li>${bPick('recall',pool('recall'))}</li>`+
+      `<li>${bPick('think',pool('think'))}</li>`+
+      `<li><span><span class="who">Partner asks</span>${bPick('ask',B.ask)}</span></li>`;
+  }
+  function genTalk(){ talkMode==='vtr' ? genRoutine() : talkMode==='book' ? genBook() : genQuestion(); }
   /* the button always rolls a fresh one, even with a routine pinned */
   function rollTalk(){
     if(talkMode==='vtr')genRoutine();   /* keeps a pinned routine, rolls a new prompt */
+    else if(talkMode==='book')genBook();
     else genQuestion();
   }
 
   function setTalkMode(m){
     talkMode=m;save('mm_talkmode',m);
-    const vtr=(m==='vtr');
-    talkCardEl.classList.toggle('vtr-mode',vtr);
-    talkh2.childNodes[0].nodeValue = vtr?'Thinking Routine ':'Table Talk ';
-    talkbtn.textContent = vtr?'🎲 New routine':'🎲 New question';
-    talkbtn.title = vtr?'Pick a different routine':'Generate a fresh question';
-    wgenreSel.title = vtr?'Pick a routine':'Filter by type';
-    document.getElementById('tg-question').classList.toggle('on',!vtr);
+    if(!['q','vtr','book'].includes(m))m='q';
+    talkMode=m;
+    const vtr=(m==='vtr'), book=(m==='book');
+    /* Book Talk shares the routine layout: a big opener with numbered steps under it */
+    talkCardEl.classList.toggle('vtr-mode',vtr||book);
+    if(!vtr)vname.textContent='';
+    talkh2.childNodes[0].nodeValue = vtr?'Thinking Routine ':book?'Book Talk ':'Table Talk ';
+    talkbtn.textContent = vtr?'🎲 New routine':book?'🎲 New prompts':'🎲 New question';
+    talkbtn.title = vtr?'Pick a different routine':book?'Roll three fresh book talk prompts':'Generate a fresh question';
+    wgenreSel.title = vtr?'Pick a routine':book?'Story or fact book':'Filter by type';
+    document.getElementById('tg-question').classList.toggle('on',m==='q');
     document.getElementById('tg-vtr').classList.toggle('on',vtr);
+    document.getElementById('tg-book').classList.toggle('on',book);
     wgenreSel.value='*';
     buildTalkTypes();
     genTalk();
@@ -2093,7 +2160,7 @@
      Editable "This Morning" steps
   ========================================================= */
   const stepsEl=document.getElementById('steps');
-  const STEPS_VERSION=3;
+  const STEPS_VERSION=4;
   const DEFAULT_STEPS=[...stepsEl.querySelectorAll('li')].map(li=>li.innerHTML);
   let stepsData;
   if(load('mm_steps_v',0)===STEPS_VERSION){
