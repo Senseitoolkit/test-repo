@@ -1987,34 +1987,54 @@
   /* =========================================================
      BOOK TALK
      A quick partner recall of last night's reading. Every roll
-     shows the same opener, then one recall stem (proves they
-     read), one thinking stem, and one question for the listener
-     to ask. L = Years 1–3, U = Years 4–6.
+     shows the same opener, then three labelled stems on different
+     topics (plot, characters, genre, why and where they read it,
+     opinion) and one question for the listener to ask.
+     L = Years 1–3, U = Years 4–6.
      any = fits every book · story = fiction · fact = non-fiction
   ========================================================= */
   const BOOK = {
-    open:'Last night I read… by…',
+    open:'Last night I read…',
     types:[['*','Any book'],['story','Story book'],['fact','Fact book']],
-    L:{time:'1 min each',
-      recall:{
-        any:['It is about…','I read up to the part where…','First… then…','The best picture shows…'],
-        story:['The main character is… and they…','The story takes place…','At the start… and then…','The problem in the story is…'],
-        fact:['One fact I learned is…','The book is all about…','Now I know that…']},
-      think:{
-        any:['I like it because…','My favourite part was… because…','A new word I found was…','It made me feel… because…','It reminds me of…'],
-        story:['I think … will happen next.','My favourite character is… because…'],
-        fact:['The most interesting thing was… because…','I still wonder…']},
-      ask:['What happened just before that?','Can you show me the page?','Who else is in the book?','Would you read it again? Why?','What was the best bit?']},
-    U:{time:'90 sec each',
-      recall:{
-        any:['I read … pages, up to the part where…','So far, … has happened.','In three sentences: first… then… finally…','The most important thing in this part was…'],
-        story:['The main character is… and their problem is…','The setting is… I know because…','The biggest event was… and it happened because…'],
-        fact:['Two facts I learned are… and…','The main idea of this part is…','The author explains that…']},
-      think:{
-        any:["I like it / don't like it because…",'One part that surprised me was… because…','A new word I found was… I think it means…','It reminds me of… because…','I would give it … out of 5 because…'],
-        story:['I predict that… because…','If I were the main character, I would…','The character changed when…'],
-        fact:['I used to think… but now I know…','A question I still have is…']},
-      ask:['What happened just before that?','Can you show me the page that proves it?','Would you recommend it? Who to?','How do you know? What in the book tells you?','What do you think the author wants us to learn?']}
+    time:{L:'1 min each',U:'90 sec each'},
+    /* each topic: stems that fit any book, plus extras for story or fact books.
+       only = the topic appears for that book type alone · first = can lead the talk */
+    cats:[
+      {n:'Plot', first:true,
+       L:{any:['It is about…','I read up to the part where…'],
+          story:['First… then…','The problem in the story is…','At the start… and then…'],
+          fact:['This part of the book explains…']},
+       U:{any:['So far, … has happened.','I read … pages, up to the part where…'],
+          story:['The biggest event was… and it happened because…','The problem is… I think it will be solved by…','In three sentences: first… then… finally…'],
+          fact:['The main idea of this part is…']}},
+      {n:'Characters', only:'story*',
+       L:{any:['The main character is…'],
+          story:['My favourite character is… because…','… is kind / brave / funny because…','The main character wants…']},
+       U:{any:['The main character is… and they want…'],
+          story:['A word to describe … is… because…','The character changed when…','If I were …, I would…']}},
+      {n:'Facts', only:'fact', first:true,
+       L:{fact:['One fact I learned is…','Now I know that…','The most interesting fact was…']},
+       U:{fact:['Two facts I learned are… and…','I used to think… but now I know…','The author explains that…']}},
+      {n:'Genre',
+       L:{any:['It is a … book (funny, scary, adventure, fact…).','I know it is a … book because…'],
+          story:['It is a made-up story. I know because…'],
+          fact:['It is a fact book. I know because…']},
+       U:{any:['The genre is… I can tell because…','It is like another book I know, …, because both…'],
+          story:['It is fiction, and the kind of story is… because…'],
+          fact:['It is non-fiction. Features that show this are…']}},
+      {n:'Why I read it',
+       L:{any:['I chose this book because…','I wanted to read it because…','… gave me this book because…']},
+       U:{any:['I chose it because…','I picked it up because… and I kept reading because…','… recommended it to me because…']}},
+      {n:'Where I read',
+       L:{any:['I read it in… with…','I read it at… o\'clock in…','I read … pages in my…']},
+       U:{any:['I read it in… for about … minutes.','I read it by myself / with… in…','The best place for me to read is… because…']}},
+      {n:'My opinion',
+       L:{any:['I like it because…','My favourite part was… because…','A new word I found was…']},
+       U:{any:["I like it / don't like it because…",'I would give it … out of 5 because…','I would recommend it to… because…','A new word I found was… I think it means…']}}
+    ],
+    ask:{
+      L:['What happened just before that?','Can you show me the page?','Who else is in the book?','Would you read it again? Why?','What was the best bit?'],
+      U:['What happened just before that?','Can you show me the page that proves it?','Would you recommend it? Who to?','How do you know? What in the book tells you?','What do you think the author wants us to learn?']}
   };
 
   /* =========================================================
@@ -2096,16 +2116,33 @@
     return pool[i];
   }
   function genBook(){
-    const B=year<=3?BOOK.L:BOOK.U;
+    const lv=year<=3?'L':'U';
     const f=wgenreSel.value;                       /* '*' | 'story' | 'fact' */
-    const pool=k=>(f==='story'||f==='fact') ? B[k].any.concat(B[k][f]) : B[k].any;
-    wgenretag.textContent=B.time;
+    /* the stems each topic offers for this book type */
+    const cats=BOOK.cats.map(c=>{
+      if(c.only==='fact'&&f!=='fact')return null;
+      if(c.only==='story*'&&f==='fact')return null;
+      const P=c[lv], pool=(P.any||[]).concat(f==='*'?[]:(P[f]||[]));
+      return pool.length?{n:c.n,first:c.first,pool}:null;
+    }).filter(Boolean);
+    /* line 1 is always a recall topic (plot or facts), so everyone has to show they read;
+       lines 2 and 3 are two other topics, different each roll where possible */
+    const leads=cats.filter(c=>c.first);
+    const lead=leads[Math.floor(Math.random()*leads.length)];
+    let rest=cats.filter(c=>c!==lead&&!(lead.n==='Facts'&&c.n==='Plot')&&!(lead.n==='Plot'&&c.n==='Facts'));
+    const fresh=rest.filter(c=>!(bLast.cats||[]).includes(c.n));
+    const chosen=[];
+    let src=fresh.length>=2?fresh:rest;
+    while(chosen.length<2&&src.length){
+      chosen.push(src.splice(Math.floor(Math.random()*src.length),1)[0]);
+    }
+    bLast.cats=chosen.map(c=>c.n);
+    const line=c=>`<li><span><span class="who">${c.n}</span>${bPick(c.n,c.pool)}</span></li>`;
+    wgenretag.textContent=BOOK.time[lv];
     vname.textContent='';
     wprompt.textContent=BOOK.open;
-    vsteps.innerHTML=
-      `<li>${bPick('recall',pool('recall'))}</li>`+
-      `<li>${bPick('think',pool('think'))}</li>`+
-      `<li><span><span class="who">Partner asks</span>${bPick('ask',B.ask)}</span></li>`;
+    vsteps.innerHTML=[lead,...chosen].map(line).join('')+
+      `<li><span><span class="who">Partner asks</span>${bPick('ask',BOOK.ask[lv])}</span></li>`;
   }
   function genTalk(){ talkMode==='vtr' ? genRoutine() : talkMode==='book' ? genBook() : genQuestion(); }
   /* the button always rolls a fresh one, even with a routine pinned */
