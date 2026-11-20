@@ -252,6 +252,28 @@ details.more[open] > summary::before { content: "−"; }
 .ghead { font-family: var(--f-display); font-weight: 400; font-size: 1.4rem; margin-top: 22px; }
 .sec.new { border-left-color: #2f78b8; }
 .skill small .tier { font-size: .78rem; }
+
+/* Student profile preview */
+.pband { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 24px; align-items: center; background: #faf5ec; border: 1px solid var(--prule); border-left: 6px solid var(--bc); border-radius: 10px; padding: 14px 18px; margin-top: 6px; }
+.pband .pscore { font-family: var(--f-display); font-size: 2.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.pband .pscore small { display: block; font-family: var(--f-body); font-size: .85rem; color: var(--pmuted); margin-top: 4px; }
+.pband b { display: block; color: var(--bc); font-size: 1.15rem; }
+.pband span { font-size: .92rem; }
+.psum { margin-top: 12px; line-height: 1.5; }
+.phead { font-size: 1rem; margin-top: 18px; padding-bottom: 4px; border-bottom: 1.5px solid var(--pink); }
+.pgrid { display: grid; grid-template-columns: minmax(8em, auto) minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; margin-top: 8px; font-size: .92rem; }
+.pgrid small { color: var(--pmuted); }
+.pbar { height: 10px; border-radius: 10px; background: var(--prule); overflow: hidden; }
+.pbar i { display: block; height: 100%; border-radius: 10px; }
+.pri { padding-left: 1.6em; display: grid; gap: 12px; margin-top: 10px; font-size: .92rem; line-height: 1.45; }
+.pri li::marker { font-weight: 700; color: #c8352d; }
+.pri li.practise::marker { color: #c96a17; } .pri li.new::marker { color: #2f78b8; }
+.pri .pt { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; }
+.pri .pt b { font-size: 1.02rem; }
+.pri .pt small { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; }
+.pri .kr { color: var(--pmuted); }
+.pul { padding-left: 1.2em; display: grid; gap: 4px; margin-top: 8px; font-size: .92rem; line-height: 1.45; }
+@media (max-width: 560px) { .pgrid { grid-template-columns: minmax(0, 1fr) auto; } .pgrid .pbar { grid-column: 1 / -1; order: 0; } }
 </style>
 </head>
 <body>
@@ -367,15 +389,17 @@ details.more[open] > summary::before { content: "−"; }
       </div>
       <div class="toolbar">
         <div class="tabs" role="tablist" aria-label="Preview">
-          <button type="button" role="tab" data-tab="sheet" aria-selected="true">Worksheet</button>
+          <button type="button" role="tab" data-tab="profile" aria-selected="true">Student profile</button>
+          <button type="button" role="tab" data-tab="sheet" aria-selected="false">Worksheet</button>
           <button type="button" role="tab" data-tab="key" aria-selected="false">Answer sheet</button>
           <button type="button" role="tab" data-tab="guide" aria-selected="false">Support guide</button>
         </div>
         <div class="saves">
-          <button class="btn" type="button" data-save="sheet,key,guide"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg>Download full pack</button>
+          <button class="btn" type="button" data-save="profile,sheet,key,guide"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13.5h10"/></svg>Download full pack</button>
           <button class="btn ghost" type="button" data-save="sheet">Worksheet</button>
           <button class="btn redpen" type="button" data-save="key">Answers</button>
           <button class="btn ghost" type="button" data-save="guide">Guide</button>
+          <button class="btn ghost" type="button" data-save="profile">Profile</button>
         </div>
       </div>
       <p class="status" id="status" role="status"></p>
@@ -3010,6 +3034,68 @@ root.MIXBANK = { CURR, META };
       intro: sheet.kind === "next" ? sheet.sections.map(s => introFor(s.area)) : [] };
   }
 
+  /* ===================== 4b. student profile ===================== */
+  const pct = (r, n) => n ? Math.round(100 * r / n) : 0;
+  function buildProfile(test, result, answers, sheet, overrides) {
+    const y = test.year, gaps = result.gaps.slice().sort(byNeed), ess = result.rows.filter(r => r.area.tier === 1);
+    let band;
+    if (sheet.kind === "next") band = { tone: "secure", label: "Ready for Year " + sheet.year, text: "Every Year " + y + " skill was secure." };
+    else if (sheet.kind === "challenge") band = { tone: "secure", label: "Secure in every Year 6 skill", text: "Every skill on the Year 6 checklist was answered correctly." };
+    else if (ess.some(r => r.status === "focus")) band = { tone: "focus", label: "Essentials need focus", text: "At least one essential skill had fewer than half its questions right." };
+    else if (ess.some(r => r.status === "practise")) band = { tone: "practise", label: "Developing the essentials", text: "Every essential skill is at least half secure; some need more practice." };
+    else band = { tone: "secure", label: "Secure in the essentials", text: "All the essential skills are secure; the gaps are in less central skills." };
+    const strands = [];
+    result.rows.forEach(r => { let s = strands.find(x => x.label === r.area.strand); if (!s) strands.push(s = { label: r.area.strand, right: 0, n: 0, skills: 0, secure: 0 }); s.right += r.right; s.n += r.n; s.skills++; if (r.status === "secure") s.secure++; });
+    const strengths = result.rows.filter(r => r.status === "secure").sort((a, b) => byRank(a.area, b.area)).map(r => r.area);
+    /* What a result most likely means, by status. These are working assumptions for planning, to be checked against the pupil's writing. */
+    const MEANS = {
+      focus: "Probably not yet understood, or not yet taught. Teach the rule from the start with the Remember box before practising.",
+      practise: "Probably understood but not yet reliable. Short, regular practice should make it secure.",
+      new: "Not yet taught, as it is Year " + (y + 1) + " content. Introduce it with the Remember box before the questions."
+    };
+    const pickTargets = sheet.kind === "next" ? sheet.sections.map(s => ({ area: s.area, status: "new", onSheet: true }))
+      : sheet.kind === "challenge" ? [] : gaps.map(r => ({ area: r.area, status: r.status, right: r.right, n: r.n, onSheet: sheet.sections.some(s => s.area === r.area) }));
+    const targets = pickTargets.slice(0, 5).map(t => Object.assign(t, { means: MEANS[t.status] }));
+    const kinds = { choice: { label: "Choosing an answer", right: 0, n: 0 }, typed: { label: "Writing a word or phrase", right: 0, n: 0 }, sentence: { label: "Writing a whole sentence", right: 0, n: 0 } };
+    let blanks = 0;
+    test.items.forEach((q, i) => { const k = q.type === "choice" ? "choice" : q.long ? "sentence" : "typed"; kinds[k].n++; if (answers[i].ok) kinds[k].right++; if (answers[i].val == null || String(answers[i].val).trim() === "") blanks++; });
+    const notes = [], c = kinds.choice, t = kinds.typed, w = kinds.sentence, written = { right: t.right + w.right, n: t.n + w.n };
+    if (c.n >= 3 && written.n >= 3 && pct(written.right, written.n) <= pct(c.right, c.n) - 25) notes.push("More accurate when choosing an answer than when writing one. The rules may be known but not yet used in writing, so ask for written answers rather than multiple choice.");
+    else if (c.n >= 3 && written.n >= 3 && pct(c.right, c.n) <= pct(written.right, written.n) - 25) notes.push("More accurate when writing answers than when choosing. Encourage reading every option before choosing, since distractors may be catching them out.");
+    if (w.n >= 2 && pct(w.right, w.n) < 50) notes.push("Most whole-sentence answers were marked wrong. Check copying as well as grammar: one missing capital letter or full stop makes the whole sentence wrong.");
+    if (blanks >= 2) notes.push(blanks + " questions were left blank. Unfamiliar grammar words or tiredness may be the cause, so try reading the questions aloud next time.");
+    if (!notes.length) notes.push("Accuracy was similar across the types of question, so the results reflect the grammar itself rather than the way the questions were asked.");
+    const changed = Object.keys(overrides || {}).length;
+    const perSkill = Math.round(result.total / result.rows.length);
+    const essGap = gaps.filter(r => r.area.tier === 1).length;
+    const assumptions = [
+      "This is a snapshot: " + perSkill + " questions per skill on one day. Treat each result as a starting point and confirm it in the pupil's own writing.",
+      essGap ? "Essential skills come first because pupils use them in almost every sentence; " + essGap + " essential skill" + (essGap > 1 ? "s are" : " is") + " not yet secure, so start there even if other gaps look bigger."
+        : sheet.kind === "targeted" ? "The essential skills are secure, so the gaps are in skills that matter less often. Work on them in the order listed, but there is no need to hold back new teaching." : "",
+      strengths.length ? "Secure means right in this check. Look for the same skills in independent writing before treating them as fully learned." : "",
+      sheet.kind === "next" ? "Year " + (y + 1) + " skills are listed in their own priority order. Pupils may need the early ones taught over several sessions." : ""
+    ].filter(Boolean).concat(notes);
+    const pupil = sheet.kind === "challenge" ? ["Try the challenge sheet and explain your answers to an adult.", "Look for these skills in the books you read."]
+      : targets.slice(0, 3).map(t => t.area.short + ": " + t.area.tip);
+    const adult = sheet.kind === "challenge" ? ["Ask the pupil to explain why each answer is right: being able to explain a rule shows it is secure."]
+      : ["Work through the priorities in order, one or two at a time. Start each session with the Remember box and one worked example.",
+         "Ask the pupil to say the rule in their own words before they answer, and praise the method as well as the answer.",
+         "After each worksheet section, look for the same skill in a short piece of the pupil's own writing."];
+    const nm = s => s.area.short;
+    const next = sheet.kind === "next"
+      ? ["Start the Year " + sheet.year + " starter worksheet (ref " + sheet.ref + "): " + sheet.sections.map(nm).join(", ") + ".", "Introduce each new skill with the Remember box before the questions.", "Keep Year " + y + " skills fresh in everyday writing."]
+      : sheet.kind === "challenge"
+      ? ["Complete the challenge sheet (ref " + sheet.ref + ").", "Look for the same skills in independent writing: secure in a check is not always secure in writing."]
+      : ["Complete the targeted worksheet (ref " + sheet.ref + "): " + sheet.sections.filter(s => s.area).map(nm).join(", ") + ".",
+         "Use the support guide for the explanations, common mistakes and ways to help.",
+         sheet.later.length ? "Then move on to: " + sheet.later.map(r => r.area.short).join(", ") + "." : "Once the worksheet is secure, look for the same skills in independent writing.",
+         "Re-check with a new Year " + y + " check (the questions change each time) and compare the two profiles."];
+    return { year: y, right: result.right, total: result.total, pct: pct(result.right, result.total), band, strands, strengths, targets, kinds: [c, t, w].filter(k => k.n), blanks, notes, next, changed, kind: sheet.kind, ref: sheet.ref, assumptions, pupil, adult, more: pickTargets.length - targets.length,
+      summary: (result.right === result.total ? "Answered every question correctly" : "Answered " + result.right + " of " + result.total + " questions correctly") + " (" + pct(result.right, result.total) + "%) across " + result.rows.length + " Year " + y + " skills. "
+        + (strengths.length ? "Strongest in " + strengths.slice(0, 3).map(a => a.short).join(", ") + ". " : "")
+        + (targets.length ? (sheet.kind === "next" ? "Next: " : "Priority targets: ") + targets.map(t => t.area.short).join(", ") + "." : "") };
+  }
+
   /* ===================== 5. PDF ===================== */
   const pdfSafe = s => String(s).replace(/→/g, "->").replace(/↔/g, "<->").replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/—/g, "-").replace(/[✓✗]/g, "");
   const STATUS = { focus: "Focus", practise: "Practise", secure: "Secure", review: "Review", challenge: "Challenge", new: "New skill" };
@@ -3132,7 +3218,7 @@ root.MIXBANK = { CURR, META };
     }
     function bullets(title, list, color) {
       if (!list.length) return;
-      room(12); font("bold", 7.5, color || MUTED); doc.text(title.toUpperCase(), M + 4, y); y += 4.6;
+      room(12); if (title) { font("bold", 7.5, color || MUTED); doc.text(title.toUpperCase(), M + 4, y); } y += 4.6;
       list.forEach(t => block(on => { if (on) { font("normal", 10, INK); doc.text("•", M + 4, y); } return y + para(t, M + 8, CW - 10, "normal", 10, INK, on, 1.6); }));
       y += 1.5;
     }
@@ -3204,6 +3290,65 @@ root.MIXBANK = { CURR, META };
           g.intro.forEach(skillBlock);
         }
         block(on => y + para("Year " + g.year + " grammar words: " + g.terms + ".", M, CW, "normal", 9, MUTED, on, 2));
+      } else if (p === "profile") {
+        const f = model.profile, part = { tag: "STUDENT PROFILE", title: "Student profile", sub: (info.name ? info.name + "  ·  " : "") + "Year " + f.year + " grammar and punctuation check" + date };
+        page(part, false);
+        const tone = TONE[f.band.tone] || INK, h0 = y;
+        doc.setDrawColor.apply(doc, RULE); doc.setFillColor.apply(doc, SOFT); doc.setLineWidth(0.3); doc.roundedRect(M, y - 6, CW, 24, 2, 2, "FD");
+        doc.setFillColor.apply(doc, tone); doc.rect(M, y - 6, 2, 24, "F");
+        font("bold", 26, INK); doc.text(f.right + " / " + f.total, M + 7, y + 7.5);
+        font("normal", 11, MUTED); doc.text(f.pct + "% correct", M + 7, y + 14);
+        const bx = M + 62; font("bold", 14, tone); doc.text(pdfSafe(f.band.label), bx, y + 2.5);
+        font("normal", 10, INK); doc.text(wrap(f.band.text, CW - 66, "normal", 10), bx, y + 8.5);
+        y = h0 + 26;
+        y += para(f.summary, M, CW, "normal", 10.5, INK, true, 6);
+        const head = t => { room(14); font("bold", 11, INK); doc.text(t, M, y); y += 2; doc.setDrawColor.apply(doc, INK); doc.setLineWidth(0.3); doc.line(M, y, W - M, y); y += 5.5; };
+        head("By area of grammar");
+        const lx = M, bw = CW * 0.42, bx2 = M + CW * 0.36;
+        f.strands.forEach(st => {
+          room(8); const p = st.n ? st.right / st.n : 0, col = p === 1 ? GREEN : p >= 0.5 ? AMBER : RED;
+          font("bold", 10, INK); doc.text(pdfSafe(st.label), lx, y);
+          doc.setFillColor.apply(doc, RULE); doc.roundedRect(bx2, y - 3.2, bw, 3.8, 1.5, 1.5, "F");
+          if (p > 0) { doc.setFillColor.apply(doc, col); doc.roundedRect(bx2, y - 3.2, Math.max(3, bw * p), 3.8, 1.5, 1.5, "F"); }
+          font("normal", 9.5, INK); doc.text(st.right + " / " + st.n + "   (" + st.secure + " of " + st.skills + " skill" + (st.skills === 1 ? "" : "s") + " secure)", bx2 + bw + 4, y);
+          y += 7;
+        });
+        y += 3;
+        if (f.strengths.length) block(on => y + para("Strengths: " + f.strengths.slice(0, 6).map(a => a.short).join(", ") + (f.strengths.length > 6 ? " and " + (f.strengths.length - 6) + " more." : "."), M, CW, "normal", 10, INK, on, 5));
+        if (f.targets.length) {
+          head(f.kind === "next" ? "Priorities: starting Year " + (f.year + 1) : "Priorities for support");
+          f.targets.forEach((t, i) => block(on => {
+            let yy = y; const x = M + 9, w = CW - 9, tc = t.status === "new" ? BLUE : TONE[t.status];
+            if (on) { doc.setFillColor.apply(doc, tc); doc.circle(M + 3, yy - 1.4, 3, "F"); font("bold", 9.5, [255, 255, 255]); doc.text(String(i + 1), M + 3, yy - 0.2, { align: "center" }); }
+            font("bold", 11, INK); const tl = pdfSafe(t.area.short); if (on) doc.text(tl, x, yy);
+            const tw = doc.getTextWidth(tl);
+            const meta = (TIERS[t.area.tier] + "  ·  " + (t.status === "new" ? "New skill" : STATUS[t.status] + " (" + t.right + " of " + t.n + " right)") + (t.onSheet ? "" : "  ·  after this worksheet")).toUpperCase();
+            if (on) { font("bold", 7.5, tc); doc.text(meta, x + tw + 4, yy - 0.2); }
+            yy += 4.8;
+            const add = (lab, txt, col) => { yy = rich("*" + lab.replace(/ /g, "* *") + "* " + txt.replace(/\*/g, ""), x, yy, w, 9.5, 4.2, on, col || INK, false) + 4.8; };
+            if (t.area.why) add("Why it matters:", t.area.why);
+            add("What we can assume:", t.means);
+            add("Key rule:", t.area.tip, MUTED);
+            return yy + 3;
+          }));
+          if (f.more) block(on => y + para(f.kind === "next" ? "The worksheet also introduces " + f.more + " more new skill" + (f.more > 1 ? "s" : "") + "." : "Then " + f.more + " more skill" + (f.more > 1 ? "s" : "") + " from the priority list in the support guide.", M + 9, CW - 9, "normal", 9.5, MUTED, on, 3));
+        }
+        head("How they answered");
+        f.kinds.forEach(k => {
+          room(7); const p = k.right / k.n;
+          font("normal", 10, INK); doc.text(k.label, lx, y);
+          doc.setFillColor.apply(doc, RULE); doc.roundedRect(bx2, y - 3.2, bw, 3.8, 1.5, 1.5, "F");
+          if (p > 0) { doc.setFillColor.apply(doc, BLUE); doc.roundedRect(bx2, y - 3.2, Math.max(3, bw * p), 3.8, 1.5, 1.5, "F"); }
+          doc.text(k.right + " / " + k.n, bx2 + bw + 4, y); y += 6.5;
+        });
+        y += 2;
+        head("Working assumptions"); y -= 4; bullets("", f.assumptions);
+        head("For the pupil"); y -= 4; bullets("", f.pupil, GREEN);
+        head("For the teacher or helper"); y -= 4; bullets("", f.adult.concat(f.next));
+        if (f.changed) block(on => y + para(f.changed + " mark" + (f.changed > 1 ? "s were" : " was") + " changed by the teacher after the check.", M, CW, "normal", 9, MUTED, on, 3));
+        room(36); head("Teacher notes");
+        for (let k = 0; k < 4; k++) { y += 6; doc.setDrawColor.apply(doc, RULE); doc.setLineWidth(0.3); doc.line(M, y, W - M, y); }
+        y += 6;
       }
     });
     const per = {}; pages.forEach(pt => { per[pt.tag] = (per[pt.tag] || 0) + 1; }); const seen = {};
@@ -3215,7 +3360,7 @@ root.MIXBANK = { CURR, META };
     return pages.length;
   }
 
-  root.GAPCHECK = { AREAS, PRIORITY, TIERS, priorityList, byNeed, YEARS: G.YEARS, buildTest, mark, score, buildSheet, buildGuide, paintPdf, STATUS, convert, okQ, draw, mulberry32 };
+  root.GAPCHECK = { AREAS, PRIORITY, TIERS, priorityList, byNeed, YEARS: G.YEARS, buildTest, mark, score, buildSheet, buildGuide, buildProfile, paintPdf, STATUS, convert, okQ, draw, mulberry32 };
 })(typeof window !== "undefined" ? window : globalThis);
 
 </script>
@@ -3236,7 +3381,7 @@ root.MIXBANK = { CURR, META };
   function load() { try { return JSON.parse(localStorage.getItem("tt-gapcheck") || "{}"); } catch (e) { return {}; } }
   function save() { try { localStorage.setItem("tt-gapcheck", JSON.stringify({ year: S.year, per: S.per, size: S.size, help: S.help, review: S.review, paper: S.paper })); } catch (e) {} }
   const saved = load();
-  const S = Object.assign({ year: 3, per: 2, size: "m", help: true, review: false, paper: "a4" }, saved, { view: "setup", name: "", test: null, idx: 0, answers: [], overrides: {}, tab: "sheet", sheetSeed: 1 });
+  const S = Object.assign({ year: 3, per: 2, size: "m", help: true, review: false, paper: "a4" }, saved, { view: "setup", name: "", test: null, idx: 0, answers: [], overrides: {}, tab: "profile", sheetSeed: 1 });
   if (!E.AREAS[S.year]) S.year = 3;
   const rnd = () => 1 + Math.floor(Math.random() * 99998);
   const yc = () => "var(--y" + S.year + ")";
@@ -3273,7 +3418,7 @@ root.MIXBANK = { CURR, META };
     S.name = $("name").value.trim();
     S.test = E.buildTest(S.year, S.per, rnd());
     S.answers = S.test.items.map(() => ({ val: null }));
-    S.overrides = {}; S.idx = 0; S.sheetSeed = rnd(); S.tab = "sheet";
+    S.overrides = {}; S.idx = 0; S.sheetSeed = rnd(); S.tab = "profile";
     $("v-test").style.setProperty("--yc", yc());
     show("test"); renderQ(true);
   }
@@ -3320,7 +3465,8 @@ root.MIXBANK = { CURR, META };
     const result = E.score(t, answers.map(a => a.ok));
     const sheet = E.buildSheet(t, result, { size: S.size, review: S.review, seed: S.sheetSeed });
     const guide = E.buildGuide(t, result, answers, sheet);
-    return { t, answers, result, sheet, guide };
+    const profile = E.buildProfile(t, result, answers, sheet, S.overrides);
+    return { t, answers, result, sheet, guide, profile };
   }
   let M = null;
   function renderResults() {
@@ -3354,7 +3500,7 @@ root.MIXBANK = { CURR, META };
     $("packSub").textContent = (sheet.kind === "targeted"
       ? "Built from the skills missed, most important first: " + sheet.sections.filter(s => s.area).map(s => s.area.short).join(", ") + "." + (sheet.later.length ? " Next on the list: " + sheet.later.map(r => r.area.short).join(", ") + " (choose Long to include " + (sheet.later.length > 1 ? "them" : "it") + ")." : "")
       : sheet.kind === "next" ? "New Year " + sheet.year + " skills in priority order: " + sheet.sections.map(s => s.area.short).join(", ") + "."
-      : "One hard question from every Year 6 skill.") + " " + sheet.count + " questions, with an answer sheet and a support guide for the adult helping.";
+      : "One hard question from every Year 6 skill.") + " " + sheet.count + " questions, with an answer sheet, a support guide for the adult helping, and a student profile.";
     document.querySelectorAll("#size button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === S.size ? "true" : "false"));
     $("optHelp").checked = S.help; $("optReview").checked = S.review; $("paperSize").value = S.paper;
     $("optReviewWrap").hidden = sheet.kind !== "targeted" || !result.rows.some(r => r.status === "secure");
@@ -3383,6 +3529,26 @@ root.MIXBANK = { CURR, META };
           return '<li class="q"><span class="n">' + q.no + '.</span><div class="qb"><div class="qp">' + rich(q.prompt) + "</div>" + a + "</div></li>";
         }).join("") + "</ol>";
       });
+    } else if (S.tab === "profile") {
+      const f = M.profile, TONE = { secure: "#3d8a4e", practise: "#c96a17", focus: "#c8352d" };
+      h += head("Student profile", "Student profile", (S.name ? S.name + " · " : "") + "Year " + f.year + " grammar and punctuation check");
+      h += '<div class="pband" style="--bc:' + TONE[f.band.tone] + '"><div class="pscore">' + f.right + " / " + f.total + "<small>" + f.pct + '% correct</small></div><div><b>' + esc(f.band.label) + "</b><span>" + esc(f.band.text) + "</span></div></div>";
+      h += '<p class="psum">' + esc(f.summary) + "</p>";
+      const bar = (p, col) => '<span class="pbar"><i style="width:' + Math.max(p ? 3 : 0, Math.round(100 * p)) + "%;background:" + col + '"></i></span>';
+      h += '<h4 class="phead">By area of grammar</h4><div class="pgrid">' + f.strands.map(st => { const p = st.n ? st.right / st.n : 0; return "<b>" + esc(st.label) + "</b>" + bar(p, p === 1 ? "#3d8a4e" : p >= 0.5 ? "#c96a17" : "#c8352d") + "<span>" + st.right + " / " + st.n + " <small>(" + st.secure + " of " + st.skills + " skill" + (st.skills === 1 ? "" : "s") + " secure)</small></span>"; }).join("") + "</div>";
+      if (f.strengths.length) h += '<p class="psum"><b>Strengths:</b> ' + f.strengths.map(a => esc(a.short)).join(", ") + ".</p>";
+      if (f.targets.length) {
+        h += '<h4 class="phead">' + (f.kind === "next" ? "Priorities: starting Year " + (f.year + 1) : "Priorities for support") + '</h4><ol class="pri">' + f.targets.map(t => {
+          const st = t.status === "new" ? "New skill" : E.STATUS[t.status] + " (" + t.right + " of " + t.n + " right)";
+          return '<li class="' + t.status + '"><div class="pt"><b>' + esc(t.area.short) + '</b><small class="tier t' + t.area.tier + '">' + E.TIERS[t.area.tier] + " · " + esc(st) + (t.onSheet ? "" : " · after this worksheet") + "</small></div>" +
+            (t.area.why ? "<div><b>Why it matters:</b> " + esc(t.area.why) + "</div>" : "") + "<div><b>What we can assume:</b> " + esc(t.means) + '</div><div class="kr"><b>Key rule:</b> ' + esc(t.area.tip) + "</div></li>";
+        }).join("") + "</ol>";
+        if (f.more) h += '<p class="ev">' + esc(f.kind === "next" ? "The worksheet also introduces " + f.more + " more new skill" + (f.more > 1 ? "s" : "") + "." : "Then " + f.more + " more skill" + (f.more > 1 ? "s" : "") + " from the priority list in the support guide.") + "</p>";
+      }
+      h += '<h4 class="phead">How they answered</h4><div class="pgrid">' + f.kinds.map(k => "<span>" + esc(k.label) + "</span>" + bar(k.right / k.n, "#2f78b8") + "<span>" + k.right + " / " + k.n + "</span>").join("") + "</div>";
+      const ul = (t, arr) => '<h4 class="phead">' + t + '</h4><ul class="pul">' + arr.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>";
+      h += ul("Working assumptions", f.assumptions) + ul("For the pupil", f.pupil) + ul("For the teacher or helper", f.adult.concat(f.next));
+      if (f.changed) h += '<p class="ev">' + f.changed + " mark" + (f.changed > 1 ? "s were" : " was") + " changed by the teacher after the check.</p>";
     } else if (S.tab === "key") {
       h += head("Answers", "Answer sheet", "For the worksheet with reference " + sheet.ref + (S.name ? " · " + S.name : "") + ". Accept other wording where the grammar is right.", true);
       sheet.sections.forEach(sec => {
@@ -3429,10 +3595,10 @@ root.MIXBANK = { CURR, META };
     try {
       const doc = new window.jspdf.jsPDF({ unit: "mm", format: S.paper, orientation: "portrait" });
       const date = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-      E.paintPdf(doc, parts, { sheet: M.sheet, guide: M.guide }, { name: S.name, date, year: M.t.year, help: S.help });
+      E.paintPdf(doc, parts, { sheet: M.sheet, guide: M.guide, profile: M.profile }, { name: S.name, date, year: M.t.year, help: S.help });
       blob = doc.output("blob");
     } catch (e) { st.textContent = "The PDF couldn't be built. Try a shorter worksheet or a different paper size."; st.className = "status err"; return; }
-    const what = parts.length > 1 ? "pack" : { sheet: "worksheet", key: "answers", guide: "support_guide" }[parts[0]];
+    const what = parts.length > 1 ? "pack" : { sheet: "worksheet", key: "answers", guide: "support_guide", profile: "student_profile" }[parts[0]];
     const filename = ["grammar", "y" + M.t.year, slug(S.name), what, M.sheet.ref.toLowerCase()].filter(Boolean).join("_") + ".pdf";
     const dl = await downloads();
     if (!dl) {
@@ -3447,7 +3613,9 @@ root.MIXBANK = { CURR, META };
   function summaryText() {
     const { t, result, sheet } = M;
     const lines = ["Year " + t.year + " grammar check" + (S.name ? ": " + S.name : ""), "Score: " + result.right + " / " + result.total, ""];
+    lines.splice(2, 0, M.profile.band.label + ". " + M.profile.summary);
     E.priorityList(t.year).forEach(a => { const r = result.rows.find(x => x.area === a); lines.push(a.rank + ". " + a.short + " (" + E.TIERS[a.tier] + "): " + r.right + "/" + r.n + " " + E.STATUS[r.status]); });
+    if (M.profile.targets.length) lines.push("", "Priorities for support:", ...M.profile.targets.map((x, i) => (i + 1) + ". " + x.area.short + ": " + x.means));
     lines.push("", "Worksheet: " + (sheet.kind === "next" ? "Year " + sheet.year + " starter, " : sheet.kind === "challenge" ? "challenge, " : "") + sheet.sections.map(s => s.title).join(", ") + " (ref " + sheet.ref + ")");
     return lines.join("\n");
   }
