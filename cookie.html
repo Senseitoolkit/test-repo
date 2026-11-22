@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five More Minutes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: cheeky, warm, a tired parent's comedy of exhaustion
+   IDEA: a living room staged like a little puppet theatre, one standoff per scene
+   PICTURE: kid and parent face off under a ticking wall clock, window shows day or night
+   COLOUR and TYPE: plum walls, peach lamplight, mint for wins, coral for misses; Fredoka + Nunito
+   LAYOUT: scene on top, kid's speech bubble, answer cards; a menu of situations as cards */
+:root{color-scheme:dark;--bg:#21152b;--wall:#3a2547;--panel:#2d1d39;--card:#432c53;--line:#654778;--ink:#f7eefb;--muted:#cdb9da;--peach:#ffc4a1;--mint:#7fe3c4;--coral:#ff7d74}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Nunito,system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:980px;margin:0 auto;padding:clamp(16px,3vw,36px) max(4vw,14px) 48px}
+h1{font:600 clamp(32px,6vw,50px)/1.05 Fredoka,Nunito,sans-serif;margin:0 0 6px;text-wrap:balance;color:var(--peach)}
+.lede{margin:0 0 18px;color:var(--muted);max-width:64ch}
+.hud{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;justify-content:space-between;background:var(--panel);border:2px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;padding:12px 18px}
+.hud b{font:600 17px Fredoka,sans-serif}
+.hud small{color:var(--muted);font-size:14px}
+.meters{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.mugs,.dots{display:flex;gap:5px;align-items:center}
+.mugs svg{width:24px;height:24px;display:block}
+.mugs .gone{opacity:.2}
+.dots i{width:13px;height:13px;border-radius:50%;border:2px solid var(--mint)}.dots i.on{background:var(--mint)}
+.stage{position:relative;border:2px solid var(--line);border-top:0;border-bottom:0;background:var(--wall);aspect-ratio:800/360;overflow:hidden}
+.stage svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.board{background:var(--panel);border:2px solid var(--line);border-top:0;border-radius:0 0 22px 22px;padding:22px clamp(14px,3vw,26px) 26px}
+.bubble{position:relative;background:var(--ink);color:#2a1834;border-radius:20px;padding:16px 20px;font:500 clamp(18px,2.4vw,21px)/1.4 Fredoka,sans-serif;margin:-6px 0 20px}
+.bubble::before{content:"";position:absolute;left:calc(30% - 14px);top:-16px;border:16px solid transparent;border-top:0;border-bottom-color:var(--ink)}
+.bubble .who{display:block;font:800 13px Nunito,sans-serif;color:#7b4f8f;margin-bottom:2px}
+.fb .bubble{margin:8px 0 10px}.fb .bubble::before{display:none}
+.bubble.parent{background:var(--peach)}
+.ask{margin:0 0 10px;color:var(--muted);font-weight:700}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+button{font:inherit;color:inherit;cursor:pointer}
+.opt{min-height:56px;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:12px 14px;font-weight:700;display:flex;gap:10px;align-items:center;transition:transform .12s,border-color .12s}
+.opt kbd{flex:none;width:26px;height:26px;border-radius:8px;background:var(--bg);display:grid;place-items:center;font:700 13px Nunito;color:var(--muted)}
+.opt:hover:not(:disabled){border-color:var(--peach);transform:translateY(-2px)}
+.opt:disabled{cursor:default;opacity:.55}
+.opt.right{border-color:var(--mint);background:#2f5a4f;opacity:1}
+.opt.wrong{border-color:var(--coral);background:#5d2a35;opacity:1}
+button:focus-visible{outline:3px solid var(--peach);outline-offset:3px}
+.fb{margin-top:18px;border-radius:16px;padding:16px 18px;background:var(--bg);border:2px solid var(--line)}
+.fb h3{margin:0 0 6px;font:600 20px Fredoka,sans-serif}
+.fb.good h3{color:var(--mint)}.fb.bad h3{color:var(--coral)}
+.fb p{margin:6px 0}
+.def{color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.go,.ghost{min-height:48px;padding:10px 22px;border-radius:999px;font:600 18px Fredoka,sans-serif}
+.go{border:0;background:var(--peach);color:#2a1834}
+.go:hover{filter:brightness(1.06)}
+.ghost{background:transparent;border:2px solid var(--line)}
+.ghost:hover{border-color:var(--peach)}
+.menuhead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.menuhead h2{margin:0;font:600 24px Fredoka,sans-serif}
+.menuhead span{color:var(--muted)}
+.sits{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.sit{text-align:left;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px;min-height:96px;display:flex;flex-direction:column;gap:2px;transition:transform .12s,border-color .12s}
+.sit:hover{border-color:var(--peach);transform:translateY(-2px)}
+.sit b{font:600 18px Fredoka,sans-serif}
+.sit small{color:var(--muted)}
+.tag{margin-top:auto;padding-top:8px;font-size:13px;font-weight:800;color:var(--muted)}
+.tag.won{color:var(--mint)}.tag.lost{color:var(--coral)}
+.center{text-align:center}
+.title{font:600 clamp(40px,8vw,68px)/1 Fredoka,sans-serif;color:var(--peach);margin:6px 0 10px;text-wrap:balance}
+.rules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px auto;max-width:720px;text-align:left}
+.rules div{background:var(--card);border-radius:16px;padding:14px}
+.rules b{display:block;font:600 18px Fredoka,sans-serif;margin-bottom:2px}
+.rules span{color:var(--muted);font-size:15px}
+a.ghost{display:inline-flex;align-items:center;text-decoration:none;color:var(--ink)}
+@media(max-width:600px){.rules{grid-template-columns:minmax(0,1fr)}}
+.center p{max-width:56ch;margin:8px auto}
+.center .row{justify-content:center}
+.big{font:600 clamp(28px,5vw,40px)/1.1 Fredoka,sans-serif;margin:4px 0 8px}
+.big.won{color:var(--mint)}.big.lost{color:var(--coral)}
+.stats{display:flex;justify-content:center;flex-wrap:wrap;gap:12px;margin:14px 0}
+.stats div{background:var(--card);border-radius:14px;padding:10px 16px;min-width:120px}
+.stats b{display:block;font:600 26px Fredoka,sans-serif;color:var(--peach)}
+.stats span{font-size:14px;color:var(--muted)}
+details{margin-top:22px;color:var(--muted)}
+summary{cursor:pointer;font-weight:700;color:var(--ink);min-height:32px}
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 18px;margin-top:10px;font-size:15px}
+.gloss b{color:var(--ink)}
+#kid{transform-origin:240px 330px;transition:transform .25s}
+.m-stunned #kid{transform:translateX(-6px) rotate(-3deg)}
+.m-gloat #kid{transform:translateY(-8px)}
+.m-sulk #kid{transform:translateY(4px) rotate(2deg)}
+.face,.pface,.zz,.day{display:none}
+.m-argue .f-argue,.m-stunned .f-stunned,.m-gloat .f-gloat,.m-sleep .f-sleep,.m-sulk .f-sulk{display:inline}
+.p-calm .pf-calm,.p-tired .pf-tired,.p-smug .pf-smug{display:inline}
+.m-sleep .zz{display:inline}
+.isday .day{display:inline}.isday .night{display:none}.isday .glow{opacity:.3}
+@keyframes zz{0%{opacity:0;transform:translateY(8px)}50%{opacity:1}100%{opacity:0;transform:translateY(-14px)}}
+.zz text{animation:zz 2.4s infinite}.zz text:nth-child(2){animation-delay:.8s}.zz text:nth-child(3){animation-delay:1.6s}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media(max-width:600px){.opts{grid-template-columns:minmax(0,1fr)}.hud{border-radius:18px 18px 0 0}.row>button{flex:1 1 100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div><b id="topic">Pick a situation</b><br><small id="topicSub">Ten standoffs, and every one is winnable</small></div>
+    <div class="meters" id="meters"></div>
+  </div>
+
+  <div class="stage">
+<svg id="scene" class="m-argue p-calm" viewBox="0 0 800 360" role="img" aria-label="Pip and a parent face off">
+      <defs>
+        <radialGradient id="lampGlow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffc4a1" stop-opacity=".55"/><stop offset="1" stop-color="#ffc4a1" stop-opacity="0"/></radialGradient>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop id="sky0" offset="0" stop-color="#1d1638"/><stop id="sky1" offset="1" stop-color="#3b2a5c"/></linearGradient>
+        <pattern id="stripes" width="14" height="14" patternUnits="userSpaceOnUse"><rect id="pj0" width="14" height="14" fill="#8ec5e8"/><rect id="pj1" width="14" height="5" fill="#b4daf2"/></pattern>
+      <pattern id="check" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#e9e3d6"/><rect width="20" height="20" fill="#cfc6b4"/><rect x="20" y="20" width="20" height="20" fill="#cfc6b4"/></pattern><pattern id="tile" width="30" height="30" patternUnits="userSpaceOnUse"><rect width="30" height="30" fill="#bfe6e6"/><rect width="28" height="28" x="1" y="1" rx="3" fill="#d6f0ef"/></pattern><pattern id="wstripe" width="36" height="10" patternUnits="userSpaceOnUse"><rect width="36" height="10" fill="#c98f73"/><rect width="12" height="10" fill="#bd8268"/></pattern><radialGradient id="tvGlow"><stop offset="0" stop-color="#8dffb0" stop-opacity=".45"/><stop offset="1" stop-color="#8dffb0" stop-opacity="0"/></radialGradient></defs>
+<g id="bg"></g>
+<!-- clock -->
+      <g transform="translate(400 86)">
+        <circle r="40" fill="#5a3d6b"/><circle r="33" fill="#f7eefb"/>
+        <g fill="#7b4f8f"><circle cy="-26" r="2.4"/><circle cx="26" r="2.4"/><circle cy="26" r="2.4"/><circle cx="-26" r="2.4"/></g>
+        <line id="hHand" y2="-15" stroke="#2a1834" stroke-width="5" stroke-linecap="round"/>
+        <line id="mHand" y2="-24" stroke="#2a1834" stroke-width="3" stroke-linecap="round"/>
+        <circle r="3.5" fill="#ff7d74"/>
+      </g>
+      <!-- parent -->
+      <ellipse cx="560" cy="336" rx="62" ry="9" fill="#2a1834" opacity=".45"/>
+      <g id="parent">
+        <rect x="530" y="270" width="24" height="64" rx="10" fill="#3c2a4a"/><rect x="566" y="270" width="24" height="64" rx="10" fill="#3c2a4a"/>
+        <rect x="514" y="176" width="92" height="114" rx="30" fill="#d9876e"/>
+        <rect x="514" y="176" width="20" height="114" rx="10" fill="#c27560"/>
+        <rect x="586" y="200" width="22" height="58" rx="11" fill="#c27560" transform="rotate(-24 597 205)"/>
+        <g transform="translate(612 222)"><rect width="26" height="28" rx="5" fill="#f7eefb"/><path d="M26 7 q11 0 11 8 t-11 8" fill="none" stroke="#f7eefb" stroke-width="4"/><rect y="0" width="26" height="6" rx="3" fill="#7fe3c4"/>
+          <path d="M6 -6 q-5 -7 0 -14 M16 -6 q-5 -7 0 -14" fill="none" stroke="#f7eefb" stroke-opacity=".5" stroke-width="2.5" stroke-linecap="round"/></g>
+        <rect x="550" y="160" width="20" height="22" fill="#b97b5b"/>
+        <circle cx="560" cy="134" r="40" fill="#c98f6c"/>
+        <path d="M520 132 q0 -46 42 -46 q38 0 40 42 q-14 -22 -44 -20 q-24 2 -38 24Z" fill="#2b1d24"/>
+        <circle cx="586" cy="88" r="14" fill="#2b1d24"/>
+        <g class="pface pf-calm"><path d="M542 134 q6 -5 12 0 M566 134 q6 -5 12 0" fill="none" stroke="#2a1834" stroke-width="3" stroke-linecap="round"/><path d="M549 152 q11 7 22 0" fill="none" stroke="#2a1834" stroke-width="3" stroke-linecap="round"/></g>
+        <g class="pface pf-tired"><path d="M541 134 h13 M566 134 h13" stroke="#2a1834" stroke-width="3" stroke-linecap="round"/><path d="M542 140 q6 3 12 0 M566 140 q6 3 12 0" fill="none" stroke="#8a5a48" stroke-width="2"/><path d="M550 155 h20" stroke="#2a1834" stroke-width="3" stroke-linecap="round"/></g>
+        <g class="pface pf-smug"><path d="M542 136 q6 -7 12 0 M566 136 q6 -7 12 0" fill="none" stroke="#2a1834" stroke-width="3" stroke-linecap="round"/><path d="M546 150 q14 12 28 0" fill="#2a1834"/><path d="M538 122 l14 -4 M568 118 l14 4" stroke="#2b1d24" stroke-width="3" stroke-linecap="round"/></g>
+      </g>
+      <!-- kid -->
+      <ellipse cx="240" cy="336" rx="54" ry="8" fill="#2a1834" opacity=".45"/>
+      <g id="kid">
+        <rect x="214" y="292" width="20" height="40" rx="9" fill="url(#stripes)"/><rect x="246" y="292" width="20" height="40" rx="9" fill="url(#stripes)"/>
+        <ellipse cx="222" cy="332" rx="15" ry="7" fill="#ff7d74"/><ellipse cx="258" cy="332" rx="15" ry="7" fill="#ff7d74"/>
+        <rect x="196" y="230" width="88" height="76" rx="30" fill="url(#stripes)"/>
+        <rect x="200" y="252" width="80" height="22" rx="11" fill="#6aa7cf"/>
+        <circle cx="206" cy="263" r="10" fill="#f2c7a5"/><circle cx="274" cy="263" r="10" fill="#f2c7a5"/>
+        <circle cx="240" cy="186" r="48" fill="#f2c7a5"/>
+        <path d="M192 182 q-6 -30 16 -44 l-4 -14 l18 10 q10 -12 26 -10 l4 -14 l10 16 q24 4 30 34 l12 -2 l-10 14 q-4 -16 -22 -22 q-18 8 -42 0 q-20 8 -38 32Z" fill="#6b3f2a"/>
+        <circle cx="214" cy="204" r="7" fill="#f2a0a0" opacity=".6"/><circle cx="266" cy="204" r="7" fill="#f2a0a0" opacity=".6"/>
+        <g class="face f-argue"><path d="M214 172 l16 6 M266 172 l-16 6" stroke="#2a1834" stroke-width="4" stroke-linecap="round"/><path d="M216 188 h14 M250 188 h14" stroke="#2a1834" stroke-width="5" stroke-linecap="round"/><path d="M226 212 q10 -2 22 -8" fill="none" stroke="#2a1834" stroke-width="3.5" stroke-linecap="round"/></g>
+        <g class="face f-stunned"><path d="M214 166 q8 -6 16 0 M250 166 q8 -6 16 0" fill="none" stroke="#2a1834" stroke-width="3.5" stroke-linecap="round"/><circle cx="222" cy="186" r="9" fill="#fff"/><circle cx="258" cy="186" r="9" fill="#fff"/><circle cx="222" cy="187" r="4.5" fill="#2a1834"/><circle cx="258" cy="187" r="4.5" fill="#2a1834"/><ellipse cx="240" cy="212" rx="7" ry="9" fill="#2a1834"/></g>
+        <g class="face f-gloat"><path d="M214 190 q8 -10 16 0 M250 190 q8 -10 16 0" fill="none" stroke="#2a1834" stroke-width="4" stroke-linecap="round"/><path d="M222 204 q18 22 36 0Z" fill="#2a1834"/><path d="M228 207 h24" stroke="#fff" stroke-width="3"/></g>
+        <g class="face f-sulk"><path d="M214 176 l16 -4 M266 176 l-16 -4" stroke="#2a1834" stroke-width="4" stroke-linecap="round"/><circle cx="222" cy="188" r="4.5" fill="#2a1834"/><circle cx="258" cy="188" r="4.5" fill="#2a1834"/><path d="M228 214 q12 -10 24 0" fill="none" stroke="#2a1834" stroke-width="3.5" stroke-linecap="round"/></g><g class="face f-sleep"><path d="M214 188 q8 6 16 0 M250 188 q8 6 16 0" fill="none" stroke="#2a1834" stroke-width="3.5" stroke-linecap="round"/><path d="M234 210 q6 3 12 0" fill="none" stroke="#2a1834" stroke-width="3" stroke-linecap="round"/></g>
+      </g>
+      <g id="fg"></g>
+<g class="zz" fill="#f7eefb" font-family="Fredoka, sans-serif" font-weight="600"><text x="290" y="140" font-size="22">z</text><text x="306" y="116" font-size="28">z</text><text x="326" y="88" font-size="34">Z</text></g>
+      <rect x="356" y="135" width="88" height="24" rx="12" fill="#2a1834" opacity=".85"/><text id="timeLbl" x="400" y="152" text-anchor="middle" fill="#f7eefb" font-family="Nunito, sans-serif" font-weight="800" font-size="16">8:00 pm</text>
+    </svg>
+  </div>
+
+  <div class="board" id="board" aria-live="polite"></div>
+
+  <details>
+    <summary>Fallacy cheat sheet</summary>
+    <div class="gloss" id="gloss"></div>
+  </details>
+</div>
+
+<script>
+{
+const F={
+ bandwagon:['Bandwagon','Claiming something is right because lots of people do it or believe it.'],
+ slope:['Slippery slope','Insisting one small step will snowball into an extreme outcome, without showing why it would.'],
+ tuquoque:['Tu quoque (“you too”)','Dodging a point by accusing the other person of doing the same thing.'],
+ circular:['Circular reasoning','Using the conclusion as its own evidence.'],
+ straw:['Straw man','Twisting someone’s position into an exaggerated version that’s easier to attack.'],
+ dilemma:['False dilemma','Pretending there are only two options when there are more.'],
+ authority:['Appeal to authority','Treating someone as an expert on a topic they aren’t qualified in.'],
+ anecdote:['Anecdotal evidence','Using one personal story as proof of a general rule.'],
+ ignorance:['Appeal to ignorance','Claiming something is true just because it hasn’t been proven false.'],
+ herring:['Red herring','Changing the subject to something irrelevant to escape the point.'],
+ cause:['False cause','Assuming that because one thing followed another, the first caused the second.'],
+ hominem:['Ad hominem','Attacking the person instead of their argument.'],
+ emotion:['Appeal to emotion','Using pity, guilt or cuteness in place of actual reasons.'],
+ goalposts:['Moving the goalposts','Changing the terms of a deal after the original terms were met.'],
+ nature:['Appeal to nature','Arguing something is good just because it’s “natural”.'],
+ tradition:['Appeal to tradition','Arguing something is right because it’s always been done that way.'],
+ scotsman:['No true Scotsman','Dismissing a counterexample by redefining the group to leave it out.'],
+ loaded:['Loaded question','Asking a question that sneaks in an unproven assumption.'],
+ hasty:['Hasty generalisation','Drawing a broad conclusion from too few examples.']
+};
+const CLASH={anecdote:['hasty'],hasty:['anecdote'],tuquoque:['hominem'],hominem:['tuquoque']};
+const L=(f,k,r)=>({f,k,r});
+const SITS=[
+ {id:'cookie',t:'The cookie jar',s:'Pip wants a cookie before dinner',h:17*60+15,
+  lose:'Pip is munching a chocolate-chip cookie. Then another. Dinner is going to be interesting.',win:'The lid stays on the jar. Pip gets one cookie after dinner, as agreed.',lines:[
+  L('bandwagon','Everyone has a cookie before dinner. It’s basically the law.','Lots of people doing it wouldn’t make it a good idea, and it isn’t the law.'),
+  L('slope','If I don’t get a cookie now I’ll get hungry, then grumpy, then I’ll faint, and you’ll have to carry me EVERYWHERE.','Waiting forty minutes for dinner won’t end with me carrying you everywhere.'),
+  L('tuquoque','You ate a cookie this morning. I SAW you.','Maybe I did. That still doesn’t make one before dinner a good idea for you.'),
+  L('emotion','The cookies are so lonely in that jar. Nobody’s visited them all day.','The cookies are fine. They’ll have company after dinner.'),
+  L('straw','So you think cookies are EVIL now?','I love cookies. I just want you to have one after dinner.'),
+  L('dilemma','Either I have a cookie now, or I’ll never be happy again.','Or you have one after dinner and stay perfectly happy.'),
+  L('circular','I deserve a cookie because I’m the kind of kid who deserves cookies.','That’s just saying you deserve one twice.'),
+  L('ignorance','Nobody’s proven a cookie spoils your dinner. So it doesn’t.','No proof it does isn’t proof it doesn’t.'),
+  L('authority','My friend’s big sister says cookies are full of vitamins. She’s in high school.','Being in high school doesn’t make her a nutritionist.'),
+  L('cause','Last time I had a cookie before dinner I scored a goal. Cookies make me win.','You scored because you practised, not because of a cookie.'),
+  L('nature','Cookies are made of flour. Flour comes from wheat. Wheat’s a plant. So a cookie is a vegetable.','By that logic cake is a salad. Nice try.'),
+  L('loaded','Why are you hiding the cookies from me?','That assumes I’m hiding them. They’re in the jar, staying there until after dinner.'),
+  L('herring','Look, a bird! …While you’re looking, I’ll just get one cookie.','The bird can wait, and so can the cookie.'),
+  L('anecdote','I had a cookie before dinner once and still ate everything. So cookies never ruin dinner.','One good night doesn’t mean it never happens.')]},
+ {id:'toy',t:'The toy aisle',s:'Pip wants the Robo-Dino 3000',h:15*60+10,
+  lose:'The Robo-Dino 3000 is in the cart. You don’t remember agreeing to it.',win:'Pip puts the Robo-Dino back on the shelf. Sulkily, but back.',lines:[
+  L('bandwagon','Every kid in my class has a Robo-Dino. I’m the ONLY one who doesn’t.','Even if they all did, that isn’t a reason for us to buy one.'),
+  L('slope','If you don’t buy it I’ll be sad, then I’ll be sad tomorrow, then I’ll be sad my WHOLE LIFE.','Not getting one toy today won’t make you sad for life.'),
+  L('tuquoque','You buy stuff for yourself all the time! So you can’t say no to me.','What I buy doesn’t change whether this toy is a good idea today.'),
+  L('emotion','Look at its little face. It wants to come home with me. It’ll cry if we leave it here.','It’s plastic. It will be perfectly fine on the shelf.'),
+  L('straw','So you’re saying I can never have any toys EVER again?','I said not today. That’s all I said.'),
+  L('dilemma','Either you buy it now, or I scream right here in the shop. Pick one.','There’s a third option: we go home calmly and put it on your birthday list.'),
+  L('authority','The man in the TV advert said every kid needs one.','The man in the advert is paid to sell it.'),
+  L('ignorance','Nobody’s ever proved I’d get bored of it. So I’ll love it forever.','Not having proof you’ll get bored isn’t proof you won’t.'),
+  L('goalposts','I said I’d stop asking if I could just hold it. I held it. Now I need to try it at home first.','The deal was holding it. You held it. The deal is done.'),
+  L('loaded','Why don’t you love me enough to buy it?','I love you lots. That’s not what decides what we buy.')]},
+ {id:'ice',t:'Ice cream for dinner',s:'Pip has a plan, and it involves sprinkles',h:18*60,
+  lose:'Pip is eating a triple scoop. It is dinner now, apparently.',win:'Pip eats real dinner first. Ice cream is “maybe on Saturday”.',lines:[
+  L('nature','Ice cream is made of milk. Milk is natural. So ice cream is health food.','Plenty of natural things go into it, and so does a lot of sugar.'),
+  L('circular','Ice cream is good for you because it’s healthy.','Saying it’s healthy isn’t a reason it’s healthy.'),
+  L('anecdote','Grandma let me have ice cream for dinner once, and I was totally fine.','One dinner at Grandma’s doesn’t make it a good every-night plan.'),
+  L('hasty','Leo has ice cream every night, and so does his brother. So ALL kids do.','Two kids from one house aren’t all kids.'),
+  L('tuquoque','You had cake at work today! You’re not allowed to talk.','Even if I had cake, that doesn’t make ice cream a dinner.'),
+  L('straw','So you want me to never be happy ever again?','I want you to eat dinner. Happiness is allowed.'),
+  L('dilemma','Either I get ice cream, or I’m not eating anything at all.','Or you eat your pasta like a champion.'),
+  L('tradition','We ALWAYS get ice cream on holiday, so we should get it now.','We’re not on holiday. It’s a Wednesday.'),
+  L('herring','Did you know sharks are older than trees? Anyway… ice cream?','Fascinating sharks. Still no ice cream for dinner.'),
+  L('cause','Last time I had ice cream I got a gold star at school. Ice cream makes me smart.','You got a gold star because you worked hard, not because of the ice cream.'),
+  L('loaded','Have you stopped being mean about sugar yet?','That assumes I was being mean. I wasn’t, and the answer’s still no.')]},
+ {id:'school',t:'School morning',s:'Pip is “definitely sick”',h:7*60+5,
+  lose:'Pip is on the sofa in pyjamas. You are calling the school office.',win:'Pip shuffles out the door with a backpack and a mighty sigh.',lines:[
+  L('bandwagon','Everybody’s staying home today. Probably. I heard.','Even if they were, you’re still going.'),
+  L('circular','School is boring because it isn’t fun.','That’s the same thing said twice.'),
+  L('slope','If I go, I’ll have a spelling test, get one wrong, fail school, and have to live in a box.','One spelling mistake does not lead to a box.'),
+  L('tuquoque','YOU don’t go to school! Why should I?','I went for years and I go to work now. School is your job right now.'),
+  L('hominem','My teacher’s really strict, so she’s wrong about everything. Even homework.','Being strict doesn’t make her wrong.'),
+  L('authority','A kid on the internet said school is a waste of time.','A random kid online isn’t an expert on education.'),
+  L('cause','Last time I went to school it rained. School makes it rain.','Rain doesn’t check your timetable.'),
+  L('ignorance','Nobody’s proved I’ll learn anything today. So I won’t.','No proof you won’t learn anything either. Off you go.'),
+  L('herring','Look, the cat is sitting really funny! We should watch the cat. All day.','The cat will still be sitting funny at 3:30.'),
+  L('scotsman','Nobody smart ever needed school. Okay, doctors did, but doctors don’t count.','Doctors count. They’re smart and they went to school.'),
+  L('loaded','Why do you want me to be miserable all day?','I don’t. I want you to go to school.')]},
+ {id:'chores',t:'Chores',s:'“I’ll do it later, I promise”',h:16*60+20,
+  lose:'The toys are still on the floor. “Later” has become “never”.',win:'The toys are in the box. Most of them. That counts.',lines:[
+  L('goalposts','I said I’d tidy after one game. But that game was short, so it doesn’t count.','We agreed on one game. Short games still count.'),
+  L('bandwagon','None of my friends do chores. Not one of them.','What other families do doesn’t change our house rules.'),
+  L('tuquoque','You left your mug on the table, so you can’t make ME clean.','I’ll move my mug. Your toys are still on the floor.'),
+  L('straw','So you want me to clean the whole house? The whole STREET?','Just your toys. The street can wait.'),
+  L('dilemma','Either I do it later, or I do it never.','Or you do it now. That’s an option too.'),
+  L('slope','If I put my toys away I’ll forget where they are, then I’ll never play again, then I’ll be bored forever.','They’ll be in the toy box. Where toys live.'),
+  L('circular','Chores are pointless because they don’t matter.','That’s just repeating yourself.'),
+  L('nature','Dust is natural. You shouldn’t fight nature.','Mould is natural too. We’re still tidying.'),
+  L('herring','Did you know octopuses have three hearts? Anyway, not now.','Three hearts, zero excuses. Toys in the box.'),
+  L('hominem','You only want me to do it because you’re bossy.','Even if I were bossy, the toys still need putting away.'),
+  L('cause','Last week I made my bed and then I lost my football match. Tidying is bad luck.','Your bed did not lose the match.')]},
+ {id:'early',t:'The early start',s:'Pip has become one with the duvet',h:6*60,
+  lose:'Pip is still in bed. You’re going to be late. Again.',win:'Pip is up, dressed, and only slightly glaring at you.',lines:[
+  L('circular','It’s too early because it isn’t late enough.','That’s the same idea twice.'),
+  L('nature','My body says stay in bed. Bodies are natural. You can’t argue with nature.','Waking up is natural too.'),
+  L('tuquoque','You hit snooze yesterday! TWICE!','I did, and I was late. Let’s not both be.'),
+  L('ignorance','Nobody’s proven the car leaves at seven. Maybe it leaves at lunch.','The car leaves at seven. Up you get.'),
+  L('slope','If I get up now I’ll be tired, then grumpy, then I’ll fall asleep in my cereal and sink.','You won’t sink in cereal. I’ll be right there.'),
+  L('dilemma','Either I sleep three more hours, or I’m grumpy forever.','Or you get up and feel better after breakfast.'),
+  L('emotion','Look how cosy my blanket is. You’d be so cruel to take me away from it.','It’ll be just as cosy tonight.'),
+  L('straw','So you hate sleep now? You want me to NEVER sleep?','I love sleep. I just want you awake right now.'),
+  L('goalposts','You said five more minutes. But I was asleep for them, so they don’t count.','Sleeping is exactly what the five minutes were for.'),
+  L('loaded','Why are you always trying to ruin my mornings?','That assumes I’m ruining it. I’m just starting it.'),
+  L('anecdote','My cousin sleeps till ten on school days and he’s fine.','One cousin isn’t a rule. And he might not be fine.')]},
+ {id:'scary',t:'Scary movie night',s:'Pip wants to watch Zombie Swamp IV',h:20*60,
+  lose:'Zombie Swamp IV is playing. You already know who’s sleeping in your bed tonight.',win:'You’re watching the one with the singing penguins. Pip is secretly relieved.',lines:[
+  L('bandwagon','Everyone in my class has seen it. Even the scaredy ones.','Other kids watching it doesn’t make it right for you.'),
+  L('authority','A Year 6 kid said it’s not scary at all, and he’s basically a movie expert.','Being in Year 6 doesn’t make him a film critic.'),
+  L('anecdote','I watched a scary trailer once and slept fine. So scary movies are fine.','One trailer isn’t the same as a whole film.'),
+  L('tuquoque','Grandma says YOU watched scary movies when you were little.','Maybe I did, and I had nightmares. That’s why I’m saying no.'),
+  L('straw','So you think I’m a baby who’s scared of EVERYTHING?','I think this one film is too scary. That’s all.'),
+  L('dilemma','Either I watch Zombie Swamp, or I never watch anything ever again.','There are thousands of other films.'),
+  L('ignorance','Nobody’s proven I’ll get nightmares. So I won’t.','No proof you won’t, either.'),
+  L('slope','If I don’t watch it, everyone will talk about it, I won’t understand, they’ll laugh, and I’ll have to move country.','Missing one film won’t make you emigrate.'),
+  L('circular','It isn’t too scary because it’s not scary.','That’s just saying it again.'),
+  L('hominem','You only say no because YOU’RE scared of zombies.','Even if I were, it’s still too scary for you.'),
+  L('scotsman','Real brave kids watch horror films. Mia doesn’t, but she isn’t really brave.','Mia is plenty brave. Bravery isn’t about zombies.')]},
+ {id:'bath',t:'Bath time',s:'Pip has declared war on water',h:19*60,
+  lose:'Pip is in bed, unwashed and triumphant. The sheets will remember this.',win:'Pip is in the bath, complaining loudly while making a bubble beard.',lines:[
+  L('nature','Dirt is natural. Animals don’t have baths.','Lots of animals clean themselves. Your turn.'),
+  L('cause','I had a bath on Sunday and it rained on Monday. Baths cause rain.','The weather doesn’t care about your bath.'),
+  L('tradition','We’ve never had baths on Thursdays. That’s been the rule forever.','There’s never been a rule like that. In you go.'),
+  L('circular','Baths are boring because they aren’t fun.','Saying it twice doesn’t make it a reason.'),
+  L('straw','So you want me to stay in the bath until I turn into a prune?','Ten minutes. No prunes required.'),
+  L('emotion','My rubber duck is scared of water. You’d really make him go in?','He’s a rubber duck. Water is his whole job.'),
+  L('herring','Did you know some frogs can freeze solid and come back to life?','Amazing frogs. Still bath time.'),
+  L('ignorance','Nobody’s ever proved I’m dirty.','You have spaghetti in your hair.'),
+  L('tuquoque','YOU didn’t have a bath this morning!','I had a shower. And we’re talking about you.'),
+  L('dilemma','Either no bath, or I flood the whole bathroom.','Or a normal bath with normal amounts of water.')]},
+ {id:'veg',t:'Vegetables',s:'The broccoli standoff',h:18*60+15,
+  lose:'The broccoli is in the bin. Pip is eating plain rice with a victorious face.',win:'Three pieces of broccoli, eaten. Pip made a face, but it went down.',lines:[
+  L('circular','Broccoli is bad because it’s gross. And it’s gross because it’s bad.','That’s one opinion chasing its own tail.'),
+  L('straw','So you want me to eat ALL the broccoli in the WORLD? Every tiny tree?','I asked for three pieces.'),
+  L('dilemma','Either I have dessert first, or I eat nothing.','Or dinner first, then dessert.'),
+  L('scotsman','No real kid likes vegetables. Sam does, but Sam doesn’t count.','Sam is a real kid. He counts.'),
+  L('anecdote','Grandpa hates broccoli and he’s eighty. So you don’t need broccoli to live.','One grandpa doesn’t settle what everyone needs.'),
+  L('bandwagon','Everyone at school says broccoli tastes like feet.','Lots of people saying it doesn’t make it true.'),
+  L('tuquoque','You didn’t finish your carrots last week!','Maybe not, but that doesn’t mean you skip your broccoli.'),
+  L('slope','If I eat broccoli I’ll turn green, then I’ll BE a vegetable, then you’ll have to plant me.','Nobody has ever been planted for eating broccoli.'),
+  L('loaded','When did you stop loving me and start serving broccoli?','I never stopped. Broccoli is a sign of love.'),
+  L('nature','Kids naturally hate vegetables. So I’m supposed to hate it.','Something feeling natural doesn’t make it right.')]},
+ {id:'screen',t:'Screen time',s:'Just one more episode',h:19*60+30,
+  lose:'The tablet is still glowing. You’ve lost count of “one more episode”.',win:'The tablet is on the charger. Pip is reading a comic instead.',lines:[
+  L('authority','A YouTuber with a million subscribers said screens make your brain bigger.','A million subscribers doesn’t make someone a scientist.'),
+  L('anecdote','Grandpa played video games all night once and he’s totally fine.','One grandpa, one night. Not exactly science.'),
+  L('ignorance','Nobody’s EVER proven that one more episode is bad for you. So it’s good.','Not proven bad isn’t the same as good.'),
+  L('goalposts','I said one more episode, but that one was short, so it doesn’t count.','We agreed on one. Short ones count.'),
+  L('bandwagon','Everybody gets unlimited screen time now. It’s normal.','Even if that were true, it’s not our rule.'),
+  L('tuquoque','You’re on your phone RIGHT NOW!','Fair point, I’ll put it down. Your tablet still goes off.'),
+  L('straw','So you want me to live in a cave with no TV, like a caveman?','I want the tablet off for tonight.'),
+  L('slope','If I stop now I’ll never know who won, then I’ll think about it forever, then I’ll fail school.','The episode will be there tomorrow.'),
+  L('tradition','We always watch TV on Friday nights!','It’s Tuesday.'),
+  L('dilemma','Either one more episode, or I’ll be bored to DEATH.','Or you read, draw, or play with Lego.')]},
+ {id:'bed',t:'Bedtime',s:'“Just five more minutes”',h:20*60+30,sleep:true,
+  lose:'Pip is still up, building a fort. You fell asleep on the sofa first.',win:'Pip is asleep, mid-sentence about octopuses. Your tea is still warm. Probably.',lines:[
+  L('bandwagon','Everyone in my class stays up till eleven. EVERYONE.','Other people’s bedtimes don’t make yours a good idea.'),
+  L('slope','If I go to bed now I’ll miss the show, then nobody will talk to me, and I’ll be alone FOREVER.','Missing one episode won’t cost you every friend.'),
+  L('tuquoque','You stay up late all the time, so you can’t tell me to go to bed.','My bedtime doesn’t change the fact you need sleep.'),
+  L('emotion','Teddy will be so lonely if I go to bed. Look at his little face!','Teddy is coming to bed with you.'),
+  L('tradition','We ALWAYS stay up late on New Year’s Eve. So we should tonight.','New Year’s is one night a year. Tonight isn’t it.'),
+  L('loaded','When did you stop being the fun parent?','That assumes I stopped. I’m still fun. It’s still bedtime.'),
+  L('hasty','My two cousins go to bed at ten. So all kids go to bed at ten.','Two cousins aren’t all kids.'),
+  L('cause','Last time I went to bed early I had a nightmare. Early bedtimes cause nightmares.','One bad dream doesn’t mean bedtime caused it.'),
+  L('hominem','You’re just tired and grumpy, so you don’t count.','Tired or not, bedtime is still bedtime.'),
+  L('herring','Do you know how many stars there are? Let’s count them!','We can count them tomorrow. From bed, tonight.')]}
+];
+const TAUNTS=['Ha! You don’t even know what’s wrong with it.','See? You’ve got nothing.','And ANOTHER thing…','So that means yes, right?','I can do this all day.'];
+const NEED=5,MAX=3;
+const $=id=>document.getElementById(id),scene=$('scene'),board=$('board');
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let rec={};try{rec=JSON.parse(localStorage.getItem('fmm-rec')||'{}')}catch(e){}
+const save=()=>{try{localStorage.setItem('fmm-rec',JSON.stringify(rec))}catch(e){}};
+let st=null,time=20*60;
+
+const WIN=(x,y,w=120,h=110)=>'<g transform="translate('+x+' '+y+')"><rect x="-8" y="-8" width="'+(w+16)+'" height="'+(h+16)+'" rx="10" fill="#5a3d6b"/><rect width="'+w+'" height="'+h+'" rx="6" fill="url(#sky)"/>'+
+ '<g class="night"><circle cx="'+(w*.7)+'" cy="34" r="16" fill="#fbe9d6"/><circle cx="'+(w*.7+8)+'" cy="28" r="14" fill="#2a1f49"/><g fill="#fbe9d6"><circle cx="22" cy="22" r="2"/><circle cx="'+(w*.4)+'" cy="'+(h*.55)+'" r="1.5"/><circle cx="20" cy="'+(h-24)+'" r="1.8"/><circle cx="'+(w-18)+'" cy="'+(h-20)+'" r="1.4"/></g></g>'+
+ '<g class="day"><circle cx="'+(w*.68)+'" cy="34" r="17" fill="#ffd9a8"/><circle cx="'+(w*.68)+'" cy="34" r="25" fill="#ffd9a8" opacity=".3"/><ellipse cx="34" cy="'+(h*.72)+'" rx="22" ry="9" fill="#fff" opacity=".85"/><ellipse cx="46" cy="'+(h*.66)+'" rx="14" ry="9" fill="#fff" opacity=".85"/></g>'+
+ '<rect x="'+(w/2-2.5)+'" width="5" height="'+h+'" fill="#5a3d6b"/><rect y="'+(h/2-2.5)+'" width="'+w+'" height="5" fill="#5a3d6b"/></g>';
+const FLOOR=(a,b)=>'<rect y="300" width="800" height="60" fill="'+a+'"/><rect y="300" width="800" height="5" fill="'+b+'"/>';
+const WALL=c=>'<rect width="800" height="360" fill="'+c+'"/>';
+const LAMP=(x,on=true)=>(on?'<circle class="glow" cx="'+x+'" cy="190" r="120" fill="url(#lampGlow)"/>':'')+'<rect x="'+(x-3)+'" y="200" width="6" height="100" fill="#1e1328"/><ellipse cx="'+x+'" cy="301" rx="24" ry="6" fill="#1e1328"/><path d="M'+(x-30)+' 200 L'+(x+30)+' 200 L'+(x+17)+' 160 L'+(x-17)+' 160Z" fill="'+(on?'#ffc4a1':'#8a6c7c')+'"/>';
+const SOFA=(x,w,c,d)=>'<rect x="'+x+'" y="196" width="'+w+'" height="70" rx="22" fill="'+d+'"/><rect x="'+(x+10)+'" y="236" width="'+(w-20)+'" height="54" rx="14" fill="'+c+'"/><rect x="'+(x-14)+'" y="222" width="34" height="78" rx="14" fill="'+d+'"/><rect x="'+(x+w-20)+'" y="222" width="34" height="78" rx="14" fill="'+d+'"/>';
+const BED=(x,c)=>'<rect x="'+x+'" y="196" width="18" height="108" rx="6" fill="#5a3d3a"/><rect x="'+(x+10)+'" y="232" width="170" height="44" rx="10" fill="#f7eefb"/><rect x="'+(x+18)+'" y="214" width="56" height="26" rx="12" fill="#fff"/><path d="M'+(x+70)+' 230 q50 -14 112 4 v40 h-112Z" fill="'+c+'"/><rect x="'+(x+10)+'" y="274" width="174" height="10" rx="4" fill="#5a3d3a"/><rect x="'+(x+14)+'" y="284" width="10" height="18" fill="#5a3d3a"/><rect x="'+(x+168)+'" y="284" width="10" height="18" fill="#5a3d3a"/>';
+const TEDDY=(x,y)=>'<g transform="translate('+x+' '+y+')"><circle cx="-11" cy="-16" r="6" fill="#b0784f"/><circle cx="11" cy="-16" r="6" fill="#b0784f"/><circle r="14" cy="-4" fill="#c48a5c"/><ellipse cy="18" rx="15" ry="14" fill="#c48a5c"/><circle cx="-5" cy="-6" r="2" fill="#2a1834"/><circle cx="5" cy="-6" r="2" fill="#2a1834"/><ellipse cy="0" rx="5" ry="3.5" fill="#e8c09c"/></g>';
+const SCENES={
+ cookie:{pj:['#ff9a7a','#ffc2a8'],bg:()=>{
+  const ck=(x,y,r)=>'<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="#d9a066"/><circle cx="'+(x-r*.35)+'" cy="'+(y-r*.2)+'" r="'+(r*.16)+'" fill="#6b3f2a"/><circle cx="'+(x+r*.3)+'" cy="'+(y+r*.25)+'" r="'+(r*.16)+'" fill="#6b3f2a"/><circle cx="'+(x+r*.2)+'" cy="'+(y-r*.4)+'" r="'+(r*.12)+'" fill="#6b3f2a"/>';
+  return WALL('#f6d2b5')+'<rect y="170" width="800" height="60" fill="#fff3e6"/><path d="'+Array.from({length:27},(_,i)=>'M'+(i*30)+' 170v60').join('')+'M0 200h800" stroke="#ecd2bb" stroke-width="2"/>'+
+  '<rect x="0" y="30" width="190" height="96" rx="6" fill="#c9805a"/><rect x="10" y="40" width="80" height="76" rx="4" fill="#d9946c"/><rect x="100" y="40" width="80" height="76" rx="4" fill="#d9946c"/><circle cx="82" cy="78" r="4" fill="#ffd36b"/><circle cx="108" cy="78" r="4" fill="#ffd36b"/>'+
+  WIN(640,36)+'<rect x="0" y="230" width="190" height="74" fill="#c9805a"/><rect x="0" y="222" width="196" height="12" rx="4" fill="#a8623f"/><circle cx="60" cy="268" r="4" fill="#7a4228"/><circle cx="140" cy="268" r="4" fill="#7a4228"/>'+
+  '<g><rect x="56" y="140" width="100" height="84" rx="22" fill="#dff3f7" opacity=".75" stroke="#a8d6df" stroke-width="4"/>'+ck(84,200,15)+ck(124,198,15)+ck(102,176,15)+ck(132,168,12)+ck(78,166,12)+
+  '<rect x="64" y="126" width="84" height="18" rx="6" fill="#ff7d74"/><circle cx="106" cy="122" r="8" fill="#ff7d74"/><rect x="74" y="146" width="64" height="0" /></g>'+
+  '<rect x="676" y="190" width="100" height="112" rx="8" fill="#e8e1da"/><rect x="686" y="214" width="80" height="58" rx="6" fill="#3a2a30"/><rect x="676" y="190" width="100" height="16" rx="6" fill="#cfc6bc"/><circle cx="694" cy="198" r="4" fill="#7a6a60"/><circle cx="712" cy="198" r="4" fill="#7a6a60"/><circle cx="758" cy="198" r="4" fill="#7a6a60"/>'+
+  '<rect y="300" width="800" height="60" fill="url(#check)"/>'}},
+ living:{w:'#3a2547',pj:['#8ec5e8','#b4daf2'],bg:()=>WALL('#3a2547')+WIN(612,34)+LAMP(735)+FLOOR('#563752','#6a4565')+'<ellipse cx="400" cy="328" rx="300" ry="22" fill="#7a4f72"/>'},
+ toy:{pj:['#ffb36b','#ffd09b'],bg:()=>{
+  const box=(x,y,w,h,c)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="3" fill="'+c+'"/><rect x="'+(x+4)+'" y="'+(y+4)+'" width="'+(w-8)+'" height="'+(h*.45)+'" rx="2" fill="#fff" opacity=".35"/>';
+  const shelf=(x0,cols)=>'<rect x="'+x0+'" y="54" width="150" height="250" fill="#b98d5e"/>'+[110,170,230,290].map(y=>'<rect x="'+x0+'" y="'+y+'" width="150" height="8" fill="#8a6440"/>').join('')+
+   [[60,cols[0]],[120,cols[1]],[180,cols[2]],[240,cols[3]]].map(([y,c],i)=>box(x0+8,y,40,50,c[0])+box(x0+54,y+12,38,38,c[1])+box(x0+98,y+4,44,46,c[2])).join('');
+  return WALL('#f1e6d2')+'<rect y="0" width="800" height="26" fill="#ff7d74"/><g fill="#ffe7a8"><circle cx="40" cy="13" r="5"/><circle cx="200" cy="13" r="5"/><circle cx="600" cy="13" r="5"/><circle cx="760" cy="13" r="5"/></g>'+
+   shelf(10,[['#ff7d74','#7fe3c4','#8ec5e8'],['#ffc4a1','#b38de0','#ff7d74'],['#7fe3c4','#ffd36b','#8ec5e8'],['#b38de0','#ff7d74','#ffc4a1']])+
+   shelf(640,[['#8ec5e8','#ffd36b','#ff7d74'],['#7fe3c4','#ff7d74','#b38de0'],['#ffc4a1','#8ec5e8','#7fe3c4'],['#ffd36b','#b38de0','#ff7d74']])+
+   '<rect x="250" y="34" width="96" height="40" rx="10" fill="#ff7d74"/><text x="298" y="62" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="24" fill="#fff">TOYS</text><path d="M266 34 v-8 M330 34 v-8" stroke="#8a6440" stroke-width="3"/>'+
+   '<rect y="300" width="800" height="60" fill="url(#check)"/>'},
+  fg:()=>'<g transform="translate(664 222)"><rect x="6" y="-62" width="92" height="66" rx="6" fill="#5fae6e"/><rect x="12" y="-56" width="80" height="42" rx="4" fill="#bfe8c4"/>'+
+   '<path d="M24 -20 q6 -22 26 -18 l10 -14 q10 -4 14 4 q-2 8 -12 8 l-4 10 q10 8 6 12 h-6 v-6 h-26 v6 h-6Z" fill="#2f7a45"/><path d="M34 -38 l4 -6 l4 6 M44 -40 l4 -6 l4 6" fill="#2f7a45"/><text x="52" y="-2" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="10" fill="#fff">ROBO-DINO 3000</text>'+
+   '<path d="M-6 8 h118 l-12 58 h-92Z" fill="#c9d3dc" stroke="#7f8b96" stroke-width="3"/><path d="M14 8 v58 M38 8 v58 M62 8 v58 M86 8 v58 M-2 30 h110 M2 50 h102" stroke="#7f8b96" stroke-width="2"/><path d="M112 8 l12 -16" stroke="#7f8b96" stroke-width="5" stroke-linecap="round"/><circle cx="18" cy="76" r="7" fill="#2a1834"/><circle cx="92" cy="76" r="7" fill="#2a1834"/></g>'},
+ ice:{pj:['#8ec5e8','#b4daf2'],bg:()=>WALL('#f3d9a4')+'<rect y="170" width="800" height="60" fill="#fff6e4"/><path d="'+Array.from({length:27},(_,i)=>'M'+(i*30)+' 170v60').join('')+'M0 200h800" stroke="#e8d5b0" stroke-width="2"/>'+
+  WIN(30,36,128,100)+'<rect x="0" y="230" width="176" height="74" fill="#7fbfb0"/><rect x="0" y="222" width="182" height="12" rx="4" fill="#5d9f91"/><circle cx="60" cy="268" r="4" fill="#3d6f65"/><circle cx="130" cy="268" r="4" fill="#3d6f65"/>'+
+  '<g transform="translate(112 222)"><path d="M-22 0 l4 -36 h36 l4 36Z" fill="#ffb6c8"/><rect x="-24" y="-42" width="48" height="10" rx="4" fill="#ff8fab"/><circle cx="-6" cy="-48" r="11" fill="#fff0d6"/><circle cx="10" cy="-50" r="10" fill="#ffd0dc"/><path d="M20 -56 l14 -18" stroke="#c7c7d6" stroke-width="5" stroke-linecap="round"/></g>'+
+  '<rect x="664" y="64" width="120" height="238" rx="14" fill="#f4f7fb"/><rect x="664" y="150" width="120" height="5" fill="#cfd6e0"/><rect x="676" y="100" width="7" height="34" rx="3" fill="#aab4c2"/><rect x="676" y="170" width="7" height="50" rx="3" fill="#aab4c2"/><circle cx="740" cy="96" r="8" fill="#ff7d74"/><rect x="722" y="114" width="26" height="20" rx="3" fill="#7fe3c4" transform="rotate(-8 735 124)"/><circle cx="752" cy="190" r="7" fill="#ffd36b"/>'+
+  '<rect y="300" width="800" height="60" fill="url(#check)"/>'},
+ school:{pj:['#ff9a7a','#ffc2a8'],bg:()=>WALL('#a8c3cf')+'<rect y="250" width="800" height="50" fill="#8fb0bd"/><rect y="246" width="800" height="6" fill="#7a9aa8"/>'+
+  WIN(30,36,110,96)+'<rect x="20" y="168" width="140" height="10" rx="4" fill="#6b4b39"/>'+[45,95,140].map(x=>'<path d="M'+x+' 178 v10" stroke="#6b4b39" stroke-width="5" stroke-linecap="round"/>').join('')+
+  '<g transform="translate(48 186)"><rect width="44" height="54" rx="12" fill="#ffd36b"/><rect x="8" y="24" width="28" height="20" rx="6" fill="#f0b93f"/><path d="M8 0 q14 -10 28 0" fill="none" stroke="#f0b93f" stroke-width="4"/></g><path d="M130 188 q-6 30 4 54 q10 -24 4 -54Z" fill="#ff7d74"/>'+
+  '<rect x="658" y="72" width="120" height="232" rx="6" fill="#d9574f"/><rect x="650" y="64" width="136" height="12" rx="4" fill="#6b4b39"/><rect x="676" y="92" width="84" height="56" rx="6" fill="url(#sky)"/><rect x="676" y="170" width="38" height="56" rx="4" fill="#c4473f"/><rect x="722" y="170" width="38" height="56" rx="4" fill="#c4473f"/><circle cx="672" cy="210" r="6" fill="#ffd36b"/>'+
+  '<rect x="0" y="0" width="800" height="18" fill="#93b1be"/>'+FLOOR('#9a7255','#b08566')+'<g transform="translate(330 316)"><ellipse rx="22" ry="8" fill="#2a1834"/><ellipse cx="46" rx="22" ry="8" fill="#2a1834"/></g>'+'<ellipse cx="400" cy="328" rx="240" ry="18" fill="#6e93a1" opacity=".6"/>'},
+ chores:{pj:['#8ec5e8','#b4daf2'],bg:()=>WALL('#7d6aa8')+'<g fill="#9a89c4">'+Array.from({length:18},(_,i)=>'<circle cx="'+(30+(i*47)%780)+'" cy="'+(30+(i*73)%220)+'" r="4"/>').join('')+'</g>'+
+  WIN(640,36)+'<rect x="40" y="56" width="90" height="110" rx="6" fill="#ffd36b"/><path d="M58 140 l20 -50 l18 30 l10 -16 l16 36Z" fill="#ff7d74"/><circle cx="104" cy="82" r="10" fill="#fff"/>'+
+  '<g transform="translate(24 222)"><rect width="140" height="80" rx="8" fill="#5fae6e"/><rect x="-6" y="-14" width="152" height="20" rx="6" fill="#4b9a5a" transform="rotate(-14 0 0)"/><text x="70" y="52" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="600" font-size="20" fill="#fff">TOYS</text></g>'+
+  FLOOR('#c08a62','#d29c73'),
+  fg:()=>'<g><rect x="320" y="300" width="28" height="28" rx="4" fill="#ff7d74" transform="rotate(12 334 314)"/><rect x="356" y="312" width="24" height="24" rx="4" fill="#ffd36b" transform="rotate(-18 368 324)"/><text x="334" y="320" font-family="Fredoka" font-weight="600" font-size="16" fill="#fff" text-anchor="middle">A</text>'+
+   '<circle cx="452" cy="320" r="16" fill="#8ec5e8"/><path d="M436 320 h32 M452 304 q8 16 0 32" stroke="#fff" stroke-width="3" fill="none"/><g transform="translate(160 324)"><rect x="-26" y="-14" width="52" height="16" rx="6" fill="#b38de0"/><rect x="-14" y="-24" width="28" height="12" rx="4" fill="#9a72cf"/><circle cx="-14" cy="4" r="6" fill="#2a1834"/><circle cx="14" cy="4" r="6" fill="#2a1834"/></g>'+
+   '<path d="M680 330 q14 -14 30 -4 q8 -10 22 0 l-6 12 h-40Z" fill="#f7eefb"/><path d="M500 340 l26 -8 l6 10Z" fill="#7fe3c4"/><circle cx="410" cy="342" r="4" fill="#ffd36b"/><circle cx="296" cy="340" r="4" fill="#ff7d74"/></g>'},
+ early:{pj:['#b38de0','#d3b8f0'],bg:()=>WALL('#9a86b8')+'<rect x="0" y="0" width="800" height="18" fill="#86729f"/>'+
+  WIN(640,36)+'<path d="M626 26 q-14 70 0 140 h22 q-10 -70 0 -140Z M778 26 q14 70 0 140 h-22 q10 -70 0 -140Z" fill="#ff9a7a"/>'+
+  BED(-4,'#7fbfb0')+TEDDY(40,214)+'<rect x="40" y="56" width="70" height="90" rx="6" fill="#f7eefb"/><path d="M52 132 l14 -30 l12 18 l8 -10 l12 22Z" fill="#7fbfb0"/>'+
+  FLOOR('#6f5a8a','#806b9c'),
+  fg:()=>'<g transform="translate(704 300)"><rect x="-30" y="-50" width="60" height="50" rx="4" fill="#5a3d3a"/><circle cy="-70" r="18" fill="#ff7d74"/><circle cy="-70" r="13" fill="#fff"/><path d="M0 -70 v-8 M0 -70 h6" stroke="#2a1834" stroke-width="2.5" stroke-linecap="round"/><circle cx="-12" cy="-88" r="6" fill="#ff7d74"/><circle cx="12" cy="-88" r="6" fill="#ff7d74"/>'+
+   '<path d="M-30 -96 l-8 -6 M30 -96 l8 -6 M-36 -76 h-10 M36 -76 h10" stroke="#ffd36b" stroke-width="3" stroke-linecap="round"/></g>'},
+ scary:{dark:true,pj:['#8ec5e8','#b4daf2'],bg:()=>WALL('#1d1528')+'<circle cx="720" cy="200" r="190" fill="url(#tvGlow)"/>'+
+  '<rect x="640" y="250" width="150" height="54" rx="6" fill="#2c2038"/><rect x="636" y="120" width="158" height="118" rx="10" fill="#111"/><rect x="646" y="130" width="138" height="98" rx="4" fill="#163a2a"/>'+
+  '<path d="M646 228 v-24 q30 -14 70 -2 q36 -12 68 4 v22Z" fill="#0f2a1e"/><path d="M700 210 v-30 l-6 -12 m6 12 l3 -14 m-3 14 l9 -10 m-9 10 l12 -2" stroke="#8dffb0" stroke-width="5" stroke-linecap="round" fill="none"/><circle cx="752" cy="150" r="10" fill="#d8ffe2" opacity=".8"/>'+
+  '<path d="M700 238 l-10 12 M730 238 l10 12" stroke="#111" stroke-width="5"/>'+SOFA(30,150,'#4a3157','#3a2547')+LAMP(330,false)+FLOOR('#2a1e33','#33263f'),
+  fg:()=>'<g transform="translate(420 318)"><path d="M-30 -14 h60 l-8 26 h-44Z" fill="#ff7d74"/><path d="M-30 -14 h60" stroke="#fff" stroke-width="3"/><g fill="#fff7dc"><circle cx="-16" cy="-18" r="8"/><circle cx="-2" cy="-22" r="9"/><circle cx="14" cy="-18" r="8"/><circle cx="6" cy="-28" r="7"/></g></g>'},
+ bath:{pj:['#8ec5e8','#b4daf2'],bg:()=>'<rect width="800" height="360" fill="url(#tile)"/>'+
+  WIN(30,40,80,60)+
+  '<rect x="660" y="54" width="100" height="120" rx="50" fill="#e7f6f5" stroke="#9cc9c9" stroke-width="6"/><rect x="650" y="196" width="120" height="8" rx="4" fill="#9cc9c9"/><rect x="666" y="204" width="40" height="70" rx="6" fill="#ff9a7a"/><rect x="712" y="204" width="40" height="56" rx="6" fill="#7fe3c4"/>'+
+  '<rect y="300" width="800" height="60" fill="#e8f1f0"/><path d="'+Array.from({length:20},(_,i)=>'M'+(i*44)+' 300v60').join('')+'M0 330h800" stroke="#cfe0de" stroke-width="2"/>',
+  fg:()=>'<g><path d="M-10 226 h196 q0 80 -70 80 h-56 q-70 0 -70 -80Z" fill="#fff" stroke="#cfe0de" stroke-width="4"/><rect x="-14" y="218" width="204" height="14" rx="7" fill="#f0f7f7"/>'+
+   '<g fill="#fff">'+[[20,214,16],[44,206,20],[74,212,15],[100,202,22],[130,210,17],[156,214,14]].map(([x,y,r])=>'<circle cx="'+x+'" cy="'+y+'" r="'+r+'" stroke="#d6eef2" stroke-width="2"/>').join('')+'</g>'+
+   '<g transform="translate(150 196)"><ellipse rx="16" ry="11" fill="#ffd36b"/><circle cx="10" cy="-12" r="9" fill="#ffd36b"/><path d="M18 -12 l8 2 l-8 3Z" fill="#ff9a4a"/><circle cx="12" cy="-14" r="1.8" fill="#2a1834"/></g>'+
+   '<path d="M40 306 v12 M150 306 v12" stroke="#cfe0de" stroke-width="8" stroke-linecap="round"/></g>'},
+ veg:{pj:['#8ec5e8','#b4daf2'],bg:()=>'<rect width="800" height="360" fill="url(#wstripe)"/><rect y="200" width="800" height="100" fill="#8a5a48"/><rect y="196" width="800" height="8" fill="#6b4535"/>'+
+  WIN(640,36)+'<rect x="40" y="54" width="110" height="80" rx="4" fill="#6b4535"/><rect x="48" y="62" width="94" height="64" fill="#ffe7c2"/><circle cx="96" cy="96" r="20" fill="#ffd36b"/><path d="M48 126 l30 -30 l30 30Z" fill="#7fbfb0"/>'+FLOOR('#5a3a2e','#6b4535'),
+  fg:()=>'<g><rect x="296" y="252" width="208" height="14" rx="5" fill="#a86a43"/><rect x="306" y="264" width="12" height="70" fill="#8a5535"/><rect x="482" y="264" width="12" height="70" fill="#8a5535"/>'+
+   '<ellipse cx="400" cy="250" rx="46" ry="10" fill="#fff"/><ellipse cx="400" cy="248" rx="34" ry="6" fill="#eef2f6"/>'+[[384,238],[400,232],[416,238]].map(([x,y])=>'<g transform="translate('+x+' '+y+')"><rect x="-3" y="0" width="6" height="12" fill="#8fd27a"/><circle cx="-6" cy="-2" r="7" fill="#2f8a45"/><circle cx="6" cy="-2" r="7" fill="#2f8a45"/><circle cy="-8" r="8" fill="#3aa055"/></g>').join('')+
+   '<path d="M344 236 v16 M340 236 v6 M348 236 v6" stroke="#c7c7d6" stroke-width="3" stroke-linecap="round"/><rect x="452" y="232" width="5" height="20" rx="2" fill="#c7c7d6"/></g>'},
+ screen:{pj:['#8ec5e8','#b4daf2'],bg:()=>WALL('#3a2547')+WIN(612,34)+LAMP(735)+SOFA(40,150,'#6a8fb0','#4d6f8f')+'<rect x="80" y="64" width="80" height="60" rx="4" fill="#5a3d6b"/><rect x="86" y="70" width="68" height="48" fill="#ffc4a1"/>'+FLOOR('#563752','#6a4565')+'<ellipse cx="400" cy="328" rx="300" ry="22" fill="#7a4f72"/>',
+  fg:()=>'<g transform="translate(276 252)"><rect x="-22" y="-16" width="44" height="32" rx="5" fill="#2a1834"/><rect x="-18" y="-12" width="36" height="24" rx="2" fill="#8ed8ff"/><path d="M-6 -6 l12 6 l-12 6Z" fill="#fff"/></g>'},
+ bed:{pj:['#b38de0','#d3b8f0'],bg:()=>WALL('#2d2550')+'<g fill="#4a3f78">'+Array.from({length:20},(_,i)=>'<path transform="translate('+(24+(i*53)%780)+' '+(30+(i*67)%200)+')" d="M0 -6 l1.8 4.2 l4.2 1.8 l-4.2 1.8 l-1.8 4.2 l-1.8 -4.2 l-4.2 -1.8 l4.2 -1.8Z"/>').join('')+'</g>'+
+  WIN(640,36)+BED(-4,'#ff9a7a')+TEDDY(40,214)+'<path transform="translate(300 236)" d="M0 -10 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3Z" fill="#ffd36b"/>'+FLOOR('#3d3266','#4a3f78')+'<ellipse cx="420" cy="328" rx="260" ry="20" fill="#4f4380"/>'}
+};
+function setScene(id){
+ const sc=SCENES[id]||SCENES.living;
+ $('bg').innerHTML=sc.bg();$('fg').innerHTML=sc.fg?sc.fg():'';
+ $('pj0').setAttribute('fill',sc.pj[0]);$('pj1').setAttribute('fill',sc.pj[1]);
+}
+
+function mood(k,p){scene.setAttribute('class','m-'+k+' p-'+(p||'calm')+(time>=6*60&&time<18*60?' isday':''))}
+function clock(){const h=Math.floor(time/60)%24,m=time%60;
+ $('mHand').setAttribute('transform','rotate('+(m*6)+')');
+ $('hHand').setAttribute('transform','rotate('+(((h%12)+m/60)*30)+')');
+ $('timeLbl').textContent=(h%12||12)+':'+String(m).padStart(2,'0')+(h>=12?' pm':' am');
+ const day=h>=6&&h<18;
+ $('sky0').setAttribute('stop-color',day?'#8fc7e8':'#1d1638');$('sky1').setAttribute('stop-color',day?'#d9eef7':'#3b2a5c');}
+const mug='<svg viewBox="0 0 26 26" aria-hidden="true"><rect x="3" y="6" width="15" height="16" rx="3" fill="#ffc4a1"/><path d="M18 10 q6 0 6 5 t-6 5" fill="none" stroke="#ffc4a1" stroke-width="2.5"/></svg>';
+function hud(){
+ if(!st){$('topic').textContent='Pick a situation';$('topicSub').textContent=SITS.length+' standoffs. Five good answers wins each one.';$('meters').innerHTML='';clock();return}
+ $('topic').textContent=st.sit.t;$('topicSub').textContent=st.sit.s;
+ $('meters').innerHTML='<small>Spotted</small><div class="dots" aria-label="'+st.right+' of '+NEED+' spotted">'+Array.from({length:NEED},(_,i)=>'<i class="'+(i<st.right?'on':'')+'"></i>').join('')+'</div>'+
+  '<small>Energy</small><div class="mugs" aria-label="'+(MAX-st.wrong)+' energy left">'+Array.from({length:MAX},(_,i)=>'<span class="'+(i<MAX-st.wrong?'':'gone')+'">'+mug+'</span>').join('')+'</div>';
+ clock();}
+
+function title(){
+ st=null;setScene('cookie');time=17*60+15;scene.setAttribute('aria-label','Pip eyeing the cookie jar while a parent watches');
+ $('topic').textContent='Five More Minutes';$('topicSub').textContent='Main menu';$('meters').innerHTML='';clock();mood('argue');
+ const won=SITS.filter(s=>rec[s.id]==='won').length;
+ board.innerHTML='<div class="center"><p class="title">Five More Minutes</p><p>Pip has an excuse for everything, and every excuse hides a logical fallacy. Spot the fallacy to shut the excuse down before you run out of energy.</p>'+
+  '<div class="rules"><div><b>Spot 5</b><span>Name five fallacies correctly and Pip does what you say.</span></div><div><b>Miss 3</b><span>Get three wrong and you’re too tired to fight. Pip gets their way.</span></div><div><b>'+SITS.length+' situations</b><span>Cookies, bedtime, school and more. Excuses come up in a random order.</span></div></div>'+
+  (won?'<p class="def">You’ve won '+won+' of '+SITS.length+' so far.</p>':'')+
+  '<div class="row"><button class="go" id="play">Play</button><button class="ghost" id="cookieGo">Start with the cookie jar</button><a class="ghost" href="index.html">Back to the Vault</a></div></div>';
+ $('play').onclick=menu;$('cookieGo').onclick=()=>start('cookie');$('play').focus();}
+
+function menu(){
+ st=null;setScene('living');scene.setAttribute('aria-label','Pip and a parent face off in the living room');hud();mood('argue');
+ const won=SITS.filter(s=>rec[s.id]==='won').length;
+ board.innerHTML='<div class="menuhead"><h2>What’s Pip refusing to do?</h2><span>You’ve won '+won+' of '+SITS.length+'</span></div>'+
+  '<div class="sits">'+SITS.map(s=>{const r=rec[s.id];return '<button class="sit" data-id="'+s.id+'"><b>'+s.t+'</b><small>'+s.s+'</small><span class="tag '+(r||'')+'">'+(r==='won'?'Pip did it':r==='lost'?'Pip got their way':'Not tried yet')+'</span></button>'}).join('')+'</div>'+
+  '<div class="row"><button class="go" id="rand">Surprise me</button><button class="ghost" id="home">Main menu</button></div>';
+ $('home').onclick=title;
+ board.querySelectorAll('.sit').forEach(b=>b.onclick=()=>start(b.dataset.id));
+ $('rand').onclick=()=>{const fresh=SITS.filter(s=>rec[s.id]!=='won');start(pick(fresh.length?fresh:SITS).id)};}
+
+function start(id){
+ const sit=SITS.find(s=>s.id===id);time=sit.h;setScene(id);scene.setAttribute('aria-label','Pip and a parent face off: '+sit.t);
+ st={sit,queue:shuffle(sit.lines.slice()),qi:0,right:0,wrong:0};
+ ask();board.scrollIntoView({block:'nearest'});}
+
+function ask(){
+ const line=st.queue[st.qi];mood('argue');hud();
+ const excl=[line.f].concat(CLASH[line.f]||[]);
+ st.opts=shuffle([line.f].concat(shuffle(Object.keys(F).filter(k=>!excl.includes(k))).slice(0,3)));st.locked=false;
+ board.innerHTML='<div class="bubble"><span class="who">Pip</span>'+esc(line.k)+'</div>'+
+  '<p class="ask">Which fallacy is Pip using?</p><div class="opts">'+
+  st.opts.map((k,i)=>'<button class="opt" data-k="'+k+'"><kbd>'+(i+1)+'</kbd>'+F[k][0]+'</button>').join('')+'</div>';
+ board.querySelectorAll('.opt').forEach(b=>b.onclick=()=>answer(b.dataset.k));}
+
+function answer(k){
+ if(!st||st.locked)return;st.locked=true;
+ const line=st.queue[st.qi],ok=k===line.f;
+ time+=3;
+ board.querySelectorAll('.opt').forEach(b=>{b.disabled=true;if(b.dataset.k===line.f)b.classList.add('right');else if(b.dataset.k===k)b.classList.add('wrong')});
+ if(ok){st.right++;mood('stunned','smug')}else{st.wrong++;time+=10;mood('gloat','tired')}
+ st.qi++;hud();
+ const done=st.right>=NEED||st.wrong>=MAX;
+ const fb=document.createElement('div');fb.className='fb '+(ok?'good':'bad');
+ fb.innerHTML=ok?
+  '<h3>Spotted it: '+F[line.f][0]+'</h3><div class="bubble parent"><span class="who">You</span>'+esc(line.r)+'</div><p class="def">'+F[line.f][1]+'</p>':
+  '<h3>Not quite. That was '+F[line.f][0]+'</h3><div class="bubble"><span class="who">Pip</span>'+esc(pick(TAUNTS))+'</div><p class="def">'+F[line.f][1]+'</p><p>You could have said: “'+esc(line.r)+'”</p>';
+ fb.insertAdjacentHTML('beforeend','<div class="row"><button class="go" id="next">'+(done?'See what happens':'Next excuse')+' →</button></div>');
+ board.appendChild(fb);$('next').onclick=next;$('next').focus();}
+
+function next(){
+ if(st.right>=NEED)return end(true);
+ if(st.wrong>=MAX)return end(false);
+ ask();}
+
+function end(won){
+ const s=st.sit;
+ if(won)rec[s.id]='won';else if(rec[s.id]!=='won')rec[s.id]='lost';save();
+ mood(won?(s.sleep?'sleep':'sulk'):'gloat',won?'smug':'tired');
+ $('meters').innerHTML='';
+ $('topicSub').textContent=won?'Pip did what you said':'Pip got their way';
+ const nextSit=SITS[(SITS.indexOf(s)+1)%SITS.length];
+ board.innerHTML='<div class="center"><p class="big '+(won?'won':'lost')+'">'+(won?'Pip gives in.':'You’re too tired to fight.')+'</p><p>'+(won?s.win:s.lose)+'</p>'+
+  '<div class="stats"><div><b>'+st.right+'</b><span>fallacies spotted</span></div><div><b>'+st.wrong+'</b><span>missed</span></div><div><b>'+$('timeLbl').textContent+'</b><span>when it ended</span></div></div>'+
+  '<div class="row"><button class="go" id="nx">Next: '+nextSit.t+'</button><button class="ghost" id="again">Try this one again</button><button class="ghost" id="back">All situations</button><button class="ghost" id="home">Main menu</button></div></div>';
+ $('nx').onclick=()=>start(nextSit.id);$('again').onclick=()=>start(s.id);$('back').onclick=menu;$('home').onclick=title;$('nx').focus();}
+
+document.addEventListener('keydown',e=>{
+ const n=parseInt(e.key,10);
+ if(e.key==='Escape'){title();return}
+ if(st&&!st.locked&&n>=1&&n<=4&&board.querySelector('.opt'))answer(st.opts[n-1]);});
+$('gloss').innerHTML=Object.values(F).map(f=>'<div><b>'+f[0]+'</b>: '+f[1]+'</div>').join('');
+title();
+}
+</script>
+</body>
+</html>
