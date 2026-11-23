@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teacher Email Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: friendly, practical, a teacher's quick tool between classes
+   IDEA: the school office pigeonhole: pick a slip, fill the blanks, send
+   PICTURE: the live email itself, large, beside the template finder
+   COLOUR and TYPE: pencil yellow band, white paper, blue ink selection, red-pen accent; Lexend + Atkinson Hyperlegible
+   LAYOUT: setup band on top, finder left, live email right; stacks on phones */
+:root{color-scheme:light dark;
+--bg:light-dark(#f4f5f7,#121419);--paper:light-dark(#fff,#1b1e25);--ink:light-dark(#1b1c20,#eceef2);--mute:light-dark(#5d6270,#9aa0ad);
+--line:light-dark(#dfe2e8,#2d313b);--band:light-dark(#ffc933,#2b2410);--bandink:light-dark(#1b1c20,#ffd75e);
+--blue:light-dark(#2550c8,#7d9cff);--bluebg:light-dark(#e9efff,#1f2a4a);--red:light-dark(#d62839,#ff6b78);--field:light-dark(#fff,#14161c)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Atkinson Hyperlegible",system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Lexend,system-ui,sans-serif;margin:0;line-height:1.1;text-wrap:balance}
+.band{padding:clamp(20px,3vw,36px) max(4vw,16px)}
+header{background:var(--band);color:var(--bandink)}
+header .wrap,main{max-width:1240px;margin:0 auto}
+h1{font-size:clamp(28px,4vw,40px)}
+.sub{margin:6px 0 18px;opacity:.85}
+.setup{display:grid;grid-template-columns:1.3fr 1.4fr 1fr 1fr 1fr;gap:12px;align-items:end}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:700}
+input[type=text],input[type=search],textarea{font:16px/1.4 inherit;font-family:inherit;color:var(--ink);background:var(--field);border:2px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;width:100%}
+header input[type=text]{border-color:transparent}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.req input{border-color:var(--red)!important}
+.seg{display:flex;background:var(--field);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;color:var(--ink);font:700 15px/1 inherit;font-family:inherit;min-height:38px;border-radius:8px;cursor:pointer;white-space:nowrap;padding:0 6px}
+.seg button[aria-pressed=true]{background:var(--blue);color:#fff}
+main{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:24px;padding:24px max(4vw,16px) 48px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px}
+.finder{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:none;color:var(--ink);border-radius:99px;padding:6px 11px;font:14px/1 inherit;font-family:inherit;cursor:pointer;min-height:34px}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip small{opacity:.65;margin-left:3px}
+.list{overflow:auto;margin:0 -6px;padding:0 6px;flex:1}
+.cat{font:700 13px/1 Lexend,sans-serif;color:var(--mute);margin:14px 4px 6px}
+.item{display:block;width:100%;text-align:left;border:0;background:none;color:var(--ink);padding:10px 12px;border-radius:10px;cursor:pointer;font:16px/1.3 inherit;font-family:inherit;min-height:44px}
+.item:hover{background:var(--bg)}
+.item[aria-current=true]{background:var(--bluebg);color:var(--blue);font-weight:700}
+.item mark{background:light-dark(#fff0b3,#4a3d0c);color:inherit;border-radius:3px}
+.empty{color:var(--mute);padding:16px 4px}
+.hint{font-size:13px;color:var(--mute)}
+.compose{display:flex;flex-direction:column;gap:16px}
+.thead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline}
+.thead h2{font-size:clamp(22px,2.6vw,30px)}
+.tag{font-size:13px;font-weight:700;color:var(--red)}
+.opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 14px}
+.opts h3{grid-column:1/-1;font-size:15px;margin-top:6px}
+.tog{display:flex;gap:10px;align-items:flex-start;cursor:pointer;padding:6px 0;font-size:15px;line-height:1.35}
+.tog input{appearance:none;flex:none;width:40px;height:24px;border-radius:99px;background:var(--line);position:relative;cursor:pointer;margin:0;transition:background .15s}
+.tog input::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px #0004;transition:transform .15s}
+.tog input:checked{background:var(--blue)}.tog input:checked::after{transform:translateX(16px)}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.fields label.f{font-weight:400;font-size:14px;color:var(--mute)}
+.mail{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 10px 30px -18px #0005}
+.mrow{display:flex;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line)}
+.mrow b{font-size:14px;color:var(--mute);width:62px;flex:none}
+.mrow input{border:0;padding:6px 0;font-weight:700;background:none;min-height:36px}
+#body{border:0;border-radius:0;min-height:420px;padding:18px;resize:vertical;line-height:1.6;background:none}
+.actions{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line);align-items:center}
+.btn{border:0;border-radius:10px;padding:0 16px;min-height:44px;font:700 15px/1 inherit;font-family:inherit;cursor:pointer;background:var(--bg);color:var(--ink);text-decoration:none;display:inline-flex;align-items:center}
+.btn.primary{background:var(--blue);color:#fff}
+.toast{margin-left:auto;font-size:14px;color:var(--blue);font-weight:700;opacity:0;transition:opacity .2s}
+.toast.on{opacity:1}
+.note{font-size:13px;color:var(--mute);padding:0 16px 12px}
+@media(max-width:1000px){.setup{grid-template-columns:1fr 1fr}.setup .wide{grid-column:1/-1}}
+@media(max-width:860px){main{grid-template-columns:minmax(0,1fr)}.finder{position:static;max-height:none}.list{max-height:360px}}
+@media(max-width:600px){.setup{grid-template-columns:1fr}#body{min-height:360px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="band"><div class="wrap">
+  <h1>Teacher Email Builder</h1>
+  <p class="sub">Type the student's name, choose pronouns, pick a situation. The email writes itself.</p>
+  <div class="setup">
+    <label class="f" id="nameWrap">Student name<input type="text" id="sName" placeholder="e.g. Maya" autocomplete="off"></label>
+    <div class="f"><label class="f" for="pron" style="display:block">Pronouns</label>
+      <div class="seg" id="pron" role="group" aria-label="Pronouns">
+        <button data-p="she" aria-pressed="false">she/her</button><button data-p="he" aria-pressed="false">he/him</button><button data-p="they" aria-pressed="true">they/them</button>
+      </div></div>
+    <label class="f">Parent name <span class="hint" style="font-weight:400">(optional)</span><input type="text" id="pName" placeholder="Mrs Lopez"></label>
+    <label class="f">Your name<input type="text" id="tName" placeholder="Ms Tanaka"></label>
+    <label class="f">Class / subject<input type="text" id="cls" placeholder="Grade 3B"></label>
+  </div>
+</div></header>
+
+<main>
+  <aside class="panel finder">
+    <input type="search" id="q" placeholder="Search: uniform, praise, interrupting, absent…  ( / )" aria-label="Search templates">
+    <div class="chips" id="chips"></div>
+    <div class="list" id="list"></div>
+  </aside>
+
+  <section class="compose">
+    <div class="panel">
+      <div class="thead"><h2 id="tTitle"></h2><span class="tag" id="tCat"></span></div>
+      <div class="fields" id="fields" style="margin-top:12px"></div>
+      <div class="opts" id="opts"></div>
+      <div class="opts" id="gopts"></div>
+      <label class="f" style="margin-top:10px;font-weight:400;font-size:14px;color:var(--mute)">Personal note (optional, added as its own paragraph)
+        <textarea id="pnote" rows="2" placeholder="e.g. She told me all about her trip to the aquarium!"></textarea></label>
+    </div>
+    <div class="mail">
+      <div class="mrow"><b>Subject</b><input type="text" id="subj" aria-label="Subject"></div>
+      <textarea id="body" aria-label="Email body"></textarea>
+      <div class="actions">
+        <button class="btn primary" id="cAll">Copy subject + email</button>
+        <button class="btn" id="cBody">Copy email only</button>
+        <button class="btn" id="cSubj">Copy subject</button>
+        <a class="btn" id="mailto" href="#">Open in mail app</a>
+        <span class="toast" id="toast" role="status">Copied</span>
+      </div>
+      <p class="note">You can edit the text above before copying. Changing a setting rewrites it.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+{
+const T = [
+// ---------- CELEBRATING ----------
+{c:"Celebrating",t:"Positive note home",k:"praise good day great happy proud compliment shout out value respect responsibility safety",s:"A positive note about {name}",
+ b:["I am delighted to share some positive news about {name}. In {class} {@when}, {he} showed real {@value}: {@what}.","This is exactly the kind of behaviour we hope to see from our KIST students, and {he} should feel very proud."],
+ f:[["when","When","today"],["value","KIST value shown","respect"],["what","What they did","{he} listened carefully to {his} classmates and encouraged others to share their ideas"]],
+ o:[["Note that it is becoming a pattern","This is not a one-off. {He} {has} been showing this consistently, and it has a positive effect on the whole class.",1],["Encourage celebrating at home","Please do share this with {him} at home. Recognition from family means a great deal.",1]]},
+{c:"Celebrating",t:"Weekly award nomination",k:"award certificate nomination recognition student of the week e-card assembly",s:"{name} has been recognised!",
+ b:["I am very pleased to let you know that {name} has received {@award} this week.","{He} earned this for {@why}. It is wonderful to see {him} living our school values of Respect, Responsibility and Safety."],
+ f:[["award","Award","a weekly award nomination"],["why","Reason","the kindness and responsibility {he} {has} shown in class"]],
+ o:[["Mention the assembly","The award will be presented at our assembly on {@day}.",0]],
+ f2:[["day","Assembly day","Friday"]]},
+{c:"Celebrating",t:"Academic progress",k:"improvement grades better progress improving growth",s:"{name}'s progress in {class}",
+ b:["I am happy to share that {name} has made clear progress in {class}, particularly in {@area}.","{He} {has} been working steadily and applying the feedback {he} receive{s}, and it is paying off."],
+ f:[["area","Area of progress","{his} reading comprehension"]],
+ o:[["Credit support at home","Your support at home is clearly making a difference. Thank you.",1],["Encourage keeping it up","If {he} continue{s} in this way, I am confident {he} will keep growing this semester.",1]]},
+{c:"Celebrating",t:"Excellent piece of work",k:"test project high score outstanding assessment writing",s:"Excellent work from {name}",
+ b:["I wanted to let you know that {name} produced an excellent piece of work for {@work}.","{His} work was thoughtful, carefully presented and showed strong understanding. {He} should be very proud."],
+ f:[["work","Task","our recent assessment"]],o:[]},
+{c:"Celebrating",t:"Kindness to others",k:"kind helpful friend caring empathy respect others",s:"{name}'s kindness in class",
+ b:["I wanted to share a lovely moment from today. {@what}","Showing respect and care for others is at the heart of our KIST values, and this did not go unnoticed. Thank you for supporting {him} to be such a considerate member of our community."],
+ f:[["what","What happened","{name} noticed a classmate was finding a task difficult and offered to help without being asked."]],o:[]},
+{c:"Celebrating",t:"Leadership & role model",k:"leader leadership group work team role model responsibility",s:"{name} showed great leadership",
+ b:["I would like to recognise the leadership {name} showed during {@activity}. {He} helped organise the group, encouraged others and made sure everyone had a voice.","{He} {is} a positive role model for {his} classmates."],
+ f:[["activity","Activity","our group project"]],o:[]},
+{c:"Celebrating",t:"Effort & perseverance",k:"effort hard work grit persistence trying resilience",s:"Recognising {name}'s effort",
+ b:["I want to recognise the effort {name} has been putting into {class}. Even when the work has been challenging, {he} {has} kept going and asked for help when {he} needed it.","Taking responsibility for {his} learning in this way is a very important skill, and I am proud of {him}."],o:[]},
+{c:"Celebrating",t:"Behaviour has improved",k:"improved behaviour better turnaround follow up positive progress plan",s:"Positive update on {name}",
+ b:["I wanted to follow up on our earlier conversation with some positive news. Over the past {@period}, {name} has made a real effort with {@area}.","{He} {has} been responding well to the strategies we agreed, and the change is noticeable. Thank you for your partnership at home."],
+ f:[["period","Time period","few weeks"],["area","Area","following class expectations"]],o:[]},
+{c:"Celebrating",t:"Great use of English",k:"english language common language speaking confidence esl",s:"{name}'s growing confidence in English",
+ b:["I wanted to share that {name} has been making a real effort to use English in class and with friends.","{His} confidence is growing every week, and {he} {is} helping to make English our shared community language. Well done to {him}!"],o:[]},
+// ---------- LEARNING & PREPARATION ----------
+{c:"Learning & preparation",t:"Classwork not completed",k:"classwork incomplete unfinished effort best ability focus self-impacting",s:"{name}'s classwork in {class}",
+ b:["{name} is still learning to complete {his} classwork to the best of {his} ability, and at times {his} work does not yet show what {he} {is} capable of. For example, {@example}.","I have talked with {him} about this, and with gentle encouragement at home and at school, I am confident {he} can make the most of {his} learning time."],
+ f:[["example","Example","on {@date} {he} completed only part of {his} writing task"],["date","Date","Tuesday"]],
+ o:[["Suggest a home conversation","It would help if you could talk with {him} at home about trying {his} best in class.",1],["Mention a visual checklist","I will be using a simple checklist with {him} in class to help {him} stay on track.",0]]},
+{c:"Learning & preparation",t:"Homework concerns",k:"homework not done incomplete pattern routine self-impacting",s:"Homework support for {name}",
+ b:["{name} is still building a steady homework routine, and over the past {@period} {his} homework has not always reflected what {he} {is} capable of.","Homework helps {him} practise what we learn in class, so I would like to work together to build a routine that supports {him}."],
+ f:[["period","Time period","few weeks"]],
+ o:[["Suggest a routine","A set time and a quiet place for homework each day can make a big difference, along with a quick check of {his} homework diary each evening.",1]]},
+{c:"Learning & preparation",t:"Missing assignments",k:"missing work not handed in overdue late assignments",s:"Outstanding work for {name}",
+ b:["I am writing to let you know that {name} currently has outstanding work in {class}: {@items}.","I know {he} can complete these well, and I would like to help {him} catch up so {he} can feel on top of {his} learning."],
+ f:[["items","Outstanding work","{his} last two homework tasks"]],
+ o:[["Give a catch-up deadline","If {he} hand{s} the work in by {@due}, it will still be accepted.",1]],
+ f2:[["due","Catch-up deadline","the end of next week"]]},
+{c:"Learning & preparation",t:"Test result concern",k:"test exam quiz low score result assessment best ability",s:"{name}'s recent test",
+ b:["{name} is capable of more than {his} recent result on {@test} shows, and I wanted to let you know so we can support {him} together.","This is not a cause for alarm, but I would like {him} to review the material so that any gaps do not carry forward."],
+ f:[["test","Test","our most recent test"]],
+ o:[["Suggest revision at home","Reviewing {his} notes for 10 to 15 minutes each evening would be a great help.",1]]},
+{c:"Learning & preparation",t:"Unprepared: equipment",k:"unprepared equipment supplies forgot pencil case books stationery self-impacting",s:"Equipment for {class}",
+ b:["{name} is still learning to come fully prepared for lessons. {He} {has} come to {class} without {@item} on {@times}.","Being prepared is one of our core expectations, and having the right equipment allows {him} to take a full part in the lesson. Students are not able to leave class to collect forgotten items."],
+ f:[["item","Missing item","{his} pencil case"],["times","How often","several occasions this week"]],
+ o:[["Suggest packing the night before","Checking {his} bag together the evening before can be a helpful routine.",1]]},
+{c:"Learning & preparation",t:"Uniform",k:"uniform dress code appearance shoes clothes self-impacting",s:"{name}'s uniform",
+ b:["I am writing to let you know that {name} was not in full school uniform {@when}. Specifically, {@issue}.","Our uniform code reflects the expectations of our host culture, and wearing it correctly is part of representing our school well."],
+ f:[["when","When","today"],["issue","Issue","{he} {was} not wearing {his} school shoes"]],
+ o:[["Mention the school shop","If needed, the missing item can be purchased from the school shop.",0]]},
+{c:"Learning & preparation",t:"Using English in class",k:"japanese language other than english common language self-impacting",s:"Supporting {name}'s use of English",
+ b:["{name} is still developing the habit of using English during lessons, and at times {he} speak{s} {@lang} even after gentle reminders.","English is our common community language, and using it in class helps every student feel included and supports {his} own language development."],
+ f:[["lang","Language","Japanese"]],
+ o:[["Ask for encouragement at home","It would really help if you could encourage {him} to use English at school, and talk with {him} about why it matters.",1]]},
+{c:"Learning & preparation",t:"Workspace organisation",k:"workspace desk messy organisation tidy organised self-impacting",s:"Helping {name} stay organised",
+ b:["{name} is learning to keep {his} workspace ready for learning. At times {he} lose{s} valuable time finding materials, which can be frustrating for {him}.","I am supporting {him} in class with simple routines, and it would help to practise the same habits at home."],o:[]},
+{c:"Learning & preparation",t:"Pattern of self-impacting behaviour",k:"summary pattern logs repeated self impacting support routine checklist",s:"Supporting {name}'s learning habits",
+ b:["I wanted to share a short summary of some learning habits {name} is still developing. On several occasions over recent weeks, {he} {has} {@pattern}.","These behaviours mainly affect {his} own learning, and I would like to work together to support {him}. A consistent routine at home, such as {@routine}, would be very helpful."],
+ f:[["pattern","Pattern","not completed {his} classwork and come to class without the equipment {he} need{s}"],["routine","Suggested routine","packing {his} bag together the night before"]],
+ o:[["Mention a checklist","I will also be introducing a visual checklist in class to help {him} take ownership of these habits.",1]]},
+{c:"Learning & preparation",t:"Low participation",k:"quiet shy not participating disengaged speak up group work",s:"Encouraging {name} to participate",
+ b:["I wanted to reach out about {name}'s participation in {class}. {He} clearly ha{s|ve} good ideas, but {he} rarely share{s} them with the class.","I would love to help {him} feel more confident taking part fully in lessons."],
+ o:[["Ask what helps","Is there anything that helps {him} feel confident that I could try in class?",1]]},
+{c:"Learning & preparation",t:"Recommend extra support",k:"tutor tutoring support intervention help reading struggling",s:"Extra support for {name}",
+ b:["I am reaching out because {name} has been finding {@topic} challenging. {He} {is} trying hard, and I think {he} would benefit from {@support}.","Extra practice in a smaller setting often helps students build confidence quickly."],
+ f:[["topic","Topic","some of our recent maths work"],["support","Support","some additional practice at home"]],o:[]},
+{c:"Learning & preparation",t:"Academic integrity",k:"cheating copying plagiarism ai honesty integrity",s:"A concern about {name}'s work",
+ b:["I am writing about {name}'s recent work on {@work}. It appears that parts of it may not have been completed independently.","Academic honesty is an important part of our Code of Conduct, and this includes using AI appropriately. My aim is for {name} to reflect on this and learn from it."],
+ f:[["work","Assignment","a recent assignment"]],
+ o:[["Offer a chance to redo","{He} will have the opportunity to redo the task independently.",1]]},
+{c:"Learning & preparation",t:"Progress update",k:"progress report update grades how are they doing semester",s:"Progress update for {name}",
+ b:["I wanted to give you a short update on how {name} is getting on in {class}.","Strengths: {@strengths}.\nNext step: {@grow}."],
+ f:[["strengths","Strengths","{his} positive attitude and willingness to help others"],["grow","Next step","completing written work with greater care"]],o:[]},
+// ---------- BEHAVIOUR ----------
+{c:"Behaviour",t:"Interrupting lessons",k:"disrupt disruptive interrupting calling out talking community-impacting",s:"{name}'s behaviour in {class}",
+ b:["{name} brings a lot of enthusiasm to {class}, and at times this makes it hard for {him} to wait {his} turn. Over the past {@period}, {he} {has} often interrupted lessons by {@how}, even after gentle reminders of our class expectations.","This is starting to affect {his} own learning and that of {his} classmates. I have had a restorative conversation with {name}, and {he} {was} able to reflect on it. Your support in talking this through at home would be very helpful."],
+ f:[["period","Time period","week"],["how","How","calling out while others are speaking"]]
+ ,o:[["Express confidence","I am confident that, with our shared encouragement, {he} will make positive changes.",1]]},
+{c:"Behaviour",t:"Not following directions",k:"directions instructions not listening ignoring community-impacting",s:"{name} and class expectations",
+ b:["{name} is still learning to follow directions the first time they are given. For example, on {@when}, {@example}.","I have talked with {him} about why following directions keeps everyone safe and able to learn. Your support at home in reinforcing this would be very helpful."],
+ f:[["when","Date","Monday"],["example","Example","{he} continued playing after the class had been asked to line up"]],o:[]},
+{c:"Behaviour",t:"Talking back to staff",k:"rude disrespectful talking back attitude defiant staff community-impacting",s:"A concern about {name}'s conduct",
+ b:["On {@when}, {name} found it difficult to respond respectfully to {@who} when {he} {was} asked to {@ask}.","Treating adults and peers with respect is one of our core expectations. I have spoken with {name} and given {him} the chance to reflect. I would be grateful if you could talk with {him} about it at home as well."],
+ f:[["when","When","today during break"],["who","To whom","a member of staff"],["ask","Asked to","return to class"]],o:[]},
+{c:"Behaviour",t:"Inappropriate language",k:"swearing bad words language rude words community-impacting",s:"{name}'s language at school",
+ b:["On {@when}, {name} used some language {@where} that is not appropriate for school.","We ask all students to use positive and polite language. I have discussed this with {name}, and I would appreciate your support in reinforcing it at home."],
+ f:[["when","When","today"],["where","Where","in the classroom"]],o:[]},
+{c:"Behaviour",t:"Refusing to take part or share",k:"refusing participate group work share resources community-impacting",s:"{name} and group work",
+ b:["{name} has a lot to contribute, so I wanted to let you know that {he} {has} recently been {@what} during {class}.","Working with others and sharing resources are important parts of our classroom community. I have talked with {name} about this, and I would welcome any insight you might have."],
+ f:[["what","What happened","reluctant to take part in group activities"]],o:[]},
+{c:"Behaviour",t:"Safety: running & equipment",k:"running hallways corridors unsafe misuse equipment facilities safety community-impacting",s:"Keeping {name} and others safe",
+ b:["I wanted to let you know that {name} has been {@what} on several occasions, including {@when}.","{His} energy is wonderful, and we are working on helping {him} use it safely. Safety is one of our three core values, and this behaviour could put {him} or others at risk. I have discussed this with {him}, and your support at home would be very helpful."],
+ f:[["what","Behaviour","running in the hallways"],["when","Most recent","this morning"]],o:[]},
+{c:"Behaviour",t:"Physical incident with a peer",k:"hitting pushing kicking fight physical hurt community-impacting serious",s:"An incident involving {name}",
+ b:["I am writing to inform you of an incident that took place {@when} {@where}. {@what}","The incident was addressed straight away, and both students were supported to talk through what happened. As this involved physical harm, it has been shared with our Senior Management Team, who will follow up in line with our Code of Conduct."],
+ f:[["when","When","today"],["where","Where","during recess on the field"],["what","What happened (facts only)","{name} pushed another student, who fell to the ground."]],
+ o:[["Ask to talk at home","I would be grateful if you could talk with {him} about keeping {himself} and others safe.",1]]},
+{c:"Behaviour",t:"Unkind words / bullying concern",k:"bullying name-calling teasing unkind words verbal cyberbullying community-impacting serious",s:"An important matter regarding {name}",
+ b:["I am reaching out about a concern involving {name}. On {@when}, {@what}.","KIST does not tolerate unkind or hurtful behaviour, and every student has the right to feel safe at school. This has been shared with our Senior Management Team, who will be following up."],
+ f:[["when","When","Thursday"],["what","What happened (facts only)","{name} was reported to have called another student unkind names during lunch"]],
+ o:[["Request a call","I would like to speak with you in the next day or two. Please let me know a time that suits you.",1]]},
+{c:"Behaviour",t:"Damaging or taking belongings",k:"damage property stealing taking belongings vandalism community-impacting serious",s:"An incident involving {name}",
+ b:["I am writing to let you know that on {@when}, {@what}.","We expect all students to treat the school and the belongings of others with care. This has been shared with our Senior Management Team, who will follow up with an appropriate response."],
+ f:[["when","When","Wednesday"],["what","What happened (facts only)","{name} took a classmate's pencil case without asking and did not return it"]],o:[]},
+{c:"Behaviour",t:"Technology misuse",k:"technology device ipad computer inappropriate website content online community-impacting",s:"{name}'s use of technology",
+ b:["I wanted to let you know that on {@when}, {name} {@what} during {class}.","Technology at school is for learning only and under adult supervision. Using it safely and appropriately is one of our core expectations. This has been shared with our Senior Management Team."],
+ f:[["when","When","Tuesday"],["what","What happened","accessed a website that was not appropriate for school"]],o:[]},
+{c:"Behaviour",t:"Attitude during follow-up",k:"aggressive disrespectful attitude restorative conversation reflection",s:"Follow-up on {name}'s behaviour",
+ b:["Following an incident in {class} {@when}, I met with {name} to talk through what had happened. During our conversation, {he} found it difficult to {@attitude}.","I wanted you to be aware of this, as reflecting respectfully is an important part of learning from mistakes. I will be discussing next steps with our Senior Management Team."],
+ f:[["when","When","today"],["attitude","What was difficult","reflect calmly, and spoke disrespectfully at times"]],o:[]},
+{c:"Behaviour",t:"Request a meeting about behaviour",k:"meeting pattern behaviour concern plan interventions home room",s:"Meeting request: {name}",
+ b:["Could we perhaps get together to talk about how {name} is getting on at school? There are a few patterns I would like to share, and I would value your ideas on how we can best support {him} together.","Would {@when} suit you? I am happy to meet in person or online."],
+ f:[["when","Suggested time","a time next week"]],
+ o:[["Mention a support plan","At the meeting, we can discuss putting a support plan in place with clear, achievable targets.",1]]},
+// ---------- ATTENDANCE ----------
+{c:"Attendance",t:"Frequent absences",k:"absent absence missing school attendance",s:"{name}'s attendance",
+ b:["We always miss {name} when {he} {is} away, and I wanted to reach out because {he} {has} missed {@days} of school recently.","When {he} {is} away, {he} miss{es} important learning. I want to make sure everything is all right and see how we can support {him}."],
+ f:[["days","Days missed","several days"]],o:[]},
+{c:"Attendance",t:"Late arrivals",k:"late punctual tardy morning arriving",s:"Punctuality for {name}",
+ b:["I wanted to let you know that {name} has arrived late to school {@freq}.","Being punctual is one of our core expectations, and the start of the day often includes important instructions. Anything you can do to help {him} arrive before {@time} would be much appreciated."],
+ f:[["freq","How often","several times recently"],["time","Start time","8:30"]],o:[]},
+{c:"Attendance",t:"Catching up after absence",k:"make up missed work returning catch up",s:"Welcome back, {name}",
+ b:["I hope {name} is feeling better. While {he} {was} away, we covered {@covered}.","I have put together the work {he} missed and will help {him} catch up in class."],
+ f:[["covered","What was covered","some important new learning"]],
+ o:[["Give extra time","There is no rush; {he} can take until {@due} to complete it.",1]],
+ f2:[["due","Deadline","next week"]]},
+// ---------- WELLBEING ----------
+{c:"Wellbeing",t:"Seemed upset or withdrawn",k:"sad upset quiet withdrawn emotional crying worried",s:"Checking in about {name}",
+ b:["I wanted to let you know that {name} seemed {@mood} at school {@when}.","I checked in with {him}, and I wanted to make you aware in case there is anything we can do to support {him}."],
+ f:[["mood","How they seemed","a little quieter than usual"],["when","When","today"]],
+ o:[["Mention the counsellor","Our school counsellor is also available if {he} would like someone to talk to.",1]]},
+{c:"Wellbeing",t:"Minor injury",k:"hurt injury fell bump accident nurse playground",s:"Minor injury today: {name}",
+ b:["I wanted to let you know that {name} had a minor accident {@when}. {@what}","{He} {was} looked after straight away and seemed fine afterwards. Please keep an eye on it this evening."],
+ f:[["when","When","at recess today"],["what","What happened","{He} slipped and bumped {his} knee."]],o:[]},
+{c:"Wellbeing",t:"Feeling unwell",k:"sick ill unwell nurse headache stomach",s:"{name} was unwell today",
+ b:["I wanted to let you know that {name} was not feeling well today and mentioned {@sym}.","{He} visited the nurse and was able to rest. Please keep an eye on {him} this evening."],
+ f:[["sym","Symptoms","a headache"]],o:[]},
+{c:"Wellbeing",t:"Tired in class",k:"tired sleep sleepy exhausted rest",s:"Checking in: {name} seems tired",
+ b:["I have noticed that {name} has seemed very tired in class recently, and it is affecting {his} concentration.","Getting enough sleep is an important part of being ready to learn. Could we perhaps talk about this? It would be a pity if tiredness kept {him} from working to {his} true potential."],o:[]},
+{c:"Wellbeing",t:"Exploring additional support",k:"learning support sen needs referral help consult concerns",s:"Supporting {name}'s learning",
+ b:["I would like to talk with you about how we can best support {name}. I have noticed that {he} sometimes find{s} {@area} challenging, even with the strategies we use in class.","I would like to explore with our learning support team whether there are further adjustments that could help {him}. I would value your perspective, as you know {him} best."],
+ f:[["area","Area","staying focused during longer tasks"]],o:[]},
+// ---------- MEETINGS & ADMIN ----------
+{c:"Meetings & admin",t:"Request a meeting",k:"meeting conference call talk discuss",s:"Meeting request: {name}",
+ b:["I would like to arrange a time to talk with you about {name}'s progress in {class}.","Would {@when} suit you? I am happy to meet in person or online."],
+ f:[["when","Suggested time","a time next week"]],o:[]},
+{c:"Meetings & admin",t:"Follow-up after meeting",k:"follow up after meeting summary next steps agreed",s:"Following up on our meeting",
+ b:["Thank you for taking the time to meet with me about {name}. I really appreciate your partnership.","As agreed, our next steps are: {@steps}. I will update you again in a few weeks."],
+ f:[["steps","Next steps","a daily checklist in class and a weekly check-in by email"]],o:[]},
+{c:"Meetings & admin",t:"Welcome to the year",k:"welcome start of year introduction semester new teacher",s:"Welcome to {class}!",
+ b:["My name is {teacher}, and I am delighted to be {name}'s teacher this year.","Our class will be guided by the KIST values of Respect, Responsibility and Safety, and I look forward to working closely with you. Please feel free to contact me at any time."],
+ o:[["Ask about the student","If there is anything you would like me to know about {name}, such as interests, strengths or worries, I would love to hear it.",1],["Mention the Parent Welcome evening","I look forward to meeting you at our Parent Welcome evening.",0]]},
+{c:"Meetings & admin",t:"Field trip permission",k:"field trip excursion permission slip outing",s:"Field trip permission for {name}",
+ b:["Our class will be visiting {@place} on {@date}.","We have not yet received {name}'s permission slip. Please return it by {@due} so that {he} can join us. As always, students will be expected to wear full uniform and represent our school well."],
+ f:[["place","Destination","the science museum"],["date","Date","next Thursday"],["due","Slip due","Monday"]],o:[]},
+{c:"Meetings & admin",t:"Upcoming test reminder",k:"test reminder revise study upcoming",s:"Upcoming test in {class}",
+ b:["This is a reminder that we have a test on {@topic} on {@date}.","Encouraging {name} to review {his} notes a little each evening will help {him} feel prepared and confident."],
+ f:[["topic","Topic","our current unit"],["date","Date","Friday"]],o:[]},
+{c:"Meetings & admin",t:"Reply to a parent's concern",k:"reply response parent concern complaint question",s:"Re: your message about {name}",
+ b:["Thank you for contacting me about {@concern}. I appreciate you letting me know.","{@reply}"],
+ f:[["concern","Their concern","{name}'s recent experience in class"],["reply","Your response","I have looked into this and would be glad to talk it through with you."]],o:[]},
+{c:"Meetings & admin",t:"Thank you to a parent",k:"thanks thank you volunteer help appreciation",s:"Thank you",
+ b:["I wanted to say a sincere thank you for {@thanks}.","Your support makes a real difference to {name} and to our whole class community."],
+ f:[["thanks","What for","volunteering at our class event"]],o:[]},
+{c:"Meetings & admin",t:"Supplies needed",k:"supplies materials stationery bring need",s:"Supplies for {class}",
+ b:["I wanted to let you know that {name} needs {@items} for {class}.","If this is difficult for any reason, please let me know privately and I will make sure {he} ha{s|ve} what {he} need{s}."],
+ f:[["items","Supplies","a new notebook"]],o:[]},
+{c:"Meetings & admin",t:"End of year note",k:"end of year term goodbye farewell summer",s:"End of year: {name}",
+ b:["As the year comes to a close, I wanted to say what a pleasure it has been to teach {name}.","{He} {has} grown so much, and I am proud of everything {he} {has} achieved. I wish {him} every success next year."],o:[]},
+];
+
+const SOFTC=["Learning & preparation","Behaviour"],SOFTT=["Frequent absences","Late arrivals","Tired in class","Exploring additional support"];
+T.forEach(t=>{if(t.t==="Progress update"||!(SOFTC.includes(t.c)||SOFTT.includes(t.t)))return;
+  const serious=/serious/.test(t.k);
+  t.o=[["Open with a strength","{name} is {@strength}, and I really enjoy having {him} in our class.",serious?0:1],...t.o];
+  t.f2=[...(t.f2||[]),["strength","Strength to open with","kind, thoughtful and full of good ideas"]];
+  t.lead=1;});
+const P = {
+ she:{he:"she",him:"her",his:"her",himself:"herself",is:"is",was:"was",has:"has",does:"does",s:"s",es:"es",v:0},
+ he:{he:"he",him:"him",his:"his",himself:"himself",is:"is",was:"was",has:"has",does:"does",s:"s",es:"es",v:0},
+ they:{he:"they",him:"them",his:"their",himself:"themselves",is:"are",was:"were",has:"have",does:"do",s:"",es:"",v:1}
+};
+const G = [
+ ["hope","Open with “I hope you are well”",1],
+ ["q","Invite questions",1],
+ ["meet","Offer a call or meeting",0],
+ ["thx","Thank them for their partnership",1],
+ ["sch","Add school name to sign-off",1]
+];
+const $ = id=>document.getElementById(id);
+const st = {pron:"they",cat:"All",sel:0,opt:{},g:{},fv:{}};
+let saved={};try{saved=JSON.parse(localStorage.getItem("peb")||"{}")}catch(e){}
+["sName","pName","tName","cls"].forEach(id=>{if(saved[id])$(id).value=saved[id]});
+if(saved.pron&&P[saved.pron])st.pron=saved.pron;
+G.forEach(g=>st.g[g[0]]=saved.g&&g[0] in saved.g?saved.g[g[0]]:!!g[2]);
+const save=()=>{try{localStorage.setItem("peb",JSON.stringify({sName:$("sName").value,pName:$("pName").value,tName:$("tName").value,cls:$("cls").value,pron:st.pron,g:st.g}))}catch(e){}};
+
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function fill(str,fields,raw){
+  const p=P[st.pron],name=$("sName").value.trim()||"your child",cls=$("cls").value.trim()||"class";
+  str=str.replace(/\{@(\w+)\}/g,(m,k)=>fields[k]??"");
+  str=str.replace(/\{(\w)\|(\w+)\}/g,(m,a,b)=>p.v?b:a); // ha{s|ve}
+  const map={name,class:cls,teacher:$("tName").value.trim()||"your child's teacher",
+    he:p.he,him:p.him,his:p.his,himself:p.himself,is:p.is,was:p.was,has:p.has,does:p.does,s:p.s,es:p.es};
+  str=str.replace(/\{(\w+)\}n't/g,(m,k)=>({is:p.v?"aren't":"isn't",was:p.v?"weren't":"wasn't",does:p.v?"don't":"doesn't",has:p.v?"haven't":"hasn't"}[k]||m));
+  str=str.replace(/\{(\w+)\}/g,(m,k)=>{if(k in map)return map[k];const l=k.toLowerCase();if(l in map)return cap(map[l]);return m});
+  // they + verb-s fixes already handled; fix "they miss" etc handled by {es}
+  if(raw)return str;
+  return str.replace(/(^|[.!?]\s+|\n)([a-z])/g,(m,a,b)=>a+b.toUpperCase());
+}
+function fieldVals(t){
+  const all=[...(t.f||[]),...(t.f2||[])],out={};
+  all.forEach(([k,,d])=>{const v=(st.fv[k]||"").trim();out[k]=v||fill(d,{},1)});
+  return out;
+}
+function render(){
+  const t=T[st.sel],fv=fieldVals(t);
+  $("tTitle").textContent=t.t;$("tCat").textContent=t.c;
+  const fs=[...(t.f||[]),...(t.f2||[]).filter(f=>t.o.some(o=>o[1].includes("{@"+f[0]+"}")&&st.opt[o[0]]))];
+  const ex=document.activeElement&&document.activeElement.dataset.fk;
+  if($("fields").dataset.for!==st.sel+"|"+fs.map(f=>f[0]).join()){
+    $("fields").dataset.for=st.sel+"|"+fs.map(f=>f[0]).join();
+    $("fields").innerHTML=fs.map(([k,l,d])=>`<label class="f">${esc(l)}<input type="text" data-fk="${k}" value="${esc(st.fv[k]||"")}" placeholder="${esc(fill(d,{},1))}"></label>`).join("");
+    if(ex){const el=$("fields").querySelector(`[data-fk="${ex}"]`);el&&el.focus()}
+  }
+  $("opts").innerHTML=t.o.length?`<h3>Options for this email</h3>`+t.o.map(o=>`<label class="tog"><input type="checkbox" data-o="${esc(o[0])}" ${st.opt[o[0]]?"checked":""}>${esc(o[0])}</label>`).join(""):"";
+  $("gopts").innerHTML=`<h3>Every email</h3>`+G.map(g=>`<label class="tog"><input type="checkbox" data-g="${g[0]}" ${st.g[g[0]]?"checked":""}>${g[1]}</label>`).join("");
+  const parent=$("pName").value.trim(),teacher=$("tName").value.trim(),cls=$("cls").value.trim();
+  const paras=[];
+  if(st.g.hope)paras.push("I hope this email finds you well.");
+  t.b.forEach(x=>paras.push(fill(x,fv)));
+  if(t.lead&&st.opt[t.o[0][0]])paras.splice(st.g.hope?1:0,0,fill(t.o[0][1],fv));
+  t.o.forEach((o,i)=>{if(!(t.lead&&i===0)&&st.opt[o[0]])paras.push(fill(o[1],fv))});
+  const note=$("pnote").value.trim();if(note)paras.push(note);
+  const close=[];
+  if(st.g.meet)close.push("I would be very happy to arrange a time to talk, in person or online.");
+  if(st.g.q)close.push("Please do not hesitate to contact me if you have any questions.");
+  if(close.length)paras.push(close.join(" "));
+  if(st.g.thx)paras.push("Thank you, as always, for your support and partnership.");
+  const sig=["Kind regards,",teacher||"[Your name]",cls?cls+" Teacher":"",st.g.sch?"K International School Tokyo":""].filter(Boolean).join("\n");
+  $("subj").value=fill(t.s,fv);
+  $("body").value=`Dear ${parent||"Parent/Guardian"},\n\n`+paras.join("\n\n")+"\n\n"+sig;
+  $("mailto").href="mailto:?subject="+encodeURIComponent($("subj").value)+"&body="+encodeURIComponent($("body").value);
+  $("nameWrap").classList.toggle("req",!$("sName").value.trim());
+}
+function pick(i){
+  st.sel=i;st.opt={};st.fv={};T[i].o.forEach(o=>st.opt[o[0]]=!!o[2]);
+  renderList();render();
+  if(innerWidth<860)$("tTitle").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
+}
+const cats=["All",...new Set(T.map(t=>t.c))];
+function renderChips(){
+  $("chips").innerHTML=cats.map(c=>`<button class="chip" data-c="${c}" aria-pressed="${st.cat===c}">${c}<small>${c==="All"?T.length:T.filter(t=>t.c===c).length}</small></button>`).join("");
+}
+function renderList(){
+  const q=$("q").value.trim().toLowerCase(),words=q.split(/\s+/).filter(Boolean);
+  const hits=T.map((t,i)=>({t,i})).filter(({t})=>(st.cat==="All"||t.c===st.cat)&&words.every(w=>(t.t+" "+t.k+" "+t.c).toLowerCase().includes(w)));
+  if(!hits.length){$("list").innerHTML=`<p class="empty">No templates match “${esc(q)}”. Try a simpler word like <b>late</b>, <b>uniform</b> or <b>praise</b>.</p>`;return}
+  const hl=s=>{let h=esc(s);words.forEach(w=>{h=h.replace(new RegExp("("+w.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"),"<mark>$1</mark>")});return h};
+  let out="",last="";
+  hits.forEach(({t,i})=>{if(t.c!==last){out+=`<div class="cat">${t.c}</div>`;last=t.c}
+    out+=`<button class="item" data-i="${i}" aria-current="${i===st.sel}">${hl(t.t)}</button>`});
+  $("list").innerHTML=out;
+}
+// events
+$("pron").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;st.pron=b.dataset.p;
+  $("pron").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));save();render()});
+["sName","pName","tName","cls"].forEach(id=>$(id).addEventListener("input",()=>{save();render()}));
+$("pnote").addEventListener("input",render);
+$("q").addEventListener("input",renderList);
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter"){const b=$("list").querySelector(".item");b&&pick(+b.dataset.i)}});
+$("chips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;st.cat=b.dataset.c;renderChips();renderList()});
+$("list").addEventListener("click",e=>{const b=e.target.closest(".item");b&&pick(+b.dataset.i)});
+$("opts").addEventListener("change",e=>{st.opt[e.target.dataset.o]=e.target.checked;render()});
+$("gopts").addEventListener("change",e=>{st.g[e.target.dataset.g]=e.target.checked;save();render()});
+$("fields").addEventListener("input",e=>{if(e.target.dataset.fk){st.fv[e.target.dataset.fk]=e.target.value;render()}});
+$("subj").addEventListener("input",()=>{$("mailto").href="mailto:?subject="+encodeURIComponent($("subj").value)+"&body="+encodeURIComponent($("body").value)});
+$("body").addEventListener("input",()=>$("subj").dispatchEvent(new Event("input")));
+document.addEventListener("keydown",e=>{if(e.key==="/"&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName)){e.preventDefault();$("q").focus()}});
+let tt;
+async function copy(text,msg){
+  try{await navigator.clipboard.writeText(text)}catch(err){const ta=$("body");ta.focus();ta.select();try{document.execCommand("copy")}catch(e2){msg="Press Ctrl/Cmd+C to copy"}}
+  $("toast").textContent=msg;$("toast").classList.add("on");clearTimeout(tt);tt=setTimeout(()=>$("toast").classList.remove("on"),1800);
+}
+$("cAll").addEventListener("click",()=>copy("Subject: "+$("subj").value+"\n\n"+$("body").value,"Copied subject + email"));
+$("cBody").addEventListener("click",()=>copy($("body").value,"Copied email"));
+$("cSubj").addEventListener("click",()=>copy($("subj").value,"Copied subject"));
+renderChips();
+$("pron").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x.dataset.p===st.pron));
+pick(0);
+}
+</script>
+</body>
+</html>
