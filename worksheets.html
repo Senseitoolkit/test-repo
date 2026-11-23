@@ -696,6 +696,30 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .optile, .chip, .btn, .seg button, .tabs button, .q { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
   .optile:active, .chip:active, .btn:active { transform: translateY(1px); }
 }
+
+/* Visual choices, as in the worksheet maker: range cards with a sample question, table cards with their first multiples */
+#addMax.rcards { --rc: var(--c-add); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 0; background: none; border: 0; border-radius: 0; flex: 1 1 100%; }
+#addMax.rcards button { display: grid; gap: 6px; align-content: start; padding: 8px 6px 7px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--muted); min-width: 0; position: relative; }
+#addMax.rcards button .ex { display: grid; gap: 2px; padding: 6px 4px; border: 1px dashed var(--line); border-radius: 8px; background: var(--bg); font-size: .72rem; letter-spacing: -.01em; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#addMax.rcards button .ex i { font-style: normal; }
+#addMax.rcards button .ex .xa { color: var(--c-add); } #addMax.rcards button .ex .xs { color: var(--c-sub); }
+#addMax.rcards button b { font-size: .95rem; color: var(--ink); }
+#addMax.rcards button b::before { content: "up to "; font-weight: 500; color: var(--muted); font-size: .8rem; }
+#addMax.rcards button:hover { border-color: var(--rc); }
+#addMax.rcards button[aria-pressed="true"] { border-color: var(--rc); box-shadow: 0 0 0 1px var(--rc); background: color-mix(in srgb, var(--rc) 8%, var(--paper)); }
+#addMax.rcards button[aria-pressed="true"] .ex { background: var(--paper); border-style: solid; border-color: color-mix(in srgb, var(--rc) 40%, transparent); }
+#addMax.rcards button[aria-pressed="true"]::after { content: "✓"; position: absolute; top: 3px; right: 4px; width: 16px; height: 16px; border-radius: 50%; background: var(--rc); color: #fff; font-size: .62rem; display: grid; place-items: center; }
+#addsub { align-items: flex-start; }
+#tables { --tc: var(--c-mul); display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; flex: 1 1 100%; }
+#tables .tchip { width: auto; height: auto; display: grid; gap: 1px; padding: 6px 2px 5px; border-radius: 10px; }
+#tables .tchip b { font-size: 1rem; color: var(--ink); }
+#tables .tchip b i { font-style: normal; color: var(--tc); margin-right: 1px; }
+#tables .tchip small { font-size: .62rem; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#tables .tchip:hover { border-color: var(--tc); }
+#tables .tchip[aria-pressed="true"] { background: var(--tc); border-color: var(--tc); }
+#tables .tchip[aria-pressed="true"] b, #tables .tchip[aria-pressed="true"] b i, #tables .tchip[aria-pressed="true"] small { color: #fff; }
+#muldiv { align-items: flex-start; }
+@media (max-width: 520px) { #addMax.rcards { grid-template-columns: repeat(2, minmax(0, 1fr)); } #tables { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 </style>
 </head>
 <body>
@@ -752,9 +776,9 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
       <div class="stepbody">
         <div class="line" id="addsub">
           <span class="k">Answers up to</span>
-          <div class="seg" id="addMax">
-            <button type="button" data-v="10">10</button><button type="button" data-v="20">20</button>
-            <button type="button" data-v="100">100</button><button type="button" data-v="1000">1000</button>
+          <div class="seg rcards" id="addMax">
+            <button type="button" data-v="10"><span class="ex"></span><b>10</b></button><button type="button" data-v="20"><span class="ex"></span><b>20</b></button>
+            <button type="button" data-v="100"><span class="ex"></span><b>100</b></button><button type="button" data-v="1000"><span class="ex"></span><b>1000</b></button>
           </div>
           <label class="switch" id="bridgeWrap"><input type="checkbox" id="bridge"> <span id="bridgeLbl">Bridging 10 only</span></label>
         </div>
@@ -1385,7 +1409,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
     const box = $("tables");
     for (let t = 1; t <= 12; t++) {
       const b = document.createElement("button");
-      b.type = "button"; b.className = "chip"; b.dataset.t = t; b.textContent = t;
+      b.type = "button"; b.className = "chip tchip"; b.dataset.t = t; b.innerHTML = '<b><i class="tsym">×</i>' + t + "</b><small>" + [1, 2, 3].map(k => k * t).join(", ") + "…</small>";
       b.setAttribute("aria-label", t + " times table");
       box.appendChild(b);
     }
@@ -1399,6 +1423,11 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
     press("#count button", b => +b.dataset.v === S.count);
     press("#versions button", b => +b.dataset.v === S.versions);
     press("#tables .chip", b => S.tables.includes(+b.dataset.t));
+    /* sample questions on the range cards, in the operation colours, as in the worksheet maker's topic cards */
+    { const o = S.ops, cross = br() === "cross", EX = { 10: ["4 + 5", "9 − 3"], 20: cross ? ["8 + 7", "15 − 8"] : ["12 + 5", "17 − 4"], 100: cross ? ["47 + 36", "82 − 45"] : ["43 + 25", "86 − 34"], 1000: cross ? ["358 + 476", "702 − 365"] : ["324 + 452", "786 − 352"] };
+      document.querySelectorAll("#addMax button").forEach(b => { const e = EX[b.dataset.v]; b.querySelector(".ex").innerHTML = (o.add ? '<i class="xa">' + e[0] + " = □</i>" : "") + (o.sub ? '<i class="xs">' + e[1] + " = □</i>" : ""); });
+      $("addMax").style.setProperty("--rc", o.add ? "var(--c-add)" : "var(--c-sub)");
+      const onlyDiv = o.div && !o.mul; $("tables").style.setProperty("--tc", onlyDiv ? "var(--c-div)" : "var(--c-mul)"); document.querySelectorAll("#tables .tsym").forEach(x => { x.textContent = onlyDiv ? "÷" : "×"; }); }
     $("addsub").hidden = !hasAS();
     $("muldiv").hidden = !hasMD();
     $("numHint").hidden = hasAS() || hasMD();
