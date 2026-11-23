@@ -261,7 +261,25 @@
       .ytile, .ob, .btn, .seg button, .tabs button, .q, .opt { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
       .ytile:active, .ob:active, .btn:active { transform: translateY(1px); }
     }
-    </style>
+    
+    /* Strand glyphs and objective cards with an example, as in the Hanami worksheets app, in the Toolkit palette */
+    :root { --g-word: #c96a17; --g-sentence: #2f78b8; --g-text: #3d8a4e; --g-punct: #cf4f3f; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --g-word: #f0a55e; --g-sentence: #6fb0e8; --g-text: #7cc98d; --g-punct: #ff8f80; } }
+    :root[data-theme="dark"] { --g-word: #f0a55e; --g-sentence: #6fb0e8; --g-text: #7cc98d; --g-punct: #ff8f80; }
+    .strand h3 { align-items: center; }
+    .sic, .obi { --gc: var(--g-sentence); font-style: normal; font-family: var(--f-display); font-weight: 400; letter-spacing: 0; text-transform: none; display: inline-grid; place-items: center; border-radius: 7px; background: color-mix(in srgb, var(--gc) 15%, var(--panel)); color: var(--gc); line-height: 1; }
+    .sic { min-width: 28px; height: 24px; padding: 0 5px; font-size: .98rem; }
+    .obs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 8px; }
+    .ob { position: relative; display: grid; gap: 7px; align-content: start; padding: 10px 11px 11px; border-radius: 12px; color: var(--ink); background: var(--panel); max-width: none; }
+    .ob::before { position: absolute; top: 11px; right: 10px; }
+    .obh { display: flex; gap: 8px; align-items: center; padding-right: 22px; min-width: 0; }
+    .obi { flex: none; min-width: 30px; height: 26px; padding: 0 5px; font-size: 1.02rem; }
+    .obt { font-weight: 600; font-size: .88rem; line-height: 1.25; }
+    .obx { font-weight: 500; font-size: .86rem; line-height: 1.4; color: var(--fg); background: var(--soft); border: 1px dashed var(--line); border-radius: 8px; padding: 6px 8px; }
+    .obx .mk { text-decoration: underline; text-decoration-color: var(--yc); text-decoration-thickness: 1.5px; text-underline-offset: 3px; font-weight: 700; color: var(--ink); }
+    .ob[aria-pressed="true"] { box-shadow: 0 0 0 1px var(--yc); }
+    .ob[aria-pressed="true"] .obx { background: var(--panel); border-style: solid; border-color: color-mix(in srgb, var(--yc) 40%, transparent); }
+</style>
 </head>
 <body>
 <header class="site-header">
@@ -2044,18 +2062,21 @@
       box.appendChild(b);
     });
   })();
+  /* Strand glyphs, as in the Hanami worksheets app; colours match the Quick Grammar Check. */
+  const glyph = n => /^Words/.test(n) ? "Aa" : /^Punct/.test(n) ? ",?!" : /^Verbs|^Tense/.test(n) ? "-ed" : /^Text/.test(n) ? "¶" : "S.";
+  const gkey = n => /^Words/.test(n) ? "word" : /^Punct/.test(n) ? "punct" : /^Verbs|^Tense|^Text/.test(n) ? "text" : "sentence";
   function buildStrands() {
     const box = $("strands"); box.innerHTML = "";
     const ids = selectedIds();
     YEARS[S.year].strands.forEach((st, si) => {
       const d = document.createElement("div"); d.className = "strand";
-      const h = document.createElement("h3"); h.textContent = st.name;
+      const h = document.createElement("h3"); h.innerHTML = '<i class="sic" style="--gc:var(--g-' + gkey(st.name) + ')">' + glyph(st.name) + "</i>" + esc(st.name);
       d.appendChild(h);
       const obs = document.createElement("div"); obs.className = "obs";
       st.objs.forEach(o => {
         const b = document.createElement("button"); b.type = "button"; b.className = "ob"; b.dataset.id = o.id;
         b.setAttribute("aria-pressed", ids.includes(o.id) ? "true" : "false"); b.title = o.full || o.text;
-        b.innerHTML = "<span>" + esc(o.text.replace(/\.$/, "")) + "</span>";
+        b.innerHTML = '<span class="obh"><i class="obi" style="--gc:var(--g-' + gkey(st.name) + ')">' + glyph(st.name) + '</i><span class="obt">' + esc(o.text.replace(/\.$/, "")) + '</span></span>' + (o.ex ? '<span class="obx">' + richHtml(o.ex) + "</span>" : "");
         obs.appendChild(b);
       });
       d.appendChild(obs); box.appendChild(d);
