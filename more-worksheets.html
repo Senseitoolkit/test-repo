@@ -664,6 +664,21 @@ input[type="text"]:focus, input[type="search"]:focus, select:focus { border-colo
   .optile, .tchip, .btn, .seg button, .tabs button, .q, .card { transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
   .optile:active, .tchip:active, .btn:active { transform: translateY(1px); }
 }
+
+/* Topic cards with a sample question, as in the Hanami worksheets app, in the Toolkit palette */
+#topics { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.tcard { --op-tint: color-mix(in srgb, var(--op) 10%, var(--panel)); position: relative; display: grid; grid-template-rows: auto 1fr auto; gap: 6px; padding: 8px 8px 9px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); text-align: left; font-weight: 600; height: auto; }
+.tcard .tx { display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; min-height: 66px; background: #fff; border: 1px dashed var(--line); border-radius: 8px; padding: 6px; overflow: hidden; color: #2f2a25; }
+.tcard .tpic { width: 100%; height: 50px; display: block; }
+.tcard .tt { font-size: .76rem; font-weight: 500; line-height: 1.3; text-align: center; color: #574f46; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tcard .tt.teq { font-size: .98rem; font-weight: 600; color: #2f2a25; font-variant-numeric: tabular-nums; }
+.tcard .tn { font-size: .86rem; line-height: 1.28; }
+.tcard small { margin: 0; font-size: .64rem; }
+.tcard:hover { border-color: var(--op); }
+.tcard:hover .tx { border-color: color-mix(in srgb, var(--op) 45%, transparent); }
+.tcard[aria-pressed="true"] { background: var(--op-tint); color: var(--ink); border-color: var(--op); box-shadow: 0 0 0 1px var(--op); }
+.tcard[aria-pressed="true"] .tx { border-style: solid; border-color: color-mix(in srgb, var(--op) 40%, transparent); }
+.tcard[aria-pressed="true"]::after { content: "✓"; position: absolute; top: 4px; right: 5px; width: 18px; height: 18px; border-radius: 50%; background: var(--op); color: #fff; font-size: .7rem; display: grid; place-items: center; }
 </style>
 
 <header class="site-header gut">
@@ -1855,13 +1870,30 @@ window.addEventListener("DOMContentLoaded", function () {
   /* ---------- controls ---------- */
   (function buildYears() { const b = $("years"); for (let y = 0; y <= 6; y++) { const x = document.createElement("button"); x.type = "button"; x.dataset.v = y; x.textContent = y === 0 ? "R" : "Y" + y; x.setAttribute("aria-label", yearName(y)); b.appendChild(x); } })();
   const press = (sel, test) => document.querySelectorAll(sel).forEach(b => b.setAttribute("aria-pressed", test(b) ? "true" : "false"));
+  /* A sample question on every topic card, as in the Hanami worksheets app: the topic's own generator with a fixed seed. */
+  const EXC = {};
+  const tokTxt = t => t == null ? "" : typeof t !== "object" ? String(t) : ("b" in t) ? "▢" : t.f ? (t.f.length === 3 ? tokTxt(t.f[0]) + " " + tokTxt(t.f[1]) + "/" + tokTxt(t.f[2]) : tokTxt(t.f[0]) + "/" + tokTxt(t.f[1])) : "";
+  function exampleOf(s) {
+    const k = s.y + "-" + s.s + "-" + s.idx; if (EXC[k] !== undefined) return EXC[k];
+    let h = "";
+    try {
+      const q = s.gen(makeR(mulberry32(4242 + s.idx * 31 + s.y)));
+      const eq = q.eq ? (Array.isArray(q.eq) ? q.eq : [q.eq]) : null;
+      if (q.pic) h += '<svg class="tpic" viewBox="0 0 ' + q.pic.w + ' ' + q.pic.h + '" preserveAspectRatio="xMidYMid meet">' + q.pic.s(false) + '</svg>';
+      let txt = eq ? eq.map(tokTxt).join(" ") : "";
+      if (!txt && q.p) txt = q.p;
+      if (q.ans !== undefined && eq) txt += (q.pre ? " " + q.pre : "") + " ▢";
+      if (txt) { if (txt.length > 64) txt = txt.slice(0, 62).replace(/\s+\S*$/, "") + "…"; h += '<span class="tt' + (eq ? " teq" : "") + '">' + esc(txt) + '</span>'; }
+    } catch (e) { h = ""; }
+    return (EXC[k] = h || '<span class="tt">' + esc(s.name) + '</span>');
+  }
   function syncControls() {
     if (!YEAR_STRANDS(S.year).includes(S.strand)) S.strand = YEAR_STRANDS(S.year)[0];
     press("#years button", b => +b.dataset.v === S.year);
     $("strands").innerHTML = YEAR_STRANDS(S.year).map(s => '<button class="optile" type="button" data-s="' + s + '" style="--op:var(--s-' + s + ')" aria-pressed="' + (s === S.strand) + '"><b>' + STRANDS[s].icon + '</b><span>' + esc(strandShort(S.year, s)) + '</span></button>').join("");
     press("#term button", b => b.dataset.v === S.term);
     const sel = mainSel().map(s => s.idx), sh = shown();
-    $("topics").innerHTML = sh.length ? sh.map(s => '<button class="tchip" type="button" data-i="' + s.idx + '" style="--op:var(--s-' + S.strand + ')" aria-pressed="' + sel.includes(s.idx) + '" title="' + esc(s.obj) + '">' + esc(s.name) + '<small>' + s.terms.split("").map(t => TERMN[t][0] + TERMN[t][1]).join(" ") + '</small></button>').join("") : '<p class="hint">No topics for this strand in the ' + TERMN[S.term] + ' term. Choose another term.</p>';
+    $("topics").innerHTML = sh.length ? sh.map(s => '<button class="tchip tcard" type="button" data-i="' + s.idx + '" style="--op:var(--s-' + S.strand + ')" aria-pressed="' + sel.includes(s.idx) + '" title="' + esc(s.obj) + '"><span class="tx" aria-hidden="true">' + exampleOf(s) + '</span><span class="tn">' + esc(s.name) + '</span><small>' + s.terms.split("").map(t => TERMN[t][0] + TERMN[t][1]).join(" ") + '</small></button>').join("") : '<p class="hint">No topics for this strand in the ' + TERMN[S.term] + ' term. Choose another term.</p>';
     $("objs").innerHTML = selected().slice(0, 6).map(s => '<li><span class="tm">' + s.terms.split("").map(t => TERMN[t].slice(0, 3)).join(" · ") + '</span><b>' + esc(s.name) + '.</b> ' + esc(s.obj) + '</li>').join("") + (selected().length > 6 ? '<li>…and ' + (selected().length - 6) + ' more topics</li>' : "");
     const L = layout();
     $("count").innerHTML = L.counts.map(c => '<button type="button" data-v="' + c + '" aria-pressed="' + (c === S.count) + '">' + c + '</button>').join("");
