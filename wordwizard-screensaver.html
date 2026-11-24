@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Word Wizard Saver</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&family=Gaegu:wght@400;700&display=swap">
+<style>
+/* Layout: same wall as the phonics saver. One big stage where a word is built letter by letter, then clues and choices appear under it; a third of the screen for clock, sticky notes and class timer. */
+:root{
+  --bg:#fef9f0; --panel:#ffffff; --ink:#3a3340; --muted:#a59cad; --line:#efe4d6; --line-strong:#e0d2bf;
+  --a:#ff8a3d; --b:#7b6ef6; --c:#e0a800; --note:#fff1a6; --note-ink:#3b3220; --chip:#fff3e0;
+  --f-display:"Fredoka", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --f-ui:"Nunito", system-ui, -apple-system, sans-serif;
+  --f-note:"Gaegu", "Comic Sans MS", "Chalkboard SE", cursive;
+  --grid-img:radial-gradient(var(--line) 1px, transparent 1px); --grid-size:22px 22px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#211c28; --panel:#2c2533; --ink:#f4eef8; --muted:#7d7388; --line:#3d3446; --line-strong:#4d4356;
+  --a:#ff9a55; --b:#9a8fff; --c:#ffc83d; --note:#f3e38f; --note-ink:#2f2814; --chip:#36283a; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#211c28; --panel:#2c2533; --ink:#f4eef8; --muted:#7d7388; --line:#3d3446; --line-strong:#4d4356;
+  --a:#ff9a55; --b:#9a8fff; --c:#ffc83d; --note:#f3e38f; --note-ink:#2f2814; --chip:#36283a; color-scheme:dark }
+:root[data-skin="chalk"]{ --bg:#22352b; --panel:#2a3f34; --ink:#f3f4e9; --muted:#7f9686; --line:#34503f; --line-strong:#466654;
+  --a:#fff6cf; --b:#ffafc5; --c:#9fe3ff; --note:#f4e39a; --note-ink:#33301c; --chip:#2f4739; color-scheme:dark; --grid-img:none }
+:root[data-skin="graph"]{ --bg:#fbfdff; --panel:#ffffff; --ink:#16314c; --muted:#94a8bd; --line:#cfe0f3; --line-strong:#b5cbe4;
+  --a:#1f6feb; --b:#e5484d; --c:#d18b00; --note:#fff3b0; --note-ink:#3a3015; --chip:#e9f1fb; color-scheme:light;
+  --grid-img:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px); --grid-size:28px 28px }
+:root[data-skin="midnight"]{ --bg:#0b0d1a; --panel:#141830; --ink:#ebe9ff; --muted:#5d6190; --line:#22284a; --line-strong:#323a66;
+  --a:#8f80ff; --b:#33d6b6; --c:#ffcf5c; --note:#ffd9f2; --note-ink:#36203a; --chip:#1b2040; color-scheme:dark; --grid-img:none }
+:root[data-skin="sunset"]{ --bg:#fff0e4; --panel:#fff8f2; --ink:#4a1e18; --muted:#b99282; --line:#f2d6c3; --line-strong:#e8c1a8;
+  --a:#df532a; --b:#7a3cbd; --c:#c98a00; --note:#fff7c2; --note-ink:#4a3418; --chip:#fbe2d2; color-scheme:light; --grid-img:none }
+:root[data-skin="ocean"]{ --bg:#052a33; --panel:#0a3641; --ink:#def6f5; --muted:#5e8f96; --line:#0f4552; --line-strong:#1b5a68;
+  --a:#47d2c9; --b:#ffcf61; --c:#ff8fa3; --note:#c9f2e4; --note-ink:#0f3a32; --chip:#0e4250; color-scheme:dark; --grid-img:none }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0; background:var(--bg); background-image:var(--grid-img); background-size:var(--grid-size); color:var(--ink);
+  font-family:var(--f-ui); font-weight:600; overflow:hidden;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px));}
+button,input,select{font:inherit; color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--a); outline-offset:2px}
+
+.app{height:100%; display:grid; grid-template-rows:auto 1fr; gap:12px; padding-block:12px}
+.bar{display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px}
+.brand{font-family:var(--f-display); font-weight:700; font-size:1.35rem; margin-right:auto; display:flex; align-items:center; gap:8px}
+.brand i{width:26px; height:26px; border-radius:50%; background:var(--b); display:inline-block; position:relative}
+.brand i::after{content:"★"; position:absolute; inset:0; display:grid; place-items:center; color:var(--bg); font-size:.8rem; font-style:normal}
+.group{display:flex; flex-wrap:wrap; align-items:center; gap:6px}
+.lbl{font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin-right:2px; font-weight:800}
+select{height:40px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); padding:0 10px}
+.swatch{width:28px; height:28px; border-radius:50%; border:2px solid var(--line-strong); padding:0; position:relative; overflow:hidden}
+.swatch[aria-pressed="true"]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink)}
+.swatch i{position:absolute; inset:0}
+.go{height:40px; padding:0 18px; border-radius:999px; border:0; background:var(--a); color:var(--bg); font-family:var(--f-display); font-weight:600}
+.ghost{height:40px; padding:0 14px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); font-family:var(--f-display); font-weight:600}
+.ghost[aria-pressed="true"]{border-color:var(--a)}
+
+main{min-height:0; display:grid; grid-template-columns:minmax(0,2fr) minmax(320px,1fr); gap:24px; position:relative}
+.stage{min-height:0; min-width:0; display:grid; grid-template-rows:auto minmax(90px,1fr) auto auto auto auto; justify-items:center; gap:10px}
+.tags{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; min-height:34px; padding-top:1vmin}
+.tag{padding:5px 14px; border-radius:999px; background:var(--chip); color:var(--ink); font-size:clamp(.85rem,1.8vmin,1.1rem); font-weight:800}
+.tag b{font-family:var(--f-display); color:var(--b); font-weight:600}
+.tag.step{color:var(--a)}
+
+/* the word being built */
+.wordWrap{width:100%; min-height:0; display:grid; place-items:center; overflow:hidden}
+.wordBox{display:inline-flex; flex-direction:column; align-items:stretch}
+.word{display:flex; align-items:flex-start; gap:.12em; transition:gap .7s cubic-bezier(.3,.8,.3,1)}
+.blend .word{gap:0}
+.slot{display:flex; flex-direction:column; align-items:stretch; min-width:.5em}
+.lt{font-family:var(--f-display); font-weight:600; line-height:1; color:var(--ink); text-align:center; white-space:pre;
+  opacity:0; transform:translateY(.25em) scale(.5); transition:color .6s, transform .45s cubic-bezier(.2,1.6,.4,1), opacity .3s}
+.slot.on .lt{opacity:1; transform:none}
+.slot.now .lt{color:var(--a); transform:translateY(-.06em) scale(1.08)}
+.ul{height:.07em; margin-top:.1em; border-radius:999px; background:var(--line-strong); transition:background .4s, opacity .5s}
+.slot.on .ul{background:var(--b)}
+.blend .ul{opacity:0}
+.swoosh{height:.2em; margin-top:.02em; position:relative; transform:scaleX(0); transform-origin:left; transition:transform .9s cubic-bezier(.5,0,.2,1); opacity:0}
+.blend .swoosh{transform:scaleX(1); opacity:1}
+.swoosh::before{content:""; position:absolute; left:0; right:0; top:calc(50% - .04em); height:.08em; border-radius:.04em; background:var(--c)}
+.blend .wordBox{animation:cheer .6s .2s ease-out}
+@keyframes cheer{50%{transform:scale(1.06)}}
+
+.caption{font-family:var(--f-display); font-weight:500; font-size:clamp(1.15rem,3.2vmin,2rem); color:var(--muted); text-align:center; min-height:1.4em; text-wrap:balance}
+.caption b{color:var(--ink); font-weight:600}
+.caption small{font-family:var(--f-ui); font-size:.6em; font-weight:800; margin-left:.6em; font-variant-numeric:tabular-nums}
+
+/* clues */
+.clues{list-style:none; margin:0; padding:0; width:min(680px,100%); display:grid; gap:6px}
+.clue{display:grid; grid-template-columns:auto 1fr; gap:10px; align-items:baseline; padding:5px 14px; border-radius:14px; background:var(--chip);
+  font-size:clamp(.95rem,2.3vmin,1.35rem); line-height:1.25; opacity:0; transform:translateY(8px); transition:opacity .5s, transform .5s}
+.clue.show{opacity:1; transform:none}
+.clue b{font-size:.68em; text-transform:uppercase; letter-spacing:.09em; color:var(--b); font-weight:800; white-space:nowrap}
+
+/* multiple choice */
+.mc{width:min(680px,100%); display:grid; gap:8px; opacity:0; transition:opacity .4s}
+.mc.live,.mc.over{opacity:1}
+.mcTimer{display:grid; grid-template-columns:auto 1fr; gap:10px; align-items:center}
+.mcNum{font-family:var(--f-display); font-weight:700; font-size:clamp(1.2rem,3vmin,1.8rem); line-height:1; width:1.5em; text-align:center; color:var(--a); font-variant-numeric:tabular-nums}
+.mcBar{height:12px; border-radius:12px; background:var(--line); overflow:hidden}
+.mcBar i{display:block; height:100%; width:100%; background:var(--a); transform-origin:left}
+.mc.over .mcTimer{visibility:hidden}
+.opts{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.opt{display:grid; grid-template-columns:auto 1fr; gap:10px; align-items:center; text-align:left; min-height:48px; padding:6px 14px 6px 6px;
+  border-radius:16px; border:2px solid var(--line-strong); background:var(--panel); font-size:clamp(.9rem,2.1vmin,1.25rem); line-height:1.2; font-weight:700;
+  transition:opacity .4s, border-color .3s, background .3s}
+.opt i{font-style:normal; font-family:var(--f-display); font-weight:600; width:1.9em; height:1.9em; border-radius:50%; background:var(--chip); color:var(--b); display:grid; place-items:center}
+.mc:not(.live) .opt{pointer-events:none}
+.opt.wrong{opacity:.4; text-decoration:line-through; animation:shake .35s}
+.opt.right{border-color:var(--b); background:color-mix(in srgb, var(--b) 16%, var(--panel))}
+.opt.right i{background:var(--b); color:var(--bg)}
+.mc.over .opt:not(.right){opacity:.35}
+@keyframes shake{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+@media (max-width:520px){ .opts{grid-template-columns:1fr} }
+
+/* answer line when choices are off */
+.answer{width:min(680px,100%); text-align:center; font-family:var(--f-display); font-weight:600; font-size:clamp(1.2rem,3.4vmin,2.1rem); line-height:1.2; min-height:2.4em;
+  color:var(--b); opacity:0; transform:scale(.9); transition:opacity .5s, transform .5s cubic-bezier(.2,1.6,.4,1); text-wrap:balance}
+.answer.show{opacity:1; transform:none}
+.answer small{display:block; font-family:var(--f-ui); font-size:.5em; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:800}
+
+.progress{width:min(520px,100%); height:8px; border-radius:8px; background:var(--line); overflow:hidden; margin-bottom:4px}
+.progress i{display:block; height:100%; width:0; background:var(--a)}
+.emptyMsg{font-family:var(--f-display); font-size:1.4rem; color:var(--muted); text-align:center; max-width:28ch}
+.hint{font-size:.8rem; color:var(--muted)}
+
+/* rail: clock, notes, class timer */
+.notes{min-height:0; display:flex; flex-direction:column; gap:10px}
+.notes h2{font-family:var(--f-display); font-size:clamp(1.3rem,3vmin,2rem); font-weight:600; margin:0; display:flex; justify-content:space-between; align-items:baseline}
+.notes h2 small{font-family:var(--f-ui); color:var(--muted); font-size:.9rem}
+.add{display:flex; gap:6px}
+.add input{flex:1; min-width:0; height:40px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); padding:0 14px}
+.list{list-style:none; margin:0; padding:8px 4px 12px; overflow-y:auto; display:flex; flex-direction:column; gap:18px; flex:1}
+.note{background:var(--note); color:var(--note-ink); font-family:var(--f-note); font-size:clamp(1.6rem,4vmin,2.6rem); line-height:1.1;
+  padding:18px 40px 20px 18px; border-radius:2px 2px 14px 2px; box-shadow:0 6px 14px -8px rgba(0,0,0,.45);
+  transform:rotate(var(--tilt)); position:relative; display:flex; gap:10px; align-items:flex-start}
+.note::before{content:""; position:absolute; top:-7px; left:calc(50% - 22px); width:44px; height:14px; background:color-mix(in srgb, var(--panel) 60%, transparent); opacity:.8}
+.note .check{flex:none; width:1em; height:1em; margin-top:.08em; font-size:inherit; border-radius:5px; border:2px solid var(--note-ink); background:transparent; padding:0; display:grid; place-items:center; color:var(--note-ink)}
+.note.done .text{text-decoration:line-through; opacity:.55}
+.note .text{overflow-wrap:anywhere; min-width:0}
+body:not(.saver) .note .text{cursor:text}
+.note.editing .text{outline:2px dashed var(--note-ink); outline-offset:4px; border-radius:4px; text-decoration:none; opacity:1}
+.note .del{position:absolute; top:6px; right:6px; width:24px; height:24px; border:0; background:transparent; color:var(--note-ink); opacity:.5; font-size:1.1rem; line-height:1}
+.note .del:hover{opacity:1}
+.empty{color:var(--muted); font-size:.9rem; padding:8px 2px}
+.clear{align-self:flex-start; border:0; background:none; color:var(--muted); font-size:.8rem; text-decoration:underline; padding:0}
+
+.clock{display:flex; flex-direction:column; align-items:flex-end; line-height:1; font-variant-numeric:tabular-nums}
+.clock .time{font-family:var(--f-display); font-weight:700; font-size:clamp(2.2rem,6vmin,4.2rem); letter-spacing:-.02em}
+.clock .time small{font-size:.42em; color:var(--muted); margin-left:.15em; font-weight:600}
+.clock .date{font-size:clamp(.85rem,2vmin,1.15rem); color:var(--muted); margin-top:6px; font-weight:700}
+.timer{border:2px solid var(--line); background:var(--panel); border-radius:18px; padding:10px 12px; display:flex; flex-direction:column; gap:8px}
+.timer .trow{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.tdisp{font-family:var(--f-display); font-weight:700; font-size:clamp(2rem,6vmin,3.6rem); line-height:1; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.tlabel{font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); font-weight:800}
+.tbar{height:6px; border-radius:6px; background:var(--line); overflow:hidden}
+.tbar i{display:block; height:100%; width:100%; background:var(--a); transform-origin:left; transition:transform .25s linear}
+.tctl{display:flex; flex-wrap:wrap; gap:5px; transition:opacity .4s}
+.tctl button{height:34px; min-width:40px; padding:0 10px; border-radius:999px; border:2px solid var(--line); background:var(--bg); font-weight:700; font-size:.85rem}
+.tctl .tgo{background:var(--a); border-color:var(--a); color:var(--bg)}
+.timer.done{border-color:var(--a); animation:tflash 1s steps(2) infinite}
+.timer.done .tdisp{color:var(--a)}
+@keyframes tflash{50%{background:color-mix(in srgb, var(--a) 22%, var(--panel))}}
+
+/* rail states */
+body.notes-off main{grid-template-columns:minmax(0,3fr) minmax(240px,1fr)}
+body.notes-off .notes > :not(.clock):not(.timer){display:none}
+body.notes-off .timer{margin-top:auto}
+body.both-off main{grid-template-columns:minmax(0,1fr)}
+body.both-off .notes{position:absolute; top:0; right:0; z-index:5; pointer-events:none}
+
+/* word picker */
+.picker{position:fixed; inset:0; z-index:20; background:color-mix(in srgb, var(--ink) 35%, transparent); display:grid; place-items:center;
+  padding:max(16px, env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) max(16px, env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px))}
+.sheet{background:var(--panel); border:2px solid var(--line-strong); border-radius:24px; width:min(680px,100%); max-height:100%; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:16px}
+.sheet h3{font-family:var(--f-display); font-weight:600; font-size:1.4rem; margin:0; display:flex; justify-content:space-between; align-items:center}
+.sec{display:flex; flex-direction:column; gap:8px}
+.sec .h{font-family:var(--f-display); font-weight:600; font-size:1rem; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.count{font-family:var(--f-ui); font-size:.8rem; color:var(--a); background:var(--chip); padding:2px 10px; border-radius:999px}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{padding:7px 13px; border-radius:999px; border:2px solid var(--line-strong); background:var(--panel); color:var(--muted); font-weight:800; font-size:.9rem}
+.chip[aria-pressed="true"]{background:var(--b); border-color:var(--b); color:var(--bg)}
+.mini{border:0; background:none; color:var(--muted); text-decoration:underline; font-size:.85rem; padding:0}
+
+/* screen saver mode */
+.saver .bar{display:none}
+.saver .app{grid-template-rows:1fr}
+.saver .add,.saver .clear,.saver .hint,.saver .note .del{display:none}
+.floatCtl{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  display:none; gap:6px; background:var(--panel); border:2px solid var(--line-strong); padding:6px; border-radius:999px; transition:opacity .4s; z-index:10; max-width:calc(100% - 32px); overflow-x:auto}
+.floatCtl button{white-space:nowrap}
+.saver .floatCtl{display:flex}
+.saver.idle .floatCtl,.saver.idle .tctl{opacity:0; pointer-events:none}
+.saver.idle{cursor:none}
+
+@media (max-width:760px){
+  body{overflow:auto}
+  .app{height:auto; min-height:100%}
+  main, body.notes-off main{grid-template-columns:minmax(0,1fr)}
+  .stage{min-height:70vh}
+  body.both-off .notes{position:static}
+}
+@media (prefers-reduced-motion:reduce){
+  .word,.lt,.ul,.swoosh,.clue,.mc,.answer,.opt{transition:none}
+  .blend .wordBox,.opt.wrong,.timer.done{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div class="brand"><i></i>Word Wizard Saver</div>
+    <div class="group">
+      <button class="ghost" id="openPicker" type="button">Words: <span id="deckInfo">…</span></button>
+      <label class="lbl" for="speed">Speed</label>
+      <select id="speed"><option value="1.5">Slow</option><option value="1" selected>Medium</option><option value="0.65">Fast</option></select>
+    </div>
+    <div class="group" role="group" aria-label="Color theme" id="skins"><span class="lbl">Theme</span></div>
+    <div class="group">
+      <button class="ghost" id="mcToggle" type="button" aria-pressed="true">Multiple choice: On</button>
+      <button class="ghost" id="notesToggle" type="button" aria-pressed="true">To-do list: On</button>
+      <button class="ghost" id="timerToggle" type="button" aria-pressed="true">Class timer: On</button>
+      <button class="ghost" id="pause" type="button">Pause</button>
+      <button class="ghost" id="next" type="button">Next</button>
+      <button class="go" id="fs" type="button">Start full screen</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stage" id="stage" aria-live="polite">
+      <div class="tags" id="tags"></div>
+      <div class="wordWrap" id="wrap"><div class="wordBox" id="box"><div class="word" id="word"></div><div class="swoosh"></div></div></div>
+      <div class="caption" id="cap"></div>
+      <ol class="clues" id="clues"></ol>
+      <div class="mc" id="mc">
+        <div class="mcTimer"><span class="mcNum" id="mcNum">10</span><div class="mcBar"><i id="mcFill"></i></div></div>
+        <div class="opts" id="opts"></div>
+      </div>
+      <div class="answer" id="answer"></div>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    </section>
+
+    <aside class="notes" id="notes">
+      <div class="clock" id="clock" aria-label="Current time"><div class="time" id="clockTime">--:--</div><div class="date" id="clockDate"></div></div>
+      <h2>To do <small id="count"></small></h2>
+      <form class="add" id="addForm">
+        <input id="noteInput" placeholder="Post a note…" maxlength="120" autocomplete="off" aria-label="New note">
+        <button class="go" type="submit">Post</button>
+      </form>
+      <ul class="list" id="list"></ul>
+      <button class="clear" id="clearDone" type="button">Clear finished notes</button>
+      <div class="hint">Click a note to edit it · Space pauses · → next · F full screen · M choices · N notes · T timer</div>
+      <div class="timer" id="timer">
+        <div class="trow"><span class="tlabel" id="tLabel">Class timer</span><span class="tdisp" id="tDisp">05:00</span></div>
+        <div class="tbar"><i id="tBar"></i></div>
+        <div class="tctl">
+          <button type="button" data-min="1">1 min</button><button type="button" data-min="2">2 min</button><button type="button" data-min="5">5 min</button><button type="button" data-min="10">10 min</button>
+          <button type="button" id="tPlus">+1</button><button type="button" class="tgo" id="tGo">Start</button><button type="button" id="tReset">Reset</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="floatCtl">
+  <button class="ghost" id="fPause" type="button">Pause</button>
+  <button class="ghost" id="fNext" type="button">Next</button>
+  <button class="ghost" id="fMc" type="button">Choices off</button>
+  <button class="ghost" id="fNotes" type="button">Hide to-do</button>
+  <button class="ghost" id="fTimer" type="button">Hide timer</button>
+  <button class="go" id="fExit" type="button">Exit</button>
+</div>
+
+<div class="picker" id="picker" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="pickTitle">
+    <h3 id="pickTitle">Choose the words <button class="go" id="closePicker" type="button">Done</button></h3>
+    <div class="sec">
+      <div class="h">Word sets <span class="count" id="sCount"></span>
+        <button class="mini" id="sAll" type="button">Select all</button><button class="mini" id="sNone" type="button">Clear</button></div>
+      <div class="chips" id="sets"></div>
+    </div>
+    <div class="sec">
+      <div class="h">How letters appear</div>
+      <div class="chips">
+        <button class="chip" id="o-inorder" type="button">First letter to last</button>
+        <button class="chip" id="o-mixed" type="button">Mixed up (harder to guess)</button>
+      </div>
+    </div>
+    <div class="hint" id="pickSummary"></div>
+  </div>
+</div>
+
+<script>
+/* Words come from the Academy of Arcane Intelligence: its school, its grimoire of spells, and the plain ideas each lesson teaches.
+   Each entry: [word, meaning, clue 1 (widest), clue 2, clue 3 (closest)] */
+const SETS = {
+  "Wizard school": [
+    ["wizard","a person who can do magic","It is a person.","You meet one in fantasy stories.","They wear a robe and cast spells."],
+    ["academy","a special school","It is a place.","Students go there to learn.","Another word for it is school."],
+    ["novice","a person who is new at something","It is a person.","They are just starting to learn.","It is the opposite of an expert."],
+    ["apprentice","someone who learns a skill from an expert","It is a person.","They work and learn at the same time.","They follow a master every day."],
+    ["archmage","the most powerful wizard of all","It is a person.","They finished every year of wizard school.","The first part of the word means chief."],
+    ["tower","a tall, narrow building","It is a building.","You climb many stairs to reach the top.","A castle often has one."],
+    ["quest","a long journey to find something","Heroes go on one.","It can be long and dangerous.","Looking for lost treasure is one."],
+    ["gate","a door in a wall or fence","You walk through it.","It opens and closes.","It stands at the entrance of a castle."],
+    ["robe","a long, loose piece of clothing","You wear it.","It reaches down to your feet.","Wizards and judges wear one."],
+    ["crest","a picture that stands for a family or school","You can see it on a shield.","Schools and teams have one.","It is like a badge."],
+    ["oath","a very serious promise","You say it out loud.","You must never break it.","A knight makes one to the king."],
+    ["forge","a hot workshop where metal things are made","It is very hot there.","A blacksmith works in one.","Swords and horseshoes are made there."],
+    ["vellum","smooth writing material made from animal skin","You can write on it.","Very old books are made of it.","People used it before paper."],
+    ["sigil","a sign or symbol with magic power","You can draw it.","It is a shape with a secret meaning.","In the Academy you earn one each year."],
+    ["lesson","a time when you learn one thing","It happens at school.","A teacher gives it.","Your timetable has many each day."],
+    ["examination","a big test of what you know","It happens at school.","You answer questions on your own.","The short word for it is exam."]
+  ],
+  "Spell book": [
+    ["spell","magic words that make something happen","A wizard uses it.","It is made of words.","Abracadabra is a famous one."],
+    ["magic","a power that makes impossible things happen","It is not real, but stories are full of it.","It can turn a frog into a prince.","A wand is used to do it."],
+    ["grimoire","a book of magic spells","You can read it.","It is old and full of secrets.","A wizard writes spells in it."],
+    ["incantation","magic words that are spoken or sung","You can hear it.","It is often said again and again.","It is a long word for the words of a spell."],
+    ["charm","a small object or spell that brings luck","It can be very small.","Some people hang one on a bracelet.","A four-leaf clover is a lucky one."],
+    ["cantrip","a tiny, easy magic trick","It is a kind of spell.","Even a beginner can do it.","It is the smallest spell there is."],
+    ["ritual","a set of actions always done the same way","People often do it together.","The steps never change.","A tea ceremony is one."],
+    ["ward","something that guards against danger","It keeps you safe.","It works like an invisible shield.","It comes from an old word for guard."],
+    ["masque","a party or play where people wear masks","People dress up for it.","Nobody can see your real face.","It sounds almost like mask."],
+    ["binding","something that holds things tightly together","It stops things from coming apart.","Every book has one.","It comes from the verb to bind."],
+    ["mimicry","copying how someone looks or sounds","It is something you do.","Parrots are very good at it.","It comes from the verb to mimic."],
+    ["divination","using magic to learn about the future","It is something a fortune teller does.","Cards or tea leaves can be used.","It tries to answer: what will happen?"],
+    ["scrying","looking into a crystal ball to see far away","You need something shiny to do it.","A witch stares into water or glass.","It is a way of seeing hidden things."],
+    ["mirror","glass that shows you your own face","It hangs on a wall.","You look into it every morning.","It shows a reflection."],
+    ["sundering","breaking something into separate parts","It is the opposite of joining.","After it, one thing becomes many.","It means splitting apart."],
+    ["counterspell","a spell that stops another spell","It is a kind of magic.","You use it to defend yourself.","It works against an enemy's magic."]
+  ],
+  "Clear thinking": [
+    ["intention","what you plan or mean to do","It is in your mind.","You have it before you act.","It is your plan or purpose."],
+    ["outcome","the result at the end","You see it last.","It is what happens because of your work.","Another word for it is result."],
+    ["context","the background that helps you understand","It is extra information.","Without it, a message can be confusing.","It tells you who, where and why."],
+    ["task","a piece of work you have to do","You can finish it.","A teacher or boss gives it to you.","Homework is one."],
+    ["format","the shape or layout of something","It is about how something looks.","A table and a list are two kinds.","It is the way information is arranged."],
+    ["example","one thing that shows what the others are like","It helps you understand.","Teachers give one after a rule.","It often follows the words: for…"],
+    ["role","the part someone plays","An actor has one.","Everyone on a team has one.","Goalkeeper is one on a football team."],
+    ["draft","a first try at a piece of writing","It is not finished.","You will change it later.","It comes before the final copy."],
+    ["refine","to make something better with small changes","It is an action.","You do it to a first try.","It means to improve bit by bit."],
+    ["verify","to check that something is true","It is an action.","A careful person does it before believing.","You look for proof."],
+    ["source","the place where information comes from","A book can be one.","A website can be one.","You name it to show where a fact began."],
+    ["outline","a short plan that shows the main parts","You write it first.","It has one line for each part.","It is the skeleton of an essay."],
+    ["critique","to say what is good and bad about something","It is an action.","An editor or judge does it.","It is careful, helpful feedback."],
+    ["bias","an unfair leaning toward one side","It can hide in your thinking.","A referee should not have it.","It makes a choice unfair."],
+    ["audience","the people who watch, listen or read","It is a group of people.","They sit in a theatre.","A writer thinks about them."],
+    ["vague","not clear or exact","It describes an answer.","It leaves you with more questions.","The opposite is clear."],
+    ["specific","clear and exact","It describes a good instruction.","It gives details like who, when and how many.","The opposite is general."],
+    ["checkpoint","a place where you stop and check","You pass it on a journey.","In a video game your progress is saved there.","You stop there before going on."],
+    ["constraint","a limit you have to stay inside","It tells you what you cannot do.","A word count is one.","Another word for it is limit."],
+    ["accountable","having to answer for what you did","It describes a person.","You cannot blame someone else.","It means being responsible."]
+  ]
+};
+const SET_NAMES = Object.keys(SETS);
+
+(() => {
+const $ = id => document.getElementById(id);
+const KEY = 'wordWizardSaver.v3';
+const SKINS = [
+  {id:'auto', name:'Match my device', c:['#fef9f0','#211c28']},
+  {id:'chalk', name:'Chalkboard', c:['#22352b','#fff6cf']},
+  {id:'graph', name:'Graph paper', c:['#fbfdff','#1f6feb']},
+  {id:'sunset', name:'Sunset', c:['#fff0e4','#df532a']},
+  {id:'ocean', name:'Ocean', c:['#052a33','#47d2c9']},
+  {id:'midnight', name:'Midnight', c:['#0b0d1a','#8f80ff']},
+];
+const MC_MS = 10000;
+
+let S = { sets:[...SET_NAMES], order:'inorder', speed:1, skin:'auto', mc:true, notesHidden:true, timerOn:false,
+  notes:[
+    {id:1, t:'Watch the letters appear', done:false, tilt:-1.2},
+    {id:2, t:'Guess the word before it is finished', done:false, tilt:1},
+    {id:3, t:'Then guess what it means', done:false, tilt:-.5},
+  ]};
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s) S = Object.assign(S, s); } catch(e){}
+S.sets = S.sets.filter(n => SETS[n]);
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+/* ---------- theme + speed ---------- */
+const skinBox = $('skins');
+SKINS.forEach(k => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'swatch'; b.id = 'skin-'+k.id; b.title = k.name; b.setAttribute('aria-label', k.name);
+  b.innerHTML = `<i style="background:linear-gradient(135deg, ${k.c[0]} 50%, ${k.c[1]} 50%)"></i>`;
+  b.onclick = () => { S.skin = k.id; applySkin(); save(); };
+  skinBox.appendChild(b);
+});
+function applySkin(){
+  if (S.skin==='auto') document.documentElement.removeAttribute('data-skin');
+  else document.documentElement.setAttribute('data-skin', S.skin);
+  skinBox.querySelectorAll('.swatch').forEach(b => b.setAttribute('aria-pressed', b.id==='skin-'+S.skin));
+}
+applySkin();
+$('speed').value = String(S.speed);
+if ($('speed').selectedIndex < 0){ $('speed').value = '1'; S.speed = 1; }
+$('speed').onchange = e => { S.speed = +e.target.value; save(); };
+
+/* ---------- deck ---------- */
+const ALL = SET_NAMES.flatMap(n => SETS[n].map(w => ({word:w[0], meaning:w[1], clues:w.slice(2), set:n})));
+let deck = [], di = 0;
+function rebuildDeck(){
+  deck = shuffle(ALL.filter(w => S.sets.includes(w.set))); di = 0;
+  const n = deck.length;
+  $('deckInfo').textContent = `${n} word${n===1?'':'s'}`;
+  $('pickSummary').textContent = n ? `${n} words will play, in a shuffled order.` : 'Nothing selected yet. Pick at least one word set.';
+}
+function choicesFor(item){
+  const same = shuffle(ALL.filter(w => w.set===item.set && w.word!==item.word));
+  const rest = shuffle(ALL.filter(w => w.set!==item.set));
+  return shuffle([item, ...same.concat(rest).slice(0,3)]).map(w => ({text:w.meaning, right:w===item}));
+}
+
+/* ---------- stage ---------- */
+const stage = $('stage'), wordEl = $('word'), wrap = $('wrap'), cap = $('cap'), tags = $('tags'),
+      cluesEl = $('clues'), mcEl = $('mc'), optsEl = $('opts'), ansEl = $('answer');
+let cur = null, opts = [], shown = 0;
+
+function fitWord(){
+  if (!cur) return;
+  const W = wrap.clientWidth * .94, H = wrap.clientHeight;
+  const size = Math.max(30, Math.min(H * .62, W / (cur.word.length * .74), 240));
+  wordEl.parentElement.style.fontSize = size + 'px';
+}
+function setStep(n, label){
+  tags.innerHTML = `<span class="tag">Set: <b>${esc(cur.set)}</b></span><span class="tag step">${n} · ${label}</span>`;
+}
+function renderWord(item){
+  cur = item; shown = 0;
+  stage.classList.remove('blend');
+  wordEl.innerHTML = [...item.word].map((ch,i) => `<span class="slot" id="s${i}"><span class="lt">${esc(ch)}</span><span class="ul"></span></span>`).join('');
+  cluesEl.innerHTML = item.clues.map((c,i) => `<li class="clue" id="c${i}"><b>Clue ${i+1}</b><span>${esc(c)}</span></li>`).join('');
+  opts = choicesFor(item);
+  optsEl.innerHTML = opts.map((o,i) => `<button type="button" class="opt" data-i="${i}" tabindex="-1"><i>${'ABCD'[i]}</i><span>${esc(o.text)}</span></button>`).join('');
+  mcEl.className = 'mc'; mcEl.hidden = !S.mc;
+  $('mcFill').style.transform = 'scaleX(1)'; $('mcNum').textContent = String(MC_MS/1000);
+  ansEl.className = 'answer'; ansEl.hidden = S.mc;
+  ansEl.innerHTML = `<small>It means</small>${esc(item.meaning)}`;
+  setStep(1, 'Guess the word');
+  cap.innerHTML = `What word is this? <small>0 of ${item.word.length} letters</small>`;
+  fitWord();
+}
+function showLetter(k){
+  wordEl.querySelectorAll('.slot.now').forEach(e => e.classList.remove('now'));
+  $('s'+k).classList.add('on','now'); shown++;
+  cap.innerHTML = `What word is this? <small>${shown} of ${cur.word.length} letters</small>`;
+}
+function wordDone(){
+  wordEl.querySelectorAll('.slot.now').forEach(e => e.classList.remove('now'));
+  stage.classList.add('blend');
+  cap.innerHTML = `The word is <b>${esc(cur.word)}</b>`;
+}
+function askMeaning(){ setStep(2, 'Guess the meaning'); cap.innerHTML = `What does <b>${esc(cur.word)}</b> mean?`; }
+function showClue(i){ $('c'+i).classList.add('show'); }
+function startMc(){
+  mcEl.classList.add('live');
+  optsEl.querySelectorAll('.opt').forEach(b => b.tabIndex = 0);
+  cap.innerHTML = `Pick the meaning of <b>${esc(cur.word)}</b>`;
+}
+function reveal(){
+  setStep(3, 'Answer');
+  if (S.mc){
+    const r = opts.findIndex(o => o.right);
+    mcEl.classList.remove('live'); mcEl.classList.add('over');
+    optsEl.children[r].classList.add('right');
+    optsEl.querySelectorAll('.opt').forEach(b => b.tabIndex = -1);
+    cap.innerHTML = `<b>${esc(cur.word)}</b> · the answer is <b>${'ABCD'[r]}</b>`;
+  } else {
+    ansEl.classList.add('show');
+    cap.innerHTML = `<b>${esc(cur.word)}</b>`;
+  }
+}
+optsEl.onclick = e => {
+  const b = e.target.closest('.opt'); if (!b || !mcEl.classList.contains('live')) return;
+  if (opts[+b.dataset.i].right){ elapsed = Math.max(elapsed, revealAt); fire(); }
+  else b.classList.add('wrong');
+};
+
+/* ---------- timeline (pausable) ---------- */
+let tl = [], elapsed = 0, total = 1, paused = false, lastT = null, mcAt = null, revealAt = 0;
+function plan(item){
+  const f = S.speed, ev = []; let t = 0;
+  ev.push({at:0, fn:() => renderWord(item)});
+  t += 1800*f;
+  const idx = [...item.word].map((_,i) => i);
+  (S.order==='mixed' ? shuffle(idx) : idx).forEach(k => { ev.push({at:t, fn:() => showLetter(k)}); t += 1300*f; });
+  t += 500*f;
+  ev.push({at:t, fn:wordDone}); t += 2600*f;
+  ev.push({at:t, fn:askMeaning}); t += 2200*f;
+  item.clues.forEach((_,i) => { ev.push({at:t, fn:() => showClue(i)}); t += 3000*f; });
+  mcAt = null;
+  if (S.mc){ mcAt = t; ev.push({at:t, fn:startMc}); t += MC_MS; }   // always 10 real seconds, whatever the speed
+  else t += 1200*f;
+  revealAt = t;
+  ev.push({at:t, fn:reveal}); t += 4500*f;
+  return {ev, total:t};
+}
+function startWord(){
+  if (!deck.length){
+    cur = null; tl = []; total = 1; elapsed = 0; mcAt = null;
+    stage.classList.remove('blend'); tags.innerHTML = ''; cap.innerHTML = ''; cluesEl.innerHTML = '';
+    mcEl.hidden = true; ansEl.hidden = true;
+    wordEl.innerHTML = '<div class="emptyMsg">No words selected. Open Words to pick a word set.</div>';
+    wordEl.parentElement.style.fontSize = '';
+    return;
+  }
+  if (di >= deck.length){ deck = shuffle(deck); di = 0; }
+  const p = plan(deck[di++]);
+  tl = p.ev; total = p.total; elapsed = 0;
+  fire();
+}
+function replayWord(){ if (deck.length && di > 0) di--; startWord(); }
+function fire(){ while (tl.length && tl[0].at <= elapsed) tl.shift().fn(); }
+function loop(t){
+  if (lastT==null) lastT = t;
+  const dt = Math.min(100, t - lastT); lastT = t;
+  if (!paused && deck.length){
+    elapsed += dt; fire();
+    $('bar').style.width = Math.min(100, elapsed/total*100) + '%';
+    if (mcAt!=null && elapsed >= mcAt && elapsed < revealAt){
+      const left = revealAt - elapsed;
+      $('mcFill').style.transform = `scaleX(${left/MC_MS})`;
+      $('mcNum').textContent = Math.ceil(left/1000);
+    }
+    if (elapsed >= total) startWord();
+  }
+  requestAnimationFrame(loop);
+}
+function setPaused(v){ paused = v; ['pause','fPause'].forEach(id => $(id).textContent = v ? 'Play' : 'Pause'); }
+$('pause').onclick = $('fPause').onclick = () => setPaused(!paused);
+$('next').onclick = $('fNext').onclick = () => startWord();
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(fitWord, 100); });
+
+/* ---------- toggles + rail layout ---------- */
+function syncToggles(){
+  const set = (id, label, on) => { const b = $(id); b.textContent = `${label}: ${on ? 'On' : 'Off'}`; b.setAttribute('aria-pressed', on); };
+  set('mcToggle', 'Multiple choice', S.mc);
+  set('notesToggle', 'To-do list', !S.notesHidden);
+  set('timerToggle', 'Class timer', S.timerOn);
+  $('fMc').textContent = S.mc ? 'Choices off' : 'Choices on';
+  $('fNotes').textContent = S.notesHidden ? 'Show to-do' : 'Hide to-do';
+  $('fTimer').textContent = S.timerOn ? 'Hide timer' : 'Show timer';
+  $('timer').hidden = !S.timerOn;
+  document.body.classList.toggle('notes-off', !!S.notesHidden);
+  document.body.classList.toggle('both-off', !!S.notesHidden && !S.timerOn);
+  setTimeout(fitWord, 60);
+}
+const toggleMc = () => { S.mc = !S.mc; save(); syncToggles(); replayWord(); };
+const toggleNotes = () => { S.notesHidden = !S.notesHidden; save(); syncToggles(); };
+const toggleTimer = () => { S.timerOn = !S.timerOn; save(); syncToggles(); };
+$('mcToggle').onclick = $('fMc').onclick = toggleMc;
+$('notesToggle').onclick = $('fNotes').onclick = toggleNotes;
+$('timerToggle').onclick = $('fTimer').onclick = toggleTimer;
+
+/* ---------- picker ---------- */
+const picker = $('picker');
+let dirty = false;
+function syncPicker(){
+  $('sets').innerHTML = SET_NAMES.map(n => `<button type="button" class="chip" data-s="${esc(n)}" aria-pressed="${S.sets.includes(n)}">${esc(n)} · ${SETS[n].length}</button>`).join('');
+  $('sCount').textContent = `${S.sets.length} of ${SET_NAMES.length}`;
+  $('o-inorder').setAttribute('aria-pressed', S.order!=='mixed');
+  $('o-mixed').setAttribute('aria-pressed', S.order==='mixed');
+  rebuildDeck();
+}
+const changed = () => { dirty = true; save(); syncPicker(); };
+$('openPicker').onclick = () => { picker.hidden = false; dirty = false; syncPicker(); $('closePicker').focus(); };
+const closePicker = () => { picker.hidden = true; if (dirty) startWord(); };
+$('closePicker').onclick = closePicker;
+picker.onclick = e => { if (e.target===picker) closePicker(); };
+$('sets').onclick = e => { const b = e.target.closest('[data-s]'); if (!b) return; const n = b.dataset.s;
+  S.sets = S.sets.includes(n) ? S.sets.filter(x => x!==n) : [...S.sets, n]; changed(); };
+$('sAll').onclick = () => { S.sets = [...SET_NAMES]; changed(); };
+$('sNone').onclick = () => { S.sets = []; changed(); };
+$('o-inorder').onclick = () => { S.order = 'inorder'; changed(); };
+$('o-mixed').onclick = () => { S.order = 'mixed'; changed(); };
+
+/* ---------- full screen ---------- */
+let wakeLock = null;
+async function startSaver(){
+  document.body.classList.add('saver');
+  try { if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch(e){}
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch(e){}
+  if (paused) setPaused(false);
+  pokeIdle(); setTimeout(fitWord, 250);
+}
+function stopSaver(){
+  document.body.classList.remove('saver','idle');
+  try { if (document.fullscreenElement) document.exitFullscreen().catch(()=>{}); } catch(e){}
+  try { wakeLock?.release(); } catch(e){} wakeLock = null;
+  setTimeout(fitWord, 250);
+}
+$('fs').onclick = startSaver; $('fExit').onclick = stopSaver;
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('saver')) stopSaver(); });
+let idleT;
+function pokeIdle(){ document.body.classList.remove('idle'); clearTimeout(idleT); idleT = setTimeout(() => document.body.classList.add('idle'), 2500); }
+addEventListener('mousemove', pokeIdle); addEventListener('touchstart', pokeIdle, {passive:true});
+
+/* ---------- notes ---------- */
+const list = $('list');
+function renderNotes(){
+  const open = S.notes.filter(n => !n.done).length;
+  $('count').textContent = S.notes.length ? `${open} left` : '';
+  if (!S.notes.length){ list.innerHTML = '<li class="empty">No notes yet. Type one above and press Post. It stays on screen while the words play.</li>'; return; }
+  list.innerHTML = S.notes.map(n => `
+    <li class="note${n.done?' done':''}" style="--tilt:${+n.tilt||0}deg" data-id="${+n.id}">
+      <button type="button" class="check" aria-label="Mark ${n.done?'not done':'done'}">${n.done?'✓':''}</button>
+      <span class="text" title="Click to edit"></span>
+      <button type="button" class="del" aria-label="Remove note">×</button>
+    </li>`).join('');
+  list.querySelectorAll('.note').forEach((li,i) => li.querySelector('.text').textContent = S.notes[i].t);
+}
+list.onclick = e => {
+  const li = e.target.closest('.note'); if (!li) return;
+  const id = +li.dataset.id, n = S.notes.find(x => x.id===id); if (!n) return;
+  if (e.target.closest('.del')){ S.notes = S.notes.filter(x => x.id!==id); save(); renderNotes(); return; }
+  if (e.target.closest('.text') && !document.body.classList.contains('saver')){ editNote(li, n); return; }
+  if (e.target.closest('.check') || e.target.closest('.text')){ n.done = !n.done; save(); renderNotes(); }
+};
+function editNote(li, n){
+  const t = li.querySelector('.text'); if (t.isContentEditable) return;
+  try { t.contentEditable = 'plaintext-only'; } catch(err){}
+  if (!t.isContentEditable) t.contentEditable = 'true';
+  li.classList.add('editing'); t.focus();
+  try { const r = document.createRange(); r.selectNodeContents(t); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); } catch(err){}
+  let cancel = false;
+  t.onkeydown = ev => {
+    ev.stopPropagation();
+    if (ev.key==='Enter'){ ev.preventDefault(); t.blur(); }
+    else if (ev.key==='Escape'){ cancel = true; t.blur(); }
+  };
+  t.onblur = () => {
+    if (!cancel){ const v = t.textContent.replace(/\s+/g,' ').trim().slice(0,120); if (v) n.t = v; else S.notes = S.notes.filter(x => x!==n); save(); }
+    renderNotes();
+  };
+}
+$('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const t = $('noteInput').value.trim(); if (!t) return;
+  S.notes.push({id:Date.now(), t, done:false, tilt:+(Math.random()*3-1.5).toFixed(2)});
+  $('noteInput').value = ''; save(); renderNotes(); list.scrollTop = list.scrollHeight;
+});
+$('clearDone').onclick = () => { S.notes = S.notes.filter(n => !n.done); save(); renderNotes(); };
+
+/* ---------- keys ---------- */
+addEventListener('keydown', e => {
+  if (e.target.matches('input,select') || e.target.isContentEditable) return;
+  if (!picker.hidden){ if (e.key==='Escape') closePicker(); return; }
+  const k = e.key.toLowerCase();
+  if (e.code==='Space'){ if (e.target.matches('button')) return; e.preventDefault(); setPaused(!paused); }
+  else if (e.key==='ArrowRight') startWord();
+  else if (k==='f') document.body.classList.contains('saver') ? stopSaver() : startSaver();
+  else if (k==='m') toggleMc();
+  else if (k==='n') toggleNotes();
+  else if (k==='t') toggleTimer();
+  else if (e.key==='Escape' && document.body.classList.contains('saver')) stopSaver();
+});
+
+/* ---------- clock ---------- */
+function tick(){
+  const d = new Date();
+  let h = d.getHours(); const ampm = h < 12 ? 'AM' : 'PM'; h = h % 12 || 12;
+  $('clockTime').innerHTML = `${h}:${String(d.getMinutes()).padStart(2,'0')}<small>${ampm}</small>`;
+  $('clockDate').textContent = d.toLocaleDateString(undefined, {weekday:'long', day:'numeric', month:'long'});
+}
+tick(); setInterval(tick, 1000);
+
+/* ---------- class timer ---------- */
+let tSet = 300, tLeft = 300, tRun = false, endAt = 0, iv = null;
+const fmt = s => { s = Math.max(0, Math.ceil(s)); return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); };
+function tDraw(){
+  $('tDisp').textContent = tLeft <= 0 ? '00:00' : fmt(tLeft);
+  $('tBar').style.transform = `scaleX(${tSet ? Math.max(0, tLeft/tSet) : 0})`;
+  $('tGo').textContent = tRun ? 'Pause' : (tLeft < tSet && tLeft > 0 ? 'Resume' : 'Start');
+  $('tLabel').textContent = tLeft <= 0 ? "Time's up!" : tRun ? 'Counting down' : 'Class timer';
+}
+function chime(){
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, .35, .7].forEach(o => {
+      const os = ctx.createOscillator(), g = ctx.createGain();
+      os.frequency.value = 880; os.type = 'sine';
+      g.gain.setValueAtTime(0, ctx.currentTime + o);
+      g.gain.linearRampToValueAtTime(.25, ctx.currentTime + o + .02);
+      g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + o + .3);
+      os.connect(g).connect(ctx.destination); os.start(ctx.currentTime + o); os.stop(ctx.currentTime + o + .32);
+    });
+  } catch(e){}
+}
+function tStep(){
+  tLeft = (endAt - Date.now()) / 1000;
+  if (tLeft <= 0){ tLeft = 0; tRun = false; clearInterval(iv); $('timer').classList.add('done'); chime(); }
+  tDraw();
+}
+function tStart(){ if (tLeft <= 0) tLeft = tSet; $('timer').classList.remove('done'); tRun = true; endAt = Date.now() + tLeft*1000; clearInterval(iv); iv = setInterval(tStep, 200); tDraw(); }
+function tPause(){ tRun = false; clearInterval(iv); tDraw(); }
+document.querySelectorAll('.tctl [data-min]').forEach(b => b.onclick = () => { tPause(); tSet = tLeft = +b.dataset.min*60; $('timer').classList.remove('done'); tDraw(); });
+$('tPlus').onclick = () => { tLeft += 60; tSet = Math.max(tSet, tLeft); if (tRun) endAt += 60000; $('timer').classList.remove('done'); tDraw(); };
+$('tGo').onclick = () => tRun ? tPause() : tStart();
+$('tReset').onclick = () => { tPause(); tLeft = tSet; $('timer').classList.remove('done'); tDraw(); };
+tDraw();
+
+/* ---------- go ---------- */
+syncToggles();
+renderNotes();
+rebuildDeck();
+startWord();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
