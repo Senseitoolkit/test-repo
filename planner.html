@@ -444,7 +444,7 @@ footer.site-footer{background:var(--slate-900);color:var(--slate-400);text-align
 @media (min-width:901px){.sidebar-backdrop{display:none!important}}
 
 @media print{
-  header.site-header,aside.sidebar,.sidebar-backdrop,footer.site-footer,.hero-section,.info-strip,.wk-icon,.legend,.section-head,.edit-banner,.pane-tools,.card-tools,.handle,.add-card,.tools-row,.day-type,.short-toggle, .lib-pop,.toast,.week-bar,.balance,.note-add,.place-hint,.tray,aside.dock,.planners,.cell-ctl,.ext-handle,.ext-ghost,.card-handle,.chevron,.unit-pick,.lesson-list,.place-bar,details.glance,.um-meta,.unit-empty,.lists-h{display:none!important}
+  header.site-header,aside.sidebar,.sidebar-backdrop,footer.site-footer,.hero-section,.info-strip,.wk-icon,.legend,.section-head,.edit-banner,.pane-tools,.card-tools,.handle,.add-card,.tools-row,.day-type,.short-toggle, .lib-pop,.toast,.week-bar,.note-dot,.hnote,.note-pop,.balance,.note-add,.place-hint,.tray,aside.dock,.planners,.cell-ctl,.ext-handle,.ext-ghost,.card-handle,.chevron,.unit-pick,.lesson-list,.place-bar,details.glance,.um-meta,.unit-empty,.lists-h{display:none!important}
   body{background:#fff}
   .app{display:block;max-width:none;padding:0;margin:0}
   section.week-card{page-break-after:always;border:none;margin:0}
@@ -464,6 +464,26 @@ footer.site-footer{background:var(--slate-900);color:var(--slate-400);text-align
   @page{size:A3 landscape;margin:8mm}
 }
 
+
+/* hidden notes */
+.note-dot{position:absolute;left:-2px;bottom:2px;width:9px;height:9px;border-radius:50%;background:var(--amber-500);border:2px solid #fff;box-shadow:0 0 0 1px var(--amber-300);padding:0;cursor:pointer;z-index:2}
+.hnote{margin-top:.2rem;padding:.25rem .4rem;border-left:2px dashed var(--amber-300);background:var(--amber-50);border-radius:0 6px 6px 0;font-size:.66rem;line-height:1.4;color:var(--slate-700);font-style:italic;cursor:pointer;white-space:normal}
+.note-pop{position:fixed;z-index:260;width:300px;background:#fff;border:1px solid var(--slate-200);border-radius:14px;box-shadow:0 14px 34px rgba(47,42,37,.22);padding:.7rem}
+.note-pop[hidden]{display:none}
+.np-h b{display:block;font-size:.88rem;color:var(--slate-900)}
+.np-h span{display:block;font-size:.72rem;color:var(--slate-500);margin:.1rem 0 .45rem}
+#note-text{width:100%;border:1.5px solid var(--slate-200);border-radius:10px;padding:.5rem .6rem;font-family:inherit;font-size:.86rem;resize:vertical;color:var(--slate-800)}
+#note-text:focus{outline:none;border-color:var(--amber-500)}
+.np-actions{display:flex;justify-content:space-between;margin-top:.5rem}
+/* export menu */
+.ex-pop{width:290px}
+.ex-pop button{display:flex!important;align-items:center;gap:.6rem}
+.ex-pop .ex-ico{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:#fff;flex:0 0 auto}
+.ex-pop .ex-t{display:flex;flex-direction:column;line-height:1.25}
+.ex-pop .ex-t small{color:var(--slate-500);font-size:.7rem}
+.ex-pop label{display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--slate-700);padding:.25rem .5rem}
+.ex-pop label input{accent-color:var(--amber-600)}
+.ex-pop hr{border:none;border-top:1px solid var(--slate-200);margin:.3rem 0}
 /* ─── compact: less dead space ─── */
 .hero-section{padding:.9rem 2rem}
 .hero-inner{align-items:center;gap:1rem}
@@ -598,9 +618,10 @@ aside.dock .lib-chip{padding:.2rem .45rem .2rem .4rem;border-radius:8px}
     <div><h3><span class="sec-icon sm"><svg class="ico" aria-hidden="true"><use href="#i-calendar"/></svg></span>Weeks</h3></div>
     <div class="new-row">
       <button class="tool-btn" id="btn-thisweek" title="Open this week (T)"><svg class="ico" aria-hidden="true"><use href="#i-target"/></svg>This week</button>
+      <label class="focus-toggle" title="Show hidden notes under activities (H)"><input type="checkbox" id="show-notes"> Show hidden notes</label>
       <label class="focus-toggle" title="Opening a week closes the others"><input type="checkbox" id="focus-mode"> One week at a time</label>
-      <button class="tool-btn subtle" id="btn-export" title="Save every week to a file (backup or move to another computer)">Export</button>
-      <button class="tool-btn subtle" id="btn-import" title="Load weeks from an exported file">Import</button>
+      <button class="tool-btn subtle" id="btn-export" title="Save every week to a backup file (to move to another computer)">Backup</button>
+      <button class="tool-btn subtle" id="btn-import" title="Load weeks from a backup file">Restore</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
       <select class="tool-btn" id="new-from" aria-label="Start the new week from">
         <option value="carry">Carry over from last week</option>
@@ -619,6 +640,12 @@ aside.dock .lib-chip{padding:.2rem .45rem .2rem .4rem;border-radius:8px}
 </div>
 
 <div class="lib-pop" id="lib-pop" hidden role="menu"></div>
+<div class="note-pop" id="note-pop" hidden role="dialog" aria-label="Hidden note">
+  <div class="np-h"><b>Hidden note</b><span>Only you see it. Not printed or exported unless you choose.</span></div>
+  <textarea id="note-text" rows="5" placeholder="Prep, resources, who needs support, what to say…"></textarea>
+  <div class="np-actions"><button class="tool-btn subtle danger" id="note-del">Delete note</button><button class="tool-btn go" id="note-done">Done</button></div>
+</div>
+<div class="lib-pop ex-pop" id="ex-pop" hidden role="menu"></div>
 <div class="modal" id="modal" hidden role="dialog" aria-modal="true"><div class="modal-box"><p id="modal-msg"></p><div class="modal-actions"><button class="tool-btn" id="modal-no">Cancel</button><button class="tool-btn go" id="modal-yes">OK</button></div></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"><span class="toast-dot"></span><span id="toastMsg"></span></div>
 <div class="ext-ghost" id="ext-ghost" hidden><span></span></div>
@@ -632,6 +659,8 @@ aside.dock .lib-chip{padding:.2rem .45rem .2rem .4rem;border-radius:8px}
     <li><b>⋯ on a cell:</b> repeat it all week, copy it to next week, clear it, or block out the time.</li>
     <li><b>→ on an activity:</b> move something you didn't get to into the same slot next week.</li>
     <li><b>Notes &amp; to-dos</b> under each week: unfinished to-dos carry over to the next week.</li>
+    <li><b>Hidden notes:</b> hover an activity and press <b>✎</b>. An orange dot marks it. They stay off printouts and exports unless you tick "Include hidden notes".</li>
+    <li><b>Export ▾</b> on a week: copy an editable table for OneNote, or download Word, PowerPoint or PDF.</li>
   </ul>
   <h4>Colour tags</h4>
   <div class="legend in-help">
@@ -652,7 +681,7 @@ aside.dock .lib-chip{padding:.2rem .45rem .2rem .4rem;border-radius:8px}
     <span><span class="tag tag-event">BLOCKED</span>Event · holiday · other</span>
   </div>
   <h4>Keyboard</h4>
-  <div class="keys"><span><kbd>T</kbd> this week</span><span><kbd>N</kbd> new week</span><span><kbd>D</kbd> flip days down / across</span><span><kbd>Ctrl/⌘ Z</kbd> undo</span><span><kbd>Esc</kbd> stop placing · close</span><span><kbd>?</kbd> this help</span></div>
+  <div class="keys"><span><kbd>T</kbd> this week</span><span><kbd>N</kbd> new week</span><span><kbd>D</kbd> flip days down / across</span><span><kbd>H</kbd> show / hide hidden notes</span><span><kbd>Ctrl/⌘ Z</kbd> undo</span><span><kbd>Esc</kbd> stop placing · close</span><span><kbd>?</kbd> this help</span></div>
   <div class="modal-actions"><button class="tool-btn go" id="help-close">Got it</button></div>
 </div></div>
 
@@ -947,6 +976,9 @@ function makeUnitPlanner(key) {
   return made;
 }
 
+function cleanNote(n) { return n == null ? "" : String(n).replace(/[<>]/g, "").slice(0, 2000).trim(); }
+const copyCard = c => { const o = { id: uid("c"), html: c.html }; if (c.note) o.note = c.note; return o; };
+
 /* ---------- storage ---------- */
 const STORE = "teacherToolkit.weeklyPlanner.v1";
 let WEEKS = [];
@@ -967,7 +999,7 @@ function cleanWeek(w) {
     cells[r.id] = {};
     days.forEach(d => {
       const list = (w.cells[r.id] && w.cells[r.id][d.id]) || [];
-      cells[r.id][d.id] = (Array.isArray(list) ? list : []).map(c => ({ id: String(c.id || uid("c")), html: sanitize(c.html) }));
+      cells[r.id][d.id] = (Array.isArray(list) ? list : []).map(c => { const o = { id: String(c.id || uid("c")), html: sanitize(c.html) }; const nt = cleanNote(c.note); if (nt) o.note = nt; return o; });
     });
   });
   const spans = {}, src = (w.spans && typeof w.spans === "object") ? w.spans : {};
@@ -996,7 +1028,7 @@ function load() {
     if (raw.set.orientV === 3 && (raw.set.orient === "across" || raw.set.orient === "down")) SET.orient = raw.set.orient;
     if (YEARS.includes(raw.set.year)) SET.year = raw.set.year;
     if (raw.set.newFrom) SET.newFrom = raw.set.newFrom;
-    ["focus", "seenHelp", "unitOpen", "tray", "cls"].forEach(k => { if (k in raw.set) SET[k] = raw.set[k]; });
+    ["focus", "seenHelp", "unitOpen", "tray", "cls", "showNotes", "exNotes", "exTodos"].forEach(k => { if (k in raw.set) SET[k] = raw.set[k]; });
   }
   WEEKS = raw && Array.isArray(raw.weeks) ? raw.weeks.map(cleanWeek).filter(Boolean) : [];
   if (raw && !(raw.set && raw.set.dutyV === 1)) {
@@ -1197,9 +1229,12 @@ function dateFor(wk, i) {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 function cardHtml(c) {
-  return `<div class="card" data-id="${esc(c.id)}"><span class="handle card-handle" title="Drag to move">⠿</span>
+  const hasNote = !!c.note;
+  return `<div class="card${hasNote ? " has-note" : ""}" data-id="${esc(c.id)}"><span class="handle card-handle" title="Drag to move">⠿</span>
+    ${hasNote ? `<button class="note-dot" data-act="card-note" title="Hidden note — click to read or edit" aria-label="Hidden note"></button>` : ""}
     <div class="card-body" contenteditable="true" spellcheck="true">${c.html}</div>
-    <span class="card-tools"><button class="icon-btn" data-act="card-next" title="Move to the same slot next week" aria-label="Move to next week">→</button><button class="icon-btn" data-act="card-dup" title="Duplicate" aria-label="Duplicate activity">⧉</button><button class="icon-btn danger" data-act="card-del" title="Remove" aria-label="Remove activity">×</button></span></div>`;
+    ${hasNote && SET.showNotes ? `<div class="hnote" data-act="card-note">${esc(c.note).replace(/\n/g, "<br>")}</div>` : ""}
+    <span class="card-tools"><button class="icon-btn" data-act="card-note" title="Hidden note (only you see it)" aria-label="Hidden note">✎</button><button class="icon-btn" data-act="card-next" title="Move to the same slot next week" aria-label="Move to next week">→</button><button class="icon-btn" data-act="card-dup" title="Duplicate" aria-label="Duplicate activity">⧉</button><button class="icon-btn danger" data-act="card-del" title="Remove" aria-label="Remove activity">×</button></span></div>`;
 }
 function cellTd(wk, r, d, L, down) {
   const info = L.lead[r.id] || { n: 1, sp: null, hidden: 0 };
@@ -1415,7 +1450,7 @@ function buildCard(wk, open) {
         </div>
         <div class="week-actions">
           <span class="week-nav"><button class="tool-btn" data-wact="prev" title="Open the week before">‹ Earlier</button><button class="tool-btn" data-wact="next" title="Open the week after (makes it if needed)">Later ›</button></span>
-          <button class="tool-btn" data-wact="copy" title="Copy this week as a table">Copy table</button>
+          <button class="tool-btn go" data-wact="export" title="Copy for OneNote, or download Word, PowerPoint or PDF">Export ▾</button>
           <button class="tool-btn" data-wact="dup" title="Make another copy of this week">Duplicate</button>
           <button class="tool-btn" data-wact="print">Print</button>
           <button class="tool-btn subtle" data-wact="clear" title="Empty every cell except morning message, duties, specialists and homework">Clear lessons</button>
@@ -1533,6 +1568,7 @@ function mountSortables(id) {
 }
 function syncCells(id) {
   const wk = W(id);
+  const notes = {}; Object.values(wk.cells).forEach(row => Object.values(row).forEach(l => l.forEach(c => { if (c.note) notes[c.id] = c.note; })));
   document.querySelectorAll(`#week-${id} td.body[data-row]`).forEach(td => {
     const holder = td.querySelector(".cell-cards"); if (!holder) return;
     const r = td.dataset.row, d = td.dataset.day;
@@ -1544,7 +1580,8 @@ function syncCells(id) {
       if (key != null) { out.push({ id: uid("c"), html: libHtml(key, wk) }); return; }
       const b = el.querySelector(".card-body");
       const html = sanitize(b ? b.innerHTML : "");
-      if (plainText(html)) out.push({ id: el.dataset.id || uid("c"), html });
+      const cid = el.dataset.id || uid("c");
+      if (plainText(html)) { const o = { id: cid, html }; if (notes[cid]) o.note = notes[cid]; out.push(o); }
     });
     wk.cells[r][d] = out;
   });
@@ -1613,7 +1650,7 @@ pop.addEventListener("click", e => {
     pushUndo(id);
     const nx = ensureNext(wk); if (!nx) { undoStack.pop(); refreshUndo(); toast("Set this week's Monday date first"); return; }
     const list = slotIn(nx, wk, row, day); if (!list) { toast("Next week has no matching period"); return; }
-    src.forEach(c => list.push({ id: uid("c"), html: c.html }));
+    src.forEach(c => list.push(copyCard(c)));
     persist(`Copied to ${nx.title}`); renderAll(id); return;
   }
   if (b.dataset.cm) {
@@ -1628,7 +1665,7 @@ pop.addEventListener("click", e => {
           if (L.cov.has(row) || (info && info.sp && BLOCKS[info.sp.type])) return;
           const list = wk.cells[row][d.id] = wk.cells[row][d.id] || [];
           if (list.length) return;
-          src.forEach(c => list.push({ id: uid("c"), html: c.html })); n++;
+          src.forEach(c => list.push(copyCard(c))); n++;
         });
       }, null);
       toast(n ? `Repeated on ${n} more day${n === 1 ? "" : "s"} (filled cells were left alone)` : "Every other day already has something in that period");
@@ -1710,6 +1747,303 @@ async function copyWeek(wk) {
   toast(ok ? `${wk.title} copied — paste into Word, Docs, PowerPoint or a spreadsheet` : "Your browser blocked copying — try Print instead");
 }
 
+/* ---------- exports: OneNote, Word, PowerPoint, PDF ---------- */
+const LIBS = {
+  pptx: "https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js",
+  docx: "https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js",
+  jspdf: "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
+  autotable: "https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js",
+};
+const libP = {};
+function loadLib(k) {
+  if (!libP[k]) libP[k] = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = LIBS[k]; sc.onload = res; sc.onerror = () => { delete libP[k]; rej(new Error("load")); }; document.head.appendChild(sc); });
+  return libP[k];
+}
+let dlNs = null;
+function downloadsNs() {
+  if (!dlNs) dlNs = (window.claude && typeof window.claude.use === "function") ? Promise.resolve(window.claude.use("downloads")).catch(() => null) : Promise.resolve(null);
+  return dlNs;
+}
+async function saveFile(blob, filename) {
+  const ns = await downloadsNs();
+  if (ns) {
+    try { await ns.save({ filename, data: blob }); toast("Saved " + filename); }
+    catch (e) { if (e && e.code === "declined") return; toast("Couldn't save here — " + ((e && e.message) || "try the HTML file on your site")); }
+    return;
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("Downloaded " + filename);
+}
+const fileBase = wk => (wk.title + (wk.cls && !wk.title.includes(wk.cls) ? " " + wk.cls : "") + (wk.start ? " " + wk.start : "")).replace(/[\\/:*?"<>|]+/g, "-").trim() || "Week";
+
+const TAGCOL = { uoi: "7B55B5", tune: "3D8A4E", find: "2F78B8", sort: "C96A17", share: "CF4F3F", reflect: "7B55B5", lit: "2F78B8", d5: "1F5A8E", math: "3D8A4E", spec: "CF4F3F", sel: "72243E", mm: "075985", duty: "574F46", hw: "92400E", vtr: "993C1D", trip: "3D8A4E", event: "9F1239", meet: "574F46" };
+const BLOCKFILL = { event: "FDEFEC", holiday: "F5F0FC", off: "ECE5D8", other: "FEF2E4" };
+function cardParts(c) {
+  const t = document.createElement("template"); t.innerHTML = c.html;
+  const tg = t.content.querySelector("span.tag");
+  let tag = "", cls = "";
+  if (tg) { tag = tg.textContent.trim(); cls = (tg.className.match(/tag-([a-z0-9]+)/) || [])[1] || ""; tg.remove(); }
+  const t2 = document.createElement("template"); t2.innerHTML = t.innerHTML.replace(/<br\s*\/?>/gi, "\n");
+  return { tag, cls, text: (t2.content.textContent || "").replace(/[ \t]+/g, " ").replace(/^ +| +$/gm, "").trim(), note: c.note || "" };
+}
+function exportModel(wk, o) {
+  const down = SET.orient === "down", u = unitBy(wk.unit);
+  const L = {}; wk.days.forEach(d => { L[d.id] = dayLayout(wk, d); });
+  const rowHead = r => ({ type: "rowhead", title: plainText(r.label), sub: r.kind === "break" ? "" : [plainText(r.note), plainText(r.clock)].filter(Boolean).join(" · "), short: !!r.short });
+  const dayHead = (d, i) => ({ type: "colhead", title: plainText(d.day), sub: [dateFor(wk, i), plainText(d.sub)].filter(Boolean).join(" · ") });
+  const body = (r, d, sp) => {
+    if (L[d.id].cov.has(r.id)) return null;
+    const info = L[d.id].lead[r.id] || { n: 1 };
+    const cell = { type: "cell", short: !!r.short, [sp]: info.n > 1 ? info.n : 1, items: [] };
+    if (info.sp && BLOCKS[info.sp.type]) { cell.block = { type: info.sp.type, name: BLOCKS[info.sp.type], label: plainText(info.sp.label) }; return cell; }
+    cell.items = ((wk.cells[r.id] || {})[d.id] || []).map(cardParts).map(p => (o.notes ? p : Object.assign(p, { note: "" })));
+    return cell;
+  };
+  const grid = [];
+  if (!down) {
+    grid.push([{ type: "corner", title: "Period" }].concat(wk.days.map(dayHead)));
+    wk.rows.forEach(r => {
+      if (r.kind === "break") { grid.push([rowHead(r), { type: "break", title: plainText(r.label), cs: wk.days.length }]); return; }
+      grid.push([rowHead(r)].concat(wk.days.map(d => body(r, d, "rs")).filter(Boolean)));
+    });
+  } else {
+    grid.push([{ type: "corner", title: "Day" }].concat(wk.rows.map(r => Object.assign(rowHead(r), { type: "colhead" }))));
+    wk.days.forEach((d, i) => {
+      const row = [Object.assign(dayHead(d, i), { type: "rowhead" })];
+      wk.rows.forEach(r => {
+        if (r.kind === "break") { if (i === 0) row.push({ type: "break", title: "", rs: wk.days.length }); return; }
+        const c = body(r, d, "cs"); if (c) row.push(c);
+      });
+      grid.push(row);
+    });
+  }
+  const sub = [wk.start ? dateFor(wk, 0) + " – " + dateFor(wk, Math.min(4, wk.days.length - 1)) : "", wk.cls, u ? u.y + " · " + u.t : ""].filter(Boolean).join("  ·  ");
+  return { title: wk.title, sub, ci: u ? u.ci : "", grid, ncols: down ? wk.rows.length + 1 : wk.days.length + 1, down,
+    todos: o.todos ? (wk.notes || []).map(n => ({ t: n.t, done: n.done })) : [] };
+}
+function ensureSpan(c) { return { rs: c.rs || 1, cs: c.cs || 1 }; }
+function cellLines(c) {
+  if (c.type !== "cell") return [{ text: c.title || "", bold: true }].concat(c.sub ? [{ text: c.sub, small: true }] : []);
+  if (c.block) return [{ text: c.block.name.toUpperCase(), bold: true, color: "9F1239", small: true }].concat(c.block.label ? [{ text: c.block.label, bold: true }] : []);
+  const out = [];
+  c.items.forEach((p, k) => {
+    out.push({ tag: p.tag, tagColor: TAGCOL[p.cls] || "574F46", text: p.text, gap: k > 0 });
+    if (p.note) out.push({ text: "Note: " + p.note, note: true });
+  });
+  return out;
+}
+function cellFill(c) {
+  if (c.type === "corner" || c.type === "colhead") return "F4EEE2";
+  if (c.type === "rowhead" || c.type === "break") return "FDFAF5";
+  if (c.block) return BLOCKFILL[c.block.type] || "FEF2E4";
+  if (c.short) return "FDFAF5";
+  return "FFFFFF";
+}
+
+/* OneNote / Word / Docs paste: an editable HTML table */
+function oneNoteHtml(m) {
+  const font = "font-family:Calibri,Arial,sans-serif;";
+  const cs = `border:1px solid #BFB6A6;padding:3px 5px;vertical-align:top;${font}font-size:9pt;color:#2F2A25;`;
+  let h = `<p style="${font}font-size:16pt;font-weight:bold;margin:0">${esc(m.title)}</p>`;
+  if (m.sub) h += `<p style="${font}font-size:10pt;color:#6E655A;margin:0 0 4px">${esc(m.sub)}</p>`;
+  if (m.ci) h += `<p style="${font}font-size:10pt;margin:0 0 8px"><b>Central idea:</b> ${esc(m.ci)}</p>`;
+  h += `<table style="border-collapse:collapse;width:100%">`;
+  m.grid.forEach(row => {
+    h += "<tr>" + row.map(c => {
+      const tagName = c.type === "cell" ? "td" : "th";
+      const span = (c.rs > 1 ? ` rowspan="${c.rs}"` : "") + (c.cs > 1 ? ` colspan="${c.cs}"` : "");
+      const inner = cellLines(c).map(l => l.tag != null
+        ? `${l.gap ? "<br>" : ""}<b style="color:#${l.tagColor};font-size:7.5pt">${esc(l.tag)}</b> ${esc(l.text).replace(/\n/g, "<br>")}`
+        : l.note ? `<br><i style="color:#8B8174">${esc(l.text).replace(/\n/g, "<br>")}</i>`
+        : `${l.small && !l.bold ? "<br>" : ""}<span style="${l.bold ? "font-weight:bold;" : ""}${l.small ? "font-size:7.5pt;color:#6E655A;" : ""}${l.color ? "color:#" + l.color + ";" : ""}">${esc(l.text)}</span>`).join("");
+      return `<${tagName}${span} style="${cs}background:#${cellFill(c)};text-align:${c.type === "break" ? "center" : "left"}">${inner || "&nbsp;"}</${tagName}>`;
+    }).join("") + "</tr>";
+  });
+  h += "</table>";
+  if (m.todos.length) h += `<p style="${font}font-size:11pt;font-weight:bold;margin:10px 0 2px">Notes &amp; to-dos</p>` + m.todos.map(t => `<p style="${font}font-size:10pt;margin:0">${t.done ? "☑" : "☐"} ${esc(t.t)}</p>`).join("");
+  return h;
+}
+function oneNoteText(m) {
+  const q = v => /[\t\n"]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  return [m.title, m.sub].filter(Boolean).join("\n") + "\n" + m.grid.map(row => row.map(c => q(cellLines(c).map(l => (l.tag ? l.tag + " " : "") + l.text).join("\n"))).join("\t")).join("\n");
+}
+async function copyHtml(html, text, msg) {
+  try {
+    if (navigator.clipboard && window.ClipboardItem && window.isSecureContext) {
+      await navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) })]);
+      toast(msg); return;
+    }
+  } catch (e) {}
+  const div = document.createElement("div");
+  div.contentEditable = "true"; div.style.cssText = "position:fixed;left:-9999px;top:0;"; div.innerHTML = html;
+  document.body.appendChild(div);
+  const range = document.createRange(); range.selectNodeContents(div);
+  const s = getSelection(); s.removeAllRanges(); s.addRange(range);
+  let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+  s.removeAllRanges(); div.remove();
+  toast(ok ? msg : "Your browser blocked copying — try Word or PDF instead");
+}
+
+/* PDF */
+const pdfSafe = s => String(s || "").replace(/→/g, "->").replace(/←/g, "<-").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[^\x09\x0A\x0D\x20-\xFF–—•…]/g, "");
+async function exportPdf(wk, o) {
+  await loadLib("jspdf"); await loadLib("autotable");
+  const m = exportModel(wk, o), { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.text(pdfSafe(m.title), 10, 12);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(110, 101, 90); doc.text(pdfSafe(m.sub), 10, 17.5);
+  let y = 21;
+  if (m.ci) { doc.setTextColor(47, 42, 37); const lines = doc.splitTextToSize(pdfSafe("Central idea: " + m.ci), 277); doc.text(lines, 10, y + 1); y += lines.length * 4 + 1; }
+  const hex = h => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  const toCell = c => ({
+    content: pdfSafe(cellLines(c).map(l => (l.tag ? l.tag + "  " : "") + l.text).join("\n")),
+    rowSpan: c.rs || 1, colSpan: c.cs || 1,
+    styles: { fillColor: hex(cellFill(c)), fontStyle: c.type === "cell" ? (c.block ? "bold" : "normal") : "bold", halign: c.type === "break" ? "center" : "left" },
+  });
+  const rows = m.grid.map(r => r.map(toCell));
+  const firstW = m.down ? 24 : 26;
+  doc.autoTable({
+    head: [rows[0]], body: rows.slice(1), startY: y + 1, theme: "grid", margin: { left: 8, right: 8 },
+    styles: { font: "helvetica", fontSize: m.down ? 5.6 : 6.6, cellPadding: 1.1, textColor: [47, 42, 37], lineColor: [191, 182, 166], lineWidth: 0.15, overflow: "linebreak", valign: "top" },
+    headStyles: { textColor: [47, 42, 37] },
+    columnStyles: Object.fromEntries(Array.from({ length: m.ncols }, (_, i) => [i, { cellWidth: i ? (281 - firstW) / (m.ncols - 1) : firstW }])),
+    rowPageBreak: "avoid",
+  });
+  if (m.todos.length) {
+    let ty = doc.lastAutoTable.finalY + 6;
+    if (ty > 190) { doc.addPage(); ty = 14; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text("Notes & to-dos", 10, ty);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+    m.todos.forEach((t, i) => doc.text(pdfSafe((t.done ? "[x] " : "[  ] ") + t.t), 12, ty + 5 + i * 4.5));
+  }
+  await saveFile(doc.output("blob"), fileBase(wk) + ".pdf");
+}
+
+/* PowerPoint: one editable table per slide, like your weekly plan deck */
+async function exportPptx(weeks, o, name) {
+  await loadLib("pptx");
+  const pptx = new PptxGenJS(); pptx.layout = "LAYOUT_WIDE"; pptx.title = name;
+  weeks.forEach(wk => {
+    const m = exportModel(wk, o), s = pptx.addSlide();
+    s.addText(m.title, { x: 0.3, y: 0.12, w: 8.5, h: 0.42, fontFace: "Calibri", fontSize: 20, bold: true, color: "2F2A25" });
+    s.addText(m.sub, { x: 0.3, y: 0.5, w: 12.7, h: 0.26, fontFace: "Calibri", fontSize: 10, color: "6E655A" });
+    if (m.ci) s.addText("Central idea: " + m.ci, { x: 0.3, y: 0.74, w: 12.7, h: 0.26, fontFace: "Calibri", fontSize: 9, color: "2F2A25", italic: true });
+    const fs = m.down ? 6 : 7;
+    const rows = m.grid.map(r => r.map(c => {
+      const runs = [];
+      cellLines(c).forEach((l, k) => {
+        const br = k > 0;
+        if (l.tag != null) {
+          if (l.tag) runs.push({ text: l.tag + " ", options: { bold: true, color: l.tagColor, fontSize: fs - 1, breakLine: false, ...(br ? {} : {}) } });
+          runs.push({ text: l.text, options: { fontSize: fs, color: "2F2A25", breakLine: true } });
+        } else runs.push({ text: l.text, options: { bold: !!l.bold, italic: !!l.note, color: l.color || (l.note || l.small ? "6E655A" : "2F2A25"), fontSize: l.small || l.note ? fs - 1 : fs, breakLine: true } });
+      });
+      if (runs.length) runs[runs.length - 1].options.breakLine = false;
+      const opt = { fill: { color: cellFill(c) }, valign: "top", align: c.type === "break" ? "center" : "left", margin: 0.03 };
+      if (c.rs > 1) opt.rowspan = c.rs; if (c.cs > 1) opt.colspan = c.cs;
+      return { text: runs.length ? runs : " ", options: opt };
+    }));
+    const W = 12.73, first = m.down ? 1.05 : 1.15;
+    const colW = [first].concat(Array(m.ncols - 1).fill((W - first) / (m.ncols - 1)));
+    s.addTable(rows, { x: 0.3, y: m.ci ? 1.05 : 0.85, w: W, colW, fontFace: "Calibri", fontSize: fs, border: { type: "solid", pt: 0.5, color: "BFB6A6" }, autoPage: false });
+    if (m.todos.length) s.addNotes("Notes & to-dos:\n" + m.todos.map(t => (t.done ? "[x] " : "[ ] ") + t.t).join("\n"));
+  });
+  const blob = await pptx.write({ outputType: "blob" });
+  await saveFile(blob, name + ".pptx");
+}
+
+/* Word: landscape page, editable table */
+async function exportDocx(wk, o) {
+  await loadLib("docx");
+  const D = window.docx, m = exportModel(wk, o);
+  const total = 15400, first = m.down ? 1300 : 1500;
+  const colW = [first].concat(Array(m.ncols - 1).fill(Math.floor((total - first) / (m.ncols - 1))));
+  const sz = m.down ? 12 : 14;
+  const paras = c => {
+    const ls = cellLines(c);
+    if (!ls.length) return [new D.Paragraph({ children: [] })];
+    return ls.map(l => new D.Paragraph({ spacing: { after: 0 }, alignment: c.type === "break" ? D.AlignmentType.CENTER : D.AlignmentType.LEFT, children:
+      l.tag != null ? [l.tag ? new D.TextRun({ text: l.tag + " ", bold: true, color: l.tagColor, size: sz - 2 }) : null, ...String(l.text).split("\n").map((t, i) => new D.TextRun({ text: t, size: sz, break: i ? 1 : 0 }))].filter(Boolean)
+      : [new D.TextRun({ text: l.text, bold: !!l.bold, italics: !!l.note, color: l.color || (l.note || l.small ? "6E655A" : "2F2A25"), size: l.small || l.note ? sz - 2 : sz })] }));
+  };
+  // expand row spans into Word's vertical merges
+  const pending = {}; const trs = [];
+  m.grid.forEach(row => {
+    const out = []; let col = 0, k = 0;
+    while (k < row.length || pending[col]) {
+      if (pending[col] && pending[col].left > 0) {
+        const p = pending[col]; p.left--;
+        out.push(new D.TableCell({ children: [new D.Paragraph({ children: [] })], verticalMerge: D.VerticalMergeType.CONTINUE, columnSpan: p.cs, shading: { fill: p.fill, type: D.ShadingType.CLEAR, color: "auto" } }));
+        if (!p.left) delete pending[col];
+        col += p.cs; continue;
+      }
+      const c = row[k++]; if (!c) break;
+      const cs = c.cs || 1, rs = c.rs || 1, fill = cellFill(c);
+      const opt = { children: paras(c), shading: { fill, type: D.ShadingType.CLEAR, color: "auto" }, margins: { top: 30, bottom: 30, left: 60, right: 60 } };
+      if (cs > 1) opt.columnSpan = cs;
+      if (rs > 1) { opt.verticalMerge = D.VerticalMergeType.RESTART; pending[col] = { left: rs - 1, cs, fill }; }
+      out.push(new D.TableCell(opt));
+      col += cs;
+    }
+    trs.push(new D.TableRow({ children: out, cantSplit: true }));
+  });
+  const children = [
+    new D.Paragraph({ children: [new D.TextRun({ text: m.title, bold: true, size: 32 })], spacing: { after: 40 } }),
+    new D.Paragraph({ children: [new D.TextRun({ text: m.sub, color: "6E655A", size: 20 })], spacing: { after: 60 } }),
+  ];
+  if (m.ci) children.push(new D.Paragraph({ children: [new D.TextRun({ text: "Central idea: ", bold: true, size: 20 }), new D.TextRun({ text: m.ci, size: 20 })], spacing: { after: 120 } }));
+  children.push(new D.Table({ rows: trs, columnWidths: colW, width: { size: total, type: D.WidthType.DXA }, layout: D.TableLayoutType.FIXED }));
+  if (m.todos.length) {
+    children.push(new D.Paragraph({ children: [new D.TextRun({ text: "Notes & to-dos", bold: true, size: 24 })], spacing: { before: 200, after: 60 } }));
+    m.todos.forEach(t => children.push(new D.Paragraph({ children: [new D.TextRun({ text: (t.done ? "☑ " : "☐ ") + t.t, size: 20 })] })));
+  }
+  const doc = new D.Document({ creator: "Teacher Toolkit", title: m.title, styles: { default: { document: { run: { font: "Calibri" } } } },
+    sections: [{ properties: { page: { size: { orientation: D.PageOrientation.LANDSCAPE }, margin: { top: 600, bottom: 600, left: 600, right: 600 } } }, children }] });
+  await saveFile(await D.Packer.toBlob(doc), fileBase(wk) + ".docx");
+}
+
+/* export menu */
+const exPop = document.getElementById("ex-pop");
+let exWeek = null;
+function openExport(btn, id) {
+  exWeek = id;
+  const ico = (bg, t) => `<span class="ex-ico" style="background:${bg}">${t}</span>`;
+  exPop.innerHTML = `
+    <button type="button" data-ex="onenote">${ico("#7719AA", "N")}<span class="ex-t"><b>Copy for OneNote</b><small>Editable table — paste into a OneNote page</small></span></button>
+    <button type="button" data-ex="docx">${ico("#2B579A", "W")}<span class="ex-t"><b>Word document</b><small>Editable .docx, landscape</small></span></button>
+    <button type="button" data-ex="pptx">${ico("#D24726", "P")}<span class="ex-t"><b>PowerPoint slide</b><small>Editable table, like your weekly plan deck</small></span></button>
+    <button type="button" data-ex="pptx-all">${ico("#D24726", "P+")}<span class="ex-t"><b>PowerPoint — all weeks</b><small>One slide per week, in date order</small></span></button>
+    <button type="button" data-ex="pdf">${ico("#B30B00", "PDF")}<span class="ex-t"><b>PDF</b><small>A4 landscape, ready to print</small></span></button>
+    <hr>
+    <label><input type="checkbox" data-exo="exNotes" ${SET.exNotes ? "checked" : ""}> Include hidden notes</label>
+    <label><input type="checkbox" data-exo="exTodos" ${SET.exTodos === false ? "" : "checked"}> Include notes &amp; to-dos</label>`;
+  exPop.hidden = false;
+  const r = btn.getBoundingClientRect();
+  exPop.style.left = Math.max(8, Math.min(r.right - 290, innerWidth - 300)) + "px";
+  let top = r.bottom + 4; if (top + 360 > innerHeight) top = Math.max(8, r.top - 364);
+  exPop.style.top = top + "px";
+}
+function closeExport() { exPop.hidden = true; exWeek = null; }
+exPop.addEventListener("change", e => { const k = e.target.dataset.exo; if (k) { SET[k] = e.target.checked; persist(); } });
+exPop.addEventListener("click", async e => {
+  const b = e.target.closest("[data-ex]"); if (!b || !exWeek) return;
+  const wk = W(exWeek), kind = b.dataset.ex, o = { notes: !!SET.exNotes, todos: SET.exTodos !== false };
+  closeExport();
+  if (document.activeElement && document.activeElement.isContentEditable) document.activeElement.blur();
+  try {
+    if (kind === "onenote") { const m = exportModel(wk, o); await copyHtml(oneNoteHtml(m), oneNoteText(m), "Copied — paste into OneNote (Ctrl/⌘ + V)"); return; }
+    toast("Making your file…");
+    if (kind === "pdf") await exportPdf(wk, o);
+    else if (kind === "docx") await exportDocx(wk, o);
+    else if (kind === "pptx") await exportPptx([wk], o, fileBase(wk));
+    else if (kind === "pptx-all") await exportPptx(byDateAll(), o, "Weekly plans " + (new Date().getFullYear()));
+  } catch (err) { console.error(err); toast("Couldn't make that file — check your internet connection and try again"); }
+});
+document.addEventListener("mousedown", e => { if (!exPop.hidden && !exPop.contains(e.target) && !e.target.closest('[data-wact="export"]')) closeExport(); });
+
 /* ---------- print ---------- */
 function printOne(id) {
   if (editMode) setEditMode(false);
@@ -1747,6 +2081,7 @@ function weekAction(btn) {
     if (!t) { toast("This is the earliest week"); return; }
     openCard(t.id); return;
   }
+  if (act === "export") { if (!exPop.hidden && exWeek === id) closeExport(); else openExport(btn, id); return; }
   if (act === "copy") copyWeek(wk);
   else if (act === "print") printOne(id);
   else if (act === "dup") {
@@ -1807,16 +2142,17 @@ host.addEventListener("click", e => {
     case "add-card": openPop(btn, "lib"); break;
     case "cell-menu": openPop(btn, "menu"); break;
     case "card-del": { const cid = btn.closest(".card").dataset.id; mutate(id, wk => { const l = wk.cells[td.dataset.row][td.dataset.day]; l.splice(l.findIndex(x => x.id === cid), 1); }, "Removed — Undo is in the bar above"); break; }
+    case "card-note": openNote(btn); break;
     case "card-next": {
       const wk = W(id), cid = btn.closest(".card").dataset.id, r = td.dataset.row, d = td.dataset.day;
       pushUndo(id);
       const nx = ensureNext(wk); if (!nx) { undoStack.pop(); refreshUndo(); toast("Set this week's Monday date first"); break; }
       const list = slotIn(nx, wk, r, d); if (!list) { toast("Next week has no matching period"); break; }
       const l = wk.cells[r][d], i = l.findIndex(x => x.id === cid);
-      list.push({ id: uid("c"), html: l[i].html }); l.splice(i, 1);
+      list.push(copyCard(l[i])); l.splice(i, 1);
       persist(`Moved to ${nx.title}`); renderAll(id); break;
     }
-    case "card-dup": { const cid = btn.closest(".card").dataset.id; mutate(id, wk => { const l = wk.cells[td.dataset.row][td.dataset.day]; const i = l.findIndex(x => x.id === cid); l.splice(i + 1, 0, { id: uid("c"), html: l[i].html }); }, "Duplicated"); break; }
+    case "card-dup": { const cid = btn.closest(".card").dataset.id; mutate(id, wk => { const l = wk.cells[td.dataset.row][td.dataset.day]; const i = l.findIndex(x => x.id === cid); l.splice(i + 1, 0, copyCard(l[i])); }, "Duplicated"); break; }
     case "day-prev": case "day-next": mutate(id, wk => { const i = wk.days.findIndex(d => d.id === dEl.dataset.day); moveItem(wk.days, i, i + (act === "day-prev" ? -1 : 1)); }); break;
     case "day-del": mutate(id, wk => { const did = dEl.dataset.day; wk.days = wk.days.filter(d => d.id !== did); Object.values(wk.cells).forEach(row => { delete row[did]; }); Object.values(wk.spans || {}).forEach(row => { delete row[did]; }); }, "Day removed — Undo is in the bar above"); break;
     case "row-prev": case "row-next": mutate(id, wk => { const i = wk.rows.findIndex(r => r.id === rEl.dataset.row); moveItem(wk.rows, i, i + (act === "row-prev" ? -1 : 1)); }); break;
@@ -1858,6 +2194,37 @@ host.addEventListener("input", e => {
 
 host.addEventListener("input", e => { if (e.target.classList && e.target.classList.contains("dock-search")) filterDock(e.target.closest("aside.dock"), e.target.value); });
 host.addEventListener("toggle", e => { if (e.target.classList && e.target.classList.contains("unit-more")) { SET.unitOpen = e.target.open; persist(); return; } if (e.target.classList && e.target.classList.contains("tray")) { SET.tray = e.target.open; persist(); document.querySelectorAll("details.tray").forEach(t => { if (t !== e.target && t.open !== e.target.open) t.open = e.target.open; }); } }, true);
+
+/* ---------- hidden notes ---------- */
+const notePop = document.getElementById("note-pop"), noteText = document.getElementById("note-text");
+let noteTarget = null, noteSaveT = null;
+function findCard(wk, cid) { for (const row of Object.values(wk.cells)) for (const l of Object.values(row)) { const c = l.find(x => x.id === cid); if (c) return c; } return null; }
+function openNote(btn) {
+  const cardEl = btn.closest(".card"), id = btn.closest("[data-week]").dataset.week, wk = W(id), c = findCard(wk, cardEl.dataset.id);
+  if (!c) { toast("Type something in the cell first, then add a note"); return; }
+  noteTarget = { id, cid: c.id, before: JSON.stringify(wk) };
+  noteText.value = c.note || "";
+  notePop.hidden = false;
+  const r = cardEl.getBoundingClientRect();
+  let top = r.bottom + 6; if (top + 230 > innerHeight) top = Math.max(8, r.top - 236);
+  notePop.style.left = Math.max(8, Math.min(r.left, innerWidth - 310)) + "px"; notePop.style.top = top + "px";
+  noteText.focus();
+}
+function closeNote(save) {
+  if (!noteTarget) return;
+  const { id, cid, before } = noteTarget; noteTarget = null; notePop.hidden = true;
+  const wk = W(id), c = wk && findCard(wk, cid); if (!c) return;
+  const v = cleanNote(noteText.value);
+  if ((c.note || "") === v) return;
+  undoStack.push({ id, prev: before }); refreshUndo();
+  if (v) c.note = v; else delete c.note;
+  persist(v ? "Note saved (hidden)" : "Note removed"); renderPane(id);
+}
+document.getElementById("note-done").addEventListener("click", () => closeNote(true));
+document.getElementById("note-del").addEventListener("click", () => { noteText.value = ""; closeNote(true); });
+document.addEventListener("mousedown", e => { if (noteTarget && !notePop.contains(e.target) && !e.target.closest('[data-act="card-note"]')) closeNote(true); });
+noteText.addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); closeNote(true); } });
+function setShowNotes(on) { SET.showNotes = on; document.getElementById("show-notes").checked = on; persist(on ? "Showing hidden notes" : "Hidden notes hidden"); WEEKS.forEach(w => renderPane(w.id)); }
 
 /* ---------- tap to place (works with touch) ---------- */
 let armed = null;
@@ -2040,10 +2407,7 @@ document.getElementById("btn-rotate").addEventListener("click", () => {
 });
 document.getElementById("btn-export").addEventListener("click", () => {
   const data = { app: "weekly-planner", version: 1, exported: new Date().toISOString(), weeks: WEEKS, set: SET };
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
-  a.download = "weekly-planner.json"; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000); toast("Exported");
+  saveFile(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), "weekly-planner-backup.json");
 });
 const importFile = document.getElementById("import-file");
 document.getElementById("btn-import").addEventListener("click", () => importFile.click());
@@ -2072,7 +2436,7 @@ document.getElementById("help-close").addEventListener("click", () => showHelp(f
 helpEl.addEventListener("click", e => { if (e.target === helpEl) showHelp(false); });
 function typing() { const a = document.activeElement; return a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); }
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape") { if (!pop.hidden) closePop(); if (armed) disarm(); if (!helpEl.hidden) showHelp(false); }
+  if (e.key === "Escape") { if (!exPop.hidden) closeExport(); if (!pop.hidden) closePop(); if (armed) disarm(); if (!helpEl.hidden) showHelp(false); }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey && !typing()) { e.preventDefault(); undo(); return; }
   if (typing() || e.ctrlKey || e.metaKey || e.altKey || !document.getElementById("modal").hidden) return;
   const k = e.key.toLowerCase();
@@ -2080,6 +2444,7 @@ document.addEventListener("keydown", e => {
   else if (k === "t") goThisWeek();
   else if (k === "n") globalNew();
   else if (k === "d") document.getElementById("btn-rotate").click();
+  else if (k === "h") setShowNotes(!SET.showNotes);
 });
 
 /* ---------- page chrome ---------- */
@@ -2145,6 +2510,8 @@ if (SET.focus === undefined) SET.focus = true;
 document.getElementById("focus-mode").checked = SET.focus !== false;
 document.getElementById("focus-mode").addEventListener("change", e => { SET.focus = e.target.checked; persist(e.target.checked ? "One week open at a time" : "Weeks stay open"); });
 document.getElementById("btn-thisweek").addEventListener("click", goThisWeek);
+document.getElementById("show-notes").checked = !!SET.showNotes;
+document.getElementById("show-notes").addEventListener("change", e => setShowNotes(e.target.checked));
 renderAll();
 renderGallery();
 persist();
