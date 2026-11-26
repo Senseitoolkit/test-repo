@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOK Workbench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a chalk-coloured workbook. Questions are set in italic serif, everything you operate is in sans. One ultramarine accent. */
+:root{
+  --bg:#e9eeea; --surface:#f8faf7; --ink:#14201d; --muted:#56645f; --line:#c9d3cd; --accent:#2a3bd0; --accent-soft:#dfe3fb; --on-accent:#ffffff;
+  --ok:#1f7a4d; --warn:#996000; --over:#b3261e;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111716; --surface:#1a2221; --ink:#e6ece8; --muted:#9aa8a3; --line:#2f3b39; --accent:#98a5ff; --accent-soft:#252c55; --on-accent:#0d1230;
+    --ok:#5cc491; --warn:#e0a83a; --over:#ff8a80; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111716; --surface:#1a2221; --ink:#e6ece8; --muted:#9aa8a3; --line:#2f3b39; --accent:#98a5ff; --accent-soft:#252c55; --on-accent:#0d1230;
+  --ok:#5cc491; --warn:#e0a83a; --over:#ff8a80; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+h1,h2,h3,h4{text-wrap:balance;margin:0}
+h2{font-family:var(--display);font-weight:600;font-size:1.7rem;line-height:1.15;letter-spacing:-.01em}
+h3{font-size:.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h4{font-size:1.02rem;font-weight:700}
+p{margin:0}
+.q{font-family:var(--display);font-style:italic;font-weight:400}
+.muted{color:var(--muted)}
+.small{font-size:.86rem}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+header{border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:5}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:12px 24px;flex-wrap:wrap;padding:12px 0}
+.brand{font-family:var(--display);font-weight:600;font-size:1.15rem;letter-spacing:-.01em}
+.brand i{font-weight:400;color:var(--accent)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav a{color:var(--muted);text-decoration:none;font-weight:600;font-size:.92rem;padding:6px 12px;border-radius:999px}
+nav a:hover{color:var(--ink)}
+nav a[aria-current="page"]{background:var(--ink);color:var(--bg)}
+
+main{padding:28px 0 64px}
+section.view{display:none;flex-direction:column;gap:28px}
+section.view.on{display:flex}
+
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:999px;padding:7px 16px;font-weight:600;font-size:.9rem}
+.btn:hover{background:var(--ink);color:var(--bg)}
+.btn.primary,.btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.1);background:var(--accent);color:var(--on-accent)}
+.btn.right{border-color:var(--ok);color:var(--ok)}
+.btn.wrong{border-color:var(--over);color:var(--over)}
+.link{border:0;background:none;padding:0;color:var(--accent);font-weight:600;text-align:left}
+.link:hover{text-decoration:underline}
+label{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:.9rem}
+label small{font-weight:400;color:var(--muted);font-size:.84rem}
+input[type=text],input[type=search],textarea,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:110px;line-height:1.5}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.title-input{font-family:var(--display);font-style:italic;font-size:1.2rem}
+
+.hero{display:flex;flex-direction:column;gap:16px;padding:12px 0 4px}
+.hero .q{font-size:clamp(2rem,5.4vw,3.6rem);line-height:1.05;letter-spacing:-.02em;max-width:18ch;min-height:2.1em}
+.hero .q.swap{animation:rise .35s ease}
+@keyframes rise{from{opacity:.2;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.hero .q.swap{animation:none}}
+.row{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap}
+.tag{font-size:.78rem;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 10px;border-radius:999px;white-space:nowrap}
+.tag.plain{color:var(--muted);background:transparent;border:1px solid var(--line)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+
+.pair{display:grid;grid-template-columns:1fr 2fr;border:1px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--surface)}
+.pair>div{padding:18px 20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.pair>div+div{border-left:1px solid var(--ink)}
+.pair .big{font-family:var(--display);font-weight:600;font-size:2.2rem;line-height:1}
+.pair ul{margin:0;padding-left:18px;color:var(--muted);font-size:.93rem}
+.pair a{color:var(--accent);font-weight:600}
+@media (max-width:640px){.pair{grid-template-columns:1fr}.pair>div+div{border-left:0;border-top:1px solid var(--ink)}}
+
+.map{display:grid;grid-template-columns:270px 1fr;gap:24px;align-items:start}
+.areas{display:flex;flex-direction:column;gap:14px;position:sticky;top:70px}
+.areas .grp{display:flex;flex-direction:column;gap:4px}
+.areas button{text-align:left;border:0;background:transparent;color:var(--ink);padding:7px 12px;border-radius:8px;font-weight:500;border-left:3px solid transparent}
+.areas button:hover{background:var(--surface)}
+.areas button[aria-pressed="true"]{background:var(--surface);border-left-color:var(--accent);font-weight:700}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.block{display:flex;flex-direction:column;gap:10px;padding-top:16px;border-top:1px solid var(--line)}
+.fw{display:grid;grid-template-columns:150px 1fr;gap:6px 18px}
+.fw+.fw{padding-top:12px;border-top:1px dashed var(--line)}
+.qs{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.qs li{font-family:var(--display);font-style:italic;font-size:1.12rem;line-height:1.3}
+dl.ideas{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px 20px}
+dl.ideas dt{font-weight:700}
+dl.ideas dd{margin:0;color:var(--muted);font-size:.92rem}
+.mini{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+.mini li{display:flex;flex-direction:column;gap:2px}
+.mini b span{font-weight:400;color:var(--muted)}
+.mini p{font-size:.93rem;color:var(--muted)}
+@media (max-width:760px){.map{grid-template-columns:1fr}.areas{position:static;flex-direction:row;flex-wrap:wrap}.areas .grp{flex:1 1 200px}.fw{grid-template-columns:1fr}}
+
+.concepts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.concept{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;text-align:left;color:var(--ink);font-weight:600}
+.concept:hover{border-color:var(--ink)}
+.concept[aria-pressed="true"]{border-color:var(--accent);background:var(--accent);color:var(--on-accent)}
+
+.meter{display:flex;flex-direction:column;gap:6px}
+.meter .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;font-size:.9rem}
+.pill{font-weight:700;padding:2px 10px;border-radius:999px;border:1px solid currentColor;font-size:.82rem}
+.track{height:8px;background:var(--line);border-radius:999px;overflow:hidden}
+.track i{display:block;height:100%;width:0;background:var(--ok);border-radius:999px;transition:width .2s}
+.s-ok{color:var(--ok)}.s-warn{color:var(--warn)}.s-over{color:var(--over)}
+.track i.s-warn{background:var(--warn)}.track i.s-over{background:var(--over)}
+
+.notice{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border:1px dashed var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 14px;font-size:.92rem}
+.stack{display:flex;flex-direction:column;gap:16px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cover{margin:0;padding-left:18px;font-size:.9rem;color:var(--muted)}
+.checks{display:flex;flex-direction:column;gap:8px}
+.checks label{flex-direction:row;align-items:flex-start;gap:10px;font-weight:400;font-size:.95rem}
+.checks input{margin-top:4px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.headrow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.lede{max-width:65ch;color:var(--muted)}
+details.guide{background:var(--surface);border:1px solid var(--line);border-radius:12px}
+details.guide summary{cursor:pointer;padding:14px 18px;font-weight:700}
+details.guide .in{padding:0 18px 18px;display:flex;flex-direction:column;gap:18px}
+.swap-table{display:grid;grid-template-columns:minmax(110px,1fr) 3fr;gap:8px 16px;font-size:.93rem}
+.swap-table .hd{font-weight:700;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.swap-table .weak{color:var(--muted);text-decoration:line-through}
+.steps{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px}
+.steps li{display:grid;grid-template-columns:minmax(150px,1fr) 3fr;gap:4px 16px}
+.steps p{color:var(--muted);font-size:.93rem}
+@media (max-width:560px){.steps li{grid-template-columns:1fr}}
+
+details.drop{border-top:1px solid var(--line)}
+details.drop summary{cursor:pointer;padding:14px 0 12px;font-size:.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+details.drop summary:hover,details.drop[open] summary{color:var(--ink)}
+details.drop .din{display:flex;flex-direction:column;gap:14px;padding-bottom:18px}
+.panel{gap:0}.panel>div:first-child{padding-bottom:18px;display:flex;flex-direction:column;gap:8px}
+ul.notes{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;max-width:70ch}
+a.wiki{color:var(--accent);font-weight:600;font-size:.84rem;text-decoration:none;white-space:nowrap}
+a.wiki:hover{text-decoration:underline}
+a.wiki::after{content:" \2197"}
+.brief{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 20px}
+.brief details.drop:first-child{border-top:0}
+/* library */
+.filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+@media (max-width:640px){.filters{grid-template-columns:1fr}}
+.results{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.case{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.case .when{color:var(--muted);font-size:.86rem;font-weight:600}
+.case .desc{font-size:.94rem}
+.case .shows{border-left:3px solid var(--accent);padding-left:12px;font-family:var(--display);font-style:italic;font-size:1.04rem;line-height:1.3}
+.gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0 28px}
+.gloss div{padding:12px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.gloss p{color:var(--muted);font-size:.93rem}
+
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:16px;max-width:720px}
+.quiz .q{font-size:1.5rem;line-height:1.25}
+.fb{border-left:3px solid var(--accent);padding-left:14px;display:flex;flex-direction:column;gap:6px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:.9rem;font-weight:600;display:none}
+footer{border-top:1px solid var(--line);padding:18px 0 40px;font-size:.84rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap bar">
+    <div class="brand">TOK <i class="q">Workbench</i></div>
+    <nav aria-label="Sections">
+      <a href="#course">Course</a>
+      <a href="#library">Library</a>
+      <a href="#exhibition">Exhibition</a>
+      <a href="#essay">Essay</a>
+      <a href="#practice">Practice</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section class="view" id="v-course">
+  <div class="hero">
+    <div class="row"><span class="tag" id="heroTag">The natural sciences</span></div>
+    <p class="q" id="heroQ">What separates science from pseudoscience?</p>
+    <div class="row">
+      <button class="btn primary" id="askBtn" type="button">Ask another question</button>
+      <span class="muted">TOK runs on questions like this one: about knowledge itself, open to more than one reasonable answer.</span>
+    </div>
+  </div>
+
+  <div class="stack">
+    <h3>How you are assessed</h3>
+    <div class="pair">
+      <div>
+        <div class="big num">1/3</div>
+        <b>Exhibition</b>
+        <ul>
+          <li>Three objects, one of the 35 IA prompts</li>
+          <li>Commentary of up to 950 words</li>
+          <li>10 marks, marked by your teacher and moderated by the IB</li>
+        </ul>
+        <a href="#exhibition">Plan the exhibition</a>
+      </div>
+      <div>
+        <div class="big num">2/3</div>
+        <b>Essay</b>
+        <ul>
+          <li>One of six prescribed titles set by the IB for your exam session</li>
+          <li>Up to 1,600 words, built around areas of knowledge</li>
+          <li>10 marks, marked by IB examiners</li>
+        </ul>
+        <a href="#essay">Plan the essay</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div>
+      <h2>The course in brief</h2>
+      <p class="lede">Short notes on the whole course. Open a heading to read it.</p>
+    </div>
+    <div class="brief" id="brief"></div>
+  </div>
+
+  <div class="stack">
+    <div>
+      <h2>The course map</h2>
+      <p class="lede">Pick a theme or area. Each opens with quick notes, followed by drop-downs for its key ideas, twelve knowledge questions and real cases.</p>
+    </div>
+    <div class="map">
+      <div class="areas" id="areas"></div>
+      <div class="panel" id="areaPanel" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div>
+      <h2>The twelve concepts</h2>
+      <p class="lede">These run through every part of the course. Pick one for quick notes, the tension inside it, questions to ask and cases that show it at work.</p>
+    </div>
+    <div class="concepts" id="concepts"></div>
+    <div class="panel" id="conceptPanel" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="view" id="v-library">
+  <div>
+    <h2>Library</h2>
+    <p class="lede">Real cases to anchor your claims, and the vocabulary to discuss them. Every case comes with the TOK point it can support. Each links to Wikipedia as a starting point. For assessed work, follow the article's references to a source you can cite.</p>
+  </div>
+  <div class="row" role="group" aria-label="Library section">
+    <button class="btn" type="button" id="tabCases" aria-pressed="true">Cases</button>
+    <button class="btn" type="button" id="tabGloss" aria-pressed="false">Glossary</button>
+    <span class="muted small num" id="libCount"></span>
+  </div>
+  <div class="filters">
+    <input type="search" id="libSearch" placeholder="Search" aria-label="Search the library">
+    <select id="libArea" aria-label="Filter by theme or area"></select>
+    <select id="libConcept" aria-label="Filter by concept"></select>
+  </div>
+  <div id="libOut"></div>
+</section>
+
+<section class="view" id="v-exhibition">
+  <div class="headrow">
+    <div>
+      <h2>Exhibition planner</h2>
+      <p class="lede">Show how TOK appears in the world around you: three specific objects, each tied to the same prompt.</p>
+    </div>
+    <button class="btn" type="button" data-copy="ex">Copy my exhibition</button>
+  </div>
+  <details class="guide">
+    <summary>How to choose objects that work</summary>
+    <div class="in">
+      <div class="stack"><h3>Make it specific</h3><div class="swap-table" id="exSwaps"></div></div>
+      <div class="stack"><h3>Kinds of object to consider</h3><ul class="cover" id="exKinds"></ul></div>
+      <p class="muted small">Stuck for ideas? The <a href="#library" style="color:var(--accent);font-weight:600">Library</a> lists cases by theme. A case is not an object, but many point to one: a document, an artefact, a photograph, a page.</p>
+    </div>
+  </details>
+  <div class="notice" data-example hidden><span>The text below is an example to show how the planner works.</span><button class="btn" type="button" data-clear>Clear the example and start mine</button></div>
+
+  <label for="ex-prompt">Your IA prompt
+    <small>Copy it word for word from the list of 35 in the TOK guide. All three objects answer this one prompt.</small>
+    <input type="text" id="ex-prompt" class="title-input" data-k="ex.prompt" placeholder="Type your chosen prompt exactly as written">
+  </label>
+  <div class="meter" id="exMeter"></div>
+  <div class="cols" id="exObjects"></div>
+  <div class="card">
+    <h3>Before you hand it in</h3>
+    <div class="checks" id="exChecks"></div>
+  </div>
+</section>
+
+<section class="view" id="v-essay">
+  <div class="headrow">
+    <div>
+      <h2>Essay planner</h2>
+      <p class="lede">Examiners look for a clear, coherent and critical exploration of the title. Plan the argument first, then draft against the limit.</p>
+    </div>
+    <button class="btn" type="button" data-copy="es">Copy my essay plan and draft</button>
+  </div>
+  <details class="guide">
+    <summary>How to read the title and structure the essay</summary>
+    <div class="in">
+      <div class="stack"><h3>What the wording asks of you</h3><ul class="steps" id="esPhrases"></ul></div>
+      <div class="stack"><h3>A structure that fits 1,600 words</h3><ul class="steps" id="esStruct"></ul></div>
+      <div class="stack"><h3>Common ways to lose marks</h3><ul class="cover" id="esPitfalls"></ul></div>
+    </div>
+  </details>
+  <div class="notice" data-example hidden><span>The text below is an example. The title is invented, not an official prescribed title.</span><button class="btn" type="button" data-clear>Clear the example and start mine</button></div>
+
+  <label for="es-title">Your prescribed title
+    <small>Use the exact wording from the six titles for your session. Your teacher will share them.</small>
+    <input type="text" id="es-title" class="title-input" data-k="es.title" placeholder="Paste the prescribed title exactly as written">
+  </label>
+  <label for="es-terms">Unpack the title
+    <small>Which words carry the weight? What could they mean, and what is the title assuming?</small>
+    <textarea id="es-terms" data-k="es.terms"></textarea>
+  </label>
+  <div class="cols" id="esAoks"></div>
+  <label for="es-concl">Conclusion and implications
+    <small>Answer the title directly. Then say why your answer matters, and for whom.</small>
+    <textarea id="es-concl" data-k="es.concl"></textarea>
+  </label>
+  <div class="card">
+    <div class="head"><h3>Draft</h3><span class="muted small">References and bibliography don't count toward the limit, so leave them out here.</span></div>
+    <div class="meter" id="esMeter"></div>
+    <label for="es-draft" style="font-weight:400"><span class="muted small">Write or paste your essay text</span>
+      <textarea id="es-draft" data-k="es.draft" style="min-height:320px"></textarea>
+    </label>
+  </div>
+  <div class="card">
+    <h3>Before you submit</h3>
+    <div class="checks" id="esChecks"></div>
+  </div>
+</section>
+
+<section class="view" id="v-practice">
+  <div>
+    <h2>Practice</h2>
+    <p class="lede" id="quizIntro"></p>
+  </div>
+  <div class="row" role="group" aria-label="Drill" id="quizTabs"></div>
+  <div class="quiz" id="quiz" aria-live="polite"></div>
+</section>
+
+</main>
+
+<footer><div class="wrap">Your writing is saved in this browser only. Use the Copy buttons to keep a backup or move it to another device. Check prompts, titles and deadlines against the current TOK guide and your teacher. This app is not affiliated with the IB.</div></footer>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ---------- content ---------- */
+const G1="Core theme", G2="Optional themes (your class studies two)", G3="Areas of knowledge (all five)";
+const AREAS = [
+ {g:G1,id:"knower",n:"Knowledge and the knower",note:"Everyone studies this. It looks at you as a knower: what you believe, why, and how the communities you belong to shape it.",
+  ideas:[["Justified true belief","The classic account of knowledge, going back to Plato: you know something if you believe it, it is true, and you have good reason for it."],["Gettier cases","Edmund Gettier's 1963 examples of justified true beliefs that are true only by luck, which suggest the classic account is incomplete."],["Knowing that and knowing how","Gilbert Ryle's distinction between knowing facts and knowing how to do something, such as riding a bicycle."],["Testimony","Knowledge taken on trust from others. Most of what anyone knows arrives this way."],["Confirmation bias","The habit of noticing and favouring evidence that fits what we already believe."],["Echo chamber","A community in which members mostly hear views they already hold, so beliefs go unchallenged."],["Intellectual humility","Recognising the limits of what you know and staying open to being wrong."]],
+  f:[["What shapes what I count as knowledge: my community, my schooling or my own experience?","Is there a difference between knowing something and being certain of it?","Can I know something that I cannot put into words?"],
+     ["How far can I recognise my own biases when I judge a claim?","How does belonging to a community of knowers shape what I accept without checking?","Is my own experience a stronger or a weaker basis for knowledge than expert testimony?"],
+     ["How do I decide which sources to trust when I cannot check for myself?","How reliable are my senses and my memory as sources of knowledge?","When is it reasonable to change my mind?"],
+     ["Do I have a responsibility to check a claim before I pass it on?","Is it wrong to hold a belief without good evidence?","Do I owe more scepticism to claims I want to be true?"]]},
+ {g:G2,id:"technology",n:"Knowledge and technology",note:"How tools, data and machines change what knowing means, from the printing press to machine learning.",
+  ideas:[["Data, information, knowledge","Raw data becomes information when organised and knowledge when understood and justified. Having the first is not having the last."],["Algorithmic bias","Systematic unfairness in a system's output, often inherited from the data it learned from."],["Black box","A system whose inputs and outputs are visible but whose inner reasoning is not open to inspection."],["Filter bubble","Eli Pariser's 2011 term for the narrowed view produced when algorithms show each person what they already like."],["Hallucination","When a language model produces fluent, confident text that is false, because it predicts plausible words and does not check facts."],["Extended mind","Clark and Chalmers's 1998 proposal that tools such as notebooks and phones can be part of a person's thinking."]],
+  f:[["Does having access to information amount to having knowledge?","Has technology changed what it means to know something, or only how fast we find it?","Is knowledge stored in a device part of what I know?"],
+     ["Do search and recommendation algorithms narrow the perspectives we meet?","Whose knowledge is over-represented in the data that systems learn from?","Does online anonymity help or harm the exchange of knowledge?"],
+     ["Can a machine know something, or does it only process data?","If nobody can explain how a model reached its output, are we justified in trusting it?","Does more data always bring us closer to the truth?"],
+     ["Who is responsible when an automated system produces knowledge that causes harm?","Should there be limits on the personal data used to produce knowledge?","Do those who build knowledge tools bear responsibility for how they are used?"]]},
+ {g:G2,id:"language",n:"Knowledge and language",note:"How words carry, shape and limit knowledge, and what happens to knowledge when it moves between languages.",
+  ideas:[["Linguistic relativity","The Sapir-Whorf hypothesis: the language you speak influences how you think and perceive. The strong version, that it determines thought, has little support."],["Denotation and connotation","A word's literal reference versus the feelings and associations it carries."],["Framing and euphemism","Choosing words that steer a listener's judgment, or that make something harsh sound mild."],["Metaphor","Lakoff and Johnson argued in 1980 that everyday thought runs on metaphors, such as argument as war or time as money."],["Translation loss","Meaning that fails to cross from one language to another because no exact equivalent exists."],["Jargon","Specialist vocabulary that makes experts precise and can shut outsiders out."]],
+  f:[["Can some knowledge exist in only one language?","Is there thought without language?","Can everything that is known be said?"],
+     ["Does the language we speak shape what we are able to know?","Who decides what a word means?","What is lost, and what is added, in translation?"],
+     ["How do metaphors both help and mislead when we explain something?","How does specialist vocabulary both sharpen and restrict knowledge?","Can precise definitions settle a disagreement, or only move it?"],
+     ["Is it ever acceptable to use loaded language to get a true point across?","Does naming a group or an event in a certain way carry moral weight?","When does simplifying for an audience become misleading?"]]},
+ {g:G2,id:"politics",n:"Knowledge and politics",note:"Power, persuasion and who gets to decide what is known, taught and published.",
+  ideas:[["Propaganda","Communication designed to promote a cause by shaping belief, often through selective or misleading content."],["Epistemic injustice","Miranda Fricker's 2007 term for wronging someone as a knower, for example by giving their testimony less credit because of who they are."],["Manufactured doubt","Deliberately exaggerating uncertainty to delay action, a tactic documented in the tobacco industry."],["Censorship","Suppressing speech or information, by a state or another authority."],["Fact and value","The distinction between what is the case and what ought to be. Political disputes usually mix both."],["Post-truth","Circumstances in which appeals to emotion and identity shape opinion more than facts do."]],
+  f:[["Are political disagreements about facts, about values, or both?","Is any knowledge free from politics?","What makes a political claim knowledge and not opinion?"],
+     ["Why do well-informed people reach opposite conclusions from the same evidence?","Whose knowledge is left out when decisions are made?","Can a news source be neutral?"],
+     ["How can we tell persuasion apart from justification?","How should voters weigh expert advice against their own experience?","What role do statistics play in making a political claim seem certain?"],
+     ["When, if ever, is it justified to restrict the spread of knowledge?","Do governments have the right to keep knowledge from citizens?","Is it ever right to publish knowledge that was obtained illegally?"]]},
+ {g:G2,id:"religion",n:"Knowledge and religion",note:"Faith, authority, text and experience as grounds for knowing, across many traditions.",
+  ideas:[["Faith","Trust or commitment that goes beyond what evidence alone establishes. Traditions disagree on whether it opposes reason or completes it."],["Revelation","Knowledge believed to be disclosed by a divine source, through scripture, prophets or experience."],["Hermeneutics","The practice and theory of interpreting texts, especially sacred ones: literal, historical, allegorical."],["Religious experience","A personal encounter taken by the person as contact with the sacred. Powerful for them, hard to share as evidence."],["Non-overlapping magisteria","Stephen Jay Gould's 1997 proposal that science covers facts and religion covers meaning and value, so the two need not conflict."],["Pascal's wager","Blaise Pascal's argument that believing in God is the rational bet under uncertainty. It concerns what is prudent to believe, not what is true."]],
+  f:[["Do religious claims answer the same kinds of questions as scientific ones?","Can religious knowledge be separated from the practice of a religion?","Is there a difference between believing in something and believing that something is true?"],
+     ["Can someone outside a religion fully understand its knowledge claims?","How should we treat conflicting claims from different religious traditions?","Does being raised in a tradition make its claims easier to know or harder to judge?"],
+     ["What roles do faith, authority and experience play in justifying religious claims?","Can one person's religious experience count as evidence for anyone else?","How do believers decide between literal and figurative readings of a text?"],
+     ["Should religious knowledge claims be open to the same criticism as any others?","Does religious knowledge carry obligations that other knowledge does not?","Who has the authority to interpret a sacred text?"]]},
+ {g:G2,id:"indigenous",n:"Knowledge and indigenous societies",note:"Knowledge held by communities and tied to place, practice, story and long observation.",
+  ideas:[["Oral tradition","Knowledge preserved and passed on through speech, story, song and ceremony instead of writing."],["Traditional ecological knowledge","Understanding of a local environment built up over many generations of living in it."],["Holism","Treating knowledge of land, people, spirit and practice as one connected whole, not separate subjects."],["Custodianship","The idea that knowledge is looked after by particular people on behalf of a community, not owned by individuals."],["Biopiracy","Taking a community's biological or traditional knowledge for profit without consent or fair return."],["UNDRIP","The 2007 UN Declaration on the Rights of Indigenous Peoples, which includes the right to maintain and protect traditional knowledge."]],
+  f:[["What is lost when knowledge is separated from the place and community that hold it?","Is 'indigenous knowledge' one kind of knowledge, or a label outsiders apply to many?","Can knowledge be tied to a place?"],
+     ["Who has the authority to speak about indigenous knowledge?","What happens when indigenous and scientific accounts of the same thing differ?","Can an outsider study a culture's knowledge without changing it?"],
+     ["How reliable is oral tradition as a way of preserving knowledge?","How is knowledge tested and corrected when it is passed on through practice and story?","What does long observation of one place reveal that short studies cannot?"],
+     ["Who owns knowledge that a community holds collectively?","Should some knowledge be restricted to those initiated into it?","What do researchers owe the communities whose knowledge they use?"]]},
+ {g:G3,id:"history",n:"History",note:"Knowing a past that can no longer be observed, through the traces it left and the people who select and interpret them.",
+  ideas:[["Primary and secondary sources","Material from the time being studied versus later accounts built on it. Neither is automatically more reliable."],["Historiography","The study of how history has been written: the methods, debates and changing interpretations of historians."],["Selection","E. H. Carr argued in 1961 that facts become historical facts only when a historian chooses them, so the historian is never absent from the history."],["Provenance","Where a source came from: who made it, when, for whom and why."],["Presentism","Judging or reading the past through the assumptions and values of the present."],["Revisionism","Reinterpreting accepted accounts in light of new evidence or questions. Normal practice, and distinct from denial."]],
+  f:[["Is knowledge of the past possible when the past cannot be observed?","What makes an event historically significant?","Is history closer to science or to storytelling?"],
+     ["Can a historian ever be free of the values of their own time?","Is history always written by the winners?","Does it matter whether a nation's history is written by insiders or outsiders?"],
+     ["What makes one source more reliable than another?","How do historians deal with gaps and silences in the record?","Does hindsight help or distort historical understanding?"],
+     ["Do historians have a duty to judge the past, or only to describe it?","Who has the right to decide how a painful past is remembered?","Is it fair to judge people of the past by today's standards?"]]},
+ {g:G3,id:"human",n:"The human sciences",note:"Psychology, economics, anthropology, sociology and more: studying people, who know they are being studied.",
+  ideas:[["Quantitative and qualitative","Research that measures and counts versus research that describes and interprets. Each captures what the other misses."],["Observer effect","People change their behaviour when they know they are being observed."],["Correlation and causation","Two things varying together does not show that one causes the other."],["Operationalising","Turning an abstract idea such as happiness or intelligence into something that can be measured, with the risk that the measure replaces the idea."],["Replication","Repeating a study to see whether the result holds. A finding that cannot be repeated is in doubt."],["Verstehen","Max Weber's term for understanding human action from the inside, by grasping what it means to the people involved."],["WEIRD samples","Participants from Western, educated, industrialised, rich and democratic societies, who are over-represented in research."]],
+  f:[["Can human behaviour be studied with the certainty we expect of the natural sciences?","Are there laws of human behaviour?","Can a prediction about people stay true once people hear it?"],
+     ["How does an observer's culture affect what they see in others?","Can findings from one society be applied to all?","Do an economist and an anthropologist see the same person?"],
+     ["What can an experiment tell us about people who know they are being watched?","Can the things that matter most about people be measured?","When is a correlation good enough to act on?"],
+     ["What limits should ethics place on research with human participants?","Is deceiving participants ever justified by what is learned?","Who should benefit from knowledge gained by studying a community?"]]},
+ {g:G3,id:"natural",n:"The natural sciences",note:"Observation, experiment and theories that stay open to being overturned.",
+  ideas:[["Hypothesis, theory, law","A hypothesis is a testable proposal. A theory is a well-supported explanation. A law describes a regular pattern. A theory does not grow up into a law."],["Falsifiability","Karl Popper's criterion: a claim is scientific only if some possible observation could show it to be false."],["Paradigm shift","Thomas Kuhn's 1962 account of science as long periods of work within a shared framework, broken by revolutions that replace it."],["Problem of induction","David Hume's point that no number of past observations guarantees the next one. Science generalises anyway."],["Peer review","Evaluation of research by other specialists before publication. A filter, not a guarantee."],["Model","A simplified representation of a system. Useful because it leaves things out, and limited for the same reason."]],
+  f:[["What separates science from pseudoscience?","Are there questions the natural sciences cannot answer?","Does science describe reality or build useful models of it?"],
+     ["Why do scientists sometimes disagree when they have the same data?","Does it matter who funds a piece of research?","How does scientific consensus form, and when should it be challenged?"],
+     ["How much evidence is enough to accept a theory?","Does a theory have to be falsifiable to be scientific?","What role do imagination and luck play in discovery?"],
+     ["Should some research never be pursued, whatever knowledge it might yield?","Is a scientist responsible for uses of a discovery that they did not intend?","Can data that was gained unethically be used?"]]},
+ {g:G3,id:"arts",n:"The arts",note:"Visual art, music, literature, theatre, film and dance: interpretation, meaning and whether art is a source of knowledge.",
+  ideas:[["Aesthetic judgment","A judgment about beauty or artistic merit. The debate is whether it is purely personal taste or can be argued for."],["Intentional fallacy","Wimsatt and Beardsley's 1946 claim that an author's intention is neither available nor decisive for judging a work."],["Death of the author","Roland Barthes's 1967 argument that meaning is made by readers, not fixed by the writer."],["Canon","The body of works a culture treats as its most important. Who chooses it, and who is left out, is contested."],["Institutional theory","The view, associated with Arthur Danto and George Dickie, that something is art when the art world treats it as art."],["Mimesis and expression","Art as imitation of the world versus art as expression of inner feeling. Two old answers to what art is for."]],
+  f:[["Can art give us knowledge, or only experience?","What, if anything, separates art from craft or entertainment?","Can a work of fiction tell the truth?"],
+     ["Does the artist's intention settle what a work means?","Is aesthetic judgment only a matter of taste?","Does knowing the context of a work change what we can learn from it?"],
+     ["By what standards can one interpretation be better than another?","Does an artist need technical skill to produce knowledge through art?","What does the audience contribute to a work's meaning?"],
+     ["Should a work be judged separately from the conduct of its maker?","Should art ever be censored?","Who has the right to tell a community's stories?"]]},
+ {g:G3,id:"maths",n:"Mathematics",note:"Proof, certainty and the puzzle of why abstract reasoning fits the physical world.",
+  ideas:[["Axiom","A starting assumption accepted without proof, from which other results are derived."],["Proof","A chain of logical steps from axioms to a conclusion. Once proved, a theorem stays proved."],["Deduction","Reasoning in which the conclusion must be true if the premises are. The engine of mathematical proof."],["Conjecture","A statement believed to be true and supported by examples, but not yet proved."],["Platonism and formalism","Two views of what maths is: the discovery of abstract objects that exist independently, or the manipulation of symbols by agreed rules."],["Unreasonable effectiveness","Eugene Wigner's 1960 phrase for the surprising way mathematics invented on paper turns out to describe nature."]],
+  f:[["Is mathematics discovered or invented?","Why does mathematics describe the physical world so well?","Are there mathematical truths that can never be proved?"],
+     ["Is mathematical truth the same in every culture?","Does beauty have a place in judging mathematics?","If a proof is too long for any person to check, do we know the result?"],
+     ["Why does a proof give a certainty that evidence cannot?","What is the role of intuition before a proof exists?","Do axioms need to be true, or only consistent?"],
+     ["Are mathematicians responsible for how their models are used?","Can a statistic be accurate and still mislead?","Should mathematicians refuse work whose main use is harmful?"]]}
+];
+const FRAME = [["Scope","What this area covers and why it matters"],["Perspectives","Who knows, and from where"],["Methods and tools","How knowledge is produced here"],["Ethics","What responsibilities come with it"]];
+
+const CONCEPTS = [
+ ["Evidence","Information offered in support of a claim: observations, data, documents, testimony. What counts as evidence differs between areas of knowledge.","More evidence is not the same as better evidence. Quality, relevance and source matter more than quantity.",["What would count as evidence against this?","Who gathered this evidence, and how?","Is the evidence relevant to the claim, or only near it?"]],
+ ["Certainty","The degree of confidence a knower or a community can have in a claim. Few claims outside mathematics are held with complete certainty.","Feeling certain and being justified are different things.",["How sure can anyone be of this, and how sure do we need to be?","What would it take to change my mind?","Is the confidence here earned by the evidence?"]],
+ ["Truth","What a claim has when it is correct. Theories differ on what that means: matching the facts, fitting with other beliefs, or working in practice.","A claim can be widely accepted and false, or true and impossible to prove.",["True by what standard, and for whom?","Could this be accepted by everyone and still be wrong?","Does this area of knowledge aim at truth, or at something else?"]],
+ ["Interpretation","Giving meaning to data, texts, events or works. The same material can support more than one reading.","Allowing several interpretations does not make every interpretation equally well supported.",["Could the same material reasonably be read another way?","What makes this reading better supported than its rivals?","Where does the data end and the interpretation begin?"]],
+ ["Power","The ability to shape what is researched, taught, published and believed.","Authority can protect knowledge, as expertise does, or distort it, as censorship and funding pressure do.",["Who gains if this is accepted as knowledge?","Whose voices are missing from this account?","Who decided this was worth studying?"]],
+ ["Justification","The reasons or grounds that make it reasonable to accept a claim.","Standards differ by area: proof in mathematics, replication in science, sources in history.",["Are these reasons good enough for this kind of claim?","Would this justification persuade someone who disagrees?","Is this a reason, or a restatement of the claim?"]],
+ ["Explanation","An account of why or how something is so, which goes beyond describing it.","A satisfying explanation is not always a true one, and a true one is not always satisfying.",["Does this explain the facts or only describe them?","What would a rival explanation look like?","Does it predict anything we could check?"]],
+ ["Objectivity","Judging independently of personal feelings, interests or position.","Complete objectivity may be out of reach, yet methods such as blinding and peer review bring a community closer to it.",["Whose point of view is built into this, even quietly?","What methods were used to limit bias?","Is objectivity possible here, or even desirable?"]],
+ ["Perspective","The standpoint from which a knower approaches a question, shaped by experience, culture and discipline.","Recognising many perspectives does not mean all of them are equally valid.",["What would someone in a different position see here?","Which perspective does this source take for granted?","Do the perspectives disagree about facts or about what matters?"]],
+ ["Culture","The shared beliefs, values, language and practices of a group, which influence what its members take as knowledge.","Some knowledge claims aim to hold everywhere. Others have meaning only inside the culture that holds them.",["Would this claim hold in another community?","Which assumptions here would a different culture not share?","Is this knowledge universal, or local and no less valuable for it?"]],
+ ["Values","What a person or a community holds important. Values guide which questions get asked and how knowledge is used.","The sciences aim at facts free of values, yet value choices enter when choosing topics, methods and acceptable risks.",["Which values shaped the question that was asked?","Can the facts here be separated from the values?","Whose values decide how this knowledge is applied?"]],
+ ["Responsibility","The obligations that come with producing, sharing and applying knowledge.","Knowing something can create a duty to act, or a duty to hold back.",["What follows, ethically, from knowing this?","Who is accountable if this knowledge is misused?","Does the knower owe something to those the knowledge is about?"]]
+];
+
+/* title, when, areas, concepts, what happened, what it shows */
+const CASES = [
+ ["Semmelweis and handwashing","1847","natural","evidence power justification","At Vienna General Hospital, Ignaz Semmelweis cut deaths from childbed fever sharply by making doctors wash their hands in chlorinated lime. Many colleagues rejected the finding, and he could not explain why it worked.","Strong evidence can be dismissed when it lacks an accepted explanation and challenges the people in authority."],
+ ["Wegener and continental drift","1912 to the 1960s","natural","explanation evidence certainty","Alfred Wegener proposed that continents move, pointing to matching coastlines and fossils. Geologists largely rejected the idea for decades because he offered no mechanism. Evidence of seafloor spreading in the 1960s led to plate tectonics.","A theory may need a mechanism, not just supporting observations, before a community accepts it."],
+ ["Eddington's eclipse expedition","1919","natural","evidence justification certainty","Arthur Eddington measured the bending of starlight during a solar eclipse and reported that it matched Einstein's prediction from general relativity, not Newton's.","Karl Popper used this as a model of science: a risky prediction that could have failed."],
+ ["Pluto is reclassified","2006","natural language","truth culture interpretation","The International Astronomical Union voted on a definition of 'planet' that Pluto does not meet, and it became a dwarf planet.","Nothing about Pluto changed. Some scientific knowledge depends on definitions that a community agrees."],
+ ["Marshall drinks the bacteria","1984","natural","evidence responsibility certainty","Barry Marshall swallowed a culture of Helicobacter pylori to show that bacteria, not stress, cause most stomach ulcers. He and Robin Warren received the Nobel Prize in 2005.","Consensus can be wrong, and overturning it can take unusual evidence. Self-experiment also raises ethical questions."],
+ ["Faster-than-light neutrinos","2011 to 2012","natural","certainty objectivity evidence","The OPERA experiment measured neutrinos apparently travelling faster than light. The team published and asked others to find the error, which turned out to be a loose fibre-optic cable.","Science treats a surprising result as a reason to check, and builds error-finding into its method."],
+ ["The kilogram is redefined","2019","natural maths","certainty objectivity","The kilogram stopped being defined by a metal cylinder kept near Paris and was tied to the Planck constant.","Even basic units are human agreements, revised to make measurement more stable and shareable."],
+ ["Tuskegee syphilis study","1932 to 1972","natural human","responsibility values power","The US Public Health Service observed untreated syphilis in hundreds of Black men in Alabama, without informed consent, and withheld penicillin once it became the standard cure. The scandal led to the 1979 Belmont Report on research ethics.","Knowledge gained by harming participants forces the question of what limits ethics places on methods."],
+ ["Henrietta Lacks and HeLa cells","1951","natural","responsibility power values","Cells taken from Henrietta Lacks at Johns Hopkins Hospital, without her knowledge, became the first immortal human cell line and have been used in research worldwide.","Enormous scientific benefit and a failure of consent can sit in the same case."],
+ ["Thalidomide","1957 to 1961","natural","evidence responsibility certainty","A sedative marketed as safe for pregnant women caused severe birth defects in thousands of children before it was withdrawn. Drug testing rules were tightened in many countries afterwards.","Absence of evidence of harm was treated as evidence of safety."],
+ ["Lysenko and Soviet genetics","1930s to 1960s","natural politics","power objectivity truth","Trofim Lysenko rejected Mendelian genetics and won Stalin's backing. In 1948 genetics was officially condemned, and dissenting scientists lost their posts or were imprisoned.","Political power can decide what counts as science, at great cost to knowledge and to people."],
+ ["The trial of Galileo","1633","natural religion","power evidence justification","The Roman Inquisition tried Galileo for defending the view that the Earth moves around the Sun, and he spent the rest of his life under house arrest.","Two sources of authority, observation and institutional interpretation of scripture, came into direct conflict."],
+ ["Piltdown Man","1912 to 1953","natural history","evidence certainty perspective","Skull fragments found in Sussex were presented as a missing link in human evolution. In 1953 they were exposed as a forgery combining a human skull and an orangutan jaw.","Experts accepted weak evidence for forty years, partly because it matched what they hoped to find."],
+ ["Gene-edited babies","2018","natural technology","responsibility values","He Jiankui announced the birth of twins whose embryos he had edited with CRISPR. He was widely condemned by scientists and later imprisoned in China.","Being able to produce knowledge or technology does not settle whether one should."],
+ ["Milgram's obedience experiments","1961","human","responsibility evidence explanation","At Yale, Stanley Milgram told volunteers to give what they believed were electric shocks to a learner. In the best-known version, about two thirds continued to the maximum level.","A landmark finding about authority, obtained through deception that would be hard to approve today."],
+ ["Stanford prison experiment","1971","human","evidence interpretation objectivity","Philip Zimbardo assigned students to play guards and prisoners and stopped the study after six days. Later critics showed that guards were coached and that the study was never properly replicated.","A famous study can shape public belief long after its methods are questioned."],
+ ["The Hawthorne studies","1924 to 1932","human","evidence objectivity","Research at a Western Electric factory near Chicago seemed to show that workers' output rose whatever change was made, apparently because they were being studied.","Observing people can change the thing being observed."],
+ ["'Why did nobody notice it?'","2008","human maths","certainty explanation","Visiting the London School of Economics during the financial crisis, Queen Elizabeth II asked economists why so few had seen it coming.","Prediction in the human sciences is limited, and models can create confidence they have not earned."],
+ ["Mead and Freeman on Samoa","1928 and 1983","human","perspective culture interpretation","Margaret Mead's study of adolescence in Samoa became an anthropology classic. Derek Freeman later argued she had been misled by her informants and her own expectations. Anthropologists still dispute who was closer to the truth.","Two trained observers reached opposite accounts of one society."],
+ ["WEIRD participants","2010","human","culture objectivity evidence","Joseph Henrich and colleagues showed that most psychology studies draw on people from Western, educated, industrialised, rich and democratic societies, who are often unusual compared with the rest of humanity.","Claims about 'human nature' may rest on a narrow slice of humans."],
+ ["Loftus and Palmer on leading questions","1974","human language knower","evidence certainty interpretation","Participants watched film of a car crash. Those asked how fast the cars were going when they 'smashed' gave higher speeds than those asked about when they 'hit'.","Memory is reconstructed, and the wording of a question can alter what a witness reports."],
+ ["The Literary Digest poll","1936","human maths","evidence certainty justification","A US magazine predicted that Alf Landon would beat Franklin Roosevelt, using about 2.4 million responses drawn from car and telephone owners. Roosevelt won by a landslide. George Gallup called it correctly with a far smaller, more representative sample.","A huge quantity of biased evidence is worse than a small quantity of good evidence."],
+ ["The replication project","2015","human","evidence certainty justification","The Open Science Collaboration repeated 100 published psychology studies. Fewer than half produced the original result again.","Publication is not the end of justification. Findings need to survive being repeated."],
+ ["The Hitler Diaries","1983","history","evidence justification certainty","The German magazine Stern paid millions for diaries said to be Hitler's. A leading historian, Hugh Trevor-Roper, vouched for them. Forensic tests showed they were modern forgeries by Konrad Kujau.","Expert authority is not a substitute for testing a source."],
+ ["The Rosetta Stone","1799 and 1822","history language","interpretation power evidence","A decree carved in three scripts, found by French soldiers in Egypt, allowed Jean-François Champollion to decipher hieroglyphs. It has been in the British Museum since 1802, and Egypt has asked for its return.","One object opened a whole body of historical knowledge, and raises the question of who should hold it."],
+ ["The Ienaga textbook lawsuits","1965 to 1997","history politics","power perspective truth","The historian Ienaga Saburō sued the Japanese government three times over the screening of his school history textbook. In 1997 the Supreme Court found that some of the changes demanded of him were unlawful.","What a state lets schools teach about the past is a decision about knowledge and power."],
+ ["The Donation of Constantine","1440","history religion language","evidence power justification","Lorenzo Valla showed that a document granting the Pope authority over western Europe was a forgery, because its Latin used words and styles from centuries after Constantine.","Close analysis of language can test a historical source, even against a powerful institution."],
+ ["The Benin Bronzes","1897 and 2022","history arts indigenous","power perspective responsibility","British forces took thousands of sculptures from Benin City in 1897, and they were dispersed to museums. In 2022 Germany transferred ownership of more than a thousand to Nigeria.","Who holds cultural objects shapes who gets to tell their history."],
+ ["Kennewick Man, the Ancient One","1996 to 2017","indigenous natural history","power values evidence","A skeleton about 8,500 years old was found in Washington State. Scientists went to court for the right to study it, against tribes who wanted reburial. DNA analysis in 2015 showed he was related to living Native Americans, and he was reburied in 2017.","Scientific inquiry and a community's own knowledge and values can make competing claims on the same remains."],
+ ["Aboriginal stories of rising seas","Published 2015","indigenous history","evidence culture justification","Researchers Patrick Nunn and Nicholas Reid matched Aboriginal stories of drowned coastlines from around Australia to sea-level rise that ended roughly 7,000 years ago.","Oral tradition may preserve accurate knowledge over far longer spans than written history."],
+ ["Inuit testimony and the Franklin ships","1850s and 2014","indigenous history","evidence power culture","Inuit accounts described where the ships of the lost Franklin expedition had gone down. They were largely discounted in Britain. HMS Erebus was found in 2014 in the area those accounts indicated.","Testimony was dismissed because of who gave it, an example of epistemic injustice."],
+ ["Duchamp's Fountain","1917","arts","interpretation culture power","Marcel Duchamp submitted a factory-made urinal, signed 'R. Mutt', to a New York exhibition that had promised to show every entry. It was kept out of the show.","It forces the question of what makes something art: the object, the artist's choice or the institution."],
+ ["Van Meegeren's Vermeers","1930s to 1947","arts history","evidence justification values","Han van Meegeren's forged Vermeers fooled leading experts, and one was sold to Hermann Göring. Accused of selling a national treasure to the enemy, he proved his defence by painting another forgery under guard.","If experts praised the works as Vermeers, what changed when the truth came out: the paintings or the knowledge about them?"],
+ ["The Rite of Spring premiere","1913","arts","perspective culture values","The first performance of Stravinsky's ballet in Paris was met with jeering and uproar in the audience. It is now regarded as one of the most important works of the century.","Aesthetic judgment shifts over time, which challenges the idea of fixed standards."],
+ ["Banksy's shredded painting","2018","arts","values interpretation","Moments after Girl with Balloon sold at Sotheby's for about a million pounds, a shredder hidden in the frame destroyed half of it. Renamed Love is in the Bin, it sold in 2021 for more than 18 million.","Meaning and value in art can come from an event and its context, not only from the object."],
+ ["An AI image wins an art prize","2022","arts technology","values responsibility interpretation","Jason Allen won the digital art category at the Colorado State Fair with an image generated with Midjourney, prompting protests from other artists.","Is skill or intention required for art, and who is the knower when a model makes the image?"],
+ ["Picasso's Guernica","1937","arts history politics","truth perspective explanation","Picasso painted the mural within weeks of the bombing of the Basque town of Guernica during the Spanish Civil War.","A painting can convey something about an event that a factual report does not, which bears on whether art gives knowledge."],
+ ["Non-Euclidean geometry","1820s to 1830s","maths","truth certainty","Lobachevsky and Bolyai showed that replacing Euclid's parallel postulate gives geometries that are fully consistent. Einstein later used curved geometry to describe space and time.","Mathematical truth depends on the axioms chosen, and an 'obvious' axiom turned out to be optional."],
+ ["Gödel's incompleteness theorems","1931","maths","certainty truth justification","Kurt Gödel proved that any consistent formal system rich enough for arithmetic contains true statements it cannot prove.","Even in the most certain area of knowledge, proof has limits that can themselves be proved."],
+ ["The four colour theorem","1976","maths technology","justification certainty","Kenneth Appel and Wolfgang Haken proved that four colours suffice for any map, using a computer to check nearly two thousand cases that no person could verify by hand.","If no human can follow the whole proof, in what sense do mathematicians know the result?"],
+ ["Wiles and Fermat's Last Theorem","1993 to 1995","maths","justification certainty","Andrew Wiles announced a proof of a problem open for more than 350 years. Reviewers found a gap. He repaired it with Richard Taylor, and the proof was published in 1995.","A proof becomes knowledge only after the community has checked it."],
+ ["Ramanujan's letters","1913","maths","justification culture perspective","Srinivasa Ramanujan, a self-taught clerk in Madras, sent pages of formulas without proofs to G. H. Hardy in Cambridge. Most were correct, and some were entirely new.","Intuition can reach mathematical truths before proof does, and outside the usual institutions."],
+ ["The Monty Hall problem","1990","maths knower","certainty justification perspective","Marilyn vos Savant explained in a magazine column that a contestant should switch doors. Thousands of readers, including people with doctorates, wrote to say she was wrong. She was right.","Strong intuition and credentials are no guarantee, even about a simple probability."],
+ ["Mars Climate Orbiter","1999","maths language natural","responsibility certainty","A NASA spacecraft was lost at Mars because one team's software produced figures in imperial units and another's expected metric.","Shared conventions are part of what makes knowledge usable, and a silent assumption can undo precise work."],
+ ["Long-Term Capital Management","1998","maths human","certainty responsibility","A hedge fund whose partners included two Nobel-winning economists collapsed when markets behaved in ways its mathematical models treated as almost impossible.","A model's precision can be mistaken for certainty about the world."],
+ ["AlphaGo's move 37","2016","technology","explanation justification","In its match against Lee Sedol, DeepMind's Go program played a move that experts first took for a mistake and later called brilliant. Its makers could not fully explain the choice.","Can a system be said to know something if neither it nor anyone else can give its reasons?"],
+ ["AlphaFold","2020","technology natural","explanation evidence justification","DeepMind's system predicted protein structures at an accuracy close to experimental methods in the CASP14 assessment. Its lead developers shared the 2024 Nobel Prize in Chemistry.","Prediction without a full explanation can still count as a scientific advance."],
+ ["The COMPAS risk scores","2016","technology politics human","objectivity responsibility power","A ProPublica investigation found that software used in US courts to predict reoffending wrongly flagged Black defendants as high risk far more often than white defendants.","An algorithm can look objective while reproducing bias from the data and choices behind it."],
+ ["Wikipedia and Britannica","2005","technology knower","justification evidence power","A study in the journal Nature compared science entries and found Wikipedia's accuracy close to that of Encyclopaedia Britannica, a result Britannica disputed.","Knowledge produced by open collaboration challenges the assumption that reliability requires named experts."],
+ ["Google Flu Trends","2008 to 2015","technology human","evidence certainty explanation","Google estimated flu levels from search terms. In the 2012 to 2013 season it predicted about double the real number of cases, and the service was later withdrawn.","Large data sets find correlations, which can break without warning when nobody understands the cause."],
+ ["Cambridge Analytica","2018","technology politics","power responsibility values","Reporting revealed that data from up to 87 million Facebook profiles had been harvested, without meaningful consent, for political advertising.","Knowledge about people is a source of power over them."],
+ ["Guugu Yimithirr directions","Studied from the 1970s","language indigenous","culture perspective","Speakers of this Australian language describe locations with compass directions instead of left and right, and keep track of north at all times.","A language can train its speakers' attention, which supports a moderate form of linguistic relativity."],
+ ["Counting in Pirahã","2004","language indigenous maths","culture interpretation","Research with the Pirahã people of the Amazon, whose language has no words for exact numbers, found they had difficulty matching exact quantities above about three. The interpretation is still debated.","Does lacking a word limit a concept, or does a culture simply not need it?"],
+ ["'Enhanced interrogation'","After 2001","language politics","power values truth","US officials used this phrase for methods, including waterboarding, that many lawyers and human rights bodies classify as torture.","The label chosen for an act shapes how people judge it."],
+ ["The Treaty of Waitangi","1840","language history indigenous politics","interpretation power perspective","In the English text, Māori chiefs ceded 'sovereignty' to the British Crown. The Māori text used 'kāwanatanga', closer to governance, and guaranteed chiefs their 'tino rangatiratanga', or full authority. The difference is still argued over in New Zealand.","Translation is never neutral, and a gap between two texts can shape a country's history."],
+ ["Iraq and weapons of mass destruction","2003 to 2004","politics","evidence certainty power justification","The United States and United Kingdom invaded Iraq citing intelligence that it held weapons of mass destruction. The Iraq Survey Group reported in 2004 that no stockpiles existed.","Uncertain evidence was presented as near certain when a decision had political momentum."],
+ ["'Doubt is our product'","1969","politics natural","power evidence responsibility","An internal memo at the tobacco company Brown and Williamson set out a strategy of creating doubt about the science linking smoking to disease.","Uncertainty, a normal part of science, can be manufactured and used against the public."],
+ ["The Pentagon Papers","1971","politics history","power responsibility truth","Daniel Ellsberg leaked a secret government study showing that US administrations had misled the public about the Vietnam War. The Supreme Court allowed newspapers to keep publishing it.","A clash between a state's claim to secrecy and the public's claim to know."],
+ ["The 97 per cent consensus","2013","politics natural","evidence certainty justification","A review led by John Cook examined thousands of climate paper abstracts and found that, among those taking a position, about 97 per cent endorsed human-caused warming.","Non-experts usually rely on expert agreement, so how that agreement is measured and reported matters."],
+ ["'Post-truth' is word of the year","2016","politics language","truth values","Oxford Dictionaries chose the term after its use rose sharply during the Brexit referendum and the US election.","It names a worry that feeling and identity can outweigh evidence in public debate."],
+ ["The Scopes trial","1925","religion politics natural","power values truth","John Scopes was tried and fined in Tennessee for teaching evolution, in breach of a state law. The conviction was later overturned on a technicality.","A court was asked to decide between two sources of knowledge in a school classroom."],
+ ["The Dead Sea Scrolls","1947","religion history","evidence interpretation","Manuscripts found in caves near Qumran included copies of Hebrew Bible texts about a thousand years older than any previously known.","Historical methods can be applied to sacred texts, showing both how stable they stayed and where they varied."],
+ ["Dating the Shroud of Turin","1988","religion natural","evidence certainty perspective","Three laboratories radiocarbon-dated the cloth, which some believe wrapped the body of Jesus, to between 1260 and 1390. Some believers dispute the sampling.","What happens when a scientific method is applied to an object of faith, and whether the result can settle anything for believers."],
+ ["Lemaître and the expanding universe","1927 to 1931","religion natural","perspective values","Georges Lemaître, a Belgian physicist and Catholic priest, proposed that the universe is expanding from an initial 'primeval atom', the idea later called the Big Bang. He insisted his science and his faith were separate matters.","One knower can hold religious and scientific knowledge without treating them as rivals."],
+ ["Hōkūle‘a sails to Tahiti","1976","indigenous","evidence culture justification","A replica Polynesian voyaging canoe sailed from Hawaii to Tahiti without instruments, guided by the Micronesian navigator Mau Piailug using stars, swells and birds.","Traditional navigation was shown to be a rigorous body of knowledge, not luck or legend."],
+ ["The Moken and the 2004 tsunami","2004","indigenous","evidence culture","When the sea drew back before the Indian Ocean tsunami, Moken sea nomads in Thailand recognised the signs from stories handed down and moved to high ground. Almost all survived.","Knowledge carried in story can be practical, accurate and life-saving."],
+ ["The neem patent","1994 to 2005","indigenous politics natural","power responsibility values","The European Patent Office granted, then revoked, a patent on a fungicide made from neem, after Indian campaigners showed farmers had used neem this way for generations.","Who owns knowledge that a community has long held in common?"],
+ ["The Uluru climb closes","2019","indigenous","values culture responsibility","Climbing Uluru was permanently banned at the request of its Anangu traditional owners, for whom the rock is sacred.","A community's knowledge of a place came to outweigh visitors' wish to experience it."],
+ ["The Dunning-Kruger effect","1999","knower human","certainty objectivity","David Dunning and Justin Kruger found that people who scored lowest on tests of logic and grammar overestimated their own performance the most.","Judging your own knowledge needs some of the very knowledge you may lack."],
+ ["The dress","2015","knower","perspective certainty objectivity","A photograph of a dress went viral because some people saw it as blue and black, and others as white and gold. The dress was blue and black.","Two people can look at the same thing, see differently, and each feel completely sure."],
+ ["Asch's line experiments","1951","knower human","culture perspective certainty","Solomon Asch asked people to compare line lengths in a group where everyone else gave an obviously wrong answer. About three quarters went along with the group at least once.","Social pressure can override the evidence of one's own eyes."],
+ ["The invisible gorilla","1999","knower human","evidence certainty","Daniel Simons and Christopher Chabris asked viewers to count basketball passes in a video. About half failed to notice a person in a gorilla suit walk through the scene.","Perception is selective. We miss what we are not looking for, and do not notice that we missed it."],
+ ["The flat-earth gyroscope","2018","knower natural","evidence certainty justification","In the documentary Behind the Curve, flat-earth believers bought a precise gyroscope to show the Earth does not rotate. It measured the rotation, and they looked for reasons to reject the result.","When a belief is tied to identity, contrary evidence can be explained away."]
+];
+
+const GLOSSARY = [
+ ["A priori and a posteriori","Knowledge that can be justified by reasoning alone, such as 2 + 2 = 4, versus knowledge that depends on experience, such as 'it is raining'."],
+ ["Abduction","Reasoning to the best available explanation of the evidence, as a doctor does in diagnosis."],
+ ["Anecdotal evidence","Evidence from individual stories or personal experience. Vivid, but not a sound basis for generalising."],
+ ["Argument","A set of reasons, called premises, offered in support of a conclusion."],
+ ["Assumption","Something taken for granted without being stated or argued for. Essay titles usually contain some."],
+ ["Belief","Something a person holds to be true. Belief is necessary for knowledge on most accounts, but not sufficient."],
+ ["Bias","A systematic lean in judgment or in a method, which pushes results in one direction."],
+ ["Claim and counterclaim","A statement put forward as true, and a statement that challenges or qualifies it. Essays weigh the two."],
+ ["Coherence theory of truth","A claim is true if it fits consistently with a larger body of accepted beliefs."],
+ ["Correspondence theory of truth","A claim is true if it matches the way the world is."],
+ ["Pragmatic theory of truth","A claim is true if believing it works in practice."],
+ ["Deductive reasoning","Reasoning from general premises to a conclusion that must follow. Certain, as long as the premises are true."],
+ ["Inductive reasoning","Reasoning from particular observations to a general conclusion. Useful, never guaranteed."],
+ ["Dogma","A belief held as beyond question on the basis of authority."],
+ ["Empiricism","The view that knowledge comes chiefly from sense experience."],
+ ["Rationalism","The view that reason is the chief source of knowledge."],
+ ["Scepticism","Doubt about whether knowledge is possible, in general or in a given field. Healthy in moderation, self-defeating in excess."],
+ ["Epistemology","The branch of philosophy that studies knowledge: what it is, how we get it and how far it extends."],
+ ["Explicit and tacit knowledge","Knowledge that can be stated and written down versus knowledge shown in skilled action that is hard to put into words. Michael Polanyi: we know more than we can tell."],
+ ["Fallacy","A common pattern of faulty reasoning. See the Spot the flaw drill."],
+ ["First-order and second-order claims","A claim made within a subject, such as 'the war began in 1914', versus a claim about knowledge in that subject, such as 'historians cannot avoid selection'. TOK works at the second level."],
+ ["Heuristic","A mental shortcut that gives quick, usually adequate judgments and sometimes predictable errors."],
+ ["Implication","What follows if a claim is accepted. Strong essays say why their conclusion matters."],
+ ["Intuition","Immediate understanding without conscious reasoning. Fast and often valuable, but hard to justify to others."],
+ ["Knowledge claim","A statement that something is known. TOK asks what would justify it."],
+ ["Knowledge question","An open, general, contestable question about knowledge itself, such as how it is produced, justified or shared."],
+ ["Real-world example","A specific, real case used to support or test a point. Named, dated and particular beats hypothetical."],
+ ["Relativism","The view that truth or justification depends on a culture or a perspective, with no neutral standpoint."],
+ ["Reliability","Whether a method or source gives consistent results. A reliable measure can still be measuring the wrong thing."],
+ ["Validity","Whether a method measures what it claims to, or whether an argument's conclusion follows from its premises."],
+ ["Ad hominem","Attacking the person making an argument instead of the argument."],
+ ["Straw man","Misrepresenting an opponent's position so it is easier to knock down."],
+ ["False dilemma","Presenting two options as the only ones when others exist."],
+ ["Post hoc","Assuming that because one thing followed another, the first caused the second."],
+ ["Circular reasoning","Using the conclusion as one of the reasons for itself."],
+ ["Appeal to authority","Treating a claim as true because of who said it. Reasonable when the person is a relevant expert, weak when they are not."],
+ ["Appeal to popularity","Treating a claim as true because many people believe it."],
+ ["Hasty generalisation","Drawing a broad conclusion from too few cases."],
+ ["Slippery slope","Claiming, without support, that one step will lead inevitably to an extreme outcome."]
+];
+
+const QUIZZES = {
+ kq:{title:"Is it a knowledge question?",intro:"A knowledge question is about knowledge itself, is open to debate, and is general enough to apply beyond one case.",opts:["Knowledge question","Not a knowledge question"],items:[
+  ["Does vitamin C prevent colds?",1,"A well-run study could settle this. It is a question inside science.","How much evidence is needed before a health claim counts as established?"],
+  ["How can we know whether a historical source is reliable?",0,"It asks how knowledge is justified, it is open to debate, and it applies to any source.",""],
+  ["Was the Treaty of Versailles fair?",1,"This is a question within history about one event.","Can historians judge fairness without importing the values of their own time?"],
+  ["To what extent does the wording of a survey shape the knowledge it produces?",0,"It is about a method of producing knowledge and reaches beyond any single survey.",""],
+  ["Is Shakespeare the greatest playwright?",1,"It is contestable, but it is about one writer and not about knowledge.","On what grounds can a judgment of artistic quality be justified?"],
+  ["Is certainty achievable in mathematics in a way that it is not in the natural sciences?",0,"It compares how two areas of knowledge justify their claims, using a TOK concept.",""],
+  ["How many people believe the Earth is flat?",1,"A poll answers it. There is nothing to debate once the number is in.","Why do some beliefs persist in the face of strong evidence?"],
+  ["Should expert opinion outweigh personal experience when the two conflict?",0,"It is about sources of knowledge, reasonable people disagree, and it is not tied to one case.",""],
+  ["Why did the Roman Empire fall?",1,"Historians debate it, but it is a question about the past, not about how we know the past.","How do historians choose between competing explanations of the same event?"],
+  ["Can knowledge gained through art be put into words?",0,"It asks about the nature and limits of a kind of knowledge.",""],
+  ["Is this painting really by Vermeer?",1,"It concerns one object and could be settled by technical analysis.","What weight should expert judgment carry when a work is authenticated?"],
+  ["Does the way knowledge is shared change the knowledge itself?",0,"General, contestable and about knowledge. It could be explored in any theme or area.",""]]},
+ flaw:{title:"Spot the flaw",intro:"Each argument below goes wrong in a recognisable way. Naming the flaw helps you test claims in your essay and your sources.",items:[
+  ["My grandfather smoked every day and lived to 95, so smoking can't be that harmful.",["Hasty generalisation","Straw man","Circular reasoning","False dilemma"],0,"One case, however vivid, cannot outweigh evidence from large populations."],
+  ["You can't trust her argument about tax policy. She failed maths at school.",["Post hoc","Ad hominem","Appeal to popularity","Slippery slope"],1,"It attacks the person and leaves the argument untouched."],
+  ["Either we ban phones in school completely or we accept that nobody will learn anything.",["Appeal to authority","Hasty generalisation","False dilemma","Circular reasoning"],2,"Many options lie between the two extremes on offer."],
+  ["I wore my lucky socks and we won, so the socks helped.",["Post hoc","Straw man","Ad hominem","False dilemma"],0,"One thing following another does not show that it was caused by it."],
+  ["This newspaper is reliable. It says on its front page that it always reports accurately.",["Slippery slope","Appeal to popularity","Hasty generalisation","Circular reasoning"],3,"The source's reliability is being used to prove the source's reliability."],
+  ["Millions of people use this remedy, so it must work.",["Appeal to popularity","Ad hominem","Post hoc","Straw man"],0,"How many people believe something is not evidence that it is true."],
+  ["My opponent wants to review the exam system. Clearly he thinks students should never be tested.",["False dilemma","Straw man","Circular reasoning","Appeal to authority"],1,"A moderate position has been swapped for an extreme one that is easier to attack."],
+  ["A famous actor says this diet reverses ageing, so it does.",["Hasty generalisation","Post hoc","Appeal to authority","Slippery slope"],2,"Fame in one field gives no expertise in another."],
+  ["If we allow calculators in one exam, soon nobody will be able to add.",["Slippery slope","Circular reasoning","Ad hominem","Appeal to popularity"],0,"A chain of consequences is asserted with nothing to support each step."]]}
+};
+
+const EX_CHECKS = [
+ "My prompt is one of the 35 IA prompts, worded exactly as in the guide",
+ "Each object is specific and real, with a particular time, place or owner. It is not a generic type of thing",
+ "Each commentary identifies the object and its real-world context",
+ "Each commentary explains the link to the prompt and justifies why the object is included",
+ "The three objects make three different points about the prompt",
+ "The file has a title, an image of each object and citations for anything that isn't mine",
+ "The commentary is 950 words or fewer"
+];
+const ES_CHECKS = [
+ "The title is copied exactly and I answer it, not a nearby question",
+ "My key terms are explained early and used consistently",
+ "Every claim is supported by a specific example, not a hypothetical or a cliché",
+ "I weigh a different point of view in each area of knowledge",
+ "Each paragraph links back to the title",
+ "My conclusion answers the title and considers what follows from it",
+ "Sources are cited and the essay is 1,600 words or fewer",
+ "My three planning conversations with my teacher are recorded on the planning form"
+];
+const EX_COVER = ["What the object is and where it comes from","How it links to the prompt","Why it earns its place alongside the other two"];
+const EX_SWAPS = [
+ ["A textbook","My annotated copy of our biology textbook, open at the chapter that was rewritten for the latest edition"],
+ ["A smartphone","The screen-time report from my phone for the week of my mock exams"],
+ ["The internet","The edit history of one Wikipedia article I watched change during a news event"],
+ ["A painting","The print of Guernica that hangs in my school's humanities corridor"],
+ ["A religious text","The copy of the Qur'an my grandfather annotated in two languages"],
+ ["A map","The 1990s world map in my classroom that still shows borders that no longer exist"]
+];
+const EX_KINDS = ["Something you made: a lab notebook, a sketch, a piece of code","Something you own or use, with its own history","A digital object that is specific and dated: a post, a screenshot, a search result","An object from your school, family or community","An image of a particular object you cannot access, such as one named item in a museum"];
+const ES_STRUCT = [
+ ["Introduction","about 150 words","Explain the key terms as you will use them, say which two areas of knowledge you will explore, and signal your line of argument."],
+ ["First area of knowledge","about 600 words","Make a claim, support it with a specific example, then test it with a different point of view and its own example. Finish by linking back to the title."],
+ ["Second area of knowledge","about 600 words","Do the same in a second area. Compare as you go: does the title play out differently here, and why?"],
+ ["Conclusion","about 250 words","Answer the title directly, weigh the two areas against each other, and say what follows from your answer."]
+];
+const ES_PHRASES = [
+ ["To what extent","Give a degree, not a yes or no. Show where the statement holds and where it stops holding."],
+ ["Discuss","Consider more than one side, then reach a judgment of your own."],
+ ["With reference to two areas of knowledge","Compare the two. Do not write two separate mini-essays."],
+ ["Always, never, only","An absolute claim. Look for the counter-case that tests it."],
+ ["We, our","Ask who is included. Experts, a culture, everyone?"],
+ ["Is it more important","You need criteria for importance before you can compare."]
+];
+const ES_PITFALLS = ["Describing an example at length instead of saying what it shows about the title","Opening with a dictionary definition","Relying on a hypothetical ('imagine a scientist who...') when a real case exists","Treating a different point of view as a formality and dropping it straight away","Ending with a summary instead of a judgment"];
+
+const EXAMPLE = {
+ example:true,
+ "ex.prompt":"What counts as knowledge?",
+ "ex.o1.name":"My grandmother's handwritten recipe notebook",
+ "ex.o1.text":"This notebook, kept by my grandmother in Osaka from the 1970s, records dishes she learned by watching her own mother. Most entries give no quantities, only notes such as 'until it smells right'. It shows that practical know-how can count as knowledge even when it cannot be fully written down: the notebook only works for someone who has already cooked beside her.",
+ "ex.o2.name":"The 2019 redefinition of the kilogram",
+ "ex.o2.text":"In 2019 the kilogram stopped being defined by a metal cylinder kept near Paris and was tied to the Planck constant instead. This object shows a different standard for what counts as knowledge: agreement among an expert community, reached through measurement that anyone with the equipment can repeat.",
+ "ex.o3.name":"A screenshot of a rumour shared in my class group chat, March 2026",
+ "ex.o3.text":"The message claimed our school would close for a week. Forty classmates treated it as known within an hour, and it was false. I include it because it shows that being widely believed and confidently repeated is not enough for something to count as knowledge.",
+ "es.title":"Example: Is more evidence always better evidence? Discuss with reference to history and the natural sciences.",
+ "es.terms":"'Always' invites a counter-case. 'Better' could mean more reliable, more persuasive or more useful. The title assumes evidence can be counted, which fits measurements more easily than sources.",
+ "es.a1.name":"Natural sciences","es.a1.claim":"Larger data sets reduce random error, so more evidence usually strengthens a conclusion.","es.a1.example":"The 2012 Higgs boson announcement waited for enough collisions to reach the five-sigma threshold.","es.a1.counter":"More data cannot fix a systematic flaw. In 1936 the Literary Digest poll had millions of responses and still got the election wrong.",
+ "es.a2.name":"History","es.a2.claim":"","es.a2.example":"","es.a2.counter":"",
+ "es.concl":"","es.draft":""
+};
+
+const BRIEF = [
+ ["What TOK is",["A core part of the IB Diploma, alongside the extended essay and CAS.","It asks how we know, more than what we know. It examines the claims made in your other subjects and in everyday life.","The course is built from a core theme, optional themes and five areas of knowledge, tied together by twelve concepts.","The basic unit of work is the knowledge question: open, general and about knowledge itself.","There are no right answers to memorise. Marks reward clear argument, real examples and awareness of other points of view."]],
+ ["The knowledge framework",["Scope: what the theme or area is about, which problems it takes on and where it stops.","Perspectives: who produces the knowledge, how views differ across time and cultures, and the role of experts.","Methods and tools: how claims are produced and checked, and what counts as evidence.","Ethics: which limits and responsibilities apply to producing and using the knowledge.","Use it to compare. Ask the same framework question of two areas and note where the answers differ."]],
+ ["The exhibition in brief",["Individual work: three objects, one IA prompt, up to 950 words.","Usually completed in the first year of the Diploma.","Works best when rooted in the core theme or one optional theme.","For each object: identify it, give its real-world context, link it to the prompt and justify including it.","Specific objects beat generic ones. 'My annotated copy' beats 'a textbook'.","Marked out of 10 by your teacher, moderated by the IB, worth a third of the grade."]],
+ ["The essay in brief",["Choose one of the six prescribed titles for your exam session and keep to its exact wording.","Up to 1,600 words. Examiners stop reading at the limit.","Explore the title through areas of knowledge, using claims, other points of view and real examples.","Compare the areas. The interesting part is usually where they differ.","End with a judgment and what follows from it, not a summary.","Marked out of 10 by IB examiners and worth two thirds of the grade."]]
+];
+const NOTES = {
+ knower:["You are the starting point. TOK asks what you know, how you came to know it and why you trust it.","Most knowledge arrives second-hand through testimony, so deciding whom to trust is a core skill.","Senses, memory and reasoning are useful and fallible. Biases such as confirmation bias work unnoticed.","Communities such as family, nation, school and online groups shape what seems obvious to you.","Good knowers hold beliefs in proportion to the evidence and are able to change their minds."],
+ technology:["Technology changes how knowledge is produced, stored and shared, from writing and print to search engines and AI.","Access is not understanding. Information needs judgment before it becomes knowledge.","Algorithms filter what we see and can reproduce bias from the data they learned from.","AI can predict and generate without explaining, which strains the usual link between knowledge and justification.","The ethical questions centre on privacy, accountability and who controls the tools."],
+ language:["Language is the main vehicle for sharing knowledge, and it is never a perfectly neutral one.","Words carry connotations. Labels, metaphors and framing shape judgment.","Evidence supports a mild linguistic relativity: language influences attention and habit, but does not imprison thought.","Translation always involves choices, so meaning can shift between languages.","Some knowledge, such as skills and experiences, resists being put into words."],
+ politics:["Politics decides how a society is run, so it is bound up with who controls knowledge.","Disputes mix facts and values. Agreeing on the facts does not settle what should be done.","Knowledge can be shaped through propaganda, censorship, funding and manufactured doubt.","Whose testimony is believed often follows existing power. This is epistemic injustice.","Citizens rely on experts and media they cannot check, which makes trust and transparency central."],
+ religion:["Religions offer answers about meaning, purpose and how to live, drawing on faith, scripture, authority, tradition and experience.","For many believers, religious knowledge is lived through practice and not only held as statements.","Sacred texts need interpretation, and traditions disagree over literal and figurative readings.","Religion and science have been in conflict, kept apart and in dialogue. History shows all three.","The diversity of traditions raises the question of how to weigh incompatible claims respectfully."],
+ indigenous:["Indigenous knowledge is held by communities with long ties to particular lands. It is many systems, not one.","It is typically passed on orally and through practice, woven into language, place and ceremony.","Long observation can yield detailed ecological and navigational knowledge that science later corroborates.","Colonisation suppressed and discounted much of this knowledge. Recognition is recent and incomplete.","Key ethical issues are ownership, consent, restricted knowledge and who may speak for a community."],
+ history:["History studies the past through surviving evidence. The past itself is gone and cannot be re-run.","Historians select, interpret and explain, so accounts differ. Evidence still limits what can responsibly be claimed.","Sources are judged by provenance, purpose and whether other sources corroborate them.","Interpretations change as new evidence and new questions arise. Revision is normal practice.","History shapes identity and politics, which raises questions about memory, textbooks and judging the past."],
+ human:["The human sciences study behaviour and society using observation, surveys, experiments, statistics and interpretation.","Human subjects are complex, self-aware and varied, which makes controlled experiments and universal laws hard.","Findings are usually trends with probabilities, and may not generalise across cultures.","Measurement means turning ideas into numbers, which can distort the idea.","Replication problems and strict ethical limits shape what can be known."],
+ natural:["The natural sciences explain the physical world through observation, hypothesis, experiment and theory.","Scientific knowledge is provisional. Strong theories are well tested, never proved beyond revision.","Popper stresses falsifiability. Kuhn stresses paradigms and the communities that hold them.","Peer review, replication and openness are how the community corrects individual error and bias.","Funding, values and ethics influence what is studied and how results are used."],
+ arts:["The arts communicate through created works whose meaning depends on interpretation.","Whether art gives knowledge is debated. Candidates include insight into experience, emotion and other lives.","Meaning may come from the artist, the work itself, the audience or the context.","Judgments of quality are argued for with reasons even though they cannot be proved, and standards shift across time and culture.","Art can challenge power and convention, which leads to questions of censorship and ownership."],
+ maths:["Mathematics builds knowledge by deductive proof from axioms.","This gives a certainty no empirical subject has, but only relative to the axioms chosen.","Whether mathematics is discovered or invented is an open question, and its fit with the physical world is striking.","Intuition, beauty and conjecture guide mathematicians before a proof arrives.","Gödel showed that proof has limits, and computer proofs raise new questions about what counts as knowing."]
+};
+const CNOTES = {
+ evidence:["Different areas accept different kinds: data, documents, testimony, proof.","Check relevance, quality and source before quantity.","Ask what evidence would change the conclusion."],
+ certainty:["Highest in mathematics. Elsewhere knowledge comes in degrees.","Confidence is a feeling. Justification is what earns it.","Demanding total certainty leads to scepticism. Demanding none leads to gullibility."],
+ truth:["Three classic tests: correspondence to facts, coherence with other beliefs, working in practice.","Consensus is not truth, though it is often the best guide available.","Some areas aim at truth. Others aim at meaning, usefulness or understanding."],
+ interpretation:["Needed wherever data, texts or works must be given meaning, in science as well as history and the arts.","Good interpretations are limited by the evidence.","Disagreement between interpretations can be productive, not a failure."],
+ power:["Shapes funding, school curricula, publishing and online platforms.","Expertise is legitimate authority when it is earned and open to challenge.","Ask who is heard and who is ignored."],
+ justification:["It is what separates knowledge from a lucky guess or a mere belief.","Standards vary by area of knowledge.","A source, a method or an argument can justify a claim to others. A feeling cannot."],
+ explanation:["Answers why or how, not just what.","Good explanations are simple, fit the evidence and predict something.","Areas explain differently: causes in science, reasons and motives in history."],
+ objectivity:["An aim more than a state anyone reaches.","Achieved by communities and methods more than by individuals.","Subjectivity is not always a flaw. In the arts and ethics it may be essential."],
+ perspective:["Everyone knows from somewhere.","Several perspectives together can reveal blind spots.","This is not relativism. Perspectives can be better or worse informed."],
+ culture:["Shapes language, values and what counts as common sense.","Knowledge can be local without being inferior.","Beware of treating your own culture's view as the neutral one."],
+ values:["Influence what is studied and how results are used.","Values about knowing, such as accuracy and simplicity, differ from moral values.","Facts alone do not decide what to do."],
+ responsibility:["Applies to producing, sharing and using knowledge.","Includes honesty, consent and care about consequences.","Applies to you as a knower too: check before you share."]
+};
+
+const WIKI = {"Semmelweis and handwashing": "Ignaz Semmelweis", "Wegener and continental drift": "Continental drift", "Eddington's eclipse expedition": "Eddington experiment", "Pluto is reclassified": "IAU definition of planet", "Marshall drinks the bacteria": "Barry Marshall", "Faster-than-light neutrinos": "2011 OPERA faster-than-light neutrino anomaly", "The kilogram is redefined": "2019 revision of the SI", "Tuskegee syphilis study": "Tuskegee Syphilis Study", "Henrietta Lacks and HeLa cells": "Henrietta Lacks", "Thalidomide": "Thalidomide scandal", "Lysenko and Soviet genetics": "Lysenkoism", "The trial of Galileo": "Galileo affair", "Piltdown Man": "Piltdown Man", "Gene-edited babies": "He Jiankui affair", "Milgram's obedience experiments": "Milgram experiment", "Stanford prison experiment": "Stanford prison experiment", "The Hawthorne studies": "Hawthorne effect", "'Why did nobody notice it?'": "2008 financial crisis", "Mead and Freeman on Samoa": "Coming of Age in Samoa", "WEIRD participants": "WEIRD", "Loftus and Palmer on leading questions": "Misinformation effect", "The Literary Digest poll": "The Literary Digest", "The replication project": "Reproducibility Project", "The Hitler Diaries": "Hitler Diaries", "The Rosetta Stone": "Rosetta Stone", "The Ienaga textbook lawsuits": "Saburo Ienaga", "The Donation of Constantine": "Donation of Constantine", "The Benin Bronzes": "Benin Bronzes", "Kennewick Man, the Ancient One": "Kennewick Man", "Aboriginal stories of rising seas": "Oral tradition", "Inuit testimony and the Franklin ships": "Franklin's lost expedition", "Duchamp's Fountain": "Fountain (Duchamp)", "Van Meegeren's Vermeers": "Han van Meegeren", "The Rite of Spring premiere": "The Rite of Spring", "Banksy's shredded painting": "Love Is in the Bin", "An AI image wins an art prize": "Théâtre D'opéra Spatial", "Picasso's Guernica": "Guernica (Picasso)", "Non-Euclidean geometry": "Non-Euclidean geometry", "Gödel's incompleteness theorems": "Gödel's incompleteness theorems", "The four colour theorem": "Four color theorem", "Wiles and Fermat's Last Theorem": "Wiles's proof of Fermat's Last Theorem", "Ramanujan's letters": "Srinivasa Ramanujan", "The Monty Hall problem": "Monty Hall problem", "Mars Climate Orbiter": "Mars Climate Orbiter", "Long-Term Capital Management": "Long-Term Capital Management", "AlphaGo's move 37": "AlphaGo versus Lee Sedol", "AlphaFold": "AlphaFold", "The COMPAS risk scores": "COMPAS (software)", "Wikipedia and Britannica": "Reliability of Wikipedia", "Google Flu Trends": "Google Flu Trends", "Cambridge Analytica": "Facebook–Cambridge Analytica data scandal", "Guugu Yimithirr directions": "Guugu Yimithirr language", "Counting in Pirahã": "Pirahã language", "'Enhanced interrogation'": "Enhanced interrogation techniques", "The Treaty of Waitangi": "Treaty of Waitangi", "Iraq and weapons of mass destruction": "Iraq and weapons of mass destruction", "'Doubt is our product'": "Tobacco industry playbook", "The Pentagon Papers": "Pentagon Papers", "The 97 per cent consensus": "Scientific consensus on climate change", "'Post-truth' is word of the year": "Post-truth politics", "The Scopes trial": "Scopes trial", "The Dead Sea Scrolls": "Dead Sea Scrolls", "Dating the Shroud of Turin": "Radiocarbon dating of the Shroud of Turin", "Lemaître and the expanding universe": "Georges Lemaître", "Hōkūle‘a sails to Tahiti": "Hōkūleʻa", "The Moken and the 2004 tsunami": "Moken", "The neem patent": "Bioprospecting", "The Uluru climb closes": "Uluru", "The Dunning-Kruger effect": "Dunning–Kruger effect", "The dress": "The dress", "Asch's line experiments": "Asch conformity experiments", "The invisible gorilla": "Inattentional blindness", "The flat-earth gyroscope": "Behind the Curve", "Justified true belief": "Justified true belief", "Gettier cases": "Gettier problem", "Knowing that and knowing how": "Procedural knowledge", "Testimony": "Epistemology of testimony", "Confirmation bias": "Confirmation bias", "Echo chamber": "Echo chamber (media)", "Intellectual humility": "Intellectual humility", "Data, information, knowledge": "DIKW pyramid", "Algorithmic bias": "Algorithmic bias", "Black box": "Black box", "Filter bubble": "Filter bubble", "Hallucination": "Hallucination (artificial intelligence)", "Extended mind": "Extended mind thesis", "Linguistic relativity": "Linguistic relativity", "Denotation and connotation": "Connotation", "Framing and euphemism": "Euphemism", "Metaphor": "Conceptual metaphor", "Translation loss": "Untranslatability", "Jargon": "Jargon", "Propaganda": "Propaganda", "Epistemic injustice": "Epistemic injustice", "Manufactured doubt": "Manufactured controversy", "Censorship": "Censorship", "Fact and value": "Fact–value distinction", "Post-truth": "Post-truth", "Faith": "Faith", "Revelation": "Revelation", "Hermeneutics": "Hermeneutics", "Religious experience": "Religious experience", "Non-overlapping magisteria": "Non-overlapping magisteria", "Pascal's wager": "Pascal's wager", "Oral tradition": "Oral tradition", "Traditional ecological knowledge": "Traditional ecological knowledge", "Holism": "Holism", "Custodianship": "Indigenous intellectual property", "Biopiracy": "Bioprospecting", "UNDRIP": "Declaration on the Rights of Indigenous Peoples", "Primary and secondary sources": "Primary source", "Historiography": "Historiography", "Selection": "What Is History?", "Provenance": "Provenance", "Presentism": "Presentism (historical analysis)", "Revisionism": "Historical revisionism", "Quantitative and qualitative": "Qualitative research", "Observer effect": "Hawthorne effect", "Correlation and causation": "Correlation does not imply causation", "Operationalising": "Operationalization", "Replication": "Replication crisis", "Verstehen": "Verstehen", "WEIRD samples": "WEIRD", "Hypothesis, theory, law": "Scientific theory", "Falsifiability": "Falsifiability", "Paradigm shift": "Paradigm shift", "Problem of induction": "Problem of induction", "Peer review": "Peer review", "Model": "Scientific modelling", "Aesthetic judgment": "Aesthetics", "Intentional fallacy": "Authorial intent", "Death of the author": "The Death of the Author", "Canon": "Western canon", "Institutional theory": "Institutional theory of art", "Mimesis and expression": "Mimesis", "Axiom": "Axiom", "Proof": "Mathematical proof", "Deduction": "Deductive reasoning", "Conjecture": "Conjecture", "Platonism and formalism": "Philosophy of mathematics", "Unreasonable effectiveness": "The Unreasonable Effectiveness of Mathematics in the Natural Sciences", "A priori and a posteriori": "A priori and a posteriori", "Abduction": "Abductive reasoning", "Anecdotal evidence": "Anecdotal evidence", "Argument": "Argument", "Belief": "Belief", "Bias": "Bias", "Claim and counterclaim": "Counterargument", "Coherence theory of truth": "Coherence theory of truth", "Correspondence theory of truth": "Correspondence theory of truth", "Pragmatic theory of truth": "Pragmatic theory of truth", "Deductive reasoning": "Deductive reasoning", "Inductive reasoning": "Inductive reasoning", "Dogma": "Dogma", "Empiricism": "Empiricism", "Rationalism": "Rationalism", "Scepticism": "Philosophical skepticism", "Epistemology": "Epistemology", "Explicit and tacit knowledge": "Tacit knowledge", "Fallacy": "Fallacy", "Heuristic": "Heuristic (psychology)", "Intuition": "Intuition", "Relativism": "Relativism", "Reliability": "Reliability (statistics)", "Validity": "Validity (statistics)", "Ad hominem": "Ad hominem", "Straw man": "Straw man", "False dilemma": "False dilemma", "Post hoc": "Post hoc ergo propter hoc", "Circular reasoning": "Circular reasoning", "Appeal to authority": "Argument from authority", "Appeal to popularity": "Argumentum ad populum", "Hasty generalisation": "Hasty generalization", "Slippery slope": "Slippery slope", "Evidence": "Evidence", "Certainty": "Certainty", "Truth": "Truth", "Justification": "Justification (epistemology)", "Explanation": "Explanation", "Objectivity": "Objectivity (science)", "Culture": "Culture", "Power": "Power-knowledge", "Interpretation": "Hermeneutics", "Perspective": "Perspectivism", "Values": "Value (ethics and social sciences)", "Responsibility": "Epistemic responsibility"};
+
+
+/* ---------- helpers and state ---------- */
+const KEY="tok-workbench-v1";
+let S;
+try{ S = JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){ S=null; }
+if(!S || typeof S!=="object") S = Object.assign({}, EXAMPLE);
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
+function el(tag, attrs, ...kids){
+  const n=document.createElement(tag);
+  for(const k in (attrs||{})){ if(k==="text") n.textContent=attrs[k]; else if(k==="class") n.className=attrs[k]; else n.setAttribute(k,attrs[k]); }
+  kids.forEach(c=>{ if(c!=null) n.append(c); }); return n;
+}
+function words(t){ const m=(t||"").trim().match(/\S+/g); return m?m.length:0; }
+const fold = s => s.normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+const AREA_NAME = Object.fromEntries(AREAS.map(a=>[a.id,a.n]));
+const casesFor = (kind,val) => CASES.filter(c=>c[kind==="area"?2:3].split(" ").includes(val));
+
+function wlink(key,label){
+  const t=WIKI[key]; if(!t) return null;
+  return el("a",{class:"wiki",href:"https://en.wikipedia.org/w/index.php?search="+encodeURIComponent(t),target:"_blank",rel:"noopener",title:"Wikipedia: "+t,text:label||"Wikipedia"});
+}
+function drop(title,open,...kids){
+  const d=el("details",{class:"drop"},el("summary",{text:title}),el("div",{class:"din"},...kids)); d.open=!!open; return d;
+}
+function noteList(list){ const ul=el("ul",{class:"notes"}); list.forEach(t=>ul.append(el("li",{text:t}))); return ul; }
+function drawBrief(){ BRIEF.forEach((b,i)=>$("#brief").append(drop(b[0],i===0,noteList(b[1])))); }
+
+/* ---------- course ---------- */
+const FLAT = AREAS.flatMap(a=>a.f.flat().map(q=>[a.n,q]));
+let heroI=-1;
+$("#askBtn").addEventListener("click",()=>{
+  let n; do{ n=Math.floor(Math.random()*FLAT.length); }while(n===heroI);
+  heroI=n; const q=$("#heroQ");
+  $("#heroTag").textContent=FLAT[n][0]; q.textContent=FLAT[n][1];
+  q.classList.remove("swap"); void q.offsetWidth; q.classList.add("swap");
+});
+function miniCases(list, kind, val){
+  const ul=el("ul",{class:"mini"});
+  list.forEach(c=>ul.append(el("li",null,el("b",null,c[0]+" ",el("span",{text:c[1]+" "}),wlink(c[0])),el("p",{text:c[5]}))));
+  const b=el("button",{class:"link",type:"button",text:"Open these "+list.length+" cases in the Library"});
+  b.addEventListener("click",()=>{ lib.tab="cases"; lib.q=""; lib.area=kind==="area"?val:""; lib.concept=kind==="concept"?val:""; location.hash="library"; drawLibrary(); });
+  return [ul,b];
+}
+let curArea="natural";
+function drawAreas(){
+  const box=$("#areas"); box.textContent="";
+  let grp=null, last="";
+  AREAS.forEach(a=>{
+    if(a.g!==last){ grp=el("div",{class:"grp"},el("h3",{text:a.g})); box.append(grp); last=a.g; }
+    const b=el("button",{type:"button","aria-pressed":String(a.id===curArea),text:a.n});
+    b.addEventListener("click",()=>{curArea=a.id;drawAreas();});
+    grp.append(b);
+  });
+  const a=AREAS.find(x=>x.id===curArea), p=$("#areaPanel"); p.textContent="";
+  p.append(el("div",null,el("h2",{text:a.n}),el("p",{class:"muted",text:a.note})));
+  const dl=el("dl",{class:"ideas"});
+  a.ideas.forEach(i=>dl.append(el("div",null,el("dt",null,i[0]+" ",wlink(i[0])),el("dd",{text:i[1]}))));
+  const fw=el("div",{class:"stack"});
+  FRAME.forEach((f,i)=>{
+    const ul=el("ul",{class:"qs"}); a.f[i].forEach(q=>ul.append(el("li",{text:q})));
+    fw.append(el("div",{class:"fw"},el("div",null,el("b",{text:f[0]}),el("div",{class:"muted small",text:f[1]})),ul));
+  });
+  const cs=casesFor("area",a.id);
+  p.append(drop("Quick notes",true,noteList(NOTES[a.id])),drop("Key ideas ("+a.ideas.length+")",false,dl),drop("Knowledge questions (12)",false,fw),drop("Cases to know ("+cs.length+")",false,...miniCases(cs,"area",a.id)));
+}
+let curConcept="evidence";
+function drawConcepts(){
+  const box=$("#concepts"); box.textContent="";
+  CONCEPTS.forEach(c=>{
+    const id=c[0].toLowerCase();
+    const b=el("button",{type:"button",class:"concept","aria-pressed":String(id===curConcept),text:c[0]});
+    b.addEventListener("click",()=>{curConcept=id;drawConcepts();});
+    box.append(b);
+  });
+  const c=CONCEPTS.find(x=>x[0].toLowerCase()===curConcept), p=$("#conceptPanel"); p.textContent="";
+  const ul=el("ul",{class:"qs"}); c[3].forEach(q=>ul.append(el("li",{text:q})));
+  const all=casesFor("concept",curConcept);
+  p.append(el("div",null,el("h2",{text:c[0]}),el("p",{text:c[1]}),wlink(c[0],"Read more on Wikipedia")),
+    drop("Quick notes",true,noteList(CNOTES[curConcept].concat("The tension: "+c[2]))),
+    drop("Questions to ask of any claim (3)",false,ul),
+    drop("Cases that show it ("+all.length+")",false,...miniCases(all.slice(0,6),"concept",curConcept)));
+  $("#conceptPanel .link").textContent="Open all "+all.length+" "+c[0].toLowerCase()+" cases in the Library";
+}
+
+/* ---------- library ---------- */
+const lib={tab:"cases",q:"",area:"",concept:""};
+const ALLTERMS = GLOSSARY.map(g=>[g[0],g[1],""]).concat(AREAS.flatMap(a=>a.ideas.map(i=>[i[0],i[1],a.id]))).sort((x,y)=>x[0].localeCompare(y[0]));
+function buildLibrary(){
+  const sa=$("#libArea"), sc=$("#libConcept");
+  sa.append(el("option",{value:"",text:"All themes and areas"})); AREAS.forEach(a=>sa.append(el("option",{value:a.id,text:a.n})));
+  sc.append(el("option",{value:"",text:"All concepts"})); CONCEPTS.forEach(c=>sc.append(el("option",{value:c[0].toLowerCase(),text:c[0]})));
+  $("#libSearch").addEventListener("input",e=>{lib.q=e.target.value;drawLibrary();});
+  sa.addEventListener("change",e=>{lib.area=e.target.value;drawLibrary();});
+  sc.addEventListener("change",e=>{lib.concept=e.target.value;drawLibrary();});
+  $("#tabCases").addEventListener("click",()=>{lib.tab="cases";drawLibrary();});
+  $("#tabGloss").addEventListener("click",()=>{lib.tab="gloss";drawLibrary();});
+}
+function drawLibrary(){
+  const cases=lib.tab==="cases";
+  $("#tabCases").setAttribute("aria-pressed",String(cases)); $("#tabGloss").setAttribute("aria-pressed",String(!cases));
+  $("#libSearch").value=lib.q; $("#libArea").value=lib.area; $("#libConcept").value=lib.concept;
+  $("#libConcept").disabled=!cases;
+  $("#libSearch").placeholder=cases?"Search cases, for example forgery, memory, 1919":"Search terms, for example bias, proof, Popper";
+  const q=fold(lib.q.trim()), out=$("#libOut"); out.textContent="";
+  if(cases){
+    const list=CASES.filter(c=>(!lib.area||c[2].split(" ").includes(lib.area))&&(!lib.concept||c[3].split(" ").includes(lib.concept))&&(!q||fold(c.join(" ")).includes(q)));
+    $("#libCount").textContent=list.length+" of "+CASES.length+" cases";
+    const grid=el("div",{class:"results"});
+    list.forEach(c=>{
+      const tags=el("div",{class:"tags"});
+      c[2].split(" ").forEach(a=>tags.append(el("span",{class:"tag",text:AREA_NAME[a].replace(/^Knowledge and (the )?/,"").replace(/^The /,"").replace(/^./,x=>x.toUpperCase())})));
+      c[3].split(" ").forEach(k=>tags.append(el("span",{class:"tag plain",text:k})));
+      grid.append(el("article",{class:"case"},el("div",null,el("h4",{text:c[0]}),el("div",{class:"when num",text:c[1]})),el("p",{class:"desc",text:c[4]}),el("p",{class:"shows",text:c[5]}),tags,wlink(c[0],"Read more on Wikipedia")));
+    });
+    out.append(list.length?grid:el("p",{class:"muted",text:"No cases match. Try a shorter search or clear a filter."}));
+  }else{
+    const list=ALLTERMS.filter(t=>(!lib.area||t[2]===lib.area)&&(!q||fold(t[0]+" "+t[1]).includes(q)));
+    $("#libCount").textContent=list.length+" of "+ALLTERMS.length+" terms";
+    const grid=el("div",{class:"gloss"});
+    list.forEach(t=>grid.append(el("div",null,el("b",null,t[0]+" ",wlink(t[0])),el("p",{text:t[1]}),t[2]?el("div",{class:"tags"},el("span",{class:"tag plain",text:AREA_NAME[t[2]]})):null)));
+    out.append(list.length?grid:el("p",{class:"muted",text:"No terms match. Try a shorter search or clear the filter."}));
+  }
+}
+
+/* ---------- planners ---------- */
+function field(id,key,labelText,hint,tag,ph){
+  const input = tag==="input" ? el("input",{type:"text",id:id,"data-k":key}) : el("textarea",{id:id,"data-k":key});
+  if(ph) input.setAttribute("placeholder",ph);
+  const l=el("label",{for:id},labelText); if(hint) l.append(el("small",{text:hint})); l.append(input); return l;
+}
+function bullets(box,list){ list.forEach(t=>box.append(el("li",{text:t}))); }
+function buildExhibition(){
+  const box=$("#exObjects");
+  [1,2,3].forEach(i=>{
+    const cover=el("ul",{class:"cover"}); bullets(cover,EX_COVER);
+    box.append(el("div",{class:"card"},
+      el("div",{class:"head"},el("h3",{text:"Object "+i}),el("span",{class:"num muted small",id:"exw"+i})),
+      field("ex-o"+i+"-name","ex.o"+i+".name","Object","","input","A specific, real object"),
+      field("ex-o"+i+"-text","ex.o"+i+".text","Commentary","","textarea"),
+      el("div",null,el("div",{class:"muted small",style:"font-weight:600",text:"Cover three things:"}),cover)));
+  });
+  const sw=$("#exSwaps"); sw.append(el("div",{class:"hd",text:"Too generic"}),el("div",{class:"hd",text:"Specific enough"}));
+  EX_SWAPS.forEach(s=>sw.append(el("div",{class:"weak",text:s[0]}),el("div",{text:s[1]})));
+  bullets($("#exKinds"),EX_KINDS);
+  checks($("#exChecks"),EX_CHECKS,"ex.c");
+}
+function buildEssay(){
+  const names=AREAS.filter(a=>a.g===G3).map(a=>a.n.replace(/^The /,"").replace(/^./,c=>c.toUpperCase()));
+  const box=$("#esAoks");
+  [1,2].forEach(i=>{
+    const sel=el("select",{id:"es-a"+i+"-name","data-k":"es.a"+i+".name"},el("option",{value:"",text:"Choose an area of knowledge"}));
+    names.forEach(n=>sel.append(el("option",{value:n,text:n})));
+    box.append(el("div",{class:"card"},
+      el("h3",{text:(i===1?"First":"Second")+" area of knowledge"}),
+      el("label",{for:"es-a"+i+"-name"},"Area",sel),
+      field("es-a"+i+"-claim","es.a"+i+".claim","Claim","What this area suggests about the title","textarea"),
+      field("es-a"+i+"-example","es.a"+i+".example","Specific example","A real case you can name and date. The Library has many.","textarea"),
+      field("es-a"+i+"-counter","es.a"+i+".counter","Another point of view","Where the claim breaks down, and what that shows","textarea")));
+  });
+  $$("#esAoks textarea").forEach(t=>t.style.minHeight="84px");
+  ES_PHRASES.forEach(p=>$("#esPhrases").append(el("li",null,el("b",{text:p[0]}),el("p",{text:p[1]}))));
+  ES_STRUCT.forEach(p=>$("#esStruct").append(el("li",null,el("div",null,el("b",{text:p[0]}),el("div",{class:"muted small num",text:p[1]})),el("p",{text:p[2]}))));
+  bullets($("#esPitfalls"),ES_PITFALLS);
+  checks($("#esChecks"),ES_CHECKS,"es.c");
+}
+function checks(box,list,prefix){
+  list.forEach((t,i)=>{
+    const id=prefix.replace(".","-")+i;
+    box.append(el("label",{for:id},el("input",{type:"checkbox",id:id,"data-k":prefix+i}),el("span",{text:t})));
+  });
+}
+function fill(){
+  $$("[data-k]").forEach(n=>{ const v=S[n.dataset.k]; if(n.type==="checkbox") n.checked=!!v; else n.value=v||""; });
+  $$("[data-example]").forEach(n=>n.hidden=!S.example);
+  meters();
+}
+function meter(box,count,limit,label){
+  const pct=Math.min(100,count/limit*100);
+  const st = count>limit?"s-over":count>=limit*0.9?"s-warn":"s-ok";
+  const msg = count>limit?("Over by "+(count-limit).toLocaleString()+". Examiners stop reading at the limit."):((limit-count).toLocaleString()+" words left");
+  box.textContent="";
+  const bar=el("i",{class:st}); bar.style.width=pct+"%";
+  box.append(el("div",{class:"top"},el("span",null,el("b",{text:label+" "}),el("span",{class:"muted",text:msg})),
+    el("span",{class:"pill num "+st,text:count.toLocaleString()+" / "+limit.toLocaleString()+" words"})),el("div",{class:"track"},bar));
+}
+function meters(){
+  let tot=0; [1,2,3].forEach(i=>{ const w=words(S["ex.o"+i+".text"]); tot+=w; $("#exw"+i).textContent=w+" words"; });
+  meter($("#exMeter"),tot,950,"Commentary total.");
+  meter($("#esMeter"),words(S["es.draft"]),1600,"Essay draft.");
+}
+document.addEventListener("input",e=>{
+  const k=e.target.dataset&&e.target.dataset.k; if(!k) return;
+  S[k]= e.target.type==="checkbox"? e.target.checked : e.target.value;
+  save(); meters();
+});
+document.addEventListener("change",e=>{ const k=e.target.dataset&&e.target.dataset.k; if(k&&e.target.tagName==="SELECT"){S[k]=e.target.value;save();} });
+$$("[data-clear]").forEach(b=>b.addEventListener("click",()=>{ S={}; save(); fill(); }));
+
+function exportText(which){
+  const L=[]; const g=k=>(S[k]||"").trim();
+  if(which==="ex"){
+    L.push("TOK EXHIBITION","Prompt: "+g("ex.prompt"),"");
+    [1,2,3].forEach(i=>L.push("Object "+i+": "+g("ex.o"+i+".name"),g("ex.o"+i+".text"),""));
+  }else{
+    L.push("TOK ESSAY","Title: "+g("es.title"),"","Unpacking the title:",g("es.terms"),"");
+    [1,2].forEach(i=>L.push("Area of knowledge "+i+": "+g("es.a"+i+".name"),"Claim: "+g("es.a"+i+".claim"),"Example: "+g("es.a"+i+".example"),"Another point of view: "+g("es.a"+i+".counter"),""));
+    L.push("Conclusion and implications:",g("es.concl"),"","DRAFT ("+words(S["es.draft"])+" words)",g("es.draft"));
+  }
+  return L.join("\n");
+}
+function toast(t){ const n=$("#toast"); n.textContent=t; n.style.display="block"; clearTimeout(toast.t); toast.t=setTimeout(()=>n.style.display="none",2600); }
+$$("[data-copy]").forEach(b=>b.addEventListener("click",()=>{
+  const text=exportText(b.dataset.copy);
+  let p; try{ p=navigator.clipboard.writeText(text); }catch(e){ p=Promise.reject(e); }
+  p.then(()=>toast("Copied. Paste it into a document to keep it."),()=>toast("Copying was blocked here. Select your text and copy it by hand."));
+}));
+
+/* ---------- practice ---------- */
+let quizId="kq", qi=0, score=0;
+function drawQuizTabs(){
+  const box=$("#quizTabs"); box.textContent="";
+  Object.keys(QUIZZES).forEach(id=>{
+    const b=el("button",{class:"btn",type:"button","aria-pressed":String(id===quizId),text:QUIZZES[id].title});
+    b.addEventListener("click",()=>{quizId=id;qi=0;score=0;drawQuizTabs();drawQuiz();});
+    box.append(b);
+  });
+  $("#quizIntro").textContent=QUIZZES[quizId].intro;
+}
+function drawQuiz(){
+  const Q=QUIZZES[quizId], box=$("#quiz"); box.textContent="";
+  if(qi>=Q.items.length){
+    box.append(el("h3",{text:"Finished"}),el("p",{class:"q",text:"You got "+score+" of "+Q.items.length+"."}),
+      el("p",{class:"muted",text:quizId==="kq"?"Next step: take a claim from one of your other subjects and write the knowledge question behind it.":"Next step: reread a paragraph of your own draft and look for the same flaws."}));
+    const again=el("button",{class:"btn primary",type:"button",text:"Start again"}); again.addEventListener("click",()=>{qi=0;score=0;drawQuiz();});
+    box.append(el("div",{class:"row"},again)); return;
+  }
+  const it=Q.items[qi];
+  const opts=Q.opts||it[1], correct=Q.opts?it[1]:it[2], why=Q.opts?it[2]:it[3], behind=Q.opts?it[3]:"";
+  box.append(el("h3",{class:"num",text:"Question "+(qi+1)+" of "+Q.items.length}),el("p",{class:"q",text:it[0]}));
+  const row=el("div",{class:"row"}); let done=false;
+  opts.forEach((o,i)=>{
+    const b=el("button",{class:"btn",type:"button",text:o});
+    b.addEventListener("click",()=>{
+      if(done) return; done=true; const right=i===correct; if(right) score++;
+      $$("button",row).forEach((x,j)=>{ if(j===correct) x.classList.add("right"); else if(j===i) x.classList.add("wrong"); });
+      const fb=el("div",{class:"fb"},el("b",{class:right?"s-ok":"s-over",text:right?"Correct.":"Not quite. The answer is: "+opts[correct]+"."}),el("span",{text:why}));
+      if(behind) fb.append(el("span",{class:"muted",text:"The knowledge question behind it:"}),el("span",{class:"q",style:"font-size:1.15rem",text:behind}));
+      const next=el("button",{class:"btn primary",type:"button",text:qi===Q.items.length-1?"See my score":"Next question"});
+      next.addEventListener("click",()=>{qi++;drawQuiz();});
+      box.append(fb,el("div",{class:"row"},next)); next.focus();
+    });
+    row.append(b);
+  });
+  box.append(row);
+}
+
+/* ---------- routing ---------- */
+const VIEWS=["course","library","exhibition","essay","practice"];
+function route(){
+  let h=location.hash.replace("#",""); if(!VIEWS.includes(h)) h="course";
+  VIEWS.forEach(v=>$("#v-"+v).classList.toggle("on",v===h));
+  $$("nav a").forEach(a=>{ if(a.getAttribute("href")==="#"+h) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+
+drawBrief(); drawAreas(); drawConcepts(); buildLibrary(); drawLibrary(); buildExhibition(); buildEssay(); fill(); drawQuizTabs(); drawQuiz(); route();
+</script>
+</body>
+</html>
