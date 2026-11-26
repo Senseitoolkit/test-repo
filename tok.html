@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 /* Layout idea: a chalk-coloured workbook. Questions are set in italic serif, everything you operate is in sans. One ultramarine accent. */
 :root{
@@ -154,11 +155,31 @@ a.wiki:hover{text-decoration:underline}
 a.wiki::after{content:" \2197"}
 .brief{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 20px}
 .brief details.drop:first-child{border-top:0}
+.navsep{width:1px;background:var(--line);margin:4px 6px}
+#explorerWrap{scroll-margin-top:76px}
+.thread{background:var(--surface);border:1px solid var(--ink);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.thread .focusq{font-size:clamp(1.6rem,3.6vw,2.4rem);line-height:1.12;letter-spacing:-.01em;max-width:24ch}
+.thread .shows{border-left:3px solid var(--accent);padding-left:14px;max-width:60ch;line-height:1.3}
+.tsec{display:flex;flex-direction:column;gap:10px;padding-top:16px;border-top:1px solid var(--line)}
+.kind{font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.chip{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 12px;font-size:.84rem;font-weight:600;text-align:left}
+.chip:hover{background:var(--accent);color:var(--on-accent)}
+.chip.ghost{border-color:var(--line);background:transparent;color:var(--muted)}
+.chip.ghost:hover{border-color:var(--ink);color:var(--ink);background:transparent}
+.qbtn{border:0;background:none;padding:0;text-align:left;color:var(--ink);font-family:var(--display);font-style:italic;font-size:1.12rem;line-height:1.3}
+.qbtn:hover{color:var(--accent);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.think textarea{min-height:96px}
+.tick{flex-direction:row;align-items:center;gap:10px;font-weight:500}
+.tick input{accent-color:var(--accent);width:17px;height:17px;flex:none}
+.bars{display:flex;flex-direction:column;gap:8px}
+.barrow{display:grid;grid-template-columns:minmax(120px,190px) 1fr 56px;gap:12px;align-items:center}
+.barrow .track i{background:var(--accent)}
 /* library */
 .filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
 @media (max-width:640px){.filters{grid-template-columns:1fr}}
 .results{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
 .case{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.case details.drop summary{padding:10px 0 8px}.case details.drop .din{padding-bottom:6px;gap:8px}.case ul.notes{font-size:.92rem}
 .case .when{color:var(--muted);font-size:.86rem;font-weight:600}
 .case .desc{font-size:.94rem}
 .case .shows{border-left:3px solid var(--accent);padding-left:12px;font-family:var(--display);font-style:italic;font-size:1.04rem;line-height:1.3}
@@ -178,29 +199,65 @@ footer{border-top:1px solid var(--line);padding:18px 0 40px;font-size:.84rem;col
   <div class="wrap bar">
     <div class="brand">TOK <i class="q">Workbench</i></div>
     <nav aria-label="Sections">
-      <a href="#course">Course</a>
+      <a href="#explore">Explore</a>
       <a href="#library">Library</a>
+      <a href="#practice">Practice</a>
+      <a href="#journal">Journal</a>
+      <span class="navsep" aria-hidden="true"></span>
       <a href="#exhibition">Exhibition</a>
       <a href="#essay">Essay</a>
-      <a href="#practice">Practice</a>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
 
-<section class="view" id="v-course">
+<section class="view" id="v-explore">
   <div class="hero">
-    <div class="row"><span class="tag" id="heroTag">The natural sciences</span></div>
+    <div class="row"><span class="tag" id="heroTag">The natural sciences</span><span class="muted small">How do we know what we know? Start anywhere.</span></div>
     <p class="q" id="heroQ">What separates science from pseudoscience?</p>
     <div class="row">
-      <button class="btn primary" id="askBtn" type="button">Ask another question</button>
-      <span class="muted">TOK runs on questions like this one: about knowledge itself, open to more than one reasonable answer.</span>
+      <button class="btn primary" id="followBtn" type="button">Follow this question</button>
+      <button class="btn" id="askBtn" type="button">Ask another</button>
+      <button class="btn" id="surpriseBtn" type="button">Surprise me</button>
+    </div>
+  </div>
+
+  <div class="stack" id="explorerWrap">
+    <div>
+      <h2>Follow the thread</h2>
+      <p class="lede">Everything in TOK connects. Open a question, a case or a concept, then keep going through whatever it touches. Write down what you think as you go: your notes collect in the Journal.</p>
+    </div>
+    <div class="row" id="trail"></div>
+    <div class="thread" id="explorer" aria-live="polite"></div>
+  </div>
+
+  <div class="stack">
+    <div>
+      <h2>The territory</h2>
+      <p class="lede">One core theme, five optional themes and five areas of knowledge. Pick one to see its notes, key ideas, questions and cases. Select any question or case to follow it as a thread.</p>
+    </div>
+    <div class="map">
+      <div class="areas" id="areas"></div>
+      <div class="panel" id="areaPanel" aria-live="polite"></div>
     </div>
   </div>
 
   <div class="stack">
-    <h3>How you are assessed</h3>
+    <div>
+      <h2>Twelve lenses</h2>
+      <p class="lede">The twelve concepts are ways of looking at any claim, in any subject. Pick one for quick notes, the tension inside it, questions to ask and cases that show it at work.</p>
+    </div>
+    <div class="concepts" id="concepts"></div>
+    <div class="panel" id="conceptPanel" aria-live="polite"></div>
+  </div>
+
+  <div class="stack">
+    <div>
+      <h2>How the course fits together</h2>
+      <p class="lede">Short notes on the structure of TOK and how it is assessed. Open a heading to read it.</p>
+    </div>
+    <div class="brief" id="brief"></div>
     <div class="pair">
       <div>
         <div class="big num">1/3</div>
@@ -223,41 +280,18 @@ footer{border-top:1px solid var(--line);padding:18px 0 40px;font-size:.84rem;col
         <a href="#essay">Plan the essay</a>
       </div>
     </div>
-  </div>
-
-  <div class="stack">
-    <div>
-      <h2>The course in brief</h2>
-      <p class="lede">Short notes on the whole course. Open a heading to read it.</p>
-    </div>
-    <div class="brief" id="brief"></div>
-  </div>
-
-  <div class="stack">
-    <div>
-      <h2>The course map</h2>
-      <p class="lede">Pick a theme or area. Each opens with quick notes, followed by drop-downs for its key ideas, twelve knowledge questions and real cases.</p>
-    </div>
-    <div class="map">
-      <div class="areas" id="areas"></div>
-      <div class="panel" id="areaPanel" aria-live="polite"></div>
-    </div>
-  </div>
-
-  <div class="stack">
-    <div>
-      <h2>The twelve concepts</h2>
-      <p class="lede">These run through every part of the course. Pick one for quick notes, the tension inside it, questions to ask and cases that show it at work.</p>
-    </div>
-    <div class="concepts" id="concepts"></div>
-    <div class="panel" id="conceptPanel" aria-live="polite"></div>
+    <p class="muted small" style="max-width:65ch">Both tasks reward the same thing this app is built for: positions you have thought through, tested against real cases and other points of view.</p>
   </div>
 </section>
 
 <section class="view" id="v-library">
   <div>
     <h2>Library</h2>
-    <p class="lede">Real cases to anchor your claims, and the vocabulary to discuss them. Every case comes with the TOK point it can support. Each links to Wikipedia as a starting point. For assessed work, follow the article's references to a source you can cite.</p>
+    <p class="lede">Real cases to think with, and the vocabulary to discuss them. Every case comes with what it shows about knowledge, and can be followed as a thread. Each links to Wikipedia as a starting point. For assessed work, follow the article's references to a source you can cite.</p>
+  </div>
+  <div class="notice" style="border-style:solid">
+    <span><b>Printable flashcards.</b> All 73 cases as double-sided A6 cards, four to an A4 sheet: what happened, why it matters, the area of knowledge connection and key takeaways.</span>
+    <button class="btn primary" type="button" id="cardsBtn">Download flashcards (PDF)</button>
   </div>
   <div class="row" role="group" aria-label="Library section">
     <button class="btn" type="button" id="tabCases" aria-pressed="true">Cases</button>
@@ -270,6 +304,23 @@ footer{border-top:1px solid var(--line);padding:18px 0 40px;font-size:.84rem;col
     <select id="libConcept" aria-label="Filter by concept"></select>
   </div>
   <div id="libOut"></div>
+</section>
+
+<section class="view" id="v-journal">
+  <div class="headrow">
+    <div>
+      <h2>Journal</h2>
+      <p class="lede">Your own thinking, collected in one place. Understanding in TOK means having positions you have argued out for yourself, and these notes are the raw material for the essay and the exhibition.</p>
+    </div>
+    <button class="btn" type="button" id="copyJournal">Copy my journal</button>
+  </div>
+  <div class="card">
+    <div class="head"><h3>Cases you can explain</h3><span class="muted small num" id="masteryTotal"></span></div>
+    <p class="muted small">Tick a case on its thread, or mark it in the flashcards, once you can explain it without looking.</p>
+    <div class="bars" id="mastery"></div>
+  </div>
+  <div class="row"><h3>Your notes</h3><span class="muted small num" id="journalCount"></span></div>
+  <div class="cols" id="journalOut"></div>
 </section>
 
 <section class="view" id="v-exhibition">
@@ -690,6 +741,7 @@ const CNOTES = {
 };
 
 const WIKI = {"Semmelweis and handwashing": "Ignaz Semmelweis", "Wegener and continental drift": "Continental drift", "Eddington's eclipse expedition": "Eddington experiment", "Pluto is reclassified": "IAU definition of planet", "Marshall drinks the bacteria": "Barry Marshall", "Faster-than-light neutrinos": "2011 OPERA faster-than-light neutrino anomaly", "The kilogram is redefined": "2019 revision of the SI", "Tuskegee syphilis study": "Tuskegee Syphilis Study", "Henrietta Lacks and HeLa cells": "Henrietta Lacks", "Thalidomide": "Thalidomide scandal", "Lysenko and Soviet genetics": "Lysenkoism", "The trial of Galileo": "Galileo affair", "Piltdown Man": "Piltdown Man", "Gene-edited babies": "He Jiankui affair", "Milgram's obedience experiments": "Milgram experiment", "Stanford prison experiment": "Stanford prison experiment", "The Hawthorne studies": "Hawthorne effect", "'Why did nobody notice it?'": "2008 financial crisis", "Mead and Freeman on Samoa": "Coming of Age in Samoa", "WEIRD participants": "WEIRD", "Loftus and Palmer on leading questions": "Misinformation effect", "The Literary Digest poll": "The Literary Digest", "The replication project": "Reproducibility Project", "The Hitler Diaries": "Hitler Diaries", "The Rosetta Stone": "Rosetta Stone", "The Ienaga textbook lawsuits": "Saburo Ienaga", "The Donation of Constantine": "Donation of Constantine", "The Benin Bronzes": "Benin Bronzes", "Kennewick Man, the Ancient One": "Kennewick Man", "Aboriginal stories of rising seas": "Oral tradition", "Inuit testimony and the Franklin ships": "Franklin's lost expedition", "Duchamp's Fountain": "Fountain (Duchamp)", "Van Meegeren's Vermeers": "Han van Meegeren", "The Rite of Spring premiere": "The Rite of Spring", "Banksy's shredded painting": "Love Is in the Bin", "An AI image wins an art prize": "Théâtre D'opéra Spatial", "Picasso's Guernica": "Guernica (Picasso)", "Non-Euclidean geometry": "Non-Euclidean geometry", "Gödel's incompleteness theorems": "Gödel's incompleteness theorems", "The four colour theorem": "Four color theorem", "Wiles and Fermat's Last Theorem": "Wiles's proof of Fermat's Last Theorem", "Ramanujan's letters": "Srinivasa Ramanujan", "The Monty Hall problem": "Monty Hall problem", "Mars Climate Orbiter": "Mars Climate Orbiter", "Long-Term Capital Management": "Long-Term Capital Management", "AlphaGo's move 37": "AlphaGo versus Lee Sedol", "AlphaFold": "AlphaFold", "The COMPAS risk scores": "COMPAS (software)", "Wikipedia and Britannica": "Reliability of Wikipedia", "Google Flu Trends": "Google Flu Trends", "Cambridge Analytica": "Facebook–Cambridge Analytica data scandal", "Guugu Yimithirr directions": "Guugu Yimithirr language", "Counting in Pirahã": "Pirahã language", "'Enhanced interrogation'": "Enhanced interrogation techniques", "The Treaty of Waitangi": "Treaty of Waitangi", "Iraq and weapons of mass destruction": "Iraq and weapons of mass destruction", "'Doubt is our product'": "Tobacco industry playbook", "The Pentagon Papers": "Pentagon Papers", "The 97 per cent consensus": "Scientific consensus on climate change", "'Post-truth' is word of the year": "Post-truth politics", "The Scopes trial": "Scopes trial", "The Dead Sea Scrolls": "Dead Sea Scrolls", "Dating the Shroud of Turin": "Radiocarbon dating of the Shroud of Turin", "Lemaître and the expanding universe": "Georges Lemaître", "Hōkūle‘a sails to Tahiti": "Hōkūleʻa", "The Moken and the 2004 tsunami": "Moken", "The neem patent": "Bioprospecting", "The Uluru climb closes": "Uluru", "The Dunning-Kruger effect": "Dunning–Kruger effect", "The dress": "The dress", "Asch's line experiments": "Asch conformity experiments", "The invisible gorilla": "Inattentional blindness", "The flat-earth gyroscope": "Behind the Curve", "Justified true belief": "Justified true belief", "Gettier cases": "Gettier problem", "Knowing that and knowing how": "Procedural knowledge", "Testimony": "Epistemology of testimony", "Confirmation bias": "Confirmation bias", "Echo chamber": "Echo chamber (media)", "Intellectual humility": "Intellectual humility", "Data, information, knowledge": "DIKW pyramid", "Algorithmic bias": "Algorithmic bias", "Black box": "Black box", "Filter bubble": "Filter bubble", "Hallucination": "Hallucination (artificial intelligence)", "Extended mind": "Extended mind thesis", "Linguistic relativity": "Linguistic relativity", "Denotation and connotation": "Connotation", "Framing and euphemism": "Euphemism", "Metaphor": "Conceptual metaphor", "Translation loss": "Untranslatability", "Jargon": "Jargon", "Propaganda": "Propaganda", "Epistemic injustice": "Epistemic injustice", "Manufactured doubt": "Manufactured controversy", "Censorship": "Censorship", "Fact and value": "Fact–value distinction", "Post-truth": "Post-truth", "Faith": "Faith", "Revelation": "Revelation", "Hermeneutics": "Hermeneutics", "Religious experience": "Religious experience", "Non-overlapping magisteria": "Non-overlapping magisteria", "Pascal's wager": "Pascal's wager", "Oral tradition": "Oral tradition", "Traditional ecological knowledge": "Traditional ecological knowledge", "Holism": "Holism", "Custodianship": "Indigenous intellectual property", "Biopiracy": "Bioprospecting", "UNDRIP": "Declaration on the Rights of Indigenous Peoples", "Primary and secondary sources": "Primary source", "Historiography": "Historiography", "Selection": "What Is History?", "Provenance": "Provenance", "Presentism": "Presentism (historical analysis)", "Revisionism": "Historical revisionism", "Quantitative and qualitative": "Qualitative research", "Observer effect": "Hawthorne effect", "Correlation and causation": "Correlation does not imply causation", "Operationalising": "Operationalization", "Replication": "Replication crisis", "Verstehen": "Verstehen", "WEIRD samples": "WEIRD", "Hypothesis, theory, law": "Scientific theory", "Falsifiability": "Falsifiability", "Paradigm shift": "Paradigm shift", "Problem of induction": "Problem of induction", "Peer review": "Peer review", "Model": "Scientific modelling", "Aesthetic judgment": "Aesthetics", "Intentional fallacy": "Authorial intent", "Death of the author": "The Death of the Author", "Canon": "Western canon", "Institutional theory": "Institutional theory of art", "Mimesis and expression": "Mimesis", "Axiom": "Axiom", "Proof": "Mathematical proof", "Deduction": "Deductive reasoning", "Conjecture": "Conjecture", "Platonism and formalism": "Philosophy of mathematics", "Unreasonable effectiveness": "The Unreasonable Effectiveness of Mathematics in the Natural Sciences", "A priori and a posteriori": "A priori and a posteriori", "Abduction": "Abductive reasoning", "Anecdotal evidence": "Anecdotal evidence", "Argument": "Argument", "Belief": "Belief", "Bias": "Bias", "Claim and counterclaim": "Counterargument", "Coherence theory of truth": "Coherence theory of truth", "Correspondence theory of truth": "Correspondence theory of truth", "Pragmatic theory of truth": "Pragmatic theory of truth", "Deductive reasoning": "Deductive reasoning", "Inductive reasoning": "Inductive reasoning", "Dogma": "Dogma", "Empiricism": "Empiricism", "Rationalism": "Rationalism", "Scepticism": "Philosophical skepticism", "Epistemology": "Epistemology", "Explicit and tacit knowledge": "Tacit knowledge", "Fallacy": "Fallacy", "Heuristic": "Heuristic (psychology)", "Intuition": "Intuition", "Relativism": "Relativism", "Reliability": "Reliability (statistics)", "Validity": "Validity (statistics)", "Ad hominem": "Ad hominem", "Straw man": "Straw man", "False dilemma": "False dilemma", "Post hoc": "Post hoc ergo propter hoc", "Circular reasoning": "Circular reasoning", "Appeal to authority": "Argument from authority", "Appeal to popularity": "Argumentum ad populum", "Hasty generalisation": "Hasty generalization", "Slippery slope": "Slippery slope", "Evidence": "Evidence", "Certainty": "Certainty", "Truth": "Truth", "Justification": "Justification (epistemology)", "Explanation": "Explanation", "Objectivity": "Objectivity (science)", "Culture": "Culture", "Power": "Power-knowledge", "Interpretation": "Hermeneutics", "Perspective": "Perspectivism", "Values": "Value (ethics and social sciences)", "Responsibility": "Epistemic responsibility"};
+const CARDX = [["Natural sciences, perspectives: shows how a scientific community can resist data that threatens its self-image.", "Evidence does not speak for itself; it needs an audience willing to hear it.", "A missing explanation can sink a correct finding."], ["Natural sciences, methods: tests what a theory needs beyond observations before it is accepted.", "Being right early is not the same as being justified at the time.", "Consensus shifts when a mechanism and new evidence arrive together."], ["Natural sciences, methods: the textbook case for falsifiability as the mark of science.", "A good theory forbids things; this one risked being wrong.", "One striking test can persuade, though later checks made the case secure."], ["Natural sciences and language: classification is a human decision laid over the natural world.", "Changing a definition changes what is 'true' without any new fact.", "Some scientific questions are settled by a vote on words."], ["Natural sciences, perspectives and ethics: consensus about ulcers was overturned by an outsider's risky test.", "Established belief can be wrong for decades.", "How knowledge is obtained raises ethical questions, even when the subject is yourself."], ["Natural sciences, methods: shows the self-correcting routine of publishing an anomaly and inviting checks.", "An extraordinary result is first a reason to look for error.", "Openness about doubt strengthened trust in the team."], ["Natural sciences and mathematics: measurement rests on agreed standards, here moved from an object to a constant.", "Objectivity can be built by convention.", "Even foundations are revised to improve precision."], ["Natural and human sciences, ethics: the case behind modern rules on consent in research.", "Some knowledge is not worth the way it was gained.", "Power differences decide who becomes a research subject."], ["Natural sciences, ethics: asks who owns the material and data that knowledge is built from.", "Benefit to many does not cancel a wrong to one.", "Consent standards are a product of history, not a given."], ["Natural sciences, methods and ethics: exposed the gap between 'not shown harmful' and 'shown safe'.", "Absence of evidence is not evidence of absence.", "Disasters reshape the methods a field requires."], ["Natural sciences and politics: ideology replaced evidence as the test of a biological theory.", "Science needs freedom to dissent in order to work.", "When power picks the winner, error persists and people suffer."], ["Natural sciences and religion: a clash over who has authority to say how the heavens move.", "Observation and institutional authority can collide.", "The conflict was as much about power as about evidence."], ["Natural sciences and history: a forged fossil that fitted expectations went unchallenged for decades.", "Experts see what they hope to see.", "Science did catch the fraud, but slowly."], ["Natural sciences and technology, ethics: a capability outran agreement on whether to use it.", "'Can we?' and 'should we?' are separate questions.", "The scientific community polices its own limits, imperfectly."], ["Human sciences, methods and ethics: a revealing result obtained by deceiving participants.", "Situations can shape behaviour more than character does.", "Ethical limits now rule out some ways of finding things out."], ["Human sciences, methods: a classic study weakened by coaching and lack of replication.", "Fame is not evidence of sound method.", "Researchers' expectations can leak into results."], ["Human sciences, methods: the origin of the idea that being studied changes behaviour.", "The observer is part of the experiment.", "Later re-analysis doubted the original data, a lesson in itself."], ["Human sciences and mathematics: economic models failed to foresee a crisis they treated as improbable.", "Human systems are hard to predict.", "Shared assumptions across a field can hide a risk from everyone."], ["Human sciences, perspectives: two anthropologists gave conflicting accounts of the same culture.", "Fieldwork depends on who asks and who answers.", "Interpretation in human science is open to dispute."], ["Human sciences, scope and perspectives: questions how far findings from one population generalise.", "'People' in a study often means a narrow group.", "Culture shapes even basic perception and reasoning."], ["Human sciences, language and the knower: wording altered what witnesses remembered.", "Memory is rebuilt each time, not replayed.", "Questions can create the answers they seek."], ["Human sciences and mathematics, methods: sample quality mattered more than sample size.", "More data does not fix a biased sample.", "Good method lets a small sample beat a huge one."], ["Human sciences, methods: tested the field's own reliability by repeating its studies.", "A single published study is weak justification.", "A field examining itself is a sign of health, not failure."], ["History, methods: authentication failed when reputation stood in for testing.", "Provenance must be checked, not assumed.", "Wanting a discovery to be real clouds judgment."], ["History and language: one inscription unlocked a lost script, and its ownership is disputed.", "Knowledge of the past can hang on a single surviving object.", "Where an object is kept is itself a historical and ethical question."], ["History and politics: the state's role in deciding which account of the past reaches classrooms.", "School history is selected, and someone does the selecting.", "Courts can become arbiters of how the past is told."], ["History, religion and language: linguistic analysis exposed a document that underpinned papal power.", "Anachronism is evidence.", "Critical method can challenge even the most powerful institutions."], ["History, the arts and indigenous societies: asks who should hold and interpret a people's heritage.", "Museums are not neutral keepers of knowledge.", "Restitution changes who tells the story."], ["Indigenous societies, natural sciences and history: scientific study and community belief claimed the same remains.", "Values can limit what may be investigated.", "Here the scientific evidence ended up supporting the tribes' claim."], ["Indigenous societies and history, methods: oral accounts matched geological evidence across millennia.", "Oral tradition can be a durable record.", "Different knowledge systems can corroborate each other."], ["Indigenous societies and history, perspectives: accurate testimony was ignored because of its source.", "Who speaks affects who is believed.", "Dismissed knowledge can turn out to be the reliable kind."], ["The arts, scope: challenges any definition of art based on skill or beauty.", "Context and intention may make something art.", "Institutions help decide what counts."], ["The arts and history, methods: expert judgment of authenticity was shown to be fallible.", "Aesthetic value seemed to change with knowledge of the maker.", "Connoisseurship needs scientific testing beside it."], ["The arts, perspectives: an audience rejected what later generations canonised.", "Aesthetic standards are not fixed.", "First reactions are poor guides to lasting value."], ["The arts, scope and perspectives: an act of destruction increased a work's meaning and price.", "An artwork can be an event as well as an object.", "The market and the art world shape what is valued."], ["The arts and technology: tests whether art needs a human maker's skill or intention.", "New tools unsettle old definitions.", "Authorship becomes unclear when a model generates the work."], ["The arts, history and politics: a painting as testimony to an atrocity.", "Art can convey the meaning of an event, not just its facts.", "Art can carry political knowledge across generations."], ["Mathematics, scope: showed that geometry's 'self-evident' foundation was a choice.", "Mathematical truth is relative to axioms.", "Abstract mathematics later proved to describe physical space."], ["Mathematics, scope and methods: proved that proof itself has limits.", "Truth and provability are not the same.", "Certainty in mathematics is real but bounded."], ["Mathematics and technology, methods: a proof that relies on computation no human can check.", "What counts as a proof can change.", "Trust in a result may rest on trust in a machine."], ["Mathematics, methods and perspectives: a proof needed correction and community checking before acceptance.", "Even mathematical knowledge is social in how it is confirmed.", "Error and repair are part of the process."], ["Mathematics, perspectives and methods: deep results reached by intuition outside formal training.", "Insight can come before proof.", "Access to the knowledge community affects whose ideas are heard."], ["Mathematics and the knower: intuition about probability misled experts and public alike.", "Feeling certain is weak evidence.", "A sound argument beats the weight of opinion."], ["Mathematics, language and natural sciences: a unit mismatch destroyed a mission.", "Knowledge is only shared if conventions are shared.", "Small unstated assumptions can have large effects."], ["Mathematics and human sciences: models of risk failed when people behaved unexpectedly.", "A model is not the world.", "Expertise can breed overconfidence."], ["Technology, methods: a machine produced a creative, effective move no one could explain.", "Performance and understanding can come apart.", "AI can extend human knowledge of a field."], ["Technology and natural sciences, methods: AI prediction solved a problem experiments found slow.", "Useful knowledge can come without full explanation.", "Predictions still need experimental checking."], ["Technology, politics and human sciences, ethics: a risk tool reproduced social bias under a neutral surface.", "Data carries the history of those who collected it.", "'Objective' systems need scrutiny and accountability."], ["Technology and the knower: open, anonymous collaboration rivalled expert-written reference work.", "Reliability can come from process as well as credentials.", "Every source still needs checking."], ["Technology and human sciences, methods: big data found patterns that stopped holding.", "Correlation without understanding is fragile.", "More data can increase confidence faster than accuracy."], ["Technology and politics, ethics: personal data became a tool of political persuasion.", "Knowing about people gives power over them.", "Consent is easily bypassed at scale."], ["Language and indigenous societies: a language's structure shapes its speakers' habitual attention.", "Language influences thought without fully determining it.", "Other languages reveal what ours takes for granted."], ["Language, indigenous societies and mathematics: asks whether number concepts depend on number words.", "The link between words and concepts is debated.", "Interpreting another culture's cognition is hard to do fairly."], ["Language and politics: a euphemism reframed how an act was judged in law and public debate.", "Naming is an act of power.", "Clear language is an ethical matter."], ["Language, history, indigenous societies and politics: two versions of one treaty say different things.", "Translation carries interpretation.", "Disagreement over words can last for centuries."], ["Politics, methods: intelligence was presented with more certainty than it supported.", "Stated confidence can exceed the evidence.", "Decisions create pressure to find supporting knowledge."], ["Politics and natural sciences, ethics: scientific doubt was manufactured to protect an industry.", "Uncertainty can be used as a weapon.", "Ask who benefits from doubt."], ["Politics and history, ethics: a leak revealed the gap between official and actual knowledge.", "States control what citizens know.", "Publishing secrets can serve the public interest."], ["Politics and natural sciences, perspectives: expert consensus as the public's guide to science.", "Most knowledge is taken on trust in experts.", "How consensus is measured can itself be contested."], ["Politics and language: a new word captured anxiety about the standing of facts in public life.", "Emotion and identity compete with evidence.", "Naming a problem shapes how it is understood."], ["Religion, politics and natural sciences: a courtroom was asked to rule on what may be taught as knowledge.", "Education is a battleground for competing authorities.", "Law can enforce or restrict knowledge."], ["Religion and history, methods: ancient manuscripts allowed scripture to be studied as a historical text.", "Sacred texts have a history of transmission.", "Evidence can both confirm and complicate tradition."], ["Religion and natural sciences, methods: a scientific dating met an object of devotion.", "Different communities weigh the same evidence differently.", "Faith may not depend on the result of a test."], ["Religion and natural sciences, perspectives: a priest-scientist who kept the two kinds of knowledge distinct.", "Religious and scientific knowledge need not conflict.", "A knower's beliefs need not dictate their science."], ["Indigenous societies, methods: traditional navigation was demonstrated under test conditions.", "Practical, orally taught knowledge can be rigorous.", "Demonstration can overturn outsiders' doubt."], ["Indigenous societies, methods: inherited stories carried accurate warning signs.", "Narrative can store life-saving knowledge.", "Local knowledge may outperform technology at hand."], ["Indigenous societies, politics and natural sciences, ethics: a patent on long-held community knowledge was overturned.", "Traditional knowledge can count as prior knowledge in law.", "Ownership rules favour those who write things down."], ["Indigenous societies, ethics: custodians' knowledge of a sacred place set limits for others.", "Respect can limit access to experience.", "Whose values decide is a question of power."], ["The knower and human sciences: the least skilled were the most overconfident.", "Self-assessment is unreliable.", "Knowing the limits of your knowledge is itself knowledge."], ["The knower, methods: one image was perceived in two incompatible ways.", "Perception involves interpretation by the brain.", "Certainty from the senses can be mistaken."], ["The knower and human sciences: group pressure led people to deny what they saw.", "Belonging can override evidence.", "Independent judgment takes effort."], ["The knower and human sciences: attention filtered out an obvious event.", "We see less than we think we do.", "Confidence in observation should be tempered."], ["The knower and natural sciences: an experiment's result was rejected by those who designed it.", "Evidence alone rarely changes a committed belief.", "Identity and community shape what is accepted."]];
 
 
 /* ---------- helpers and state ---------- */
@@ -722,16 +774,22 @@ function drawBrief(){ BRIEF.forEach((b,i)=>$("#brief").append(drop(b[0],i===0,no
 
 /* ---------- course ---------- */
 const FLAT = AREAS.flatMap(a=>a.f.flat().map(q=>[a.n,q]));
-let heroI=-1;
+let heroI=AREAS.findIndex(a=>a.id==='natural')*12;
 $("#askBtn").addEventListener("click",()=>{
   let n; do{ n=Math.floor(Math.random()*FLAT.length); }while(n===heroI);
   heroI=n; const q=$("#heroQ");
   $("#heroTag").textContent=FLAT[n][0]; q.textContent=FLAT[n][1];
   q.classList.remove("swap"); void q.offsetWidth; q.classList.add("swap");
 });
+$("#followBtn").addEventListener("click",()=>go("q",QLIST[heroI].id));
+$("#surpriseBtn").addEventListener("click",surprise);
+$("#copyJournal").addEventListener("click",()=>{
+  let p; try{ p=navigator.clipboard.writeText(journalText()); }catch(e){ p=Promise.reject(e); }
+  p.then(()=>toast("Journal copied."),()=>toast("Copying was blocked here. Select your text and copy it by hand."));
+});
 function miniCases(list, kind, val){
   const ul=el("ul",{class:"mini"});
-  list.forEach(c=>ul.append(el("li",null,el("b",null,c[0]+" ",el("span",{text:c[1]+" "}),wlink(c[0])),el("p",{text:c[5]}))));
+  list.forEach(c=>{ const t=el("button",{type:"button",class:"link",text:c[0]}); t.addEventListener("click",()=>go("case",CASES.indexOf(c))); ul.append(el("li",null,el("div",null,t,el("span",{class:"muted small",text:"  "+c[1]+"  "}),wlink(c[0])),el("p",{text:c[5]}))); });
   const b=el("button",{class:"link",type:"button",text:"Open these "+list.length+" cases in the Library"});
   b.addEventListener("click",()=>{ lib.tab="cases"; lib.q=""; lib.area=kind==="area"?val:""; lib.concept=kind==="concept"?val:""; location.hash="library"; drawLibrary(); });
   return [ul,b];
@@ -752,11 +810,11 @@ function drawAreas(){
   a.ideas.forEach(i=>dl.append(el("div",null,el("dt",null,i[0]+" ",wlink(i[0])),el("dd",{text:i[1]}))));
   const fw=el("div",{class:"stack"});
   FRAME.forEach((f,i)=>{
-    const ul=el("ul",{class:"qs"}); a.f[i].forEach(q=>ul.append(el("li",{text:q})));
+    const ul=el("ul",{class:"qs"}); a.f[i].forEach((q,qi)=>ul.append(el("li",null,qButton({q:q,id:QID(a.id,i,qi)}))));
     fw.append(el("div",{class:"fw"},el("div",null,el("b",{text:f[0]}),el("div",{class:"muted small",text:f[1]})),ul));
   });
   const cs=casesFor("area",a.id);
-  p.append(drop("Quick notes",true,noteList(NOTES[a.id])),drop("Key ideas ("+a.ideas.length+")",false,dl),drop("Knowledge questions (12)",false,fw),drop("Cases to know ("+cs.length+")",false,...miniCases(cs,"area",a.id)));
+  p.append(drop("Quick notes",true,noteList(NOTES[a.id])),drop("Key ideas ("+a.ideas.length+")",false,dl),drop("Knowledge questions (12)",true,fw),drop("Cases to know ("+cs.length+")",false,...miniCases(cs,"area",a.id)));
 }
 let curConcept="evidence";
 function drawConcepts(){
@@ -805,7 +863,8 @@ function drawLibrary(){
       const tags=el("div",{class:"tags"});
       c[2].split(" ").forEach(a=>tags.append(el("span",{class:"tag",text:AREA_NAME[a].replace(/^Knowledge and (the )?/,"").replace(/^The /,"").replace(/^./,x=>x.toUpperCase())})));
       c[3].split(" ").forEach(k=>tags.append(el("span",{class:"tag plain",text:k})));
-      grid.append(el("article",{class:"case"},el("div",null,el("h4",{text:c[0]}),el("div",{class:"when num",text:c[1]})),el("p",{class:"desc",text:c[4]}),el("p",{class:"shows",text:c[5]}),tags,wlink(c[0],"Read more on Wikipedia")));
+      grid.append(el("article",{class:"case"},el("div",null,el("h4",{text:c[0]}),el("div",{class:"when num",text:c[1]})),el("p",{class:"desc",text:c[4]}),el("p",{class:"shows",text:c[5]}),tags,
+        drop("Connection and takeaways",false,el("p",{class:"desc",text:CARDX[CASES.indexOf(c)][0]}),noteList(CARDX[CASES.indexOf(c)].slice(1))),el("div",{class:"row",style:"justify-content:space-between"},(()=>{const b=el("button",{type:"button",class:"link",text:"Follow this case"});b.addEventListener("click",()=>go("case",CASES.indexOf(c)));return b;})(),wlink(c[0],"Wikipedia"))));
     });
     out.append(list.length?grid:el("p",{class:"muted",text:"No cases match. Try a shorter search or clear a filter."}));
   }else{
@@ -816,6 +875,101 @@ function drawLibrary(){
     out.append(list.length?grid:el("p",{class:"muted",text:"No terms match. Try a shorter search or clear the filter."}));
   }
 }
+
+
+/* ---------- printable flashcards (PDF built in the browser) ---------- */
+function pdfText(s){
+  return String(s).replace(/[‘’ʻ]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-")
+    .replace(/[^\u0000-ÿ]/g,ch=>{ const b=ch.normalize("NFD").replace(/[̀-ͯ]/g,""); return /^[\u0000-ÿ]+$/.test(b)?b:""; });
+}
+function buildPdf(jsPDF, CASES, CARDX, AREA_NAME){
+  const doc=new jsPDF({unit:"mm",format:"a4"});
+  const W=210,H=297,cw=W/2,ch=H/2,PAD=9,N=CASES.length,MM=0.3528;
+  const INK=[20,32,29],MUT=[86,100,95],ACC=[42,59,208],LINE=[184,194,188];
+  const short=a=>AREA_NAME[a].replace(/^Knowledge and (the )?/,"").replace(/^The /,"").replace(/^./,x=>x.toUpperCase());
+  const set=(fam,style,size,col)=>{doc.setFont(fam,style);doc.setFontSize(size);doc.setTextColor(col[0],col[1],col[2]);};
+  const cell=k=>[(k%2)*cw,Math.floor(k/2)*ch];
+  function cuts(){ doc.setDrawColor(LINE[0],LINE[1],LINE[2]);doc.setLineWidth(.15);doc.setLineDashPattern([1,1.5],0);doc.line(cw,0,cw,H);doc.line(0,ch,W,ch);doc.setLineDashPattern([],0); }
+  /* blocks: {t,fam,style,size,col,gap,bullet} ; returns height, draws when draw=true */
+  function flow(blocks,x,y,w,draw){
+    let yy=y;
+    blocks.forEach(b=>{
+      set(b.fam,b.style,b.size,b.col); yy+=b.gap||0;
+      const ind=b.bullet?3.2:0, lines=doc.splitTextToSize(pdfText(b.t),w-ind), lh=b.size*MM*(b.lead||1.32);
+      if(draw){
+        if(b.bullet){ doc.setFillColor(b.col[0],b.col[1],b.col[2]); doc.circle(x+1,yy+lh*0.5,0.45,"F"); }
+        lines.forEach((ln,i)=>doc.text(ln,x+ind,yy+lh*0.78+i*lh));
+      }
+      yy+=lines.length*lh;
+    });
+    return yy-y;
+  }
+  function front(x,y,n,c){
+    doc.setDrawColor(INK[0],INK[1],INK[2]);doc.setLineWidth(.3);doc.roundedRect(x+5,y+5,cw-10,ch-10,3,3,"S");
+    set("helvetica","bold",7,MUT); doc.text("CASE "+n+" OF "+N,x+PAD+2,y+PAD+5);
+    set("helvetica","normal",7,MUT); doc.text("TOK Workbench",x+cw-PAD-2,y+PAD+5,{align:"right"});
+    flow([{t:c[2].split(" ").map(short).join("  ·  ").toUpperCase(),fam:"helvetica",style:"bold",size:7.5,col:ACC},
+          {t:c[0],fam:"times",style:"bold",size:21,col:INK,gap:5,lead:1.15},
+          {t:c[1],fam:"helvetica",style:"normal",size:10.5,col:MUT,gap:4},
+          {t:"What happened?",fam:"times",style:"italic",size:11,col:MUT,gap:12},
+          {t:"Why does it matter for knowledge?",fam:"times",style:"italic",size:11,col:MUT,gap:1},
+          {t:"Which area of knowledge does it test?",fam:"times",style:"italic",size:11,col:MUT,gap:1}],x+PAD+2,y+PAD+16,cw-2*PAD-4,true);
+  }
+  function back(x,y,n,c,ex){
+    const w=cw-2*PAD, maxH=ch-2*PAD-6;
+    const lab=t=>({t:t,fam:"helvetica",style:"bold",size:6.6,col:ACC,gap:2.4});
+    let blocks;
+    for(const s of [10.2,9.8,9.4,9,8.6,8.2,7.8,7.4]){
+      const body=t=>({t:t,fam:"helvetica",style:"normal",size:s,col:INK,gap:.6});
+      blocks=[{t:c[0]+"  ("+c[1]+")",fam:"times",style:"bold",size:11.5,col:INK,lead:1.15},
+        lab("WHAT HAPPENED"),body(c[4]),
+        lab("WHY IT MATTERS"),{t:c[5],fam:"times",style:"italic",size:s+.8,col:INK,gap:.6},
+        lab("AREA OF KNOWLEDGE CONNECTION"),body(ex[0]),
+        lab("KEY TAKEAWAYS"),Object.assign(body(ex[1]),{bullet:true}),Object.assign(body(ex[2]),{bullet:true}),
+        lab("CONCEPTS"),{t:c[3].split(" ").join("  ·  "),fam:"helvetica",style:"normal",size:s-.6,col:MUT,gap:.6}];
+      if(flow(blocks,x+PAD,y+PAD,w,false)<=maxH) break;
+    }
+    flow(blocks,x+PAD,y+PAD,w,true);
+    set("helvetica","normal",6.5,MUT); doc.text(n+" / "+N,x+PAD,y+ch-PAD+1);
+  }
+  /* cover */
+  set("times","bold",26,INK); doc.text("TOK case flashcards",25,45);
+  set("helvetica","normal",11,MUT); doc.text(N+" real cases for the Theory of Knowledge essay and exhibition",25,54);
+  flow([{t:"How to print",fam:"helvetica",style:"bold",size:11,col:INK},
+    {t:"Print pages 3 onwards double-sided on A4, flipping on the long edge, at 100% scale (turn off 'fit to page'). Each sheet carries four cards. Cut along the dashed lines to get A6 cards.",fam:"helvetica",style:"normal",size:10,col:MUT,gap:2},
+    {t:"Odd pages are fronts (the case). Even pages are backs: what happened, why it matters, the area of knowledge connection, key takeaways and concepts.",fam:"helvetica",style:"normal",size:10,col:MUT,gap:2},
+    {t:"Single-sided printer? Print everything, cut, and glue or clip each front to its back. The card numbers match.",fam:"helvetica",style:"normal",size:10,col:MUT,gap:2},
+    {t:"How to use them",fam:"helvetica",style:"bold",size:11,col:INK,gap:8},
+    {t:"Read the front, say aloud what happened and what it shows about knowledge, then turn over and check. Sort the deck by area of knowledge or by concept to find examples for a particular essay title.",fam:"helvetica",style:"normal",size:10,col:MUT,gap:2},
+    {t:"Before you use a case in assessed work",fam:"helvetica",style:"bold",size:11,col:INK,gap:8},
+    {t:"These cards are study aids. Check names, dates and figures against a source you can cite.",fam:"helvetica",style:"normal",size:10,col:MUT,gap:2}],25,68,150,true);
+  doc.addPage();
+  for(let s=0;s<N;s+=4){
+    doc.addPage(); cuts();
+    for(let k=0;k<4&&s+k<N;k++){ const p=cell(k); front(p[0],p[1],s+k+1,CASES[s+k]); }
+    doc.addPage(); cuts();
+    for(let k=0;k<4&&s+k<N;k++){ const p=cell(k%2===0?k+1:k-1); back(p[0],p[1],s+k+1,CASES[s+k],CARDX[s+k]); }
+  }
+  doc.setProperties({title:"TOK case flashcards"});
+  return doc;
+}
+let DL=null;
+try{ if(window.claude&&window.claude.use) window.claude.use("downloads").then(d=>{DL=d;},()=>{}); }catch(e){}
+function downloadCards(){
+  if(!window.jspdf){ toast("The PDF builder could not load. Check your connection and reload."); return; }
+  let blob; try{ blob=buildPdf(window.jspdf.jsPDF,CASES,CARDX,AREA_NAME).output("blob"); }catch(e){ toast("The PDF could not be built."); return; }
+  const name="TOK-case-flashcards.pdf";
+  if(DL){
+    DL.save({filename:name,data:blob}).then(()=>toast("Flashcards saved."),err=>{
+      const c=err&&err.code;
+      toast(c==="declined"?"Download cancelled.":c==="rate_limited"?"A download is already waiting. Try again in a moment.":c==="host_unavailable"?"This app cannot save files. Open the page in a browser to download.":"The download is not available in this view.");
+    });
+  }else{
+    try{ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); toast("Flashcards PDF created."); }
+    catch(e){ toast("The download is not available in this view."); }
+  }
+}
+
 
 /* ---------- planners ---------- */
 function field(id,key,labelText,hint,tag,ph){
@@ -889,7 +1043,7 @@ document.addEventListener("input",e=>{
   save(); meters();
 });
 document.addEventListener("change",e=>{ const k=e.target.dataset&&e.target.dataset.k; if(k&&e.target.tagName==="SELECT"){S[k]=e.target.value;save();} });
-$$("[data-clear]").forEach(b=>b.addEventListener("click",()=>{ S={}; save(); fill(); }));
+$$("[data-clear]").forEach(b=>b.addEventListener("click",()=>{ Object.keys(S).forEach(k=>{ if(k==="example"||k.startsWith("ex.")||k.startsWith("es.")) delete S[k]; }); save(); fill(); }));
 
 function exportText(which){
   const L=[]; const g=k=>(S[k]||"").trim();
@@ -916,17 +1070,18 @@ function drawQuizTabs(){
   const box=$("#quizTabs"); box.textContent="";
   Object.keys(QUIZZES).forEach(id=>{
     const b=el("button",{class:"btn",type:"button","aria-pressed":String(id===quizId),text:QUIZZES[id].title});
-    b.addEventListener("click",()=>{quizId=id;qi=0;score=0;drawQuizTabs();drawQuiz();});
+    b.addEventListener("click",()=>{quizId=id;qi=0;score=0;if(QUIZZES[id].gen)QUIZZES[id].items=QUIZZES[id].gen();if(QUIZZES[id].cards)newDeck();drawQuizTabs();drawQuiz();});
     box.append(b);
   });
   $("#quizIntro").textContent=QUIZZES[quizId].intro;
 }
 function drawQuiz(){
   const Q=QUIZZES[quizId], box=$("#quiz"); box.textContent="";
+  if(Q.cards) return drawCards(box);
   if(qi>=Q.items.length){
     box.append(el("h3",{text:"Finished"}),el("p",{class:"q",text:"You got "+score+" of "+Q.items.length+"."}),
-      el("p",{class:"muted",text:quizId==="kq"?"Next step: take a claim from one of your other subjects and write the knowledge question behind it.":"Next step: reread a paragraph of your own draft and look for the same flaws."}));
-    const again=el("button",{class:"btn primary",type:"button",text:"Start again"}); again.addEventListener("click",()=>{qi=0;score=0;drawQuiz();});
+      el("p",{class:"muted",text:Q.next}));
+    const again=el("button",{class:"btn primary",type:"button",text:"Start again"}); again.addEventListener("click",()=>{qi=0;score=0;if(Q.gen)Q.items=Q.gen();drawQuiz();});
     box.append(el("div",{class:"row"},again)); return;
   }
   const it=Q.items[qi];
@@ -938,7 +1093,7 @@ function drawQuiz(){
     b.addEventListener("click",()=>{
       if(done) return; done=true; const right=i===correct; if(right) score++;
       $$("button",row).forEach((x,j)=>{ if(j===correct) x.classList.add("right"); else if(j===i) x.classList.add("wrong"); });
-      const fb=el("div",{class:"fb"},el("b",{class:right?"s-ok":"s-over",text:right?"Correct.":"Not quite. The answer is: "+opts[correct]+"."}),el("span",{text:why}));
+      const fb=el("div",{class:"fb"},el("b",{class:right?"s-ok":"s-over",text:right?"Correct.":"Not quite. The answer is: "+opts[correct]+"."}),why?el("span",{text:why}):null);
       if(behind) fb.append(el("span",{class:"muted",text:"The knowledge question behind it:"}),el("span",{class:"q",style:"font-size:1.15rem",text:behind}));
       const next=el("button",{class:"btn primary",type:"button",text:qi===Q.items.length-1?"See my score":"Next question"});
       next.addEventListener("click",()=>{qi++;drawQuiz();});
@@ -949,16 +1104,218 @@ function drawQuiz(){
   box.append(row);
 }
 
+
+/* ---------- explorer: follow the thread ---------- */
+const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const QID=(a,fi,qi)=>a+"."+fi+"."+qi;
+const QLIST = AREAS.flatMap(a=>a.f.flatMap((qs,fi)=>qs.map((q,qi)=>({id:QID(a.id,fi,qi),area:a.id,fi:fi,qi:qi,q:q}))));
+const shortArea = id => AREA_NAME[id].replace(/^Knowledge and (the )?/,"").replace(/^The /,"").replace(/^./,x=>x.toUpperCase());
+const conceptOf = id => CONCEPTS.find(c=>c[0].toLowerCase()===id);
+function validFocus(f){
+  if(!f||typeof f!=="object") return false;
+  if(f.t==="q") return QLIST.some(x=>x.id===f.id);
+  if(f.t==="case") return Number.isInteger(f.id)&&f.id>=0&&f.id<CASES.length;
+  if(f.t==="concept") return !!conceptOf(f.id);
+  if(f.t==="area") return !!AREA_NAME[f.id];
+  return false;
+}
+let focus = validFocus(S.focus)?S.focus:{t:"q",id:"natural.0.0"};
+let trail = (Array.isArray(S.trail)?S.trail:[]).filter(validFocus);
+function focusLabel(f){
+  if(f.t==="q") return QLIST.find(x=>x.id===f.id).q;
+  if(f.t==="case") return CASES[f.id][0];
+  if(f.t==="concept") return conceptOf(f.id)[0];
+  return AREA_NAME[f.id];
+}
+function go(t,id){
+  focus={t:t,id:id};
+  trail=trail.filter(x=>!(x.t===t&&x.id===id)); trail.push(focus); if(trail.length>8) trail.shift();
+  S.focus=focus; S.trail=trail; save(); drawExplorer();
+  if(location.hash!=="#explore") location.hash="explore";
+  setTimeout(()=>$("#explorerWrap").scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"}),60);
+}
+function chip(t,id,text,ghost){ const b=el("button",{type:"button",class:"chip"+(ghost?" ghost":""),text:text}); b.addEventListener("click",()=>go(t,id)); return b; }
+function qButton(q){ const b=el("button",{type:"button",class:"qbtn",text:q.q}); b.addEventListener("click",()=>go("q",q.id)); return b; }
+function caseRow(i){
+  const c=CASES[i], b=el("button",{type:"button",class:"link",text:c[0]}); b.addEventListener("click",()=>go("case",i));
+  return el("li",null,el("div",null,b,el("span",{class:"muted small",text:"  "+c[1]}),S["m:"+c[0]]?el("span",{class:"tag",style:"margin-left:8px",text:"can explain"}):null),el("p",{text:c[5]}));
+}
+function caseList(idxs){ const ul=el("ul",{class:"mini"}); idxs.forEach(i=>ul.append(caseRow(i))); return ul; }
+function bound(node,key){ node.setAttribute("data-k",key); if(node.type==="checkbox") node.checked=!!S[key]; else node.value=S[key]||""; return node; }
+function thinking(key,prompt){
+  const id="t-"+key.replace(/[^a-z0-9]/gi,"-");
+  return el("label",{class:"think",for:id},"Your thinking",el("small",{text:prompt}),bound(el("textarea",{id:id}),"j:"+key));
+}
+function section(title,...kids){ return el("div",{class:"tsec"},el("h3",{text:title}),...kids); }
+function relatedCases(i){
+  const a=CASES[i][2].split(" "), k=CASES[i][3].split(" ");
+  return CASES.map((c,j)=>[j, j===i?-1:c[2].split(" ").filter(x=>a.includes(x)).length+c[3].split(" ").filter(x=>k.includes(x)).length])
+    .sort((x,y)=>y[1]-x[1]).slice(0,4).map(x=>x[0]);
+}
+const areaCaseIdx = id => CASES.map((c,i)=>c[2].split(" ").includes(id)?i:-1).filter(i=>i>=0);
+const conceptCaseIdx = id => CASES.map((c,i)=>c[3].split(" ").includes(id)?i:-1).filter(i=>i>=0);
+function rotate(list,start,n){ const out=[]; for(let i=0;i<Math.min(n,list.length);i++) out.push(list[(start+i)%list.length]); return out; }
+
+function drawExplorer(){
+  const tr=$("#trail"); tr.textContent="";
+  if(trail.length>1){
+    tr.append(el("span",{class:"muted small",text:"Your trail"}));
+    trail.slice().reverse().slice(1).forEach(f=>{ const t=focusLabel(f); tr.append(chip(f.t,f.id,t.length>38?t.slice(0,36)+"…":t,true)); });
+  }
+  const box=$("#explorer"); box.textContent="";
+  if(focus.t==="q"){
+    const q=QLIST.find(x=>x.id===focus.id), a=AREAS.find(x=>x.id===q.area);
+    const dl=el("dl",{class:"ideas"});
+    rotate(a.ideas,q.fi+q.qi,3).forEach(i=>dl.append(el("div",null,el("dt",null,i[0]+" ",wlink(i[0])),el("dd",{text:i[1]}))));
+    const near=el("ul",{class:"qs"});
+    QLIST.filter(x=>x.area===q.area&&x.fi===q.fi&&x.id!==q.id).forEach(x=>near.append(el("li",null,qButton(x))));
+    const else_=el("ul",{class:"qs"}), others=AREAS.filter(x=>x.id!==q.area), st=(QLIST.indexOf(q)*7)%others.length;
+    rotate(others,st,3).forEach(o=>{ const x=QLIST.find(y=>y.id===QID(o.id,q.fi,q.qi)); else_.append(el("li",null,el("span",{class:"tag plain",style:"margin-right:8px;font-style:normal;font-family:var(--body)",text:shortArea(o.id)}),qButton(x))); });
+    box.append(
+      el("div",{class:"row"},el("span",{class:"kind",text:"Question"}),chip("area",a.id,shortArea(a.id)),el("span",{class:"tag plain",text:FRAME[q.fi][0]})),
+      el("p",{class:"q focusq",text:q.q}),
+      thinking("q:"+q.id,"There is no model answer. Take a position, give a reason, then say what someone who disagrees would point to."),
+      section("Cases that test it",caseList(rotate(areaCaseIdx(a.id),QLIST.indexOf(q),3))),
+      section("Ideas that help",dl),
+      section("Stay with this line of thought",near),
+      section("Ask the same kind of question elsewhere",el("p",{class:"muted small",text:"Comparing areas is where TOK gets interesting. Does your answer survive the move?"}),else_));
+  }else if(focus.t==="case"){
+    const i=focus.id, c=CASES[i], x=CARDX[i];
+    const areas=c[2].split(" "), m=/scope|perspectives|methods|ethics/.exec(x[0]), fi=m?["scope","perspectives","methods","ethics"].indexOf(m[0]):2;
+    const raises=el("ul",{class:"qs"}); areas.slice(0,2).forEach((a,n)=>raises.append(el("li",null,qButton(QLIST.find(y=>y.id===QID(a,fi,(i+n)%3))))));
+    const head=el("div",{class:"row"},el("span",{class:"kind",text:"Case"})); areas.forEach(a=>head.append(chip("area",a,shortArea(a))));
+    const cons=el("div",{class:"row"}); c[3].split(" ").forEach(k=>cons.append(chip("concept",k,k)));
+    const mid="m-"+i;
+    box.append(head,
+      el("div",null,el("h2",{text:c[0]}),el("div",{class:"muted num",style:"font-weight:600",text:c[1]})),
+      el("p",{style:"max-width:70ch",text:c[4]}),
+      el("p",{class:"q shows",style:"font-size:1.2rem",text:c[5]}),
+      section("Connection and takeaways",el("p",{style:"max-width:70ch",text:x[0]}),noteList(x.slice(1))),
+      section("Concepts in play",cons),
+      section("Questions it raises",raises),
+      section("Cases that rhyme with it",caseList(relatedCases(i))),
+      thinking("case:"+c[0],"How would you use this case in an argument? What would someone say against your reading of it?"),
+      el("div",{class:"row"},el("label",{class:"tick",for:mid},bound(el("input",{type:"checkbox",id:mid}),"m:"+c[0]),el("span",{text:"I can explain this case and what it shows, without looking"})),wlink(c[0],"Read more on Wikipedia")));
+  }else if(focus.t==="concept"){
+    const c=conceptOf(focus.id), idx=conceptCaseIdx(focus.id);
+    const ul=el("ul",{class:"qs"}); c[3].forEach(q=>ul.append(el("li",{text:q})));
+    const others=el("div",{class:"row"}); CONCEPTS.filter(o=>o!==c).forEach(o=>others.append(chip("concept",o[0].toLowerCase(),o[0],true)));
+    box.append(el("div",{class:"row"},el("span",{class:"kind",text:"Concept"}),wlink(c[0])),
+      el("div",null,el("h2",{text:c[0]}),el("p",{style:"max-width:70ch",text:c[1]})),
+      section("The tension inside it",el("p",{class:"q",style:"font-size:1.2rem;max-width:60ch",text:c[2]})),
+      section("Quick notes",noteList(CNOTES[focus.id])),
+      section("Questions to ask of any claim",ul),
+      section("See it at work ("+idx.length+" cases)",caseList(rotate(idx,trail.length,5))),
+      thinking("concept:"+focus.id,"Where have you met this concept in one of your own subjects this week?"),
+      section("Other concepts",others));
+  }else{
+    const a=AREAS.find(x=>x.id===focus.id), idx=areaCaseIdx(a.id);
+    const qs=el("div",{class:"stack"});
+    FRAME.forEach((f,fi)=>{ const ul=el("ul",{class:"qs"}); QLIST.filter(x=>x.area===a.id&&x.fi===fi).forEach(x=>ul.append(el("li",null,qButton(x)))); qs.append(el("div",{class:"fw"},el("div",null,el("b",{text:f[0]}),el("div",{class:"muted small",text:f[1]})),ul)); });
+    const dl=el("dl",{class:"ideas"}); a.ideas.forEach(i=>dl.append(el("div",null,el("dt",null,i[0]+" ",wlink(i[0])),el("dd",{text:i[1]}))));
+    box.append(el("div",{class:"row"},el("span",{class:"kind",text:a.g===G1?"Core theme":a.g===G2?"Optional theme":"Area of knowledge"})),
+      el("div",null,el("h2",{text:a.n}),el("p",{class:"muted",text:a.note})),
+      section("Quick notes",noteList(NOTES[a.id])),
+      section("Questions to open",qs),
+      section("Key ideas",dl),
+      section("Cases ("+idx.length+")",caseList(idx)),
+      thinking("area:"+a.id,"What do you now think is distinctive about how knowledge works here?"));
+  }
+}
+function surprise(){
+  const r=Math.random();
+  if(r<0.55) go("case",Math.floor(Math.random()*CASES.length));
+  else if(r<0.85) go("q",QLIST[Math.floor(Math.random()*QLIST.length)].id);
+  else go("concept",CONCEPTS[Math.floor(Math.random()*CONCEPTS.length)][0].toLowerCase());
+}
+
+/* ---------- journal ---------- */
+function journalLabel(key){
+  const p=key.split(":"), t=p[1], id=p.slice(2).join(":");
+  if(t==="q"){ const q=QLIST.find(x=>x.id===id); return q?["Question",q.q,()=>go("q",id)]:null; }
+  if(t==="case"){ const i=CASES.findIndex(c=>c[0]===id); return i>=0?["Case",id,()=>go("case",i)]:null; }
+  if(t==="concept"){ const c=conceptOf(id); return c?["Concept",c[0],()=>go("concept",id)]:null; }
+  if(t==="area"){ return AREA_NAME[id]?["Area",AREA_NAME[id],()=>go("area",id)]:null; }
+  return null;
+}
+function journalKeys(){ return Object.keys(S).filter(k=>k.startsWith("j:")&&String(S[k]).trim()&&journalLabel(k)); }
+function drawJournal(){
+  const bars=$("#mastery"); bars.textContent="";
+  const done=CASES.filter(c=>S["m:"+c[0]]).length;
+  $("#masteryTotal").textContent=done+" of "+CASES.length+" cases";
+  AREAS.forEach(a=>{
+    const idx=areaCaseIdx(a.id), n=idx.filter(i=>S["m:"+CASES[i][0]]).length;
+    const bar=el("i"); bar.style.width=(n/idx.length*100)+"%";
+    const b=el("button",{type:"button",class:"link",text:shortArea(a.id)}); b.addEventListener("click",()=>go("area",a.id));
+    bars.append(el("div",{class:"barrow"},b,el("div",{class:"track"},bar),el("span",{class:"num muted small",text:n+" / "+idx.length})));
+  });
+  const out=$("#journalOut"); out.textContent="";
+  const keys=journalKeys();
+  $("#journalCount").textContent=keys.length+(keys.length===1?" entry":" entries");
+  if(!keys.length){ out.append(el("p",{class:"muted",text:"Nothing here yet. Follow a thread on the Explore page and write down what you think. Your notes collect here."})); return; }
+  keys.forEach(k=>{
+    const L=journalLabel(k), b=el("button",{type:"button",class:L[0]==="Question"?"qbtn":"link",text:L[1]}); b.addEventListener("click",L[2]);
+    const id="jn-"+k.replace(/[^a-z0-9]/gi,"-");
+    out.append(el("div",{class:"card"},el("div",null,el("span",{class:"kind",text:L[0]}),el("div",null,b)),el("label",{for:id,style:"font-weight:400"},el("span",{class:"muted small",text:"Your thinking"}),bound(el("textarea",{id:id}),k))));
+  });
+}
+function journalText(){
+  const L=["TOK JOURNAL",""];
+  journalKeys().forEach(k=>{ const j=journalLabel(k); L.push(j[0].toUpperCase()+": "+j[1],String(S[k]).trim(),""); });
+  return L.join("\n");
+}
+
+/* ---------- practice: flashcards and generated drills ---------- */
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function pickOthers(pool,correct,n){ return shuffle(pool.filter(x=>x!==correct)).slice(0,n); }
+QUIZZES.kq.next="Next step: take a claim from one of your other subjects and write the knowledge question behind it.";
+QUIZZES.flaw.next="Next step: reread a paragraph of your own writing and look for the same flaws.";
+QUIZZES.which={title:"Which case?",intro:"You are given what a case shows about knowledge. Name the case. Ten fresh questions each round.",next:"Open any case you missed on the Explore page and follow its connections.",
+  gen:()=>shuffle(CASES.map((c,i)=>i)).slice(0,10).map(i=>{ const opts=shuffle([CASES[i][0]].concat(pickOthers(CASES.map(c=>c[0]),CASES[i][0],3))); return [CASES[i][5],opts,opts.indexOf(CASES[i][0]),CASES[i][4]]; })};
+QUIZZES.term={title:"Which term?",intro:"You are given a definition. Name the term. Ten fresh questions each round.",next:"Look up any term you missed in the Library glossary.",
+  gen:()=>{ const pool=ALLTERMS.filter(t=>!fold(t[1]).includes(fold(t[0].split(/[ ,]/)[0]))); const names=pool.map(t=>t[0]);
+    return shuffle(pool).slice(0,10).map(t=>{ const opts=shuffle([t[0]].concat(pickOthers(names,t[0],3))); return [t[1],opts,opts.indexOf(t[0]),""]; }); }};
+QUIZZES.cards={title:"Case flashcards",intro:"Recall the case before you turn the card. Cases you have not yet marked as explained come first.",cards:true};
+let deck=[], deckI=0, flipped=false;
+function newDeck(){ const idx=CASES.map((c,i)=>i); deck=shuffle(idx.filter(i=>!S["m:"+CASES[i][0]])).concat(shuffle(idx.filter(i=>S["m:"+CASES[i][0]]))); deckI=0; flipped=false; }
+function drawCards(box){
+  if(!deck.length) newDeck();
+  const i=deck[deckI%deck.length], c=CASES[i], x=CARDX[i];
+  const done=CASES.filter(k=>S["m:"+k[0]]).length;
+  box.append(el("div",{class:"row",style:"justify-content:space-between"},el("h3",{class:"num",text:"Card "+(deckI%deck.length+1)+" of "+deck.length}),el("span",{class:"muted small num",text:done+" of "+CASES.length+" explained"})));
+  const areas=el("div",{class:"tags"}); c[2].split(" ").forEach(a=>areas.append(el("span",{class:"tag",text:shortArea(a)})));
+  box.append(areas,el("div",null,el("h2",{text:c[0]}),el("div",{class:"muted num",text:c[1]})));
+  if(!flipped){
+    box.append(el("p",{class:"q muted",style:"font-size:1.15rem",text:"What happened? Why does it matter for knowledge? Which area of knowledge does it test?"}));
+    const t=el("button",{class:"btn primary",type:"button",text:"Turn the card over"}); t.addEventListener("click",()=>{flipped=true;drawQuiz();});
+    box.append(el("div",{class:"row"},t));
+  }else{
+    box.append(el("p",{text:c[4]}),el("div",{class:"fb"},el("span",{class:"q",style:"font-size:1.15rem",text:c[5]})),el("p",{class:"muted",text:x[0]}),noteList(x.slice(1)));
+    const again=el("button",{class:"btn",type:"button",text:"Still learning it"}), got=el("button",{class:"btn primary",type:"button",text:"I can explain this"}), open=el("button",{class:"link",type:"button",text:"Explore its connections"});
+    again.addEventListener("click",()=>{ delete S["m:"+c[0]]; save(); deckI++; flipped=false; drawQuiz(); });
+    got.addEventListener("click",()=>{ S["m:"+c[0]]=true; save(); deckI++; flipped=false; drawQuiz(); });
+    open.addEventListener("click",()=>go("case",i));
+    box.append(el("div",{class:"row"},again,got,open));
+  }
+  const pdf=el("button",{class:"link",type:"button",text:"Download the printable set (PDF)"}); pdf.addEventListener("click",downloadCards);
+  box.append(el("div",{style:"border-top:1px solid var(--line);padding-top:12px"},pdf));
+}
+
+
 /* ---------- routing ---------- */
-const VIEWS=["course","library","exhibition","essay","practice"];
+const VIEWS=["explore","library","practice","journal","exhibition","essay"];
 function route(){
-  let h=location.hash.replace("#",""); if(!VIEWS.includes(h)) h="course";
+  let h=location.hash.replace("#",""); if(!VIEWS.includes(h)) h="explore";
+  if(h==="journal") drawJournal();
   VIEWS.forEach(v=>$("#v-"+v).classList.toggle("on",v===h));
   $$("nav a").forEach(a=>{ if(a.getAttribute("href")==="#"+h) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
   window.scrollTo(0,0);
 }
 window.addEventListener("hashchange",route);
 
+$("#cardsBtn").addEventListener("click",downloadCards);
+if(!trail.length) trail=[focus];
+drawExplorer();
 drawBrief(); drawAreas(); drawConcepts(); buildLibrary(); drawLibrary(); buildExhibition(); buildEssay(); fill(); drawQuizTabs(); drawQuiz(); route();
 </script>
 </body>
