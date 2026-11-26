@@ -174,6 +174,25 @@ a.wiki::after{content:" \2197"}
 .bars{display:flex;flex-direction:column;gap:8px}
 .barrow{display:grid;grid-template-columns:minmax(120px,190px) 1fr 56px;gap:12px;align-items:center}
 .barrow .track i{background:var(--accent)}
+.rv-card{width:100%;min-height:240px;border:1px solid var(--ink);border-radius:14px;background:var(--bg);color:var(--ink);padding:28px;display:flex;flex-direction:column;justify-content:space-between;gap:18px;text-align:left}
+.rv-card.back{background:var(--accent-soft);border-color:var(--accent)}
+.rv-card ul.notes{font-size:.95rem}
+.rv-short{font-family:var(--display);font-weight:600;font-size:1.7rem;line-height:1.15}
+.rv-long{font-size:1.3rem;line-height:1.3;max-width:60ch}
+.rv-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.rv-opt{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:12px 14px;text-align:left;font-weight:600}
+.rv-opt.q{font-weight:400;font-size:1.05rem;line-height:1.3}
+.rv-opt:hover:not(:disabled){border-color:var(--ink)}
+.rv-opt:disabled{cursor:default;opacity:.75}
+.rv-opt.right{border-color:var(--ok);color:var(--ok);opacity:1}
+.rv-opt.wrong{border-color:var(--over);color:var(--over);opacity:1}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.tile{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:12px;text-align:left;min-height:96px;font-weight:700;font-size:.95rem}
+.tile.q{font-weight:400;font-size:.98rem;line-height:1.3}
+.tile:hover{border-color:var(--ink)}
+.tile.sel{border-color:var(--accent);background:var(--accent-soft)}
+.tile.bad{border-color:var(--over)}
+.tile.gone{visibility:hidden}
 /* library */
 .filters{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
 @media (max-width:640px){.filters{grid-template-columns:1fr}}
@@ -399,7 +418,26 @@ footer{border-top:1px solid var(--line);padding:18px 0 40px;font-size:.84rem;col
 
 <section class="view" id="v-practice">
   <div>
-    <h2>Practice</h2>
+    <h2>Review</h2>
+    <p class="lede">Study sets built from this app's vocabulary and cases. Flip through them, learn them by multiple choice, write them from memory, or race to match the pairs. What you mark as known is remembered.</p>
+  </div>
+  <div class="card">
+    <div class="filters" style="grid-template-columns:1fr 1fr">
+      <select id="rvSet" aria-label="Study set"></select>
+      <select id="rvArea" aria-label="Filter by theme or area"></select>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <div class="row" id="rvModes" role="group" aria-label="Study mode"></div>
+      <button class="link" type="button" id="rvFlip"></button>
+    </div>
+    <div class="meter">
+      <div class="top"><span class="muted num" id="rvKnown"></span><button class="link small" type="button" id="rvReset">Reset progress for these items</button></div>
+      <div class="track"><i id="rvBar" style="background:var(--accent)"></i></div>
+    </div>
+  </div>
+  <div class="quiz" id="review" style="max-width:none" aria-live="polite"></div>
+  <div>
+    <h2>Drills</h2>
     <p class="lede" id="quizIntro"></p>
   </div>
   <div class="row" role="group" aria-label="Drill" id="quizTabs"></div>
@@ -1270,12 +1308,6 @@ function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.fl
 function pickOthers(pool,correct,n){ return shuffle(pool.filter(x=>x!==correct)).slice(0,n); }
 QUIZZES.kq.next="Next step: take a claim from one of your other subjects and write the knowledge question behind it.";
 QUIZZES.flaw.next="Next step: reread a paragraph of your own writing and look for the same flaws.";
-QUIZZES.which={title:"Which case?",intro:"You are given what a case shows about knowledge. Name the case. Ten fresh questions each round.",next:"Open any case you missed on the Explore page and follow its connections.",
-  gen:()=>shuffle(CASES.map((c,i)=>i)).slice(0,10).map(i=>{ const opts=shuffle([CASES[i][0]].concat(pickOthers(CASES.map(c=>c[0]),CASES[i][0],3))); return [CASES[i][5],opts,opts.indexOf(CASES[i][0]),CASES[i][4]]; })};
-QUIZZES.term={title:"Which term?",intro:"You are given a definition. Name the term. Ten fresh questions each round.",next:"Look up any term you missed in the Library glossary.",
-  gen:()=>{ const pool=ALLTERMS.filter(t=>!fold(t[1]).includes(fold(t[0].split(/[ ,]/)[0]))); const names=pool.map(t=>t[0]);
-    return shuffle(pool).slice(0,10).map(t=>{ const opts=shuffle([t[0]].concat(pickOthers(names,t[0],3))); return [t[1],opts,opts.indexOf(t[0]),""]; }); }};
-QUIZZES.cards={title:"Case flashcards",intro:"Recall the case before you turn the card. Cases you have not yet marked as explained come first.",cards:true};
 let deck=[], deckI=0, flipped=false;
 function newDeck(){ const idx=CASES.map((c,i)=>i); deck=shuffle(idx.filter(i=>!S["m:"+CASES[i][0]])).concat(shuffle(idx.filter(i=>S["m:"+CASES[i][0]]))); deckI=0; flipped=false; }
 function drawCards(box){
@@ -1302,6 +1334,167 @@ function drawCards(box){
 }
 
 
+/* ---------- review: study sets with flashcards, learn, write and match ---------- */
+const RV={set:"vocab",area:"",mode:"cards",rev:false};
+let rv={}, rvTimer=null;
+function rvAll(){
+  if(RV.set==="vocab") return ALLTERMS.map(t=>({key:"v:"+t[0],short:t[0],long:t[1],sub:t[2]?AREA_NAME[t[2]]:"General vocabulary",areas:[t[2]]}));
+  return CASES.map((c,i)=>({key:"m:"+c[0],short:c[0],long:c[5],sub:c[1],extra:CARDX[i].slice(1),ci:i,areas:c[2].split(" ")}));
+}
+function rvItems(){ return rvAll().filter(x=>!RV.area||x.areas.includes(RV.area)); }
+const rvNames=()=>RV.set==="vocab"?{short:"Term",long:"Definition"}:{short:"Case",long:"What it shows"};
+const rvPromptSide=()=>{ const base=RV.set==="vocab"?"long":"short"; return RV.rev?(base==="long"?"short":"long"):base; };
+const other=s=>s==="long"?"short":"long";
+function rvPool(n){ const it=rvItems(), unk=shuffle(it.filter(x=>!S[x.key])); return (unk.length?unk:shuffle(it)).slice(0,n); }
+function rvStart(){
+  if(rvTimer){ clearInterval(rvTimer); rvTimer=null; }
+  const it=rvItems();
+  if(RV.mode==="cards") rv={order:shuffle(it.filter(x=>!S[x.key])).concat(shuffle(it.filter(x=>S[x.key]))),i:0,flipped:false};
+  else if(RV.mode==="learn"||RV.mode==="write"){ const q=rvPool(10); rv={queue:q,total:q.length,streak:{},answered:null}; }
+  else { const p=shuffle(it).slice(0,6); rv={tiles:shuffle(p.flatMap(x=>[{k:x.key,t:x.short,side:"short"},{k:x.key,t:x.long,side:"long"}])),sel:null,gone:{},miss:0,start:0,bad:null,pairs:p.length}; }
+  drawReview();
+}
+function buildReview(){
+  const ss=$("#rvSet"), sa=$("#rvArea");
+  ss.append(el("option",{value:"vocab",text:"Vocabulary ("+ALLTERMS.length+" terms)"}),el("option",{value:"cases",text:"Case implications ("+CASES.length+" cases)"}));
+  sa.append(el("option",{value:"",text:"All themes and areas"})); AREAS.forEach(a=>sa.append(el("option",{value:a.id,text:a.n})));
+  ss.addEventListener("change",e=>{RV.set=e.target.value;RV.rev=false;rvStart();});
+  sa.addEventListener("change",e=>{RV.area=e.target.value;rvStart();});
+  $("#rvFlip").addEventListener("click",()=>{RV.rev=!RV.rev;rvStart();});
+  $("#rvReset").addEventListener("click",()=>{ rvItems().forEach(x=>{delete S[x.key];}); save(); rvStart(); });
+  [["cards","Flashcards"],["learn","Learn"],["write","Write"],["match","Match"]].forEach(m=>{
+    const b=el("button",{type:"button",class:"btn","data-mode":m[0],text:m[1]}); b.addEventListener("click",()=>{RV.mode=m[0];rvStart();}); $("#rvModes").append(b);
+  });
+  rvStart();
+}
+function rvFace(item,side,big){
+  const n=rvNames(), box=el("div",{class:"stack",style:"gap:8px"});
+  box.append(el("span",{class:"kind",text:n[side]+(side==="short"?"  ·  "+item.sub:"")}));
+  box.append(el("p",{class:side==="short"?"rv-short":"q rv-long",text:item[side]}));
+  if(side==="long"&&item.extra&&big) box.append(noteList(item.extra));
+  return box;
+}
+function rvDistractors(item,side){
+  let pool=rvItems(); if(pool.length<4) pool=rvAll();
+  return shuffle(pool.filter(x=>x.key!==item.key&&x[side]!==item[side])).slice(0,3);
+}
+function rvNorm(s){ return fold(s).replace(/[^a-z0-9 ]/g," ").replace(/\b(the|a|an)\b/g," ").replace(/\s+/g," ").trim(); }
+function lev(a,b){ const d=[]; for(let i=0;i<=a.length;i++){ d[i]=[i]; } for(let j=1;j<=b.length;j++) d[0][j]=j;
+  for(let i=1;i<=a.length;i++) for(let j=1;j<=b.length;j++) d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1)); return d[a.length][b.length]; }
+function rvCheck(input,answer){
+  const a=rvNorm(input), b=rvNorm(answer); if(!a) return false;
+  if(a===b||lev(a,b)<=Math.max(1,Math.floor(b.length/8))) return true;
+  if(a.length>=4&&(" "+b+" ").includes(" "+a+" ")) return true;
+  return b.split(/ and | or /).some(p=>p.length>=4&&lev(a,p.trim())<=1);
+}
+function drawReview(){
+  const it=rvItems(), known=it.filter(x=>S[x.key]).length, n=rvNames(), ps=rvPromptSide();
+  $("#rvSet").value=RV.set; $("#rvArea").value=RV.area;
+  $$("#rvModes .btn").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.mode===RV.mode)));
+  $("#rvFlip").textContent="Show: "+n[ps].toLowerCase()+" first";
+  $("#rvFlip").hidden=RV.mode==="match"||RV.mode==="write";
+  const bar=$("#rvBar"); bar.style.width=(it.length?known/it.length*100:0)+"%";
+  $("#rvKnown").textContent=known+" of "+it.length+" known";
+  const box=$("#review"); box.textContent="";
+  if(!it.length){ box.append(el("p",{class:"muted",text:"No items match this filter."})); return; }
+  ({cards:rvCards,learn:rvLearn,write:rvWrite,match:rvMatch})[RV.mode](box,it,ps);
+}
+function rvCards(box,it,ps){
+  const item=rv.order[rv.i%rv.order.length], side=rv.flipped?other(ps):ps;
+  const card=el("button",{type:"button",class:"rv-card"+(rv.flipped?" back":""),"aria-label":"Flashcard. Select to turn over."},rvFace(item,side,true),el("span",{class:"muted small",text:rv.flipped?"Select to see the front":"Select to turn over"}));
+  card.addEventListener("click",()=>{rv.flipped=!rv.flipped;drawReview();});
+  const step=d=>()=>{ rv.i=(rv.i+d+rv.order.length)%rv.order.length; rv.flipped=false; drawReview(); };
+  const prev=el("button",{class:"btn",type:"button",text:"Previous"}), again=el("button",{class:"btn",type:"button",text:"Still learning"}), know=el("button",{class:"btn primary",type:"button",text:"Know it"});
+  prev.addEventListener("click",step(-1));
+  again.addEventListener("click",()=>{ delete S[item.key]; save(); step(1)(); });
+  know.addEventListener("click",()=>{ S[item.key]=true; save(); step(1)(); });
+  const row=el("div",{class:"row"},prev,again,know,el("span",{class:"muted small num",text:(rv.i%rv.order.length+1)+" of "+rv.order.length+(S[item.key]?"  ·  known":"")}));
+  if(item.ci!=null){ const o=el("button",{class:"link",type:"button",text:"Follow this case"}); o.addEventListener("click",()=>go("case",item.ci)); row.append(o); }
+  box.append(card,row);
+  card.focus({preventScroll:true});
+}
+function rvRoundEnd(box,label){
+  box.append(el("h3",{text:"Round complete"}),el("p",{class:"q",style:"font-size:1.5rem",text:label}));
+  const left=rvItems().filter(x=>!S[x.key]).length;
+  box.append(el("p",{class:"muted",text:left?left+" still to learn in this set.":"You have marked everything in this set as known. Another round will revisit them."}));
+  const b=el("button",{class:"btn primary",type:"button",text:"Next round"}); b.addEventListener("click",rvStart); box.append(el("div",{class:"row"},b)); b.focus({preventScroll:true});
+}
+function rvLearn(box,it,ps){
+  if(!rv.queue.length) return rvRoundEnd(box,"You learned "+rv.total+" "+(rv.total===1?"item":"items")+" this round.");
+  const item=rv.queue[0], as=other(ps);
+  if(!rv.opts||rv.optsFor!==item.key+rv.queue.length+JSON.stringify(rv.streak)){ rv.opts=shuffle([item].concat(rvDistractors(item,as))); rv.optsFor=item.key+rv.queue.length+JSON.stringify(rv.streak); rv.answered=null; }
+  box.append(el("div",{class:"row",style:"justify-content:space-between"},el("h3",{class:"num",text:(rv.total-rv.queue.length)+" of "+rv.total+" learned this round"}),el("span",{class:"muted small",text:"Answer each one correctly twice"})),rvFace(item,ps,false));
+  const list=el("div",{class:"rv-opts"});
+  rv.opts.forEach(o=>{
+    const b=el("button",{type:"button",class:"rv-opt"+(as==="long"?" q":""),text:o[as]});
+    if(rv.answered){ b.disabled=true; if(o.key===item.key) b.classList.add("right"); else if(o.key===rv.answered) b.classList.add("wrong"); }
+    b.addEventListener("click",()=>{ if(rv.answered) return; rv.answered=o.key; drawReview(); });
+    list.append(b);
+  });
+  box.append(list);
+  if(rv.answered){
+    const right=rv.answered===item.key;
+    const fb=el("div",{class:"fb"},el("b",{class:right?"s-ok":"s-over",text:right?((rv.streak[item.key]||0)>=1?"Correct. Learned.":"Correct. Once more later to lock it in."):"Not quite. It will come back."}));
+    if(!right||item.extra) fb.append(el("span",{text:item.short+": "+item.long}));
+    const next=el("button",{class:"btn primary",type:"button",text:"Continue"});
+    next.addEventListener("click",()=>{
+      rv.queue.shift();
+      if(right){ rv.streak[item.key]=(rv.streak[item.key]||0)+1; if(rv.streak[item.key]>=2){ S[item.key]=true; save(); } else rv.queue.push(item); }
+      else { rv.streak[item.key]=0; rv.queue.splice(Math.min(2,rv.queue.length),0,item); }
+      rv.opts=null; drawReview();
+    });
+    box.append(fb,el("div",{class:"row"},next)); next.focus({preventScroll:true});
+  }
+}
+function rvWrite(box,it){
+  if(!rv.queue.length) return rvRoundEnd(box,"You wrote "+rv.total+" "+(rv.total===1?"answer":"answers")+" from memory.");
+  const item=rv.queue[0], n=rvNames();
+  box.append(el("div",{class:"row",style:"justify-content:space-between"},el("h3",{class:"num",text:(rv.total-rv.queue.length)+" of "+rv.total+" done this round"}),el("span",{class:"muted small",text:"Type the "+n.short.toLowerCase()+". Small spelling slips are accepted."})),rvFace(item,"long",false));
+  if(!rv.answered){
+    const inp=el("input",{type:"text",id:"rvInput",autocomplete:"off",placeholder:"Type the "+n.short.toLowerCase(),"aria-label":"Your answer"});
+    const check=el("button",{class:"btn primary",type:"button",text:"Check"}), skip=el("button",{class:"btn",type:"button",text:"I don't know"});
+    const submit=v=>{ rv.answered={text:v,right:rvCheck(v,item.short)}; drawReview(); };
+    inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); submit(inp.value); } });
+    check.addEventListener("click",()=>submit(inp.value)); skip.addEventListener("click",()=>submit(""));
+    box.append(inp,el("div",{class:"row"},check,skip)); inp.focus({preventScroll:true});
+  }else{
+    const right=rv.answered.right;
+    box.append(el("div",{class:"fb"},el("b",{class:right?"s-ok":"s-over",text:right?"Correct.":"The answer is:"}),el("span",{class:"rv-short",style:"font-size:1.2rem",text:item.short}),rv.answered.text&&!right?el("span",{class:"muted",text:"You wrote: "+rv.answered.text}):null));
+    const done=ok=>()=>{ rv.queue.shift(); if(ok){ S[item.key]=true; save(); } else rv.queue.splice(Math.min(3,rv.queue.length),0,item); rv.answered=null; drawReview(); };
+    const next=el("button",{class:"btn primary",type:"button",text:"Continue"}); next.addEventListener("click",done(right));
+    const row=el("div",{class:"row"},next);
+    if(!right&&rv.answered.text){ const o=el("button",{class:"btn",type:"button",text:"I was right"}); o.addEventListener("click",done(true)); row.append(o); }
+    box.append(row); next.focus({preventScroll:true});
+  }
+}
+function rvMatch(box,it){
+  const left=rv.tiles.filter(t=>!rv.gone[t.k]).length, best=S["best:"+RV.set];
+  const secs=()=>rv.start?((rv.end||Date.now())-rv.start)/1000+rv.miss:0;
+  const clock=el("span",{class:"num",style:"font-weight:700",text:secs().toFixed(1)+" s"});
+  box.append(el("div",{class:"row",style:"justify-content:space-between"},el("h3",{text:"Match each "+rvNames().short.toLowerCase()+" to "+(RV.set==="vocab"?"its definition":"what it shows")}),el("span",{class:"muted small"},clock,best?"   best "+Number(best).toFixed(1)+" s":"")));
+  if(!left){
+    const t=secs(), isBest=!best||t<best; if(isBest){ S["best:"+RV.set]=t; save(); }
+    box.append(el("p",{class:"q",style:"font-size:1.5rem",text:"Matched "+rv.pairs+" pairs in "+t.toFixed(1)+" seconds."+(isBest?" A new best.":"")}),el("p",{class:"muted",text:rv.miss?"That includes "+rv.miss+" penalty "+(rv.miss===1?"second":"seconds")+" for wrong pairs.":"No wrong pairs."}));
+    const b=el("button",{class:"btn primary",type:"button",text:"Play again"}); b.addEventListener("click",rvStart); box.append(el("div",{class:"row"},b)); return;
+  }
+  if(rv.start&&!rvTimer) rvTimer=setInterval(()=>{ const c=$("#review .num"); if(c&&!rv.end) c.textContent=secs().toFixed(1)+" s"; },100);
+  const grid=el("div",{class:"tiles"});
+  rv.tiles.forEach((t,i)=>{
+    const b=el("button",{type:"button",class:"tile"+(t.side==="long"?" q":"")+(rv.sel===i?" sel":"")+(rv.bad&&rv.bad.includes(i)?" bad":""),text:t.t});
+    if(rv.gone[t.k]){ b.classList.add("gone"); b.disabled=true; }
+    b.addEventListener("click",()=>{
+      if(!rv.start) rv.start=Date.now(); rv.bad=null;
+      if(rv.sel===null){ rv.sel=i; }
+      else if(rv.sel===i){ rv.sel=null; }
+      else { const a=rv.tiles[rv.sel]; if(a.k===t.k&&a.side!==t.side){ rv.gone[t.k]=true; if(rv.tiles.every(x=>rv.gone[x.k])){ rv.end=Date.now(); clearInterval(rvTimer); rvTimer=null; } } else { rv.miss++; rv.bad=[rv.sel,i]; } rv.sel=null; }
+      drawReview();
+    });
+    grid.append(b);
+  });
+  box.append(grid,el("p",{class:"muted small",text:"The clock starts on your first selection. A wrong pair adds one second."}));
+}
+
+
 /* ---------- routing ---------- */
 const VIEWS=["explore","library","practice","journal","exhibition","essay"];
 function route(){
@@ -1315,7 +1508,7 @@ window.addEventListener("hashchange",route);
 
 $("#cardsBtn").addEventListener("click",downloadCards);
 if(!trail.length) trail=[focus];
-drawExplorer();
+drawExplorer(); buildReview();
 drawBrief(); drawAreas(); drawConcepts(); buildLibrary(); drawLibrary(); buildExhibition(); buildEssay(); fill(); drawQuizTabs(); drawQuiz(); route();
 </script>
 </body>
