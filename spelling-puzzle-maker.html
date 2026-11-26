@@ -181,9 +181,25 @@ body{margin:0}
           <button type="button" class="btn" id="newBtn">New layout</button>
           <button type="button" class="btn ghost" id="pick2Btn">New words</button>
         </div>
-        <button type="button" class="btn" id="pdfBtn" style="background:var(--ink);border-color:var(--ink)">Download PDF with answer key</button>
+      </div>
+      <div class="group">
+        <div class="label">PDF pack: versions <span id="verOut" style="color:var(--ink);font-variant-numeric:tabular-nums"></span></div>
+        <input type="range" id="versions" min="1" max="30" step="1" aria-label="Number of versions in the PDF">
+        <div class="seg" id="verQuick" aria-label="Quick version counts">
+          <button type="button" data-v="1">1</button><button type="button" data-v="5">5</button><button type="button" data-v="10">10</button><button type="button" data-v="20">20</button><button type="button" data-v="30">30</button>
+        </div>
+        <select id="vary" aria-label="How versions differ">
+          <option value="layout">Each version: same words, new layout</option>
+          <option value="words">Each version: new words from the ticked lists</option>
+        </select>
+        <select id="keyMode" aria-label="Answer keys">
+          <option value="each">Answer key after each puzzle</option>
+          <option value="end">All answer keys together at the end</option>
+          <option value="none">No answer keys</option>
+        </select>
+        <button type="button" class="btn" id="pdfBtn" style="background:var(--ink);border-color:var(--ink)">Download PDF</button>
         <div class="hint" id="pdfStatus" role="status"></div>
-        <div class="hint">The PDF is A4: the puzzle first, then the answer key on its own page.</div>
+        <div class="hint" id="pdfHint"></div>
       </div>
     </aside>
     <section class="stage" id="stage" aria-live="polite"></section>
@@ -279,9 +295,9 @@ const DATA = {
 };
 for (const k in DATA) DATA[k].lists = DATA[k].lists.map((l,i)=>({id:k+"-"+i,name:l[0],words:[...new Set(l[1].split(/\s+/).filter(w=>w.length>=3))],statutory:!!l[2]}));
 
-const S = {year:"y1",type:"cw",selected:new Set(),count:8,words:[],seed:1,clueStyle:"definition",cwBank:false,dirs:"easy",case:"lower",showAns:false,clues:{},title:null,skipped:[]};
-try{const s=JSON.parse(localStorage.getItem("spm")||"{}"); if(DATA[s.year])S.year=s.year; if(s.type)S.type=s.type;}catch(e){}
-const save=()=>{try{localStorage.setItem("spm",JSON.stringify({year:S.year,type:S.type}))}catch(e){}};
+const S = {year:"y1",type:"cw",selected:new Set(),count:8,words:[],seed:1,clueStyle:"definition",cwBank:false,dirs:"easy",case:"lower",showAns:false,clues:{},title:null,skipped:[],versions:1,vary:"layout",keyMode:"each"};
+try{const s=JSON.parse(localStorage.getItem("spm")||"{}"); if(DATA[s.year])S.year=s.year; if(s.type)S.type=s.type; if(s.versions>=1&&s.versions<=30)S.versions=Math.round(s.versions); if(s.vary==="words"||s.vary==="layout")S.vary=s.vary; if(["each","end","none"].includes(s.keyMode))S.keyMode=s.keyMode;}catch(e){}
+const save=()=>{try{localStorage.setItem("spm",JSON.stringify({year:S.year,type:S.type,versions:S.versions,vary:S.vary,keyMode:S.keyMode}))}catch(e){}};
 
 function rngFrom(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const shuffle=(arr,r)=>{const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
@@ -383,6 +399,42 @@ function autoClue(w,style,r){
 }
 const clueKey=w=>S.clueStyle+":"+w;
 
+/* ---------- One puzzle, and a pack of versions ---------- */
+function makePuzzle(words,seed){
+  if(S.type==="cw"){
+    const cw=buildCrossword(words,seed);numberCW(cw);
+    const r=rngFrom(seed^0x5bd1e995),autos={};
+    [0,1].forEach(d=>cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).forEach(p=>{autos[p.w]=autoClue(p.w,S.clueStyle,r)}));
+    return{type:"cw",cw,autos,skipped:cw.skipped,found:cw.placed.length};
+  }
+  const ws=buildSearch(words,seed,S.dirs);
+  return{type:"ws",ws,skipped:ws.skipped,found:ws.placed.length};
+}
+const validWords=()=>S.words.filter(w=>/^[a-z]+$/.test(w));
+// Words for an extra version: the same set, or a fresh pick that keeps the teacher's own added words.
+function versionWords(){
+  const cur=validWords();
+  if(S.vary!=="words")return cur;
+  const p=pool();if(!p.length)return cur;
+  const inPool=new Set(p),own=cur.filter(w=>!inPool.has(w));
+  return own.concat(shuffle(p,rngFrom(newSeed())).slice(0,Math.max(cur.length-own.length,0)));
+}
+const sigOf=L=>L.type==="cw"?L.cw.placed.map(p=>p.w+p.r+"."+p.c+"."+p.d).sort().join("|"):L.ws.g.map(r=>r.join("")).join("");
+async function makeVersions(n,onStep){
+  const out=[S.last],seen=new Set([sigOf(S.last)]);
+  for(let i=1;i<n;i++){
+    onStep(i+1);await new Promise(r=>setTimeout(r,0));
+    let best=null;
+    for(let t=0;t<6;t++){
+      const L=makePuzzle(versionWords(),newSeed()),score=L.skipped.length+(seen.has(sigOf(L))?100:0);
+      if(!best||score<best.score)best={L,score};
+      if(!score)break;
+    }
+    seen.add(sigOf(best.L));out.push(best.L);
+  }
+  return out;
+}
+
 /* ---------- Render ---------- */
 function listSummary(){const sel=DATA[S.year].lists.filter(l=>S.selected.has(l.id));
   if(!sel.length)return"Your own words";if(sel.length<=2)return sel.map(l=>l.name).join(" · ");return sel.length+" spelling patterns"}
@@ -396,6 +448,15 @@ function renderPanel(){
   renderChips();
   $("cwOpts").hidden=S.type!=="cw";$("wsOpts").hidden=S.type!=="ws";
   $("clueStyle").value=S.clueStyle;$("cwBank").checked=S.cwBank;$("dirs").value=S.dirs;$("letterCase").value=S.case;$("showAns").checked=S.showAns;
+  renderPack();
+}
+function renderPack(){
+  const n=S.versions;
+  $("versions").value=n;$("verOut").textContent=n;$("vary").value=S.vary;$("keyMode").value=S.keyMode;$("vary").disabled=n===1;
+  [...$("verQuick").children].forEach(b=>b.setAttribute("aria-pressed",+b.dataset.v===n));
+  $("pdfBtn").textContent=n>1?`Download ${n} versions as one PDF`:"Download PDF";
+  const key={each:"each answer key follows its puzzle on a new page",end:"all the answer keys are together at the end",none:"no answer keys"}[S.keyMode];
+  $("pdfHint").textContent=n>1?(S.keyMode==="none"?"A4. Version 1 is the puzzle on screen. Every sheet is numbered; no answer keys are included.":`A4. Version 1 is the puzzle on screen. Every sheet is numbered so it matches its key; ${key}.`):S.keyMode==="none"?"A4: the puzzle only, with no answer key.":"A4: the puzzle first, then the answer key on its own page.";
 }
 function renderChips(){
   $("chips").innerHTML=S.words.length?S.words.map(w=>`<button type="button" class="chip${S.skipped.includes(w)?" skipped":""}" data-word="${esc(w)}" aria-label="Remove ${esc(w)}">${esc(w)}<span aria-hidden="true">×</span></button>`).join(""):'<span class="hint">No words yet. Tick a list above or add your own.</span>';
@@ -428,14 +489,14 @@ function sheet(ans,body,after){
       ${ans?'<div class="kicker">Answers</div>':'<div class="namebar"><span>Name <i></i></span><span>Date <i style="width:100px"></i></span></div>'}
       <h2 ${ans?"":'contenteditable="true" spellcheck="false" id="titleEdit" aria-label="Worksheet title"'}>${esc(title)}</h2>
       <p class="sub">${esc(listSummary())}</p>
-      ${ans?"":`<p class="instr">${esc(instructions())}</p>`}
+      ${ans?"":`<p class="instr">${esc(instructions(S.last?S.last.found:0))}</p>`}
     </div>
     <div class="puzzle">${body}</div>${after||""}
   </article>`;
 }
-function instructions(){
+function instructions(n){
   if(S.type==="ws"){const d={easy:"across and down",medium:"across, down and diagonally",hard:"in any direction, even backwards"}[S.dirs];
-    return`Find all ${S.words.length-S.skipped.length} words. They go ${d}. Tick each word when you find it.`}
+    return`Find all ${n} words. They go ${d}. Tick each word when you find it.`}
   return{definition:"Read each clue and write the word it describes in the grid. Where you see ___, find the missing word.",missing:"Each clue is the word with some letters missing. Write the whole word in the grid.",jumble:"Each clue is the word with its letters mixed up. Write the word correctly in the grid.",first:"Each clue gives the first letter and the number of letters.",blank:"Read each clue and write the word in the grid."}[S.clueStyle];
 }
 
@@ -445,10 +506,9 @@ function render(){
   if(!words.length){S.last=null;stage.innerHTML=`<article class="sheet"><div class="sheet-head"><h2>${esc(defaultTitle())}</h2><p class="instr">Choose at least one spelling list, or add your own words, to make a puzzle.</p></div></article>`;S.skipped=[];renderChips();$("skipNote").hidden=true;return}
   let html="";
   if(S.type==="cw"){
-    const cw=buildCrossword(words,S.seed);numberCW(cw);S.skipped=cw.skipped;
-    const r=rngFrom(S.seed^0x5bd1e995),autos={};S.last={type:"cw",cw,autos};
+    const L=makePuzzle(words,S.seed),cw=L.cw,autos=L.autos;S.skipped=L.skipped;S.last=L;
     const clueList=d=>cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).map(p=>{
-      const auto=(autos[p.w]=autoClue(p.w,S.clueStyle,r)),k=clueKey(p.w),txt=S.clues[k]!=null?S.clues[k]:auto;
+      const auto=autos[p.w],k=clueKey(p.w),txt=S.clues[k]!=null?S.clues[k]:auto;
       return`<li><b>${p.n}</b><span><span class="clue${S.clueStyle==="definition"&&defOf(p.w)?" def":""}" contenteditable="true" spellcheck="false" data-ck="${esc(k)}" aria-label="Clue ${p.n}">${esc(txt)}</span><span class="len">(${p.w.length})</span></span></li>`}).join("");
     const cluesHTML=`<div class="clues"><div><h3>Across</h3><ol>${clueList(0)}</ol></div><div><h3>Down</h3><ol>${clueList(1)}</ol></div></div>`;
     const bank=S.cwBank?`<div class="bank"><h3>Word bank</h3><ul>${cw.placed.map(p=>p.w).sort().map(w=>`<li>${esc(w)}</li>`).join("")}</ul></div>`:"";
@@ -456,7 +516,7 @@ function render(){
     if(S.showAns){const al=d=>cw.placed.filter(p=>p.d===d).sort((a,b)=>a.n-b.n).map(p=>`<li><b>${p.n}</b><span class="clue">${esc(p.w)}</span></li>`).join("");
       html+=`<p class="answers-label">Answer sheet</p>`+sheet(true,cwSVG(cw,true),`<div class="clues"><div><h3>Across</h3><ol>${al(0)}</ol></div><div><h3>Down</h3><ol>${al(1)}</ol></div></div>`)}
   }else{
-    const ws=buildSearch(words,S.seed,S.dirs);S.skipped=ws.skipped;S.last={type:"ws",ws};const up=S.case==="upper";
+    const L=makePuzzle(words,S.seed),ws=L.ws;S.skipped=L.skipped;S.last=L;const up=S.case==="upper";
     const bank=`<div class="bank"><h3>Words to find</h3><ul>${ws.placed.map(p=>p.w).sort().map(w=>`<li>${esc(up?w.toUpperCase():w)}</li>`).join("")}</ul></div>`;
     html=sheet(false,wsSVG(ws,false),bank);
     if(S.showAns)html+=`<p class="answers-label">Answer sheet</p>`+sheet(true,wsSVG(ws,true),"");
@@ -487,6 +547,10 @@ $("cwBank").onchange=e=>{S.cwBank=e.target.checked;render()};
 $("dirs").onchange=e=>{S.dirs=e.target.value;render()};
 $("letterCase").onchange=e=>{S.case=e.target.value;render()};
 $("showAns").onchange=e=>{S.showAns=e.target.checked;render()};
+$("versions").addEventListener("input",e=>{S.versions=+e.target.value;renderPack();save()});
+$("verQuick").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;S.versions=+b.dataset.v;renderPack();save()});
+$("vary").onchange=e=>{S.vary=e.target.value;renderPack();save()};
+$("keyMode").onchange=e=>{S.keyMode=e.target.value;renderPack();save()};
 $("stage").addEventListener("input",e=>{const t=e.target;
   if(t.dataset&&t.dataset.ck)S.clues[t.dataset.ck]=t.textContent;
   if(t.id==="titleEdit")S.title=t.textContent.trim()||null;});
@@ -495,14 +559,15 @@ $("stage").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.isContent
 /* ---------- PDF ---------- */
 const INK=[28,39,56],MUTED=[93,106,126],RED=[200,70,60],PW=210,PH=297,M=16,CW=PW-2*M;
 const pdfText=s=>String(s).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,"-").replace(/…/g,"...").replace(/\//g,"/").replace(/[^\x20-\x7e\xa0-\xff]/g,"").replace(/\s+/g," ").trim();
-function pdfHeader(doc,ans){
+function pdfHeader(doc,ans,L,ver){
   let y=18;doc.setTextColor(...INK);doc.setDrawColor(...INK);doc.setLineWidth(0.3);
-  if(ans){doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(...RED);doc.text("ANSWER KEY",M,y);doc.setTextColor(...INK)}
-  else{doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Name",M,y);doc.line(M+11,y+0.8,M+85,y+0.8);doc.text("Date",M+95,y);doc.line(M+104,y+0.8,M+145,y+0.8)}
+  if(ans){doc.setFont("helvetica","bold");doc.setFontSize(9);doc.setTextColor(...RED);doc.text("ANSWER KEY"+(ver?"  -  VERSION "+ver:""),M,y);doc.setTextColor(...INK)}
+  else{doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text("Name",M,y);doc.line(M+11,y+0.8,M+85,y+0.8);doc.text("Date",M+95,y);doc.line(M+104,y+0.8,M+145,y+0.8);
+    if(ver){doc.setFont("helvetica","bold");doc.setTextColor(...MUTED);doc.text("Version "+ver,PW-M,y,{align:"right"});doc.setTextColor(...INK)}}
   y+=10;doc.setFont("helvetica","bold");doc.setFontSize(20);
   const t=doc.splitTextToSize(pdfText(S.title||defaultTitle()),CW);doc.text(t,M,y);y+=t.length*7.5;
   doc.setFont("helvetica","normal");doc.setFontSize(10);doc.setTextColor(...MUTED);doc.text(doc.splitTextToSize(pdfText(listSummary()),CW)[0],M,y);y+=6;doc.setTextColor(...INK);
-  if(!ans){doc.setFontSize(11);const ins=doc.splitTextToSize(pdfText(instructions()),CW);doc.text(ins,M,y);y+=ins.length*5}
+  if(!ans){doc.setFontSize(11);const ins=doc.splitTextToSize(pdfText(instructions(L.found)),CW);doc.text(ins,M,y);y+=ins.length*5}
   return y+4;
 }
 function cwCells(cw){const cells=new Map();cw.placed.forEach(p=>{for(let i=0;i<p.w.length;i++)cells.set((p.r+(p.d?i:0))+","+(p.c+(p.d?0:i)),p.w[i])});return cells}
@@ -534,35 +599,47 @@ function pdfBank(doc,words,y,draw,up,cols){
     words.forEach((w,i)=>{const c=Math.floor(i/rows),r=i%rows,x=M+c*colW,yy=y+9+r*7;doc.rect(x,yy,3.2,3.2);doc.text(up?w.toUpperCase():w,x+5.5,yy+2.9)})}
   return 9+rows*7;
 }
-function buildPDF(){
-  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),L=S.last,bottom=PH-14;
+const PDF_BOTTOM=PH-14;
+function pdfPuzzle(doc,L,ver){
+  const bottom=PDF_BOTTOM;
   if(L.type==="cw"){
     const cw=L.cw,clueOf=p=>{const k=clueKey(p.w);let t=S.clues[k]!=null?S.clues[k]:L.autos[p.w];t=pdfText(t||"");return (t||"________")+"  ("+p.w.length+")"};
-    let y=pdfHeader(doc,false);
+    let y=pdfHeader(doc,false,L,ver);
     const ch=pdfClueCols(doc,cw,0,clueOf,false),words=cw.placed.map(p=>p.w).sort(),bh=S.cwBank?pdfBank(doc,words,0,false)+4:0;
-    let room=bottom-y-ch-bh-12;
+    const room=bottom-y-ch-bh-12;
     if(room>=55){y=pdfCWGrid(doc,cw,y,Math.min(room,150),false)+8}
     else{pdfCWGrid(doc,cw,y,bottom-y,false);doc.addPage();y=18}
     y+=pdfClueCols(doc,cw,y,clueOf,true)+4;
     if(S.cwBank){if(y+bh>bottom){doc.addPage();y=18}pdfBank(doc,words,y,true)}
-    doc.addPage();y=pdfHeader(doc,true);
-    const ah=pdfClueCols(doc,cw,0,p=>p.w,false);
-    room=bottom-y-ah-8;
+  }else pdfWS(doc,L,ver,false);
+}
+function pdfAnswers(doc,L,ver){
+  const bottom=PDF_BOTTOM;
+  if(L.type==="cw"){
+    const cw=L.cw;let y=pdfHeader(doc,true,L,ver);
+    const ah=pdfClueCols(doc,cw,0,p=>p.w,false),room=bottom-y-ah-8;
     if(room>=55){y=pdfCWGrid(doc,cw,y,Math.min(room,170),true)+8}else{pdfCWGrid(doc,cw,y,bottom-y,true);doc.addPage();y=18}
     pdfClueCols(doc,cw,y,p=>p.w,true);
-  }else{
-    const ws=L.ws,up=S.case==="upper",words=ws.placed.map(p=>p.w).sort(),N=ws.size;
-    const sheetFor=ans=>{let y=pdfHeader(doc,ans);const bh=ans?0:pdfBank(doc,words,0,false,up);
-      const cs=Math.min(CW/N,10,(bottom-y-bh-8)/N),x0=PW/2-N*cs/2;
-      doc.setDrawColor(...INK);doc.setLineWidth(0.4);doc.roundedRect(x0-2,y-2,N*cs+4,N*cs+4,2,2);
-      if(ans){doc.setDrawColor(255,214,90);doc.setLineWidth(cs*0.78);doc.setLineCap("round");
-        ws.placed.forEach(p=>{const x1=x0+p.c*cs+cs/2,y1=y+p.r*cs+cs/2;doc.line(x1,y1,x1+p.dc*(p.w.length-1)*cs,y1+p.dr*(p.w.length-1)*cs)});
-        doc.setLineCap("butt");doc.setLineWidth(0.3);doc.setDrawColor(...INK)}
-      doc.setFont("helvetica","normal");doc.setFontSize(cs*1.75);
-      ws.g.forEach((row,r)=>row.forEach((ch,c)=>doc.text(up?ch.toUpperCase():ch,x0+c*cs+cs/2,y+r*cs+cs/2,{align:"center",baseline:"middle"})));
-      y+=N*cs+10;if(!ans)pdfBank(doc,words,y,true,up)};
-    sheetFor(false);doc.addPage();sheetFor(true);
-  }
+  }else pdfWS(doc,L,ver,true);
+}
+function pdfWS(doc,L,ver,ans){
+  const bottom=PDF_BOTTOM,ws=L.ws,up=S.case==="upper",words=ws.placed.map(p=>p.w).sort(),N=ws.size;
+  let y=pdfHeader(doc,ans,L,ver);const bh=ans?0:pdfBank(doc,words,0,false,up);
+  const cs=Math.min(CW/N,10,(bottom-y-bh-8)/N),x0=PW/2-N*cs/2;
+  doc.setDrawColor(...INK);doc.setLineWidth(0.4);doc.roundedRect(x0-2,y-2,N*cs+4,N*cs+4,2,2);
+  if(ans){doc.setDrawColor(255,214,90);doc.setLineWidth(cs*0.78);doc.setLineCap("round");
+    ws.placed.forEach(p=>{const x1=x0+p.c*cs+cs/2,y1=y+p.r*cs+cs/2;doc.line(x1,y1,x1+p.dc*(p.w.length-1)*cs,y1+p.dr*(p.w.length-1)*cs)});
+    doc.setLineCap("butt");doc.setLineWidth(0.3);doc.setDrawColor(...INK)}
+  doc.setFont("helvetica","normal");doc.setFontSize(cs*1.75);
+  ws.g.forEach((row,r)=>row.forEach((ch,c)=>doc.text(up?ch.toUpperCase():ch,x0+c*cs+cs/2,y+r*cs+cs/2,{align:"center",baseline:"middle"})));
+  y+=N*cs+10;if(!ans)pdfBank(doc,words,y,true,up);
+}
+// versions: one puzzle or many. keyMode: "each" | "end" | "none".
+function buildPDF(versions,keyMode){
+  const {jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),multi=versions.length>1;
+  let first=true;const page=()=>{first?first=false:doc.addPage()};
+  versions.forEach((L,i)=>{page();pdfPuzzle(doc,L,multi?i+1:0);if(keyMode==="each"){page();pdfAnswers(doc,L,multi?i+1:0)}});
+  if(keyMode==="end")versions.forEach((L,i)=>{page();pdfAnswers(doc,L,multi?i+1:0)});
   return doc;
 }
 let dlP=null;
@@ -573,11 +650,14 @@ async function downloadPDF(){
   if(!window.jspdf){st.textContent="The PDF maker didn't load. Check your internet connection and reload the page.";return}
   btn.disabled=true;st.textContent="Making PDF…";
   try{
-    const doc=buildPDF(),name=pdfText(S.title||defaultTitle()).replace(/&/g,"and").replace(/[^\w\- ]+/g,"").replace(/\s+/g," ").trim()+".pdf";
+    const n=S.versions,keyMode=S.keyMode;
+    const versions=n>1?await makeVersions(n,i=>{st.textContent=`Making version ${i} of ${n}…`}):[S.last];
+    const doc=buildPDF(versions,keyMode),name=pdfText(S.title||defaultTitle()).replace(/&/g,"and").replace(/[^\w\- ]+/g,"").replace(/\s+/g," ").trim()+(n>1?" - "+n+" versions":"")+".pdf";
+    const done="Saved "+name+". "+(keyMode==="none"?"No answer keys included.":n>1?(keyMode==="end"?"The answer keys are at the end.":"Each answer key follows its puzzle."):"The answer key is on the last page.");
     const dl=await getDL();
-    if(dl===undefined){doc.save(name);st.textContent="Saved "+name+". The answer key is on the last page."}
+    if(dl===undefined){doc.save(name);st.textContent=done}
     else if(dl===null){st.textContent="Downloads aren't available in this view. Open the page in claude.ai to save the PDF."}
-    else{try{await dl.save({filename:name,data:doc.output("blob")});st.textContent="Saved "+name+". The answer key is on the last page."}
+    else{try{await dl.save({filename:name,data:doc.output("blob")});st.textContent=done}
       catch(e){st.textContent=e&&e.code==="declined"?"":e&&e.code==="rate_limited"?"A save is already waiting for your answer.":"Couldn't save the PDF here. Try again in a moment."}}
   }catch(e){console.error(e);st.textContent="Something went wrong making the PDF. Try New layout and download again."}
   btn.disabled=false;
