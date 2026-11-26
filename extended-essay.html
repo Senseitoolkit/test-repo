@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Extended Essay Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a fixed rail on the left carries the word ruler and navigation; the working sheet sits to its right. */
+:root{
+  --bg:#eef2f1; --surface:#ffffff; --ink:#13201e; --muted:#586966; --line:#d3dcd9;
+  --accent:#0d6b5d; --accent-ink:#ffffff; --mark:#ffd84a; --mark-ink:#2b2400;
+  --ok:#2a7a4b; --warn:#a86200; --over:#bd3423;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1615; --surface:#16211f; --ink:#e5eeeb; --muted:#93a5a1; --line:#2a3936;
+    --accent:#4fcfb6; --accent-ink:#06211c; --mark:#e3bc34; --mark-ink:#201a00;
+    --ok:#62c98d; --warn:#e9a84a; --over:#ff8370;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1615; --surface:#16211f; --ink:#e5eeeb; --muted:#93a5a1; --line:#2a3936;
+  --accent:#4fcfb6; --accent-ink:#06211c; --mark:#e3bc34; --mark-ink:#201a00;
+  --ok:#62c98d; --warn:#e9a84a; --over:#ff8370;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--body);-webkit-text-size-adjust:100%}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:1.75rem;font-weight:700}
+h2{font-size:1.25rem;font-weight:700}
+h3{font-size:1rem;font-weight:500}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+
+.app{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100vh}
+.rail{background:var(--surface);border-right:1px solid var(--line);padding:24px 20px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;align-self:start;height:100vh;overflow:auto}
+.brand{display:flex;flex-direction:column;gap:4px}
+.brand b{font-family:var(--display);font-size:1.125rem;font-weight:700}
+.brand b mark{background:var(--mark);color:var(--mark-ink);padding:0 .3em;border-radius:3px}
+nav{display:flex;flex-direction:column;gap:4px}
+nav a{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;color:var(--ink);text-decoration:none;font-weight:500}
+nav a:hover{background:var(--bg)}
+nav a[aria-current="page"]{background:var(--accent);color:var(--accent-ink)}
+nav a span{font-size:.8125rem;opacity:.85}
+.meter{display:flex;flex-direction:column;gap:6px}
+.meter .big{font-family:var(--display);font-size:2rem;font-weight:700;line-height:1}
+.meter .big small{font:400 .875rem var(--body);color:var(--muted)}
+.save{font-size:.8125rem;color:var(--muted);display:flex;gap:8px;align-items:flex-start;margin-top:auto}
+.dot{flex:none;width:9px;height:9px;border-radius:50%;background:var(--muted);margin-top:.4em}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)}
+
+main{padding:28px clamp(16px,4vw,48px) 64px;display:flex;flex-direction:column;gap:24px;min-width:0}
+.sheet{max-width:860px;width:100%;display:flex;flex-direction:column;gap:24px}
+.banner{background:var(--mark);color:var(--mark-ink);border-radius:10px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.banner button{background:var(--mark-ink);color:var(--mark);border-color:var(--mark-ink)}
+.head{display:flex;flex-direction:column;gap:6px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.row.between{justify-content:space-between}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:.8125rem;font-weight:600;color:var(--muted);min-width:0}
+input[type=text],input[type=date],input[type=number],input[type=url],select,textarea{
+  font:400 1rem/1.5 var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:84px;overflow:hidden}
+textarea.essay{font-size:1.0625rem;line-height:1.7;min-height:160px;background:var(--surface);border-color:transparent;padding:4px 0;border-radius:0;max-width:68ch}
+textarea.essay:focus{outline:none}
+.card:focus-within{border-color:var(--accent)}
+input.title{font:500 1.0625rem var(--display);background:transparent;border-color:transparent;padding:4px 0;border-radius:0;border-bottom:1px dashed var(--line)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:500 .9375rem var(--body);color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{border-color:transparent;color:var(--muted);padding:6px 8px}
+button.ghost:hover{color:var(--ink);border-color:var(--line)}
+button[data-armed]{color:var(--over);border-color:var(--over)}
+
+/* word ruler */
+.ruler{display:flex;flex-direction:column;gap:6px}
+.track{position:relative;height:22px;background:var(--bg);border:1px solid var(--line);border-radius:5px;overflow:hidden;display:flex}
+.seg{height:100%;min-width:0;border-right:1px solid var(--surface)}
+.limit{position:absolute;top:0;bottom:0;width:2px;background:var(--over)}
+.ticks{position:relative;height:18px;font-size:.75rem;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.ticks span:first-child{transform:none}
+.ticks span.end{transform:translateX(-100%)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.8125rem;font-weight:600;border-radius:999px;padding:3px 10px;border:1px solid currentColor;white-space:nowrap}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.over{color:var(--over)} .pill.idle{color:var(--muted)}
+.bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.bar.over i{background:var(--over)}
+
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0;padding-top:0}
+.item .wide{grid-column:2/-1}
+input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent);flex:none}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check input{margin-top:3px}
+.crit{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:8px 20px;align-items:start}
+.score{font-family:var(--display);font-size:1.5rem;font-weight:700}
+.total{font-family:var(--display);font-size:2.25rem;font-weight:700;line-height:1}
+.hint{display:flex;gap:8px;align-items:center;font-size:.875rem}
+.hint::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.hint.ok::before{background:var(--ok)} .hint.warn::before{background:var(--warn)}
+.bib{font-size:.9375rem;padding-left:2em;text-indent:-2em;overflow-wrap:anywhere}
+.card ul,.card ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+.card a{color:var(--accent)}
+.card>p,.card>ul,.card>ol{max-width:68ch}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.steps>div{border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;font-size:.9375rem}
+.weak,.strong{border-left:4px solid var(--warn);padding:6px 0 6px 12px}
+.strong{border-left-color:var(--ok)}
+.banked{border-top:1px dashed var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px;max-width:68ch}
+.card,.sheet{min-width:0}
+.deck{position:relative;display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;min-width:0;border-radius:10px}
+.slide{flex:0 0 100%;min-width:0;scroll-snap-align:start;background:var(--bg);border-radius:10px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.slide h2{font-size:1.5rem}
+.slide-cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px}
+.slide-main,.slide-ask{display:flex;flex-direction:column;gap:10px;min-width:0}
+.slide-ask{border-left:3px solid var(--mark);padding-left:16px}
+.slide ul,.slide ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+@media (max-width:640px){.slide-cols{grid-template-columns:minmax(0,1fr)}}
+.build{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:20px;align-items:start}
+.ngroup{border-left:3px solid var(--line);padding-left:12px;display:flex;flex-direction:column;gap:4px}
+.ngroup.fresh{border-left-color:var(--mark)}
+.paper{background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:32px clamp(18px,4vw,40px);display:flex;flex-direction:column;gap:18px;box-shadow:0 6px 18px -12px color-mix(in srgb,var(--ink) 55%,transparent);min-width:0}
+.paper-title{font:700 1.375rem/1.2 var(--display);text-align:center;text-wrap:balance}
+.paper-rq{border-bottom:1px solid var(--line);padding-bottom:14px}
+.psec{display:flex;flex-direction:column;gap:8px;padding-left:12px;border-left:3px solid transparent}
+.psec.fresh,.paper-rq.fresh{border-left:3px solid var(--mark);padding-left:12px}
+.psec ul{margin:0;padding-left:1.3em;color:var(--muted)}
+.psec.done p{line-height:1.7}
+.claim{background:color-mix(in srgb,var(--mark) 45%,var(--surface));color:var(--ink);padding:4px 8px;border-radius:4px;font-size:.9375rem;align-self:flex-start}
+.ph{height:9px;border-radius:5px;background:var(--line)}
+@media (max-width:800px){.build{grid-template-columns:minmax(0,1fr)}}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:.9375rem;max-width:calc(100% - 32px);opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+
+@media (max-width:800px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px;gap:14px}
+  nav{flex-direction:row;overflow-x:auto;padding-bottom:2px}
+  nav a{flex:none}
+  nav a span{display:none}
+  .meter{flex-direction:row;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .meter .big{font-size:1.5rem}
+  .save{margin-top:0}
+  .crit{grid-template-columns:minmax(0,1fr)}
+  .item{grid-template-columns:auto minmax(0,1fr)}
+  .item .end{grid-column:2}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><b><mark>EE</mark> Workspace</b><span class="small muted">IB Extended Essay, 2027 criteria</span></div>
+    <div class="meter" aria-live="off">
+      <div class="big num"><span id="m-total">0</span> <small>/ <span id="m-limit">4,000</span> <span id="m-unit">words</span></small></div>
+      <div class="bar" id="m-bar"><i style="width:0"></i></div>
+      <span class="small muted" id="m-left"></span>
+    </div>
+    <nav id="nav" aria-label="Sections of the workspace"></nav>
+    <div class="save"><i class="dot" id="save-dot"></i><span id="save-text">Loading your saved work…</span></div>
+  </aside>
+  <main><div class="sheet" id="view"></div></main>
+</div>
+<template id="guide-tpl">
+<section class="card">
+  <h2>Start here: this is a paper, not a test</h2>
+  <p>You write the Extended Essay over several months with your notes and sources open in front of you. Nothing is sat under exam conditions, so there are no texts or quotations to memorise. The marks come from the quality of your question, your argument and your evaluation.</p>
+  <p>Plan for about 40 hours of your own work. Your supervisor gives three to five hours in total, including three required reflection sessions, and comments on one complete draft.</p>
+  <h3>The few things that are useful to know by heart</h3>
+  <ul>
+    <li>Your research question, word for word. Every paragraph is tested against it.</li>
+    <li>The five criteria and their weights: Framework 6, Knowledge and understanding 6, Analysis and line of argument 6, Discussion and evaluation 8, Reflection 4. Discussion and evaluation is the largest single block.</li>
+    <li>The paper model for your kind of essay (see below).</li>
+    <li>The paragraph pattern: claim, evidence, analysis, link back to the question.</li>
+    <li>How your citation style writes a book, an article and a website, so you can log sources correctly the first time.</li>
+  </ul>
+  <div class="row" id="guide-jump">
+    <button data-act="jump" data-to="g-question">Question</button>
+    <button data-act="jump" data-to="g-models">Paper models</button>
+    <button data-act="jump" data-to="g-cases">Question types</button>
+    <button data-act="jump" data-to="g-sources">Taking in sources</button>
+    <button data-act="jump" data-to="g-walk">Worked examples</button>
+    <button data-act="jump" data-to="g-top">Top-band features</button>
+    <button data-act="jump" data-to="g-strat">Strategies</button>
+    <button data-act="jump" data-to="g-bank">Quote bank</button>
+    <button data-act="jump" data-to="g-prep">Preparation</button>
+    <button data-act="jump" data-to="g-res">Resources</button>
+  </div>
+</section>
+
+<section class="card" id="g-question">
+  <h2>From a topic to a question</h2>
+  <p>Most weak essays start from a question that is too wide. Narrow by place, period, text, variable or case until one person could answer it in 4,000 words.</p>
+  <div class="steps">
+    <div><b>History</b><p class="muted">Topic: the Meiji Restoration</p><p class="weak">Too wide: How did the Meiji Restoration change Japan?</p><p class="strong">Workable: To what extent was the 1873 land tax reform responsible for the 1876 peasant uprising in Mie Prefecture?</p></div>
+    <div><b>Literature</b><p class="muted">Topic: Kazuo Ishiguro</p><p class="weak">Too wide: How does Ishiguro present memory?</p><p class="strong">Workable: How does Ishiguro use an unreliable narrator to present self-deception in The Remains of the Day?</p></div>
+    <div><b>Biology</b><p class="muted">Topic: plant growth</p><p class="weak">Too wide: What affects germination?</p><p class="strong">Workable: How does sodium chloride concentration (0 to 200 mM) affect the germination rate of radish seeds over seven days?</p></div>
+    <div><b>Economics</b><p class="muted">Topic: consumption tax</p><p class="weak">Too wide: Was the tax increase bad for business?</p><p class="strong">Workable: To what extent did the 2019 consumption tax increase reduce sales at independent bookshops in Setagaya, Tokyo?</p></div>
+  </div>
+  <h3>Four tests for your own question</h3>
+  <ul>
+    <li>It needs an argument. If the answer is a list of facts, it is a description.</li>
+    <li>You can reach the sources or collect the data yourself, in the time you have.</li>
+    <li>It sits inside the methods of your subject. A history question is answered with historical sources, a biology question with an experiment or data.</li>
+    <li>Someone could reasonably disagree with your answer.</li>
+  </ul>
+</section>
+
+<section class="card" id="g-models">
+  <h2>Four paper models</h2>
+  <p>Pick the one that matches your essay and set your section headings on the Draft page to follow it.</p>
+  <div class="steps">
+    <div><b>1. Text analysis</b><p class="muted">Literature, language, film, visual arts, music</p>
+      <ol><li>Introduction: the text, the question, your line of argument</li><li>Context, only as much as the argument needs</li><li>Three or four analytical sections, one technique or idea each, ordered so each builds on the last</li><li>Conclusion that answers the question</li></ol>
+      <p class="strong">Exceptional: close reading of short quotations, and a critic you refine or disagree with.</p></div>
+    <div><b>2. Source-based argument</b><p class="muted">History, politics, philosophy, business, economics without your own data</p>
+      <ol><li>Introduction and scope</li><li>Background the reader needs</li><li>Sections organised by factor or claim, never by date order</li><li>The strongest counter-argument, weighed</li><li>Evaluation of your sources</li><li>Conclusion with a judgement of extent</li></ol>
+      <p class="strong">Exceptional: sources that disagree with each other, and factors weighed against one another.</p></div>
+    <div><b>3. Investigation with data</b><p class="muted">Sciences, geography, psychology, economics with primary data, mathematical modelling</p>
+      <ol><li>Introduction and hypothesis</li><li>Background theory</li><li>Method, with each choice justified</li><li>Results in labelled tables and graphs</li><li>Analysis</li><li>Evaluation of method and uncertainty</li><li>Conclusion</li></ol>
+      <p class="strong">Exceptional: uncertainty in numbers, and each limitation tied to its effect on the result.</p></div>
+    <div><b>4. Interdisciplinary</b><p class="muted">One question, two subjects</p>
+      <ol><li>Introduction: why this question needs both subjects</li><li>What each subject's methods show</li><li>A section that brings the two together</li><li>Evaluation and conclusion</li></ol>
+      <p class="strong">Exceptional: a finding that neither subject could have reached alone.</p></div>
+  </div>
+</section>
+
+<section class="card" id="g-cases">
+  <h2>Three question types, from first thought to finished paper</h2>
+  <p>Each walk-through shows what the question is asking for, the thinking in order, and the shape of the final paper. The lines of argument are illustrations. Your own evidence decides your answer.</p>
+
+  <h3>Type 1: "To what extent…" (weigh causes and reach a judgement)</h3>
+  <p class="strong">To what extent was the 1873 land tax reform responsible for the 1876 peasant uprising in Mie Prefecture?</p>
+  <p><b>What it asks for:</b> a judgement of degree. You must set the named cause against other causes and say how much weight it carries.</p>
+  <ol>
+    <li><b>Unpack the terms.</b> What did the reform change (a fixed cash tax on assessed land value)? What counts as "responsible": the trigger, or the underlying cause?</li>
+    <li><b>List rival causes</b> before reading deeply: rice prices that year, how local officials assessed land, other new obligations on villages.</li>
+    <li><b>Decide what evidence would show each cause.</b> Petitions and demands show what protesters said they wanted. Price records show economic pressure. Later government action shows what the state thought the cause was.</li>
+    <li><b>Collect both kinds of source:</b> primary (petitions, official reports, newspapers) and historians who disagree with each other.</li>
+    <li><b>Weigh.</b> Which cause appears in every source? Which only in some? Which explains the timing and the place?</li>
+    <li><b>Write the answer in one sentence</b> before drafting. For example: the reform was the main underlying cause, but the uprising happened when and where it did because of that year's prices and local assessment.</li>
+  </ol>
+  <p><b>Things to consider:</b> official reports were written by the side being protested against. Translation and access may limit your primary sources, so say so in your evaluation.</p>
+  <div class="steps"><div><b>Final paper</b><ol>
+    <li>Introduction: the event, the question, your judgement in brief (about 350 words)</li>
+    <li>The reform and what it changed for farmers (500)</li>
+    <li>The case for the reform as the cause (900)</li>
+    <li>Rival causes: prices and local administration (900)</li>
+    <li>Weighing the causes against each other (700)</li>
+    <li>Evaluation of sources and conclusion (650)</li>
+  </ol></div></div>
+
+  <h3>Type 2: "How does the author…" (analyse technique and effect)</h3>
+  <p class="strong">How does Ishiguro use an unreliable narrator to present self-deception in The Remains of the Day?</p>
+  <p><b>What it asks for:</b> analysis of how the writing works. Plot summary earns almost nothing. Every point has to name a technique and its effect on the reader.</p>
+  <ol>
+    <li><b>Define the key terms from scholarship.</b> What do critics mean by an unreliable narrator? What would self-deception look like on the page?</li>
+    <li><b>Reread with one task:</b> mark every place where what the narrator says and what the reader understands come apart.</li>
+    <li><b>Sort those passages into patterns</b>, such as formal language used to avoid feeling, memories corrected or re-told, and digressions at moments of emotion.</li>
+    <li><b>Choose three or four patterns</b> and the two best short passages for each. Bank them with page numbers.</li>
+    <li><b>Order the patterns so the argument develops</b>, for example from small evasions to the moment the narrator almost admits the truth.</li>
+    <li><b>Find one critic to work with</b> and decide where you agree and where you would go further.</li>
+  </ol>
+  <p><b>Things to consider:</b> quote a few words at a time and analyse them closely. If a paragraph could be written without the book open, it is summary.</p>
+  <div class="steps"><div><b>Final paper</b><ol>
+    <li>Introduction: the novel, the question, your reading in one sentence (350)</li>
+    <li>Unreliable narration and self-deception: the terms you will use (400)</li>
+    <li>Pattern one: language that keeps feeling at a distance (800)</li>
+    <li>Pattern two: memory revised in the telling (800)</li>
+    <li>Pattern three: what is avoided and where the narration breaks (800)</li>
+    <li>Where your reading differs from the critic, and conclusion (850)</li>
+  </ol></div></div>
+
+  <h3>Type 3: "How does X affect Y…" (investigate with your own data)</h3>
+  <p class="strong">How does sodium chloride concentration (0 to 200 mM) affect the germination rate of radish seeds over seven days?</p>
+  <p><b>What it asks for:</b> a relationship between two variables, established by a method someone else could repeat, with the uncertainty stated.</p>
+  <ol>
+    <li><b>Name the variables.</b> Independent: salt concentration. Dependent: percentage of seeds germinated each day. Controlled: temperature, light, water volume, seed batch.</li>
+    <li><b>Read the theory first</b> so you can predict a result and explain it (salt lowers the water available to the seed).</li>
+    <li><b>Design for reliability:</b> at least five concentrations, several dishes at each, enough seeds per dish to give a meaningful percentage.</li>
+    <li><b>Run a small trial</b> to find problems before the real run, and record what you changed.</li>
+    <li><b>Record raw data as you go,</b> including anything odd, such as mould or a dish that dried out.</li>
+    <li><b>Process and graph:</b> means, spread, a graph with error bars, and a statistical test if your subject expects one.</li>
+    <li><b>Explain, then evaluate.</b> Does the result match theory and published values? Which weaknesses in the method could have changed it, and in which direction?</li>
+  </ol>
+  <p><b>Things to consider:</b> safety and ethics approval from your school, and the fact that tables and graphs must be readable on their own with titles and units.</p>
+  <div class="steps"><div><b>Final paper</b><ol>
+    <li>Introduction, question and hypothesis (350)</li>
+    <li>Background: germination and salt stress (600)</li>
+    <li>Method, with each choice justified (650)</li>
+    <li>Results: tables and graphs with short commentary (500)</li>
+    <li>Analysis: the trend, the statistics, comparison with published work (900)</li>
+    <li>Evaluation of method and uncertainty (650)</li>
+    <li>Conclusion (350)</li>
+  </ol></div></div>
+
+  <h3>Other wordings you will meet</h3>
+  <ul>
+    <li><b>"How far…", "How significant…", "How successful…":</b> treat as Type 1. Set a standard for significance or success first, then judge against it.</li>
+    <li><b>"Compare…":</b> organise by point of comparison, never one item and then the other.</li>
+    <li><b>"What is the relationship between…":</b> treat as Type 3, using published data if you cannot collect your own.</li>
+  </ul>
+</section>
+
+<section class="card" id="g-sources">
+  <h2>Taking in a source</h2>
+  <ol>
+    <li><b>Decide what you need before you read.</b> Write one line: "From this I want…".</li>
+    <li><b>Skim first.</b> Read the abstract or introduction and the conclusion. Give it five minutes, then keep it or drop it.</li>
+    <li><b>Log it at once</b> on the Sources page, with everything the bibliography will need.</li>
+    <li><b>Read with your question beside you.</b> Bank three to five pieces of evidence at most, each with a page number.</li>
+    <li><b>Summarise in your own words.</b> One sentence on what it claims and one on how it helps or complicates your argument.</li>
+    <li><b>Evaluate it.</b> Who wrote it, when, for whom, on what evidence, and what it cannot tell you.</li>
+    <li><b>Mark quote or paraphrase.</b> You should never have to wonder later whether a sentence in your notes is yours.</li>
+  </ol>
+  <p>Aim for range: a few scholarly sources, primary material where your subject uses it, and at least one view that opposes yours.</p>
+</section>
+
+<section class="card" id="g-walk">
+  <h2>Worked examples</h2>
+  <p class="small muted">These use the example essay about bookshops. The figures are invented for illustration.</p>
+  <h3>A body paragraph</h3>
+  <p class="weak">Weak: The consumption tax went up in 2019. Many bookshops had lower sales after this. Shop owner A said that sales went down. This shows the tax was bad for bookshops.</p>
+  <p class="small">It describes, relies on one voice, gives no size for the change and assumes the tax caused it.</p>
+  <p class="strong">Strong: The tax rise coincided with a fall in sales, but the size of the fall suggests that tax alone does not explain it. Across the four shops, sales in the three months after October 2019 were 11% lower than in the same months of 2018, far more than a two-point price rise would predict if demand for books is price inelastic. Shop owner A attributes part of the drop to customers buying ahead in September, which the September figures support. The tax therefore shifted the timing of purchases as much as it reduced them, which limits how much of the decline can be attributed to it.</p>
+  <ul class="small">
+    <li>Sentence 1 is a claim that takes a position.</li>
+    <li>Sentence 2 gives evidence with a number and a comparison, and connects it to theory.</li>
+    <li>Sentence 3 uses a second source to test the first.</li>
+    <li>Sentence 4 says what the evidence means for "to what extent".</li>
+  </ul>
+  <h3>An evaluation point</h3>
+  <p class="weak">Weak: My essay had some limitations, such as limited time and few sources.</p>
+  <p class="strong">Strong: The sales records came from four shops that agreed to share them, which probably excludes the shops that were struggling most. The true average fall may therefore be larger than my figure.</p>
+  <p class="small">Name the limitation, say which way it pushes the result, and say what that does to your conclusion.</p>
+  <h3>An introduction, in four moves</h3>
+  <ol class="small"><li>The specific situation, in two or three sentences.</li><li>Why it is worth asking about within your subject.</li><li>The research question, stated exactly.</li><li>How you will answer it: sources or method, and the order of the essay.</li></ol>
+  <h3>A conclusion</h3>
+  <p class="small">Answer the question directly in the first sentence. Summarise the reasons, state what limits the answer, and name what is still unresolved. Add no new evidence.</p>
+  <h3>A reflection sentence</h3>
+  <p class="weak">Weak: I learned a lot about time management and research.</p>
+  <p class="strong">Strong: I planned to interview ten owners and reached four, so I now secure access to data before I commit to a question.</p>
+</section>
+
+<section class="card" id="g-top">
+  <h2>What separates the top band</h2>
+  <ul>
+    <li><b>Framework:</b> a narrow question, and a reason given for every choice of method or source.</li>
+    <li><b>Knowledge and understanding:</b> subject concepts are applied to your case with precise terminology.</li>
+    <li><b>Analysis and line of argument:</b> each section moves the argument one step, and a reader could follow it from the headings alone.</li>
+    <li><b>Discussion and evaluation:</b> findings are weighed, counter-arguments are answered, and limitations are specific.</li>
+    <li><b>Reflection:</b> it evaluates how you changed as a learner, with specific moments as examples.</li>
+  </ul>
+  <h3>Essential features of the finished essay</h3>
+  <ul>
+    <li>Title page with the title, research question, subject and word count</li>
+    <li>Contents page, and page numbers throughout</li>
+    <li>Introduction, body with headings, conclusion</li>
+    <li>References in one citation style, used the same way every time</li>
+    <li>Figures and tables numbered, titled and sourced</li>
+  </ul>
+  <p class="small muted">Ask your coordinator for the school's formatting and anonymity requirements before you submit.</p>
+  <h3>Mistakes that cost the most marks</h3>
+  <ul>
+    <li>A question too wide to answer</li>
+    <li>Telling the story instead of arguing a case</li>
+    <li>Quotations and data dropped in without analysis</li>
+    <li>Evaluation left to one paragraph at the end</li>
+    <li>Going over the limit: examiners do not read past it</li>
+    <li>A reflection that lists what you did</li>
+    <li>Uncited material. If you use an AI tool, say so and cite it as your school requires. Text you did not write is not yours to submit.</li>
+  </ul>
+</section>
+
+<section class="card" id="g-bank">
+  <h2>Build your own quote bank</h2>
+  <p>No ready-made bank fits your essay, because your evidence has to come from the sources your question needs. Build it as you read, in the Evidence bank on the Sources page. Each entry is tagged to a section and appears under that section on the Draft page.</p>
+  <div class="steps">
+    <div><b>Text analysis</b><ul><li>Short quotations that show a technique, with page or line</li><li>The same image or word recurring in different places</li><li>One critic's claim you can argue with</li></ul></div>
+    <div><b>Source-based argument</b><ul><li>Statistics with their date and origin</li><li>A scholar's judgement</li><li>A primary voice from the time</li><li>The best statement of the opposing view</li></ul></div>
+    <div><b>Investigation with data</b><ul><li>Published values to compare your results with</li><li>The standard method you adapted</li><li>Definitions of the theory you apply</li></ul></div>
+  </div>
+  <p>Keep quotations short, and follow each one with more of your own analysis than the quotation is long.</p>
+  <h3>Sentence frames for analysis and evaluation</h3>
+  <ul>
+    <li>This suggests that …, because …</li>
+    <li>While X argues that …, the evidence from … points to …</li>
+    <li>This matters for the research question because …</li>
+    <li>A limitation of this source is …, which means …</li>
+    <li>The result differs from the expected value by …, most likely because …</li>
+    <li>To a large extent …; however, …</li>
+  </ul>
+</section>
+
+<section class="card" id="g-prep">
+  <h2>How to prepare, in order</h2>
+  <ol>
+    <li>Read two assessed sample essays in your subject. Your coordinator can get them from the IB. Mark where each one argues and where it evaluates.</li>
+    <li>Do a week of open reading, then narrow the question with your supervisor.</li>
+    <li>Check that your sources or data exist before you commit to the question.</li>
+    <li>Write your outline as full sentences, one claim per section. If the claims in order answer the question, the structure works.</li>
+    <li>Draft the body first and the introduction last.</li>
+    <li>Leave the draft alone for a week before editing.</li>
+    <li>Edit in four passes: argument, evidence, word count, citations.</li>
+    <li>Take notes after each supervisor session. They become your reflective statement.</li>
+  </ol>
+</section>
+
+<section class="card" id="g-strat">
+  <h2>Strategies most successful students use</h2>
+  <div class="steps">
+    <div><b>The funnel</b><p>Subject, then topic, then focus, then question. Do not write a question until you have read enough to know the sources exist.</p></div>
+    <div><b>PEEL paragraphs</b><p>Point, Evidence, Explain, Link. The Explain step should be the longest part. If it is the shortest, the paragraph is description.</p></div>
+    <div><b>The "so what?" test</b><p>After every piece of evidence, ask "so what does this show about my question?" and write the answer as the next sentence.</p></div>
+    <div><b>OPVL for sources</b><p>Origin, Purpose, Value, Limitation. The Sources page has Value and Limitation fields so the evaluation is written before you draft.</p></div>
+    <div><b>Reverse outline</b><p>Write one sentence per section saying what it argues. Read the sentences in order. If they do not answer the question, fix the structure before the prose. The Draft page builds this for you.</p></div>
+    <div><b>Body first, introduction last</b><p>You cannot introduce an argument you have not made yet. Draft the analysis, then the conclusion, then the introduction.</p></div>
+    <div><b>Short timed blocks</b><p>Work in 25-minute blocks with one stated task each, such as "summarise two sources" or "outline the method section". Batch similar tasks together.</p></div>
+    <div><b>A research journal</b><p>Write a few lines after every work session: what you did, what changed, what you decided and why. The IB calls this a Researcher's reflection space. It is not submitted, but it is the raw material for your reflective statement.</p></div>
+    <div><b>Read it aloud</b><p>Read the full draft aloud once before your supervisor sees it. You will hear missing steps in the argument that your eyes skip.</p></div>
+  </div>
+  <h3>Cutting words without cutting marks</h3>
+  <ul>
+    <li>Cut background first. Keep only what the argument uses.</li>
+    <li>Shorten quotations to the words you analyse.</li>
+    <li>Delete sentences that repeat the previous paragraph's point.</li>
+    <li>Move raw data to tables. Keep the analysis in the text.</li>
+    <li>Never cut evaluation to save words. It carries the most marks.</li>
+  </ul>
+  <h3>Getting the most from your supervisor</h3>
+  <ul>
+    <li>Arrive at every session with two or three written questions and your journal.</li>
+    <li>You normally get written comments on one complete draft only, so make that draft as finished as you can.</li>
+    <li>Your supervisor can question and advise but cannot edit your work.</li>
+  </ul>
+</section>
+
+<section class="card" id="g-res">
+  <h2>Resources worth knowing</h2>
+  <h3>Official, and first in line</h3>
+  <ul>
+    <li><a href="https://ibo.org/university-admission/latest-curriculum-updates/dp-extended-essay-updates/">IB: Extended Essay updates</a> for the official position on the 2027 changes</li>
+    <li>The Extended Essay guide and the subject-specific guidance for your subject. Your coordinator or librarian has both.</li>
+    <li>Assessed sample essays and recent examiner reports for your subject. Ask your coordinator for these: they show what examiners reward and criticise.</li>
+  </ul>
+  <h3>Finding sources</h3>
+  <ul>
+    <li><a href="https://scholar.google.com/">Google Scholar</a>, <a href="https://www.jstor.org/">JSTOR</a>, <a href="https://core.ac.uk/">CORE</a> and <a href="https://doaj.org/">DOAJ</a> for scholarly articles, the last two free to read</li>
+    <li><a href="https://cir.nii.ac.jp/">CiNii Research</a>, <a href="https://www.jstage.jst.go.jp/">J-STAGE</a> and the <a href="https://dl.ndl.go.jp/">National Diet Library Digital Collections</a> for Japanese scholarship and primary material</li>
+    <li><a href="https://ourworldindata.org/">Our World in Data</a>, <a href="https://data.worldbank.org/">World Bank Open Data</a> and <a href="https://www.e-stat.go.jp/">e-Stat</a> for statistics you can cite</li>
+    <li>Your school librarian and the databases your school pays for</li>
+  </ul>
+  <h3>Writing and citing</h3>
+  <ul>
+    <li><a href="https://www.phrasebank.manchester.ac.uk/">Manchester Academic Phrasebank</a> for academic sentence patterns by purpose</li>
+    <li><a href="https://owl.purdue.edu/">Purdue OWL</a> for MLA, APA and Chicago rules</li>
+    <li><a href="https://www.zotero.org/">Zotero</a> or <a href="https://www.mybib.com/">MyBib</a> to format the final bibliography in your school's style</li>
+  </ul>
+</section>
+</template>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ---------- data ---------- */
+const LANGS = {
+  words:{label:"Words (English and most languages)", limit:4000, refl:500, unit:"words"},
+  ja:{label:"Japanese characters", limit:8000, refl:1000, unit:"characters"},
+  zh:{label:"Chinese characters", limit:4800, refl:600, unit:"characters"}
+};
+const CRITERIA = [
+  {k:"A", name:"Framework for the essay", max:6,
+   q:"Do the research question, research methods and structure give the essay an effective framework?",
+   checks:["My research question is stated clearly and is narrow enough for 4,000 words","My methods and sources suit the question and I explain why I chose them","Title page, contents, headings and citations follow my subject's conventions"]},
+  {k:"B", name:"Knowledge and understanding", max:6,
+   q:"Does the essay show knowledge and understanding of the subject matter?",
+   checks:["I use subject terminology accurately and consistently","I apply concepts to my question instead of only defining them","Every source I use is relevant to the question"]},
+  {k:"C", name:"Analysis and line of argument", max:6,
+   q:"Does the essay analyse the material and hold one line of argument throughout?",
+   checks:["Each paragraph analyses evidence rather than describing it","Each section moves the argument one step toward an answer","Every claim is backed by evidence I cite"]},
+  {k:"D", name:"Discussion and evaluation", max:8,
+   q:"Does the essay discuss the findings and evaluate itself?",
+   checks:["I discuss what my findings mean for the research question","I evaluate the limits of my methods and sources","My conclusion follows from the evidence and answers the question","I say what remains unresolved"]},
+  {k:"E", name:"Reflection", max:4,
+   q:"Does the reflective statement evaluate how the essay changed me as a learner?",
+   checks:["My statement is within the limit","I evaluate what changed in how I work, not only what I did","I give specific examples from my own process"]}
+];
+const SUBMIT = [
+  "The research question on the title page matches the one the essay answers",
+  "Title page shows the title, research question, subject and word count",
+  "Contents page matches the headings, and every page is numbered",
+  "Every source cited in the text is in the bibliography, and the reverse",
+  "One citation style is used the same way throughout",
+  "Every figure and table has a number, a title and a source",
+  "The conclusion answers the question and adds no new evidence",
+  "Any use of AI tools is acknowledged and cited as my school requires",
+  "I have read the whole essay aloud once",
+  "Formatting and anonymity rules checked with my coordinator",
+  "The reflective statement is on the RPF"];
+const TABS = [["guide","Guide"],["walkthroughs","Walk-throughs"],["builder","Paper builder"],["plan","Plan"],["draft","Draft"],["sources","Sources"],["reflection","Reflection"],["criteria","Criteria"]];
+let nextId = 1;
+const uid = () => "i" + Date.now().toString(36) + (nextId++);
+
+function blankState(){
+  return {v:1, example:false, updatedAt:0,
+    meta:{title:"", subject:"", pathway:"subject", rq:"", supervisor:"", deadline:"", lang:"words"},
+    sections:[
+      {id:uid(), name:"Introduction", target:400, text:""},
+      {id:uid(), name:"Background and method", target:600, text:""},
+      {id:uid(), name:"Analysis, part 1", target:1000, text:""},
+      {id:uid(), name:"Analysis, part 2", target:1000, text:""},
+      {id:uid(), name:"Discussion and evaluation", target:600, text:""},
+      {id:uid(), name:"Conclusion", target:400, text:""}],
+    sources:[],
+    milestones:["Choose subject and topic","Research question agreed with supervisor","Research and reading finished","Full draft handed to supervisor","Supervisor feedback received","Final essay submitted","Reflective statement written on the RPF"]
+      .map(n=>({id:uid(), name:n, date:"", done:false})),
+    sessions:["First reflection session","Interim reflection session","Final reflection session (viva voce)"]
+      .map(n=>({name:n, date:"", attended:false, notes:""})),
+    reflection:"", evidence:[], journal:[], scores:{A:0,B:0,C:0,D:0,E:0}, checks:{}};
+}
+function exampleState(){
+  const s = blankState();
+  s.example = true;
+  s.meta = {title:"Consumption tax and independent bookshops in Setagaya", subject:"Economics", pathway:"subject",
+    rq:"To what extent did Japan's 2019 consumption tax increase reduce sales at independent bookshops in Setagaya, Tokyo?",
+    supervisor:"Ms. Example", deadline:"", lang:"words"};
+  s.sections[0].text = "In October 2019 Japan raised its consumption tax from 8% to 10%. Newspapers kept the lower rate, but books did not. This essay asks how far that change reduced sales at independent bookshops in one Tokyo ward, where small shops compete with online sellers that can absorb a tax rise more easily.";
+  s.sections[1].text = "The essay uses price elasticity of demand and tax incidence as its main tools. Primary data comes from interviews with four shop owners and their monthly sales records for 2018 to 2020. Secondary data comes from national retail statistics.";
+  s.sources = [
+    {id:uid(), author:"Example Author", year:"2020", title:"Example source: replace with your own reading", where:"Example Journal of Retail Economics", url:"", note:"Use for the elasticity estimate in Analysis, part 1.", used:true},
+    {id:uid(), author:"Shop owner A", year:"2026", title:"Example interview", where:"Personal interview", url:"", note:"Says sales fell most in the first three months.", used:false}];
+  s.evidence = [{id:uid(), kind:"Data", text:"Example: sales in the three months after October 2019 were 11% lower than a year earlier (invented figure).", source:s.sources[1].id, page:"", section:s.sections[2].id, note:"Size of the fall, to compare with what elasticity predicts."}];
+  s.sections[0].claim = "The question matters because small shops cannot absorb a tax rise the way large sellers can.";
+  s.sections[1].claim = "Elasticity and tax incidence, tested against four shops' records, are the right tools for this question.";
+  s.sections[2].claim = "Sales fell after the rise, but by more than the tax alone would predict.";
+  Object.assign(s.sources[0], {type:"Scholarly", value:"Gives a published elasticity estimate to test my figures against.", limit:"National data, so it may not fit one ward."});
+  Object.assign(s.sources[1], {type:"Primary", value:"First-hand account from inside one shop.", limit:"One owner's memory, and an interest in blaming the tax."});
+  s.journal = [{id:uid(), date:"", text:"Example entry: two owners declined to share records. Decided to use four shops and say so in the evaluation."}];
+  s.milestones[0].done = true; s.milestones[1].done = true;
+  s.sessions[0].attended = true; s.sessions[0].notes = "Agreed to narrow from 'Tokyo' to one ward.";
+  s.reflection = "At the start I wanted to study all of Tokyo. My supervisor asked how I would get sales data for thousands of shops, and I could not answer.";
+  s.scores = {A:4,B:3,C:2,D:2,E:1};
+  return s;
+}
+
+/* ---------- state + storage ---------- */
+const LS_KEY = "ee-workspace-v1";
+let state, tab = "plan";
+let ref = null, saving = false, pending = false, remoteOff = false, saveTimer = 0, lsTimer = 0, downloads = null;
+
+function loadLocal(){ try{ const t = localStorage.getItem(LS_KEY); return t ? normalize(JSON.parse(t)) : null; }catch(e){ return null; } }
+function saveLocal(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); return true; }catch(e){ return false; } }
+function normalize(s){
+  if(!s || typeof s !== "object" || !Array.isArray(s.sections)) return null;
+  const b = blankState();
+  return Object.assign(b, s, {meta:Object.assign(b.meta, s.meta||{}), scores:Object.assign(b.scores, s.scores||{}), checks:s.checks||{},
+    sources:Array.isArray(s.sources)?s.sources:[], evidence:Array.isArray(s.evidence)?s.evidence:[], journal:Array.isArray(s.journal)?s.journal:[], milestones:Array.isArray(s.milestones)?s.milestones:b.milestones,
+    sessions:Array.isArray(s.sessions)&&s.sessions.length===3?s.sessions:b.sessions, reflection:String(s.reflection||"")});
+}
+function setSave(kind, text){ $("save-dot").className = "dot " + kind; $("save-text").textContent = text; }
+function touch(){
+  state.updatedAt = Date.now();
+  clearTimeout(lsTimer); lsTimer = setTimeout(saveLocal, 400);
+  if(ref && !remoteOff){ setSave("", "Saving…"); clearTimeout(saveTimer); saveTimer = setTimeout(pushRemote, 1500); }
+  else if(!ref) localOnlyNote();
+}
+function localOnlyNote(){ setSave("warn", "Saved in this browser only. Download a copy of anything you can't lose."); }
+async function pushRemote(){
+  if(!ref || remoteOff) return;
+  if(saving){ pending = true; return; }
+  saving = true;
+  try{
+    await ref.set(JSON.parse(JSON.stringify(state)));
+    if(!pending) setSave("ok", "Saved to your Claude account. Only you can see it.");
+  }catch(e){
+    const code = e && e.code;
+    if(code === "unavailable"){ setSave("warn", "Couldn't reach storage. Your work is kept in this browser and will retry on your next change."); }
+    else { remoteOff = true; setSave("warn", code === "quota_exceeded" ? "Storage is full. Your work is kept in this browser only." : "This view can't save to your account. Your work is kept in this browser only."); }
+  }
+  saving = false;
+  if(pending){ pending = false; pushRemote(); }
+}
+async function connect(){
+  let db = null, user = null;
+  try{
+    if(window.claude && typeof window.claude.use === "function"){
+      [user, db, downloads] = await Promise.all([claude.use("user"), claude.use("db"), claude.use("downloads")]);
+    }
+  }catch(e){}
+  if(downloads) render();
+  let id = null;
+  try{ id = user ? await user.id() : null; }catch(e){}
+  if(!db || !id){ localOnlyNote(); return; }
+  try{
+    ref = db.doc("data/users/" + id + "/essay");
+    const timeout = new Promise((_, rej)=>setTimeout(()=>rej({code:"unavailable"}), 10000));
+    const snap = await Promise.race([ref.get(), timeout]);
+    const remote = snap.exists ? normalize(JSON.parse(JSON.stringify(snap.data()))) : null;
+    if(remote && remote.updatedAt >= (state.updatedAt||0)){ state = remote; saveLocal(); render(); setSave("ok", "Saved to your Claude account. Only you can see it."); }
+    else if(state.updatedAt){ pushRemote(); }
+    else setSave("ok", "Your changes will save to your Claude account. Only you can see them.");
+  }catch(e){ setSave("warn", "Couldn't reach storage yet. Your work is kept in this browser and will save on your next change."); }
+}
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = v => String(v == null ? "" : v).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = n => Number(n||0).toLocaleString("en-US");
+const lang = () => LANGS[state.meta.lang] || LANGS.words;
+function count(text){
+  text = String(text||"");
+  if(state.meta.lang === "words"){ const m = text.match(/\S+/g); return m ? m.length : 0; }
+  return text.replace(/\s/g, "").length;
+}
+const total = () => state.sections.reduce((a,s)=>a+count(s.text), 0);
+function getPath(path){ return path.split(".").reduce((o,k)=>o==null?o:o[k], state); }
+function setPath(path, val){ const ks = path.split("."); const last = ks.pop(); const o = ks.reduce((o,k)=>o[k], state); o[last] = val; }
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(()=>t.classList.remove("on"), 3200); }
+function today(){ const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); }
+function daysLeft(date){
+  if(date === undefined) date = state.meta.deadline;
+  if(!date) return null;
+  const d = new Date(date + "T00:00:00"); if(isNaN(d)) return null;
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.round((d - now) / 86400000);
+}
+function status(n, limit){
+  if(n > limit) return ["over", fmt(n - limit) + " over"];
+  if(n === 0) return ["idle", "Not started"];
+  if(n >= limit * .9) return ["warn", fmt(limit - n) + " left"];
+  return ["ok", fmt(limit - n) + " left"];
+}
+function bibLine(s){
+  const parts = [];
+  parts.push((s.author || "Unknown author") + (s.year ? " (" + s.year + ")." : "."));
+  if(s.title) parts.push(s.title + ".");
+  if(s.where) parts.push(s.where + ".");
+  if(s.url) parts.push(s.url + (s.accessed ? " (accessed " + s.accessed + ")" : ""));
+  return parts.join(" ");
+}
+const srcOf = e => state.sources.find(s=>s.id===e.source);
+function evLabel(e){ const s = srcOf(e); return (s ? (s.author||"Unknown author") + (s.year?" "+s.year:"") : "No source chosen") + (e.page ? ", p. " + e.page : ""); }
+function pace(){
+  const L = lang(), left = L.limit - total();
+  if(left <= 0) return "You have reached the limit. From here the work is editing.";
+  const ms = state.milestones.find(m=>/draft/i.test(m.name) && m.date && !m.done);
+  const date = ms ? ms.date : state.meta.deadline;
+  if(!date) return "Give the draft milestone a date on the Plan page to see a daily pace.";
+  const d = daysLeft(date);
+  if(d == null || d <= 0) return "The date for " + (ms ? ms.name.toLowerCase() : "the final deadline") + " has passed. Set a new one on the Plan page.";
+  return "About " + fmt(Math.ceil(left / d)) + " " + L.unit + " a day reaches the limit by " + date + " (" + (ms ? ms.name.toLowerCase() : "final deadline") + ").";
+}
+function argHTML(){
+  return state.sections.map(s=>`<li><b>${esc(s.name)}:</b> ${s.claim && s.claim.trim() ? esc(s.claim) : `<span class="muted">no claim written yet</span>`}</li>`).join("");
+}
+function nextSteps(){
+  const out = [], m = state.meta, rq = m.rq.trim(), T = total(), L = lang();
+  const add = (t, tab) => out.push([t, tab]);
+  if(!rq) add("Write a first version of your research question.", "plan");
+  else if(!/[?？]$/.test(rq)) add("Rephrase your research question so it is a question.", "plan");
+  if(!m.deadline) add("Enter your school's deadline for the final essay.", "plan");
+  if(state.sources.length < 5) add("Log at least five sources before you draft. You have " + state.sources.length + ".", "sources");
+  else if(!state.sources.some(s=>s.opposes)) add("Find one source that disagrees with your argument and mark it.", "sources");
+  const unevaluated = state.sources.filter(s=>!(s.value && s.limit)).length;
+  if(state.sources.length && unevaluated) add("Write the value and limitation of " + unevaluated + " source" + (unevaluated===1?"":"s") + ".", "sources");
+  const noClaim = state.sections.filter(s=>!(s.claim && s.claim.trim())).length;
+  if(noClaim) add("Write a one-sentence claim for " + noClaim + " section" + (noClaim===1?"":"s") + ".", "draft");
+  if(state.sources.length >= 3 && state.evidence.length < state.sections.length) add("Bank evidence for each section you plan to write.", "sources");
+  if(T === 0) add("Draft one body section. Leave the introduction for last.", "draft");
+  if(T > L.limit) add("Cut " + fmt(T - L.limit) + " " + L.unit + ". Start with background.", "draft");
+  const ses = state.sessions.find(s=>!s.attended);
+  if(ses) add("Arrange your " + ses.name.toLowerCase() + " and bring written questions.", "plan");
+  if(!state.journal.length) add("Write your first research journal entry.", "reflection");
+  if(T >= L.limit * .8 && !state.reflection.trim()) add("Start your reflective statement from your journal.", "reflection");
+  if(T >= L.limit * .8 && !CRITERIA.some(c=>state.scores[c.k])) add("Score your draft against the five criteria.", "criteria");
+  return out.slice(0, 4);
+}
+const sortedSources = () => state.sources.slice().sort((a,b)=>(a.author||"").localeCompare(b.author||""));
+
+/* ---------- views ---------- */
+function rulerHTML(){
+  const L = lang().limit, T = total(), scale = Math.max(L, T) || 1;
+  const mixes = [100,62,82,46,72,54];
+  const segs = state.sections.map((s,i)=>{
+    const c = count(s.text); if(!c) return "";
+    return `<div class="seg" title="${esc(s.name)}: ${fmt(c)}" style="width:${c/scale*100}%;background:color-mix(in srgb,var(--accent) ${mixes[i%mixes.length]}%,var(--surface))"></div>`;
+  }).join("");
+  const step = L / 4, ticks = [];
+  for(let v = 0; v <= L; v += step) ticks.push(`<span class="${v===L&&T<=L?"end":""}" style="left:${v/scale*100}%">${fmt(v)}</span>`);
+  return `<div class="track" role="img" aria-label="${fmt(T)} of ${fmt(L)} ${lang().unit} used">${segs}${T>L?`<i class="limit" style="left:${L/scale*100}%"></i>`:""}</div><div class="ticks num">${ticks.join("")}</div>`;
+}
+function headHTML(title, sub){ return `<div class="head"><h1>${title}</h1><p class="muted">${sub}</p></div>`; }
+
+function viewGuide(){
+  return headHTML("Guide", "How to build an Extended Essay if you are starting from very little. Read it once, then come back to the part you are working on.") + $("guide-tpl").innerHTML;
+}
+function viewPlan(){
+  const m = state.meta, d = daysLeft();
+  const done = state.milestones.filter(x=>x.done).length;
+  return headHTML("Plan", "Fix the question first. Everything else is measured against it.") + `
+  <section class="card" style="border-color:var(--accent)">
+    <h2>What to do next</h2>
+    ${(ns=>ns.length?`<ol>${ns.map(([t,k])=>`<li>${esc(t)} <a href="#${k}">Go to ${k[0].toUpperCase()+k.slice(1)}</a></li>`).join("")}</ol>`:`<p>The groundwork is in place. Run the submission checklist on the <a href="#criteria">Criteria</a> page.</p>`)(nextSteps())}
+  </section>
+  <section class="card">
+    <label class="f" for="f-rq">Research question
+      <textarea id="f-rq" data-bind="meta.rq" data-auto rows="2" placeholder="To what extent…?">${esc(m.rq)}</textarea></label>
+    <div class="row" id="rq-hints"></div>
+    <div class="grid2">
+      <label class="f" for="f-title">Essay title<input id="f-title" type="text" data-bind="meta.title" value="${esc(m.title)}"></label>
+      <label class="f" for="f-subject">Subject (or subjects)<input id="f-subject" type="text" data-bind="meta.subject" value="${esc(m.subject)}"></label>
+      <label class="f" for="f-pathway">Pathway<select id="f-pathway" data-bind="meta.pathway">
+        <option value="subject"${m.pathway==="subject"?" selected":""}>Subject-focused</option>
+        <option value="inter"${m.pathway==="inter"?" selected":""}>Interdisciplinary</option></select></label>
+      <label class="f" for="f-sup">Supervisor<input id="f-sup" type="text" data-bind="meta.supervisor" value="${esc(m.supervisor)}"></label>
+      <label class="f" for="f-lang">Count the limit in<select id="f-lang" data-bind="meta.lang" data-rerender>
+        ${Object.keys(LANGS).map(k=>`<option value="${k}"${m.lang===k?" selected":""}>${LANGS[k].label}: ${fmt(LANGS[k].limit)}</option>`).join("")}</select></label>
+      <label class="f" for="f-deadline">School deadline for the final essay<input id="f-deadline" type="date" data-bind="meta.deadline" data-rerender value="${esc(m.deadline)}"></label>
+    </div>
+  </section>
+  <section class="card">
+    <div class="row between"><h2>Milestones</h2>
+      <span class="pill ${d==null?"idle":d<0?"over":d<=14?"warn":"ok"} num">${d==null?"No deadline set":d<0?fmt(-d)+" days past deadline":d===0?"Due today":fmt(d)+" days to deadline"}</span></div>
+    <p class="small muted">${done} of ${state.milestones.length} done. Your school sets its own dates, so enter the ones your coordinator gave you.</p>
+    <div class="list">${state.milestones.map((x,i)=>`
+      <div class="item">
+        <input type="checkbox" id="ms-d-${i}" data-bind="milestones.${i}.done" data-rerender ${x.done?"checked":""} aria-label="Done: ${esc(x.name)}">
+        <input type="text" id="ms-n-${i}" data-bind="milestones.${i}.name" value="${esc(x.name)}" aria-label="Milestone name">
+        <div class="row end"><input type="date" id="ms-t-${i}" data-bind="milestones.${i}.date" value="${esc(x.date)}" aria-label="Date for ${esc(x.name)}" style="width:auto">
+        <button class="ghost" data-act="rmMilestone" data-i="${i}">Remove</button></div>
+      </div>`).join("")}</div>
+    <div><button data-act="addMilestone">Add milestone</button></div>
+  </section>
+  <section class="card">
+    <h2>Reflection sessions with your supervisor</h2>
+    <p class="small muted">The Reflection and progress form (RPF) records that you attended each session. Keep your own notes here to draw on for the reflective statement.</p>
+    <div class="list">${state.sessions.map((x,i)=>`
+      <div class="item">
+        <input type="checkbox" id="ss-a-${i}" data-bind="sessions.${i}.attended" ${x.attended?"checked":""} aria-label="Attended: ${esc(x.name)}">
+        <strong>${esc(x.name)}</strong>
+        <input class="end" type="date" id="ss-d-${i}" data-bind="sessions.${i}.date" value="${esc(x.date)}" aria-label="Date of ${esc(x.name)}" style="width:auto">
+        <textarea class="wide" id="ss-n-${i}" data-bind="sessions.${i}.notes" data-auto rows="2" placeholder="What changed after this meeting?" aria-label="Notes for ${esc(x.name)}">${esc(x.notes)}</textarea>
+      </div>`).join("")}</div>
+  </section>`;
+}
+
+function viewDraft(){
+  const L = lang();
+  return headHTML("Draft", `The limit of ${fmt(L.limit)} ${L.unit} covers the introduction, body, conclusion and quotations. Examiners stop reading at the limit.`) + `
+  <section class="card">
+    <div class="row between"><h2>Where the ${L.unit} go</h2><span id="d-pill"></span></div>
+    <div class="ruler" id="ruler">${rulerHTML()}</div>
+    <p class="small muted" id="d-pace"></p>
+    <div class="row">
+      <button data-act="copyEssay">Copy essay</button>
+      ${downloads?`<button data-act="downloadEssay">Download as Markdown</button>`:""}
+    </div>
+  </section>
+  <section class="card">
+    <h2>Your argument at a glance</h2>
+    <p class="small muted">Research question: ${state.meta.rq.trim()?esc(state.meta.rq):"not written yet"}</p>
+    <ol id="arg-list">${argHTML()}</ol>
+    <p class="small muted">Read the claims in order. Together they should answer the question. If they do not, change the structure before you write more.</p>
+  </section>
+  ${state.sections.map((s,i)=>`
+  <section class="card">
+    <div class="row between">
+      <input class="title" type="text" id="sec-n-${i}" data-bind="sections.${i}.name" value="${esc(s.name)}" aria-label="Section heading" style="flex:1 1 220px;width:auto">
+      <span class="small num muted"><b id="sec-c-${i}" style="color:var(--ink)">0</b> / <input type="number" min="0" step="50" id="sec-t-${i}" data-bind="sections.${i}.target" value="${esc(s.target)}" aria-label="Target for this section" style="width:86px;padding:3px 6px"></span>
+    </div>
+    <div class="bar" id="sec-b-${i}"><i style="width:0"></i></div>
+    <label class="f" for="sec-k-${i}">This section argues that…<input type="text" id="sec-k-${i}" data-bind="sections.${i}.claim" value="${esc(s.claim||"")}" placeholder="One sentence. What does this section prove?"></label>
+    <textarea class="essay" id="sec-x-${i}" data-bind="sections.${i}.text" data-auto placeholder="Write this section here…" aria-label="Text of ${esc(s.name)}">${esc(s.text)}</textarea>
+    ${state.evidence.some(e=>e.section===s.id)?`<div class="banked small"><b>Evidence banked for this section</b>${state.evidence.filter(e=>e.section===s.id).map(e=>`<p>${esc(e.kind||"Quote")}: ${esc(e.text)} <span class="muted">(${esc(evLabel(e))})</span></p>`).join("")}</div>`:""}
+    <div class="row">
+      <button class="ghost" data-act="up" data-i="${i}" ${i===0?"disabled":""}>Move up</button>
+      <button class="ghost" data-act="down" data-i="${i}" ${i===state.sections.length-1?"disabled":""}>Move down</button>
+      <button class="ghost" data-act="rmSection" data-i="${i}" data-confirm>Remove section</button>
+    </div>
+  </section>`).join("")}
+  <div><button class="primary" data-act="addSection">Add section</button></div>`;
+}
+
+function viewSources(){
+  const used = state.sources.filter(s=>s.used).length;
+  return headHTML("Sources", "Log each source the moment you open it. Hunting for a page number in the final week costs more than this does now.") + `
+  <section class="card">
+    <div class="row between"><h2>${state.sources.length} source${state.sources.length===1?"":"s"}</h2><span class="pill ${used===state.sources.length&&used?"ok":"idle"} num">${used} cited in the draft</span></div>
+    <div class="row">${(()=>{ const n = t => state.sources.filter(s=>s.type===t).length, o = state.sources.filter(s=>s.opposes).length;
+      return `<span class="pill ${n("Primary")?"ok":"idle"} num">${n("Primary")} primary</span><span class="pill ${n("Scholarly")?"ok":"idle"} num">${n("Scholarly")} scholarly</span><span class="pill ${o?"ok":"warn"} num">${o} opposing your argument</span>`; })()}</div>
+    ${state.sources.length?"":`<p class="muted">No sources yet. Add the first thing you read.</p>`}
+    <div class="list">${state.sources.map((s,i)=>`
+      <div class="item" style="grid-template-columns:minmax(0,1fr)">
+        <div class="grid2">
+          <label class="f" for="so-a-${i}">Author or organisation<input type="text" id="so-a-${i}" data-bind="sources.${i}.author" value="${esc(s.author)}"></label>
+          <label class="f" for="so-y-${i}">Year<input type="text" id="so-y-${i}" data-bind="sources.${i}.year" value="${esc(s.year)}"></label>
+          <label class="f" for="so-t-${i}">Title<input type="text" id="so-t-${i}" data-bind="sources.${i}.title" value="${esc(s.title)}"></label>
+          <label class="f" for="so-w-${i}">Published in / by<input type="text" id="so-w-${i}" data-bind="sources.${i}.where" value="${esc(s.where)}"></label>
+          <label class="f" for="so-u-${i}">Link<input type="url" id="so-u-${i}" data-bind="sources.${i}.url" value="${esc(s.url)}" placeholder="https://"></label>
+          <label class="f" for="so-d-${i}">Date you accessed it<input type="date" id="so-d-${i}" data-bind="sources.${i}.accessed" value="${esc(s.accessed||"")}"></label>
+          <label class="f" for="so-k-${i}">Kind of source<select id="so-k-${i}" data-bind="sources.${i}.type" data-rerender>${["","Primary","Scholarly","Other secondary","Data set"].map(k=>`<option value="${k}"${(s.type||"")===k?" selected":""}>${k||"Choose"}</option>`).join("")}</select></label>
+        </div>
+        <label class="f" for="so-n-${i}">What I will use it for<textarea id="so-n-${i}" data-bind="sources.${i}.note" data-auto rows="2">${esc(s.note)}</textarea></label>
+        <div class="grid2">
+          <label class="f" for="so-v-${i}">Value: what makes it useful or trustworthy<input type="text" id="so-v-${i}" data-bind="sources.${i}.value" value="${esc(s.value||"")}"></label>
+          <label class="f" for="so-l-${i}">Limitation: what it cannot tell you<input type="text" id="so-l-${i}" data-bind="sources.${i}.limit" value="${esc(s.limit||"")}"></label>
+        </div>
+        <div class="row between">
+          <label class="check" for="so-c-${i}"><input type="checkbox" id="so-c-${i}" data-bind="sources.${i}.used" data-rerender ${s.used?"checked":""}> Cited in the draft</label>
+          <label class="check" for="so-o-${i}"><input type="checkbox" id="so-o-${i}" data-bind="sources.${i}.opposes" data-rerender ${s.opposes?"checked":""}> Disagrees with my argument</label>
+          <button class="ghost" data-act="rmSource" data-i="${i}" data-confirm>Remove source</button>
+        </div>
+      </div>`).join("")}</div>
+    <div><button class="primary" data-act="addSource">Add source</button></div>
+  </section>
+  <section class="card">
+    <div class="row between"><h2>Evidence bank</h2><span class="pill idle num">${state.evidence.length} banked</span></div>
+    <p class="small muted">Quotations, paraphrases and data you plan to use, each with its page number. Tag an entry to a section and it appears under that section on the Draft page.</p>
+    <div class="list">${state.evidence.map((e,i)=>`
+      <div class="item" style="grid-template-columns:minmax(0,1fr)">
+        <label class="f" for="ev-x-${i}">The quotation, paraphrase or figure<textarea id="ev-x-${i}" data-bind="evidence.${i}.text" data-auto rows="2">${esc(e.text)}</textarea></label>
+        <div class="grid2">
+          <label class="f" for="ev-k-${i}">Kind<select id="ev-k-${i}" data-bind="evidence.${i}.kind">${["Quote","Paraphrase","Data"].map(k=>`<option${(e.kind||"Quote")===k?" selected":""}>${k}</option>`).join("")}</select></label>
+          <label class="f" for="ev-s-${i}">Source<select id="ev-s-${i}" data-bind="evidence.${i}.source"><option value="">Choose a source</option>${state.sources.map(s=>`<option value="${esc(s.id)}"${e.source===s.id?" selected":""}>${esc((s.author||"Unknown author")+(s.year?" "+s.year:"")+(s.title?": "+s.title:""))}</option>`).join("")}</select></label>
+          <label class="f" for="ev-p-${i}">Page or line<input type="text" id="ev-p-${i}" data-bind="evidence.${i}.page" value="${esc(e.page)}"></label>
+          <label class="f" for="ev-c-${i}">Use in section<select id="ev-c-${i}" data-bind="evidence.${i}.section"><option value="">Not decided</option>${state.sections.map(s=>`<option value="${esc(s.id)}"${e.section===s.id?" selected":""}>${esc(s.name)}</option>`).join("")}</select></label>
+        </div>
+        <label class="f" for="ev-n-${i}">What it proves<input type="text" id="ev-n-${i}" data-bind="evidence.${i}.note" value="${esc(e.note)}"></label>
+        <div><button class="ghost" data-act="rmEvidence" data-i="${i}" data-confirm>Remove entry</button></div>
+      </div>`).join("")}</div>
+    <div><button class="primary" data-act="addEvidence">Add evidence</button></div>
+  </section>
+  <section class="card">
+    <div class="row between"><h2>Working bibliography</h2><button data-act="copyBib" ${state.sources.length?"":"disabled"}>Copy list</button></div>
+    <p class="small muted">Alphabetical by author. This is a rough list: reformat it in the citation style your school uses before you submit.</p>
+    <div class="list" id="bib">${sortedSources().map(s=>`<p class="bib">${esc(bibLine(s))}</p>`).join("")}</div>
+  </section>`;
+}
+
+function viewReflection(){
+  const L = lang();
+  return headHTML("Reflection", `One reflective statement of up to ${fmt(L.refl)} ${L.unit}, written at the end of the process on the RPF. It is marked under Criterion E.`) + `
+  <section class="card">
+    <div class="row between"><h2>Reflective statement</h2><span id="r-pill"></span></div>
+    <textarea class="essay" id="f-refl" data-bind="reflection" data-auto placeholder="What did writing this essay change about how you research, plan or think?" aria-label="Reflective statement">${esc(state.reflection)}</textarea>
+    <div><button data-act="copyRefl">Copy statement</button></div>
+  </section>
+  <section class="card">
+    <div class="row between"><h2>Research journal</h2><button class="primary" data-act="addJournal">Add entry</button></div>
+    <p class="small muted">A few lines after each work session: what you did, what changed, what you decided and why. It is not submitted. It is what you will write the statement from.</p>
+    ${state.journal.length?"":`<p class="muted">No entries yet.</p>`}
+    <div class="list">${state.journal.map((j,i)=>[j,i]).reverse().map(([j,i])=>`
+      <div class="item" style="grid-template-columns:minmax(0,1fr)">
+        <div class="row between"><input type="date" id="jr-d-${i}" data-bind="journal.${i}.date" value="${esc(j.date)}" aria-label="Date of entry" style="width:auto"><button class="ghost" data-act="rmJournal" data-i="${i}" data-confirm>Remove entry</button></div>
+        <textarea id="jr-x-${i}" data-bind="journal.${i}.text" data-auto rows="2" aria-label="Journal entry" placeholder="Today I… This changed… I decided… because…">${esc(j.text)}</textarea>
+      </div>`).join("")}</div>
+  </section>
+  <section class="card">
+    <h2>Notes from your reflection sessions</h2>
+    ${state.sessions.some(s=>s.notes)?state.sessions.filter(s=>s.notes).map(s=>`<div><h3>${esc(s.name)}</h3><p class="muted">${esc(s.notes)}</p></div>`).join(""):`<p class="muted">Nothing yet. Add notes after each session on the Plan page and they appear here while you write.</p>`}
+  </section>
+  <section class="card">
+    <h2>Prompts that lead to evaluation</h2>
+    <div class="list small">
+      <p>Which decision would you make differently, and what does that tell you about how you work?</p>
+      <p>Where did a source or result contradict what you expected, and what did you do next?</p>
+      <p>Which skill is stronger now than when you started? Name the moment it was tested.</p>
+    </div>
+  </section>`;
+}
+
+function viewCriteria(){
+  const sum = CRITERIA.reduce((a,c)=>a+Number(state.scores[c.k]||0), 0);
+  return headHTML("Criteria", "Score your own draft the way an examiner would. These prompts are a self-check written for this app; the official level descriptors are in the IB guide your supervisor has.") + `
+  <section class="card">
+    <div class="row between"><div><span class="total num" id="c-total">${sum}</span> <span class="muted">/ 30 marks, by your own estimate</span></div></div>
+    <div class="bar"><i id="c-bar" style="width:${sum/30*100}%"></i></div>
+  </section>
+  ${CRITERIA.map(c=>`
+  <section class="card">
+    <div class="crit">
+      <div><h2>${c.k}. ${esc(c.name)}</h2><p class="muted small">${esc(c.q)}</p></div>
+      <div><label class="f" for="sc-${c.k}"><span><span class="score num" id="sv-${c.k}" style="color:var(--ink)">${Number(state.scores[c.k]||0)}</span> / ${c.max} marks</span>
+        <input type="range" id="sc-${c.k}" min="0" max="${c.max}" step="1" data-bind="scores.${c.k}" value="${Number(state.scores[c.k]||0)}"></label></div>
+    </div>
+    <div class="list">${c.checks.map((t,j)=>`<label class="check" for="ck-${c.k}-${j}"><input type="checkbox" id="ck-${c.k}-${j}" data-bind="checks.${c.k}${j}" ${state.checks[c.k+j]?"checked":""}> ${esc(t)}</label>`).join("")}</div>
+  </section>`).join("")}
+  <section class="card">
+    <h2>Before you submit</h2>
+    <div class="row">${(()=>{ const T = total(), L = lang(), r = count(state.reflection), a = state.sessions.filter(s=>s.attended).length, u = state.sources.filter(s=>s.url && !s.accessed).length;
+      return `<span class="pill ${T&&T<=L.limit?"ok":T>L.limit?"over":"idle"} num">Essay ${fmt(T)} / ${fmt(L.limit)}</span><span class="pill ${r&&r<=L.refl?"ok":r>L.refl?"over":"idle"} num">Reflection ${fmt(r)} / ${fmt(L.refl)}</span><span class="pill ${a===3?"ok":"warn"} num">${a} of 3 sessions attended</span><span class="pill ${u?"warn":"ok"} num">${u} links missing an access date</span>`; })()}</div>
+    <div class="list">${SUBMIT.map((t,j)=>`<label class="check" for="ck-S-${j}"><input type="checkbox" id="ck-S-${j}" data-bind="checks.S${j}" ${state.checks["S"+j]?"checked":""}> ${esc(t)}</label>`).join("")}</div>
+  </section>`;
+}
+
+/* ---------- walk-throughs ---------- */
+const STAGES = [
+  ["Start from an interest", ["What in my subject have I wanted to know more about?", "Is this inside one of my IB subjects?"]],
+  ["Narrow it to a question", ["Have I limited it by place, period, text, variable or case?", "Does it need an argument, or only a description?"]],
+  ["Test the question", ["Do the sources or data exist, and can I reach them?", "Could I answer it in 4,000 words?", "Could someone reasonably disagree with my answer?"]],
+  ["Plan evidence and method", ["What would count as evidence for each possible answer?", "Which method does my subject expect?", "Do I need ethics or safety approval?"]],
+  ["Take in sources or collect data", ["What do I need from this before I open it?", "Have I logged it with a page number or raw value?", "What can this source or measurement not tell me?"]],
+  ["Build the argument", ["Do my section claims, read in order, answer the question?", "Where is the strongest objection, and where do I answer it?"]],
+  ["Write a paragraph", ["Is my explanation longer than my evidence?", "Does the last sentence link back to the question?"]],
+  ["Evaluate", ["Which way does each limitation push my result?", "Does my conclusion claim more than my evidence supports?"]],
+  ["The final paper", ["Is every section doing a job for the argument?", "Is the total inside the limit?"]]
+];
+const W = [
+{s:"English A: Literature", g:"Language and literature", m:"Text analysis",
+ topic:"You read The Remains of the Day and noticed that the butler never says what he feels.", broad:"How does Ishiguro present memory?",
+ rq:"How does Ishiguro use an unreliable narrator to present self-deception in The Remains of the Day?",
+ narrow:"One novel, one technique, one effect. Memory became self-deception because that is something the narration does, which you can show on the page.",
+ test:"Look for ten passages where what the narrator says and what the reader understands come apart. If you find them, there is enough to analyse.",
+ plan:"Primary source: the novel, reread with one task. Secondary: two or three critics on unreliable narration, and one on this novel.",
+ intake:"Bank short quotations with page numbers and sort them into patterns: formal language, corrected memories, digressions at emotional moments.",
+ claims:["Formal language keeps feeling at a distance.", "Memories are revised as they are told.", "The narration breaks at the moment the truth is nearest."],
+ para:"Quote four or five words, name the technique, then spend three sentences on what the gap between the words and the feeling shows about self-deception.",
+ evalu:"Your reading is one interpretation. Say where a critic reads the narrator differently and why the passages support your reading more.",
+ outline:["Introduction and your reading in one sentence", "The terms: unreliable narration, self-deception", "Pattern one: distancing language", "Pattern two: revised memory", "Pattern three: where the narration breaks", "Your reading against the critic's, and conclusion"]},
+{s:"English A: Language and literature", g:"Language and literature", m:"Text analysis",
+ topic:"You noticed that two newspapers reported the same event in ways that felt like different events.", broad:"How do newspapers show bias?",
+ rq:"How do the front pages of two British newspapers use language and image to frame the result of the 2016 EU referendum?",
+ narrow:"Two named papers, one date, front pages only. Bias became framing through language and image, which are things you can point to.",
+ test:"Check that you can get clear copies of both front pages and that they differ enough to compare.",
+ plan:"Primary sources: the two front pages. Secondary: writing on media framing and on visual analysis, to give you terms.",
+ intake:"Annotate each page for headline verbs, pronouns, image choice, layout and what is left out. Bank each observation with its exact location.",
+ claims:["Headline wording assigns agency differently.", "Images cast the result as triumph or as loss.", "Layout tells the reader what matters most."],
+ para:"Set one feature from each paper side by side, name the device, and explain how each positions the reader. Compare inside the paragraph.",
+ evalu:"One day's front pages cannot stand for a paper's whole coverage. State that limit and keep your conclusion to these texts.",
+ outline:["Introduction: the texts and the question", "Framing: the concept and your terms", "Language compared", "Image compared", "Layout and omission compared", "What the framing does, limits, conclusion"]},
+{s:"Language acquisition", g:"Language acquisition", m:"Source-based argument",
+ topic:"You are learning Japanese and noticed that shop staff speak very differently from your textbook.", broad:"How is polite language used in Japan?",
+ rq:"To what extent does the honorific language used in Japanese convenience-store service reflect a change in attitudes to hierarchy?",
+ narrow:"One setting, one feature of the language, one cultural question. The essay is written in the language you are learning.",
+ test:"Check that linguists have written about service-industry honorifics, so you have scholarship to argue with as well as examples.",
+ plan:"Examples of the language from training manuals or published transcripts, plus scholarship on honorifics and on changing social attitudes.",
+ intake:"Bank each example in the original with your own gloss. Note who speaks to whom, because the relationship is the evidence.",
+ claims:["Service honorifics follow fixed scripts, not personal judgement.", "Scholars disagree on whether this shows respect or routine.", "The scripts suggest hierarchy has moved from persons to roles."],
+ para:"Give the phrase, explain its grammar, then argue what its use in this setting shows about the relationship between the speakers.",
+ evalu:"Published examples may be tidier than real speech. Say how that could weaken the link you draw to attitudes.",
+ outline:["Introduction and scope", "Honorifics: the forms you will discuss", "The service script, analysed", "What scholars say it shows", "Weighing the readings", "Limits and conclusion"]},
+{s:"History", g:"Individuals and societies", m:"Source-based argument",
+ topic:"You studied the Meiji period and wondered why farmers rebelled against a modernising government.", broad:"How did the Meiji Restoration change Japan?",
+ rq:"To what extent was the 1873 land tax reform responsible for the 1876 peasant uprising in Mie Prefecture?",
+ narrow:"One reform, one uprising, one prefecture. To what extent forces you to weigh the reform against other causes.",
+ test:"Check for primary material you can read, such as petitions, official reports and newspapers, and for historians who disagree.",
+ plan:"List rival causes first: rice prices, local assessment of land, other new burdens. Decide what evidence would show each one.",
+ intake:"For every source record who produced it and why. An official report was written by the side being protested against.",
+ claims:["The reform created the underlying grievance.", "Prices and local assessment explain the timing and the place.", "The government's own response shows what it believed the cause was."],
+ para:"Make a claim about one cause, give a primary and a secondary source, then judge how much weight that cause can carry.",
+ evalu:"Surviving records favour officials over farmers. Say how that tilts your picture and how far the judgement can go.",
+ outline:["Introduction with your judgement in brief", "The reform and what it changed", "The case for the reform as cause", "Rival causes", "Weighing the causes", "Source evaluation and conclusion"]},
+{s:"Economics", g:"Individuals and societies", m:"Source-based argument",
+ topic:"A local bookshop owner told you the tax rise hurt the business.", broad:"Was the consumption tax increase bad for business?",
+ rq:"To what extent did Japan's 2019 consumption tax increase reduce sales at independent bookshops in Setagaya, Tokyo?",
+ narrow:"One tax change, one kind of shop, one ward. Small enough that you can collect the data yourself.",
+ test:"Ask shops whether they will share sales figures before you commit. Without them there is no essay.",
+ plan:"Theory: price elasticity of demand and tax incidence. Primary data: shop records and interviews. Secondary: retail statistics.",
+ intake:"Record figures with their period and source. For each interview note what the owner could know and what they might want you to believe.",
+ claims:["Sales fell after the rise.", "The fall is larger than the tax alone predicts.", "Timing of purchases and online competition explain part of it."],
+ para:"State the claim, give the figures with a comparison period, apply the theory with a diagram, then say what it means for the extent.",
+ evalu:"Shops that agreed to share data may not be typical. Say which way that biases your figure.",
+ outline:["Introduction", "Theory and method", "What happened to sales", "What theory predicts and the gap", "Other explanations", "Evaluation and conclusion"]},
+{s:"Geography", g:"Individuals and societies", m:"Investigation with data",
+ topic:"You noticed that the streets empty out a few minutes' walk from the station.", broad:"How do stations affect cities?",
+ rq:"To what extent does distance from Shimokitazawa station affect pedestrian density and land use?",
+ narrow:"One station, two measurable variables, a distance you can walk and survey yourself.",
+ test:"Walk the area first. Check that you can count safely at fixed points and that land use changes within your range.",
+ plan:"Transects from the station, pedestrian counts at set distances and times, a land-use survey, and a model of urban land use to test.",
+ intake:"Record every count with time, weather and location. Photograph each survey point. Keep the raw sheets.",
+ claims:["Pedestrian density falls with distance.", "Land use shifts from retail to residential.", "The pattern departs from the model along one street, for a reason you can explain."],
+ para:"Present the graph, state the trend with numbers, then explain it using the model and any anomaly using what you saw on site.",
+ evalu:"Counts on a few days at a few times are a small sample. Say how weekday and weather may have changed the result.",
+ outline:["Introduction and hypothesis", "Location and theory", "Method and sampling", "Results: maps and graphs", "Analysis against the model", "Evaluation and conclusion"]},
+{s:"Psychology", g:"Individuals and societies", m:"Source-based argument",
+ topic:"You sleep badly before exams and wonder what it does to your thinking.", broad:"How does sleep affect the brain?",
+ rq:"To what extent does sleep deprivation impair working memory in adolescents?",
+ narrow:"One cause, one cognitive function, one age group. Psychology essays are normally built on published studies, not your own experiment. Confirm this with your supervisor.",
+ test:"Search for at least six empirical studies on this exact relationship in this age group, with some that disagree.",
+ plan:"Group the studies by method: laboratory deprivation, sleep restriction over days, and correlational studies of sleep habits.",
+ intake:"For each study log sample, method, measure of working memory, result and its main weakness. A table makes the comparison easy.",
+ claims:["Total deprivation studies show clear impairment.", "Partial restriction shows smaller and less consistent effects.", "Differences in how memory is measured explain much of the disagreement."],
+ para:"Describe one study briefly, then spend longer on what its method allows you to conclude and how it compares with the next study.",
+ evalu:"Laboratory tasks may not reflect school performance, and samples are often small. Limit your conclusion accordingly.",
+ outline:["Introduction and key terms", "Working memory and sleep: the theory", "Total deprivation studies", "Partial restriction studies", "Why the studies disagree", "Evaluation and conclusion"]},
+{s:"Business management", g:"Individuals and societies", m:"Source-based argument",
+ topic:"Your local supermarket replaced half its tills with self-checkout machines.", broad:"Is technology good for retailers?",
+ rq:"To what extent has the introduction of self-checkout improved operational efficiency at one named supermarket chain?",
+ narrow:"One company, one decision, one measure of success. Name a real company whose reports you can read.",
+ test:"Check that the company publishes annual reports and that news or industry coverage of the decision exists.",
+ plan:"Choose two or three business tools that fit, such as cost analysis, a SWOT analysis and a stakeholder analysis, and say why each fits.",
+ intake:"Separate what the company says about itself from what outsiders say. Log the date of every figure.",
+ claims:["Labour cost per transaction changed after the rollout.", "Customer experience and theft push the other way.", "On balance, efficiency improved to a degree you can state."],
+ para:"Apply one tool to the evidence, show the working, then say what the result means for efficiency.",
+ evalu:"Company reports present decisions favourably and you cannot see internal data. Say how far that limits the judgement.",
+ outline:["Introduction and the decision", "Method and tools", "Costs", "Customers, staff and losses", "Weighing the evidence", "Evaluation and conclusion"]},
+{s:"Biology", g:"Sciences", m:"Investigation with data",
+ topic:"You read that salty soil is a growing problem for farmers.", broad:"What affects germination?",
+ rq:"How does sodium chloride concentration (0 to 200 mM) affect the germination rate of radish seeds over seven days?",
+ narrow:"One independent variable with a stated range, one measurable outcome, one species, one time period.",
+ test:"Run a three-day trial with two concentrations. If you see a difference and can count it, the full experiment will work.",
+ plan:"Five or more concentrations, several dishes at each, fixed temperature, light and water volume. Get safety approval.",
+ intake:"Count at the same time each day. Record raw numbers and anything unexpected, such as mould or a dry dish.",
+ claims:["Germination falls as concentration rises.", "The fall is steepest above a threshold.", "The pattern fits what osmosis predicts."],
+ para:"Refer to the graph, state the trend with values and spread, then explain it with the biology of water uptake.",
+ evalu:"Say how seed variation and evaporation could have changed the percentages, in which direction, and what you would change.",
+ outline:["Introduction and hypothesis", "Background biology", "Method and variables", "Results", "Analysis", "Evaluation", "Conclusion"]},
+{s:"Chemistry", g:"Sciences", m:"Investigation with data",
+ topic:"A juice carton says to drink within three days of opening, and you wondered why.", broad:"What happens to vitamins in food?",
+ rq:"How does temperature (20 to 60 °C) affect the rate of vitamin C loss in orange juice, measured by iodine titration?",
+ narrow:"One variable with a range, one substance, one named technique. The method is in the question.",
+ test:"Practise the titration until repeat readings agree. If you cannot get a clear end point, change the technique before you start.",
+ plan:"Samples held at five temperatures, titrated at set times, with repeats. Read the chemistry of oxidation and reaction rates first.",
+ intake:"Record burette readings to the instrument's precision, with uncertainties. Note colour changes and anything that made an end point unclear.",
+ claims:["Vitamin C falls faster at higher temperature.", "The relationship follows a rate pattern you can describe.", "Your values compare in a stated way with published ones."],
+ para:"Present processed data with uncertainties, state the relationship, and explain it using collision theory and oxidation.",
+ evalu:"Separate random from systematic error. A consistently late end point shifts every value the same way: say which way.",
+ outline:["Introduction", "Background chemistry", "Method and safety", "Raw and processed data", "Analysis", "Evaluation", "Conclusion"]},
+{s:"Physics", g:"Sciences", m:"Investigation with data",
+ topic:"Squash players warm the ball before a match, and you wanted to know how much it matters.", broad:"Why do balls bounce?",
+ rq:"How does the temperature of a squash ball affect its coefficient of restitution?",
+ narrow:"One object, one independent variable, one defined physical quantity you can calculate from heights.",
+ test:"Drop a ball at two temperatures and film it. If you can read bounce height from the video, the method works.",
+ plan:"A water bath to set temperature, a fixed drop height, video against a scale, many drops at each temperature.",
+ intake:"Log temperature at the moment of each drop, because the ball cools in air. Keep the video files as raw data.",
+ claims:["Restitution rises with temperature.", "The rise levels off at the top of the range.", "Gas pressure and the rubber's properties together explain the curve."],
+ para:"Show the graph with error bars, describe the relationship mathematically, then give the physical explanation.",
+ evalu:"Cooling between bath and drop means the true temperature was lower than recorded. Estimate the size of that error.",
+ outline:["Introduction", "Theory: restitution and the ball", "Method", "Data and uncertainties", "Analysis", "Evaluation", "Conclusion"]},
+{s:"Mathematics", g:"Mathematics", m:"Investigation with data",
+ topic:"During flu season half your class was absent and you wondered whether mathematics could have predicted it.", broad:"How is maths used in medicine?",
+ rq:"How well does the SIR model describe the spread of seasonal influenza in a school, and how sensitive is it to the transmission rate?",
+ narrow:"One model, one setting, and a second part about sensitivity that needs real mathematics beyond plugging in numbers.",
+ test:"Check that you can follow the differential equations and that absence data for a school exists or can be requested.",
+ plan:"Derive the model, solve it numerically, fit it to data, then vary the transmission rate and study what changes.",
+ intake:"Work from a textbook treatment and one or two papers. Write out each derivation yourself so every step is yours and explained.",
+ claims:["The model reproduces the overall shape of the outbreak.", "Small changes in transmission rate change the peak greatly.", "The assumptions explain where the fit fails."],
+ para:"State what you will show, give the mathematics with each step justified, then interpret the result in words.",
+ evalu:"The model assumes everyone mixes equally. Explain how a real timetable breaks that assumption and what that does to the fit.",
+ outline:["Introduction and aim", "The model and its assumptions", "Derivation and numerical solution", "Fitting to data", "Sensitivity analysis", "Limits of the model and conclusion"]},
+{s:"Computer science", g:"Sciences", m:"Investigation with data",
+ topic:"You learned two sorting algorithms and were told one is usually faster.", broad:"Which sorting algorithm is best?",
+ rq:"To what extent is quicksort faster than merge sort on partially sorted arrays of ten thousand to one million integers?",
+ narrow:"Two algorithms, one kind of input, a stated size range. Best became faster on a defined case, which you can measure.",
+ test:"Write both algorithms and time one run. Check that the timings are stable enough to compare.",
+ plan:"Fix the language, machine and pivot rule. Generate inputs with controlled levels of sortedness. Repeat each run many times.",
+ intake:"Log every timing with its input size and sortedness. Read the theory of each algorithm's complexity before interpreting.",
+ claims:["On random input quicksort is faster.", "As sortedness rises the gap narrows or reverses, depending on the pivot.", "The measurements match the theoretical complexity in a stated way."],
+ para:"Present a graph, compare measured growth with the theoretical curve, and explain any departure by how the algorithm works.",
+ evalu:"Results depend on your implementation and machine. Say what would change with a different pivot rule or language.",
+ outline:["Introduction", "The algorithms and their complexity", "Experimental design", "Results", "Analysis against theory", "Evaluation and conclusion"]},
+{s:"Visual arts", g:"The arts", m:"Text analysis",
+ topic:"You saw Hokusai's prints of Mount Fuji and were struck by the blue.", broad:"Why is Hokusai famous?",
+ rq:"How did Hokusai's use of Prussian blue change the depiction of depth in Thirty-six Views of Mount Fuji?",
+ narrow:"One artist, one material, one visual effect, one series. The artworks themselves are your primary sources.",
+ test:"Check that you can see good reproductions, ideally some originals, and that art historians have written on the pigment.",
+ plan:"Choose three or four prints. Analyse each formally: colour, line, composition, space. Read on the pigment's arrival in Japan.",
+ intake:"Make your own annotated sketches or marked-up images. Note exactly where the blue is used and what it does to space.",
+ claims:["Graded blue creates distance in sky and water.", "Blue outlines replace black and soften the picture plane.", "Earlier prints without the pigment handle depth differently."],
+ para:"Point to one area of one print, describe what you see precisely, then argue what it does to the sense of depth.",
+ evalu:"Reproductions change colour, and prints fade. Say how far you can trust the blue you are looking at.",
+ outline:["Introduction", "The pigment and its context", "Print one", "Print two", "Comparison with earlier work", "Limits and conclusion"]},
+{s:"Interdisciplinary", g:"Interdisciplinary pathway", m:"Interdisciplinary",
+ topic:"Tokyo summers feel hotter in the centre, and you saw a garden on an office roof.", broad:"How can cities fight climate change?",
+ rq:"To what extent can rooftop greening reduce summer surface temperatures in central Tokyo, and at what economic cost?",
+ narrow:"One measure, one city, two parts that need two subjects: geography for the temperature, economics for the cost.",
+ test:"Check that temperature studies and cost figures both exist. If one subject has no evidence, the essay becomes single-subject.",
+ plan:"Geography: published measurements of surface temperature on green and bare roofs. Economics: cost-benefit analysis of installation and savings.",
+ intake:"Keep the two bodies of evidence in separate notes, then write a third set of notes on where they meet.",
+ claims:["Green roofs lower surface temperature by a measurable amount.", "The cost per building is high and the benefit is partly public.", "Together the subjects show when the policy is worth it."],
+ para:"Take a finding from one subject and use the other subject's tools on it. That paragraph is where the essay becomes interdisciplinary.",
+ evalu:"Evaluate each subject's evidence by its own standards, then say what combining them could not resolve.",
+ outline:["Introduction: why two subjects", "The temperature evidence", "The economic evidence", "Bringing them together", "Evaluation", "Conclusion"]}
+];
+let walkIdx = 0;
+function walkSlides(w){
+  const li = a => "<ul>" + a.map(x=>"<li>" + esc(x) + "</li>").join("") + "</ul>";
+  return [
+    `<p>${esc(w.topic)}</p><p class="weak">First attempt, too wide: ${esc(w.broad)}</p>`,
+    `<p class="strong">${esc(w.rq)}</p><p>${esc(w.narrow)}</p>`,
+    `<p>${esc(w.test)}</p>`,
+    `<p>${esc(w.plan)}</p><p class="small muted">Paper model: ${esc(w.m)}. See the Guide for its skeleton.</p>`,
+    `<p>${esc(w.intake)}</p>`,
+    `<p>One claim per section, in the order you will argue them:</p><ol>${w.claims.map(c=>"<li>"+esc(c)+"</li>").join("")}</ol>`,
+    `<p>${esc(w.para)}</p>`,
+    `<p>${esc(w.evalu)}</p>`,
+    `<p>The sections of the finished essay:</p><ol>${w.outline.map(c=>"<li>"+esc(c)+"</li>").join("")}</ol>`
+  ].map((body,i)=>`<article class="slide" aria-label="Step ${i+1} of ${STAGES.length}">
+      <p class="small muted num">Step ${i+1} of ${STAGES.length}</p><h2>${esc(STAGES[i][0])}</h2>
+      <div class="slide-cols"><div class="slide-main"><h3>In this essay</h3>${body}</div>
+      <div class="slide-ask"><h3>Ask yourself</h3>${li(STAGES[i][1])}</div></div></article>`).join("");
+}
+function viewWalk(){
+  const w = W[walkIdx], groups = [...new Set(W.map(x=>x.g))];
+  return headHTML("Walk-throughs", "Follow one essay from the first idea to the finished paper, one step per slide. " + W.length + " examples cover every subject group and the interdisciplinary pathway.") + `
+  <section class="card">
+    <label class="f" for="walk-pick">Choose an essay<select id="walk-pick">${groups.map(g=>`<optgroup label="${esc(g)}">${W.map((x,i)=>x.g===g?`<option value="${i}"${i===walkIdx?" selected":""}>${esc(x.s)}</option>`:"").join("")}</optgroup>`).join("")}</select></label>
+    <p><b>${esc(w.s)}.</b> ${esc(w.rq)}</p>
+    <div class="row" id="deck-steps">${STAGES.map((s,i)=>`<button class="ghost" data-act="goSlide" data-i="${i}">${i+1}. ${esc(s[0])}</button>`).join("")}</div>
+  </section>
+  <section class="card">
+    <div class="deck" id="deck" tabindex="0" aria-roledescription="carousel" aria-label="Walk-through slides">${walkSlides(w)}</div>
+    <div class="row between"><button data-act="prevSlide">Previous</button><span class="num muted" id="deck-pos">1 / ${STAGES.length}</span><button class="primary" data-act="nextSlide">Next</button></div>
+    <p class="small muted">Use the left and right arrow keys, or swipe. The arguments shown are illustrations of the thinking. Your own evidence decides your answer.</p>
+  </section>
+  <div class="row"><button data-act="prevWalk" ${walkIdx===0?"disabled":""}>Previous essay</button><button data-act="nextWalk" ${walkIdx===W.length-1?"disabled":""}>Next essay: ${walkIdx<W.length-1?esc(W[walkIdx+1].s):""}</button></div>`;
+}
+function slideIndex(){ const d = $("deck"); if(!d) return 0; let best = 0, bd = Infinity; [...d.children].forEach((c,i)=>{ const x = Math.abs(c.offsetLeft - d.scrollLeft); if(x < bd){ bd = x; best = i; } }); return best; }
+function goSlide(i){
+  const d = $("deck"); if(!d) return; i = Math.max(0, Math.min(STAGES.length-1, i));
+  d.scrollTo({left:d.children[i].offsetLeft, behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth"});
+}
+function markSlide(){
+  const i = slideIndex(), p = $("deck-pos"); if(p) p.textContent = (i+1) + " / " + STAGES.length;
+  const s = $("deck-steps"); if(s) [...s.children].forEach((b,j)=>{ b.style.color = j===i ? "var(--accent)" : ""; b.style.borderColor = j===i ? "var(--accent)" : ""; });
+}
+document.addEventListener("change", e=>{ if(e.target.id === "walk-pick"){ walkIdx = Number(e.target.value) || 0; render(); } });
+document.addEventListener("keydown", e=>{
+  if(tab !== "walkthroughs" || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if(e.key === "ArrowRight"){ e.preventDefault(); goSlide(slideIndex()+1); }
+  if(e.key === "ArrowLeft"){ e.preventDefault(); goSlide(slideIndex()-1); }
+});
+
+/* ---------- paper builder ---------- */
+const BSTAGES = [
+  ["Read the question", "Only the question is on the page. Work out what it is asking you to do."],
+  ["Rough notes", "Reading and first data go into notes. Nothing is written in the paper yet."],
+  ["Skeleton", "The headings go in, following the paper model for this kind of essay."],
+  ["One claim per section", "Each heading gets one sentence saying what that section will prove."],
+  ["Evidence into place", "Each note moves under the claim it supports. Gaps show what is still missing."],
+  ["Write the first section", "Start with the body section you know best. Claims and evidence turn into prose."],
+  ["Fill the body", "The remaining body sections are written, each starting where the last one ended."],
+  ["Evaluate and conclude", "Limits are named and the question is answered directly."],
+  ["Introduction last", "Now that the argument exists, the introduction can say what it is."]
+];
+const B_COMMON = {
+  3:["Sections are organised by job, never by the order I found things."],
+  4:["Read the claims in order. Together they should answer the question."],
+  5:["Every piece of evidence carries its source and page now, so I never hunt for it later."],
+  7:["Results or description first, explanation second. Do not mix them in one sentence."],
+  9:["Introduction last: now I know what I am introducing.", "In the real essay each section is five to ten times longer. The shape is the same."]
+};
+const B = [
+{s:"Economics", model:"Source-based argument with your own data", flag:"Figures are invented for illustration.",
+ title:"The 2019 consumption tax and independent bookshops in Setagaya",
+ rq:"To what extent did Japan's 2019 consumption tax increase reduce sales at independent bookshops in Setagaya, Tokyo?",
+ notes:{1:["It says to what extent: I need a judgement of degree, not yes or no.", "Key terms: the tax rise (8% to 10%, October 2019), independent bookshops, sales.", "I need other possible causes to weigh against the tax."],
+  2:["Theory: if demand is price inelastic, a small price rise should cut sales only slightly.", "Owner A: sales fell most in the first three months. Customers bought ahead in September.", "Four shops' records: October to December 2019 was 11% below a year earlier.", "Owner C blames online sellers more than the tax."],
+  6:["Pattern for each paragraph: claim, evidence, explanation, link to the question."],
+  8:["Name each limitation and say which way it pushes the result.", "The conclusion answers the question in its first sentence."]},
+ sections:[
+  {h:"Introduction", at:9, claim:"The situation, the question and my answer in brief.", ev:["Tax change: date and rates", "Why small shops are a useful case"],
+   text:"In October 2019 Japan raised its consumption tax from 8% to 10%. Books were not given the reduced rate that newspapers kept, so every bookshop faced a price rise at once. This essay asks to what extent that increase reduced sales at independent bookshops in Setagaya, Tokyo. Using sales records from four shops, interviews with their owners and the theory of price elasticity of demand, it argues that the tax reduced sales only to a limited extent, and that the timing of purchases and online competition explain more of the fall."},
+  {h:"What happened to sales", at:6, claim:"Sales fell after the rise.", ev:["Four shops: 11% lower, October to December 2019 against 2018", "Owner A: steepest in the first three months"],
+   text:"Sales fell after the tax rise. Across the four shops, revenue in October to December 2019 was 11% lower than in the same months of 2018. Owner A reports that the fall was steepest in October and eased by the new year. A decline that is sharp and then fades suggests a short-term shock, which is the first sign that the tax may not have changed how many books people buy over a year."},
+  {h:"What theory predicts", at:7, claim:"The fall is larger than the tax alone predicts.", ev:["Published estimate: demand for books is price inelastic [source]", "Price at the till rises by about 1.9%"],
+   text:"The fall is larger than the tax alone can explain. A rise from 8% to 10% increases the price a customer pays by about 1.9%. If demand for books is price inelastic, as [source] estimates, sales volume should fall by less than that. An 11% drop is several times larger, so either the estimate does not hold for these shops or other causes were at work."},
+  {h:"Other explanations", at:7, claim:"Timing and online competition explain part of the fall.", ev:["September 2019 sales 9% above a year earlier: buying ahead", "Owner C: regular customers moving online"],
+   text:"Two other causes account for part of the gap. First, sales in September 2019 were 9% higher than a year earlier, which supports Owner A's view that customers bought ahead of the rise. Some of the autumn fall is therefore a shift in timing. Second, Owner C describes regular customers moving to online sellers throughout 2019, a trend that began before the tax changed and cannot be attributed to it."},
+  {h:"Evaluation", at:8, claim:"The data is limited in ways that affect the answer.", ev:["Only four shops, all volunteers", "Three months each side of the change"],
+   text:"These findings rest on four shops that agreed to share records. Shops in serious difficulty are less likely to have taken part, so the true average fall may be larger than 11%. The comparison also covers only three months on each side of the change, which is long enough to show the shock but too short to show whether sales recovered fully."},
+  {h:"Conclusion", at:8, claim:"A direct answer to the question.", ev:[],
+   text:"The 2019 consumption tax increase reduced sales at these bookshops only to a limited extent. It triggered a sharp fall, but most of that fall reflects purchases brought forward and a longer move to online retail. A study covering more shops over a full year would show whether the remaining effect lasted."}]},
+{s:"English A: Literature", model:"Text analysis", flag:"Square brackets mark where your own quotations and critic would go.",
+ title:"Self-deception and the unreliable narrator in The Remains of the Day",
+ rq:"How does Ishiguro use an unreliable narrator to present self-deception in The Remains of the Day?",
+ notes:{1:["How does the author use: I must analyse technique and effect, not retell the plot.", "Terms to define: unreliable narrator, self-deception.", "I need passages where what he says and what I understand are different."],
+  2:["He says one when he means I.", "The night his father dies: all duty, almost no grief.", "He corrects his own memories. Which evening was Miss Kenton crying?", "He denies having worked for Lord Darlington, twice.", "The pier near the end: he almost says it."],
+  3:["One section per pattern, ordered from small evasions to the near-admission."],
+  6:["Quote a few words only. The analysis must be longer than the quotation."],
+  8:["In a literature essay, evaluating means testing my reading against another one."]},
+ sections:[
+  {h:"Introduction", at:9, claim:"The novel, the question and my reading in one sentence.", ev:["Who narrates, and from when", "The three patterns I will analyse"],
+   text:"Kazuo Ishiguro's The Remains of the Day is narrated by Stevens, a butler looking back on his service to Lord Darlington. He presents himself as a reliable witness, yet the reader repeatedly understands more than he says. This essay asks how Ishiguro uses that unreliable narration to present self-deception. It argues that three features of the narration, distancing language, revised memory and moments where the account breaks, show a man protecting himself from his own past."},
+  {h:"Language that keeps feeling at a distance", at:6, claim:"Formal language hides feeling from the narrator himself.", ev:["The night his father dies [p. __]", "The pronoun one in place of I [p. __]"],
+   text:"Stevens's formal language keeps his feelings at a distance from himself as well as from the reader. When he describes the evening his father died, he reports his duties at dinner in detail and his grief in almost none [short quotation, p. __]. He often says one where I would be natural, which turns a private feeling into a general rule of conduct. The reader sees a man in distress; the narrator sees a butler doing his job well. That gap is where the self-deception shows."},
+  {h:"Memory revised in the telling", at:7, claim:"He corrects his memories in ways that protect him.", ev:["A remark moved from one speaker to another [p. __]", "Miss Kenton crying: which evening? [p. __]"],
+   text:"Stevens also revises his memories as he tells them. He places a remark with one person, then decides it belonged to another, and he is unsure on which evening Miss Kenton stood crying behind a door [short quotation, p. __]. Each correction moves the memory away from a moment when he might have acted. Ishiguro lets the reader notice the pattern before the narrator does, so the unreliability reads as a defence more than as a lie."},
+  {h:"Where the narration breaks", at:7, claim:"The truth surfaces briefly and is put away again.", ev:["Two denials of Lord Darlington [p. __]", "The pier scene [p. __]"],
+   text:"The narration comes closest to breaking when Stevens twice denies having worked for Lord Darlington and then explains the denials away [short quotation, p. __]. Near the end, speaking to a stranger on a pier, he admits what the whole account has avoided [short quotation, p. __]. Because the admission is brief and he turns at once to the subject of bantering, the reader understands that self-knowledge has arrived but will not be allowed to stay."},
+  {h:"Another reading", at:8, claim:"A different reading, tested against the evidence.", ev:["A critic who reads the restraint as dignity [critic, year]"],
+   text:"A critic might argue that Stevens is not deceiving himself at all, and that his restraint is simply the professional dignity he describes [critic, year]. The revised memories make that reading hard to hold. A narrator who was merely reserved would have no reason to keep correcting the record in his own favour."},
+  {h:"Conclusion", at:8, claim:"A direct answer to the question.", ev:[],
+   text:"Ishiguro uses the unreliable narrator to present self-deception as something built from language and memory. Stevens's formality, his corrections and his rare admissions let the reader see what he cannot say. This reading rests on one novel and one line of criticism; a comparison with Ishiguro's other narrators would test how far it holds."}]},
+{s:"Biology", model:"Investigation with data", flag:"Data are invented for illustration.",
+ title:"Salt concentration and the germination of radish seeds",
+ rq:"How does sodium chloride concentration (0 to 200 mM) affect the germination rate of radish seeds over seven days?",
+ notes:{1:["How does X affect Y: I need an experiment with one variable changed and the rest controlled.", "Independent variable: salt concentration. Dependent: percentage germinated each day.", "What must stay the same? Temperature, light, water volume, seed batch."],
+  2:["Theory: salt lowers the water potential outside the seed, so less water enters.", "Trial run at 0 and 200 mM for three days: clear difference.", "Open dishes dried out by day three. Add lids.", "Decision: five concentrations, four dishes each, 25 seeds per dish."],
+  3:["Method before results. Analysis kept separate from results."],
+  6:["Write the method first, while I remember every choice.", "Justify each choice: why this range, why this many seeds."],
+  8:["For each weakness: what it is, which way it pushes the result, how to fix it."]},
+ sections:[
+  {h:"Introduction", at:9, claim:"Why it matters, the question and the hypothesis.", ev:["Salinity and crops [source]", "Hypothesis from osmosis"],
+   text:"Soil salinity limits crop growth in many farming regions, and germination is the first stage it can affect. This essay investigates how sodium chloride concentration, from 0 to 200 mM, affects the germination rate of radish seeds over seven days. Salt lowers the water potential around a seed, so the hypothesis is that germination will fall as concentration rises. Seeds were germinated at five concentrations under controlled conditions and counted daily."},
+  {h:"Method", at:6, claim:"Five concentrations, replicated, with everything else held constant.", ev:["Four dishes of 25 seeds at each concentration", "Lids on, 22 °C, counted daily"],
+   text:"Radish seeds were germinated in Petri dishes on filter paper moistened with 5 cm³ of sodium chloride solution at 0, 50, 100, 150 or 200 mM. Each concentration had four dishes of 25 seeds, giving 100 seeds per treatment, enough for percentages to be meaningful. Dishes were lidded after a trial showed that open dishes dried out, and all were kept at 22 °C in the same incubator. Germinated seeds were counted at the same time each day for seven days."},
+  {h:"Results", at:7, claim:"Germination falls from 96% to 12%.", ev:["Table 1: daily counts", "Figure 1: mean and range at day seven"],
+   text:"After seven days, mean germination was 96% at 0 mM, 91% at 50 mM, 74% at 100 mM, 41% at 150 mM and 12% at 200 mM (Figure 1). Variation between dishes was small at the lowest and highest concentrations and largest at 150 mM, where individual dishes ranged from 32% to 52%."},
+  {h:"Analysis", at:7, claim:"The fall fits osmosis and is steepest above 100 mM.", ev:["Water potential theory [textbook]", "Published tolerance values [source]"],
+   text:"Germination fell as salt concentration rose, and the fall was steepest between 100 and 150 mM. This fits the theory: dissolved salt lowers the water potential of the solution, so less water enters the seed by osmosis and fewer seeds take up enough to germinate. The small change between 0 and 50 mM suggests that radish seeds tolerate low salinity, which agrees with [published source]."},
+  {h:"Evaluation", at:8, claim:"Evaporation and a single seed batch limit the result.", ev:["One packet of seeds", "Some evaporation despite lids"],
+   text:"Seeds came from one packet, so the result may not hold for other varieties. Some water still evaporated through the lids, which would have made the solutions stronger than recorded. The effect of each stated concentration is therefore probably slightly overstated. Sealing the dishes with film and weighing them daily would correct this."},
+  {h:"Conclusion", at:8, claim:"A direct answer, with numbers.", ev:[],
+   text:"Increasing sodium chloride concentration from 0 to 200 mM reduced the seven-day germination rate of radish seeds from 96% to 12%, with the sharpest fall above 100 mM. The result supports the hypothesis and the osmotic explanation, within the limits of one seed batch and some evaporation."}]}
+];
+let bIdx = 0, bStage = 1, bTimer = 0;
+function bStop(){ clearInterval(bTimer); bTimer = 0; }
+function bNotes(b, n){ return (b.notes[n] || []).concat(B_COMMON[n] || []); }
+function viewBuilder(){
+  const b = B[bIdx], n = bStage, N = BSTAGES.length;
+  const words = b.sections.filter(s=>n>=s.at).reduce((a,s)=>a+(s.text.match(/\S+/g)||[]).length, 0);
+  const allWords = b.sections.reduce((a,s)=>a+(s.text.match(/\S+/g)||[]).length, 0);
+  const noteGroups = []; for(let k = n; k >= 1; k--){ const ns = bNotes(b, k); if(ns.length) noteGroups.push([k, ns]); }
+  const ph = `<div class="ph" style="width:96%"></div><div class="ph" style="width:88%"></div><div class="ph" style="width:62%"></div>`;
+  const paper = (n >= 9 ? `<p class="paper-title">${esc(b.title)}</p>` : "") + `<p class="paper-rq${n===1?" fresh":""}"><b>Research question:</b> ${esc(b.rq)}</p>` +
+    (n < 3 ? `<p class="small muted">${n===1?"Nothing else is on the page yet.":"Still nothing written. The work is happening in the notes."}</p>` :
+    b.sections.map(s=>{
+      const written = n >= s.at, fresh = n === s.at || (!written && (n === 3 || n === 4 || n === 5));
+      let body;
+      if(written) body = `<p>${esc(s.text)}</p>`;
+      else body = (n >= 4 ? `<p class="claim">${esc(s.claim)}</p>` : "") + (n >= 5 && s.ev.length ? `<ul class="small">${s.ev.map(e=>"<li>"+esc(e)+"</li>").join("")}</ul>` : "") + (n < 6 || !written ? ph : "");
+      return `<div class="psec${written?" done":""}${fresh&&(written||n<6)?" fresh":""}"><h3>${esc(s.h)}</h3>${body}</div>`;
+    }).join(""));
+  return headHTML("Paper builder", "Watch one essay form from the question alone: notes first, then a skeleton, then claims and evidence, then prose. Three short model papers, one for each main paper model.") + `
+  <section class="card">
+    <div class="grid2">
+      <label class="f" for="b-pick">Choose a paper<select id="b-pick">${B.map((x,i)=>`<option value="${i}"${i===bIdx?" selected":""}>${esc(x.s)}: ${esc(x.model)}</option>`).join("")}</select></label>
+      <div><p class="small muted num">Stage ${n} of ${N}</p><h2>${esc(BSTAGES[n-1][0])}</h2></div>
+    </div>
+    <p>${esc(BSTAGES[n-1][1])}</p>
+    <div class="bar"><i style="width:${n/N*100}%"></i></div>
+    <div class="row between">
+      <div class="row"><button data-act="bPrev" ${n===1?"disabled":""}>Previous</button><button data-act="bPlay">${bTimer?"Pause":n===N?"Replay":"Play"}</button><button class="primary" data-act="bNext" ${n===N?"disabled":""}>Next stage</button></div>
+      <span class="pill ${words?"ok":"idle"} num">${fmt(words)} of ${fmt(allWords)} words written</span>
+    </div>
+  </section>
+  <div class="build">
+    <section class="card"><h2>Notes and thinking</h2>
+      ${noteGroups.map(([k,ns],gi)=>`<div class="ngroup${gi===0?" fresh":""}"><p class="small muted">Stage ${k}: ${esc(BSTAGES[k-1][0])}</p><ul>${ns.map(x=>"<li>"+esc(x)+"</li>").join("")}</ul></div>`).join("")}
+    </section>
+    <section class="paper" aria-label="The paper so far">${paper}
+      ${n===N?`<p class="small muted">${esc(b.flag)} This model is about ${fmt(Math.round(allWords/50)*50)} words. A real essay keeps this shape at up to 4,000.</p>`:`<p class="small muted">${esc(b.flag)}</p>`}
+    </section>
+  </div>`;
+}
+document.addEventListener("change", e=>{ if(e.target.id === "b-pick"){ bStop(); bIdx = Number(e.target.value) || 0; bStage = 1; render(); } });
+
+const VIEWS = {guide:viewGuide, walkthroughs:viewWalk, builder:viewBuilder, plan:viewPlan, draft:viewDraft, sources:viewSources, reflection:viewReflection, criteria:viewCriteria};
+
+function render(){
+  const T = total(), L = lang();
+  const counts = {walkthroughs:W.length, builder:B.length, plan:state.milestones.filter(x=>x.done).length + "/" + state.milestones.length, draft:fmt(T), sources:state.sources.length,
+    reflection:fmt(count(state.reflection)), criteria:CRITERIA.reduce((a,c)=>a+Number(state.scores[c.k]||0),0) + "/30"};
+  $("nav").innerHTML = TABS.map(([k,n])=>`<a href="#${k}" ${k===tab?'aria-current="page"':""}>${n}<span class="num" id="nav-${k}">${counts[k]==null?"":counts[k]}</span></a>`).join("");
+  const banner = state.example ? `<div class="banner"><span><b>This is example content</b> so you can see how the workspace fills up.</span><button data-act="clearExample">Clear it and start my essay</button></div>` : "";
+  $("view").innerHTML = banner + VIEWS[tab]();
+  document.querySelectorAll("textarea[data-auto]").forEach(grow);
+  const dk = $("deck"); if(dk){ dk.addEventListener("scroll", markSlide, {passive:true}); markSlide(); }
+  updateCounts();
+}
+function grow(el){ el.style.height = "auto"; el.style.height = (el.scrollHeight + 2) + "px"; }
+
+function updateCounts(){
+  const L = lang(), T = total(), [k, txt] = status(T, L.limit);
+  $("m-total").textContent = fmt(T); $("m-limit").textContent = fmt(L.limit); $("m-unit").textContent = L.unit;
+  $("m-total").style.color = T > L.limit ? "var(--over)" : "";
+  $("m-bar").className = "bar" + (T > L.limit ? " over" : ""); $("m-bar").firstElementChild.style.width = Math.min(100, T / L.limit * 100) + "%";
+  $("m-left").textContent = T ? txt : "Nothing drafted yet";
+  const set = (id, v) => { const e = $(id); if(e) e.textContent = v; };
+  set("nav-draft", fmt(T)); set("nav-reflection", fmt(count(state.reflection)));
+  const sum = CRITERIA.reduce((a,c)=>a+Number(state.scores[c.k]||0), 0);
+  set("nav-criteria", sum + "/30");
+  if(tab === "draft"){
+    $("ruler").innerHTML = rulerHTML(); $("d-pace").textContent = pace(); $("arg-list").innerHTML = argHTML();
+    $("d-pill").className = "pill num " + k; $("d-pill").textContent = fmt(T) + " used · " + txt;
+    state.sections.forEach((s,i)=>{
+      const c = count(s.text), t = Number(s.target) || 0;
+      set("sec-c-"+i, fmt(c));
+      const b = $("sec-b-"+i); if(b){ b.className = "bar" + (t && c > t*1.15 ? " over" : ""); b.firstElementChild.style.width = (t ? Math.min(100, c/t*100) : 0) + "%"; }
+    });
+  }
+  if(tab === "reflection"){
+    const n = count(state.reflection), [rk, rt] = status(n, L.refl);
+    $("r-pill").className = "pill num " + rk; $("r-pill").textContent = fmt(n) + " / " + fmt(L.refl) + " · " + rt;
+  }
+  if(tab === "criteria"){
+    set("c-total", sum); const cb = $("c-bar"); if(cb) cb.style.width = (sum/30*100) + "%";
+    CRITERIA.forEach(c=>set("sv-"+c.k, Number(state.scores[c.k]||0)));
+  }
+  if(tab === "plan"){
+    const rq = state.meta.rq.trim(), n = (rq.match(/\S+/g)||[]).length, h = $("rq-hints");
+    if(h){
+      const isQ = /[?？]$/.test(rq);
+      h.innerHTML = !rq ? `<span class="hint">Write the question you want to answer.</span>` :
+        `<span class="hint ${isQ?"ok":"warn"}">${isQ?"Phrased as a question":"Phrase it as a question ending in a question mark"}</span>` +
+        (state.meta.lang==="words" ? `<span class="hint ${n<=35?"ok":"warn"}">${n<=35?n+" words: short enough to keep in view":n+" words: try to narrow it to one clear question"}</span>` : "");
+    }
+  }
+}
+
+/* ---------- events ---------- */
+document.addEventListener("input", e=>{
+  const el = e.target, path = el.dataset && el.dataset.bind; if(!path) return;
+  let v = el.type === "checkbox" ? el.checked : (el.type === "number" || el.type === "range") ? Number(el.value) : el.value;
+  setPath(path, v);
+  if(el.matches("textarea[data-auto]")) grow(el);
+  touch();
+  if("rerender" in el.dataset && e.type === "input" && el.type !== "date") render(); else updateCounts();
+});
+document.addEventListener("change", e=>{ const el = e.target; if(el.dataset && "rerender" in el.dataset && el.type === "date") render(); });
+
+function essayMarkdown(){
+  const m = state.meta, out = [];
+  out.push("# " + (m.title || "Extended Essay"), "");
+  if(m.rq) out.push("**Research question:** " + m.rq, "");
+  if(m.subject) out.push("**Subject:** " + m.subject, "");
+  out.push("**Count:** " + fmt(total()) + " " + lang().unit, "");
+  state.sections.forEach(s=>{ out.push("## " + s.name, "", s.text.trim(), ""); });
+  if(state.sources.length){ out.push("## Bibliography", ""); sortedSources().forEach(s=>out.push("- " + bibLine(s))); out.push(""); }
+  return out.join("\n");
+}
+async function copy(text, what){
+  try{ await navigator.clipboard.writeText(text); toast(what + " copied."); }
+  catch(e){ toast("Copying was blocked here. Select the text and copy it by hand."); }
+}
+const ACTIONS = {
+  clearExample(){ const keepLang = state.meta.lang; state = blankState(); state.meta.lang = keepLang; },
+  addSection(){ state.sections.push({id:uid(), name:"New section", target:500, claim:"", text:""}); },
+  rmSection(i){ state.sections.splice(i,1); },
+  up(i){ if(i>0) state.sections.splice(i-1, 0, state.sections.splice(i,1)[0]); },
+  down(i){ if(i<state.sections.length-1) state.sections.splice(i+1, 0, state.sections.splice(i,1)[0]); },
+  addSource(){ state.sources.push({id:uid(), author:"", year:"", title:"", where:"", url:"", accessed:today(), type:"", value:"", limit:"", opposes:false, note:"", used:false}); },
+  rmSource(i){ state.sources.splice(i,1); },
+  addEvidence(){ state.evidence.push({id:uid(), kind:"Quote", text:"", source:"", page:"", section:"", note:""}); },
+  rmEvidence(i){ state.evidence.splice(i,1); },
+  addJournal(){ state.journal.push({id:uid(), date:today(), text:""}); },
+  rmJournal(i){ state.journal.splice(i,1); },
+  addMilestone(){ state.milestones.push({id:uid(), name:"New milestone", date:"", done:false}); },
+  rmMilestone(i){ state.milestones.splice(i,1); }
+};
+document.addEventListener("click", async e=>{
+  const b = e.target.closest("button[data-act]"); if(!b) return;
+  const act = b.dataset.act, i = Number(b.dataset.i);
+  if(act === "jump"){ const t = $(b.dataset.to); if(t) t.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth", block:"start"}); return; }
+  if(act === "bNext" || act === "bPrev"){ bStop(); bStage = Math.max(1, Math.min(BSTAGES.length, bStage + (act === "bNext" ? 1 : -1))); render(); return; }
+  if(act === "bPlay"){
+    if(bTimer){ bStop(); render(); return; }
+    if(bStage >= BSTAGES.length) bStage = 1;
+    bTimer = setInterval(()=>{ if(tab !== "builder" || bStage >= BSTAGES.length){ bStop(); if(tab === "builder") render(); return; } bStage++; if(bStage >= BSTAGES.length) bStop(); render(); }, 3200);
+    render(); return;
+  }
+  if(act === "goSlide") return goSlide(i);
+  if(act === "nextSlide") return goSlide(slideIndex()+1);
+  if(act === "prevSlide") return goSlide(slideIndex()-1);
+  if(act === "nextWalk" || act === "prevWalk"){ walkIdx = Math.max(0, Math.min(W.length-1, walkIdx + (act === "nextWalk" ? 1 : -1))); render(); window.scrollTo(0,0); return; }
+  if(act === "copyEssay") return copy(essayMarkdown(), "Essay");
+  if(act === "copyBib") return copy(sortedSources().map(bibLine).join("\n"), "Bibliography");
+  if(act === "copyRefl") return copy(state.reflection, "Statement");
+  if(act === "downloadEssay"){
+    if(!downloads) return;
+    try{ await downloads.save({filename:"extended-essay-draft.md", data:essayMarkdown() || " "}); toast("Draft downloaded."); }
+    catch(err){ if(!err || err.code !== "declined") toast("The download didn't go through. Use Copy essay instead."); }
+    return;
+  }
+  if("confirm" in b.dataset && !("armed" in b.dataset)){
+    b.dataset.armed = ""; b.dataset.label = b.textContent; b.textContent = "Click again to remove";
+    setTimeout(()=>{ if(b.isConnected){ delete b.dataset.armed; b.textContent = b.dataset.label; } }, 3000);
+    return;
+  }
+  if(ACTIONS[act]){ ACTIONS[act](i); touch(); render(); }
+});
+function route(){
+  const h = location.hash.replace("#", "");
+  tab = VIEWS[h] ? h : "plan"; bStop();
+  render(); window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+
+/* ---------- start ---------- */
+state = loadLocal() || exampleState();
+route();
+connect();
+</script>
+</body>
+</html>
